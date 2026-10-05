@@ -816,7 +816,7 @@ MENUMAPTEXT|29|0,Garrison,수비대,mt
 MENUMAPTEXT|3|0,Build...,건설...,mt
 MENUMAPTEXT|30|0,Clear Hotspot,핫스팟 해제,mt
 MENUMAPTEXT|31|0,Map Ping,지도 신호,mt
-MENUMAPTEXT|32|0,Toggle Nav Point,항법 지점 전환,mt
+MENUMAPTEXT|32|0,Toggle Nav Point,탐색 지점 전환,mt
 MENUMAPTEXT|33|0,Filters...,필터...,mt
 MENUMAPTEXT|34|0,Combat Overlays...,전투 오버레이...,mt
 MENUMAPTEXT|35|0,Map Overlays...,지도 오버레이...,mt
@@ -833,7 +833,7 @@ MENUMAPTEXT|44|0,Capital Star Relationships,수도 별 관계,mt
 MENUMAPTEXT|45|0,Units,유닛,mt
 MENUMAPTEXT|46|0,Unit HUDs,유닛 HUD,mt
 MENUMAPTEXT|47|0,Facility HUDs,시설 HUD,mt
-MENUMAPTEXT|48|0,Nav Points,항법 지점,mt
+MENUMAPTEXT|48|0,Nav Points,탐색 지점,mt
 MENUMAPTEXT|49|0,Battle Zones,전투 구역,mt
 MENUMAPTEXT|5|0,Build Military...,군사 건설...,mt
 MENUMAPTEXT|50|0,Theaters,전구,mt

@@ -65,8 +65,8 @@ GUITRANS|Affect Existing Levels,Affect Existing Levels,현재 수준에 적용,m
 GUITRANS|AGRICULTURE,AGRICULTURE,농산물,mt
 GUITRANS|AI Region Setting,AI Region Setting,AI 지역 설정,mt
 GUITRANS|AID SCHEDULE,AID SCHEDULE,지원 일정,mt
-GUITRANS|AIR,AIR,공군,mt
-GUITRANS|Air,Air,공군,mt
+GUITRANS|AIR,AIR,항공,mt
+GUITRANS|Air,Air,항공,mt
 GUITRANS|Air Autobuild is Active,Air Autobuild is Active,공군 자동 생산 켜짐,mt
 GUITRANS|Air Autobuild is Inactive,Air Autobuild is Inactive,공군 자동 생산 꺼짐,mt
 GUITRANS|Air Defense Bonus,Air Defense Bonus,방공 보너스,mt
@@ -94,7 +94,7 @@ GUITRANS|Allow Nuclear Missile Use,Allow Nuclear Missile Use,핵미사일 사용
 GUITRANS|Allow Nuclear Weapons,Allow Nuclear Weapons,핵무기 허용,mt
 GUITRANS|ALLOW TACTICAL NUKES,ALLOW TACTICAL NUKES,전술핵 허용,mt
 GUITRANS|Allow Tactical Nukes,Allow Tactical Nukes,전술핵 허용,mt
-GUITRANS|Amount,Amount,수량,mt
+GUITRANS|Amount,Amount,금액,mt
 GUITRANS|AMOUNT,AMOUNT,수량,mt
 GUITRANS|Amphibious,Amphibious,상륙,mt
 GUITRANS|Amphibious Unit Move Modifier,Amphibious Unit Move Modifier,상륙 유닛 이동 보정,mt
@@ -882,8 +882,8 @@ GUITRANS|Must be a U.N. Member State to Sign Treaties,Must be a U.N. Member Stat
 GUITRANS|Mute Music,Mute Music,음악 끄기,mt
 GUITRANS|Mute Sound,Mute Sound,소리 끄기,mt
 GUITRANS|NAME,NAME,이름,mt
-GUITRANS|NAVAL,NAVAL,해군,mt
-GUITRANS|Naval,Naval,해군,mt
+GUITRANS|NAVAL,NAVAL,해상,mt
+GUITRANS|Naval,Naval,해상,mt
 GUITRANS|Naval Autobuild is Active,Naval Autobuild is Active,해군 자동 생산 켜짐,mt
 GUITRANS|Naval Autobuild is Inactive,Naval Autobuild is Inactive,해군 자동 생산 꺼짐,mt
 GUITRANS|Naval Reserves,Naval Reserves,해군 예비 전력,mt
@@ -953,7 +953,7 @@ GUITRANS|Obsolete,Obsolete,구형,mt
 GUITRANS|Obsolete Design,Obsolete Design,구형 설계,mt
 GUITRANS|OBSOLETE UNITS,OBSOLETE UNITS,구형 유닛,mt
 GUITRANS|OF,OF,/,mt
-GUITRANS|OFF,OFF,꺼짐,mt
+GUITRANS|OFF,OFF,끔,mt
 GUITRANS|Offer / Request Through Diplomatic Offer,Offer / Request Through Diplomatic Offer,외교 제안으로 제안 / 요청,mt
 GUITRANS|Offer Ceasefire,Offer Ceasefire,휴전 제안,mt
 GUITRANS|OFFER EXPIRATION,OFFER EXPIRATION,제안 만료,mt
@@ -961,7 +961,7 @@ GUITRANS|Offer Peace,Offer Peace,평화 제안,mt
 GUITRANS|OFFER VALUE,OFFER VALUE,제안 가치,mt
 GUITRANS|Offered,Offered,제안됨,mt
 GUITRANS|OK,OK,확인,mt
-GUITRANS|On,On,켜짐,mt
+GUITRANS|On,On,켬,mt
 GUITRANS|On Order,On Order,주문 중,mt
 GUITRANS|Ongoing Treaties and Trades,Ongoing Treaties and Trades,진행 중인 조약 및 무역,mt
 GUITRANS|Open Chat <Enter>,Open Chat <Enter>,채팅 열기 <Enter>,mt
@@ -1079,7 +1079,7 @@ GUITRANS|Quit to Main Menu,Quit to Main Menu,주 메뉴로 나가기,mt
 GUITRANS|RAILS,RAILS,철도,mt
 GUITRANS|Rally Point,Rally Point,집결지,mt
 GUITRANS|Random Regions,Random Regions,무작위 지역,mt
-GUITRANS|Rate,Rate,비율,mt
+GUITRANS|Rate,Rate,이율,mt
 GUITRANS|Rate of Subsidy,Rate of Subsidy,보조금 비율,mt
 GUITRANS|RAW MATERIALS USE,RAW MATERIALS USE,원자재 사용,mt
 GUITRANS|Reaction Time,Reaction Time,반응 시간,mt
@@ -1384,7 +1384,7 @@ GUITRANS|Supply,Supply,보급,mt
 GUITRANS|SUPPLY %,SUPPLY %,보급 %,mt
 GUITRANS|Supply (Average),Supply (Average),보급 (평균),mt
 GUITRANS|Supreme Ruler 2020 Cheats,Supreme Ruler 2020 Cheats,Supreme Ruler 2020 치트,mt
-GUITRANS|Sustainability,Sustainability,지속 가능성,mt
+GUITRANS|Sustainability,Sustainability,지속 기간,mt
 GUITRANS|Swap Secondary Mouse Buttons,Swap Secondary Mouse Buttons,보조 마우스 버튼 교체,mt
 GUITRANS|TACTICAL INFORMATION,TACTICAL INFORMATION,전술 정보,mt
 GUITRANS|Tactical Nukes,Tactical Nukes,전술핵,mt
@@ -1478,7 +1478,7 @@ GUITRANS|Transport Filter,Transport Filter,수송 필터,mt
 GUITRANS|Treasury,Treasury,국고,mt
 GUITRANS|TREATIES,TREATIES,조약,mt
 GUITRANS|TREATY DETAILS,TREATY DETAILS,조약 상세,mt
-GUITRANS|Treaty Integrity,Treaty Integrity,조약 이행도,mt
+GUITRANS|Treaty Integrity,Treaty Integrity,조약 신뢰도,mt
 GUITRANS|Turn Off Resource Overlay,Turn Off Resource Overlay,자원 오버레이 끄기,mt
 GUITRANS|Turns off AI initiative including for human player,Turns off AI initiative including for human player,플레이어를 포함해 AI 재량권을 끕니다,mt
 GUITRANS|TYPE,TYPE,유형,mt
@@ -2151,7 +2151,7 @@ GUITRANS|Add All Platforms to Pool,Add All Platforms to Pool,풀에 플랫폼 �
 GUITRANS|Remove Missile from Pool,Remove Missile from Pool,풀에서 미사일 제거,mt
 GUITRANS|AVAILABLE PLATFORMS,AVAILABLE PLATFORMS,사용 가능 플랫폼,mt
 GUITRANS|POOL,POOL,풀,mt
-GUITRANS|RESERVES,RESERVES,예비 전력,mt
+GUITRANS|RESERVES,RESERVES,비축분,mt
 GUITRANS|USA Rating,USA Rating,미국 평가,mt
 GUITRANS|USSR Rating,USSR Rating,소련 평가,mt
 GUITRANS|Turn on Strategic Launch Capability,Turn on Strategic Launch Capability,전략 발사 능력 켜기,mt
@@ -2309,9 +2309,9 @@ GUITRANS|Borders: On,Borders: On,국경: 켬,mt
 GUITRANS|Break All Treaties with This Nation,Break All Treaties with This Nation,이 나라와 모든 조약 파기,mt
 GUITRANS|Briefing,Briefing,브리핑,mt
 GUITRANS|Broad Focus,Broad Focus,광범위 중점,mt
-GUITRANS|BUILD CAPACITY,BUILD CAPACITY,건설 용량,mt
+GUITRANS|BUILD CAPACITY,BUILD CAPACITY,생산 능력,mt
 GUITRANS|BUILD RAILS,BUILD RAILS,철도 건설,mt
-GUITRANS|Building,Building,건설 중,mt
+GUITRANS|Building,Building,생산 중,mt
 GUITRANS|Buy Now,Buy Now,즉시 구매,mt
 GUITRANS|BZone,BZone,,
 GUITRANS|CABINET PRIORITIES,CABINET PRIORITIES,내각 우선순위,mt
@@ -2587,7 +2587,7 @@ GUITRANS|State of War,State of War,교전 상태,mt
 GUITRANS|Strategic Targeting,Strategic Targeting,전략 표적 설정,mt
 GUITRANS|STRATEGIC TARGETING POOL,STRATEGIC TARGETING POOL,전략 표적 풀,mt
 GUITRANS|Surplus Quantity Market Price,Surplus Quantity Market Price,잉여 수량 시장 가격,mt
-GUITRANS|SUSTAINABILITY,SUSTAINABILITY,지속 가능성,mt
+GUITRANS|SUSTAINABILITY,SUSTAINABILITY,지속 기간,mt
 GUITRANS|Target,Target,표적,mt
 GUITRANS|Techincal Readout,Techincal Readout,기술 제원,mt
 GUITRANS|TECHLEVEL,TECHLEVEL,기술 수준,mt
@@ -2620,7 +2620,7 @@ GUITRANS|TRADE CONTROLS,TRADE CONTROLS,무역 제어,mt
 GUITRANS|Traded units move from buyer to seller when selected,Traded units move from buyer to seller when selected,선택하면 교역된 유닛이 구매자에서 판매자로 이동합니다,mt
 GUITRANS|TRANSPORTATION,TRANSPORTATION,교통,mt
 GUITRANS|Transportation Infrastructure,Transportation Infrastructure,교통 인프라,mt
-GUITRANS|TREATY INTEGRITY,TREATY INTEGRITY,조약 이행도,mt
+GUITRANS|TREATY INTEGRITY,TREATY INTEGRITY,조약 신뢰도,mt
 GUITRANS|Unfiltered - All Facilities,Unfiltered - All Facilities,필터 없음 - 전체 시설,mt
 GUITRANS|Unit Delievery Point,Unit Delievery Point,유닛 인도 지점,mt
 GUITRANS|Unit Model Size,Unit Model Size,유닛 모델 크기,mt
@@ -2629,7 +2629,7 @@ GUITRANS|Unit or Facility Pre-Requisite,Unit or Facility Pre-Requisite,유닛 �
 GUITRANS|Units In Queue,Units In Queue,대기열 유닛,mt
 GUITRANS|Unknown Prerequisites,Unknown Prerequisites,알 수 없는 선행 조건,mt
 GUITRANS|Unsold Units add to¶Bulk Sales on the Market,Unsold Units add to¶Bulk Sales on the Market,미판매 유닛은 시장의¶대량 판매에 추가됩니다,mt
-GUITRANS|Unused Build Capacity,Unused Build Capacity,미사용 건설 용량,mt
+GUITRANS|Unused Build Capacity,Unused Build Capacity,미사용 생산 능력,mt
 GUITRANS|UNUSED RESEARCH SLOTS,UNUSED RESEARCH SLOTS,미사용 연구 슬롯,mt
 GUITRANS|Use 3D Terrain,Use 3D Terrain,3D 지형 사용,mt
 GUITRANS|Use Hardware Mouse Pointer,Use Hardware Mouse Pointer,하드웨어 마우스 포인터 사용,mt
@@ -2730,7 +2730,7 @@ GUITRANS|Back,Back,뒤로,mt
 GUITRANS|Balanced,Balanced,균형,mt
 GUITRANS|BattleZones Overlay,BattleZones Overlay,전투 구역 오버레이,mt
 GUITRANS|Build a Facility At Governor Suggested Location,Build a Facility At Governor Suggested Location,총독 추천 위치에 시설 건설,mt
-GUITRANS|Build Capacity,Build Capacity,건설 용량,mt
+GUITRANS|Build Capacity,Build Capacity,생산 능력,mt
 GUITRANS|BUILDING,BUILDING,건설 중,mt
 GUITRANS|Center,Center,중앙,mt
 GUITRANS|Capital Star Relationship,Capital Star Relationship,수도 항성 관계,mt
@@ -2962,14 +2962,14 @@ GUITRANS|War Opinion - Support/Neutral/Condemn,War Opinion - Support/Neutral/Con
 GUITRANS|WAR SUPPORT,WAR SUPPORT,전쟁 지지,mt
 GUITRANS|WARS,WARS,전쟁,mt
 GUITRANS|Fleet Size,Fleet Size,함대 규모,mt
-GUITRANS|Remove From Navpoints,Remove From Navpoints,항법 지점에서 제거,mt
-GUITRANS|Navpoints,Navpoints,항법 지점,mt
-GUITRANS|Add To Navpoints,Add To Navpoints,항법 지점에 추가,mt
+GUITRANS|Remove From Navpoints,Remove From Navpoints,탐색 지점에서 제거,mt
+GUITRANS|Navpoints,Navpoints,탐색 지점,mt
+GUITRANS|Add To Navpoints,Add To Navpoints,탐색 지점에 추가,mt
 GUITRANS|Galaxy Size,Galaxy Size,은하 크기,mt
 GUITRANS|Locate Feet,Locate Feet,함대 위치 찾기,mt
 GUITRANS|LOCATION DIRECTORY,LOCATION DIRECTORY,위치 목록,mt
 GUITRANS|GALACTIC NAVIGATION,GALACTIC NAVIGATION,은하 항법,mt
-GUITRANS|NAVIGATION POINTS,NAVIGATION POINTS,항법 지점,mt
+GUITRANS|NAVIGATION POINTS,NAVIGATION POINTS,탐색 지점,mt
 GUITRANS|INHABITED PLANETS,INHABITED PLANETS,거주 행성,mt
 GUITRANS|Governor Locked From Research Controls,Governor Locked From Research Controls,총독의 연구 제어 잠금,mt
 GUITRANS|Governor Allowed Research Controls,Governor Allowed Research Controls,총독의 연구 제어 허용,mt
@@ -3021,7 +3021,7 @@ GUITRANS|List of Our Colonies,List of Our Colonies,아군 식민지 목록,mt
 GUITRANS|List of Our Enemies,List of Our Enemies,아군의 적 목록,mt
 GUITRANS|Lock Governor from Garrison Controls,Lock Governor from Garrison Controls,총독의 수비대 제어 잠금,mt
 GUITRANS|Minimize Panel,Minimize Panel,패널 최소화,mt
-GUITRANS|Navigation,Navigation,항법,mt
+GUITRANS|Navigation,Navigation,탐색,mt
 GUITRANS|NEXT ELECTION,NEXT ELECTION,다음 선거,mt
 GUITRANS|No Beacon in System,No Beacon in System,성계에 비콘 없음,mt
 GUITRANS|No Messages to Clear,No Messages to Clear,지울 메시지 없음,mt
@@ -3182,7 +3182,7 @@ GUITRANS|Military Approval,Military Approval,군 지지율,mt
 GUITRANS|Military Units,Military Units,군사 유닛,mt
 "GUITRANS|Military, Economic and Diplomatic Difficulty","Military, Economic and Diplomatic Difficulty",군사·경제·외교 난이도,mt
 GUITRANS|Motivation,Motivation,동기,mt
-GUITRANS|Nav Points,Nav Points,항법 지점,mt
+GUITRANS|Nav Points,Nav Points,탐색 지점,mt
 GUITRANS|Next in System,Next in System,성계 내 다음,mt
 GUITRANS|Next Technologies,Next Technologies,다음 기술,mt
 GUITRANS|No Battlegroup Selected,No Battlegroup Selected,선택된 전투단 없음,mt
@@ -3260,7 +3260,7 @@ GUITRANS|Map Seed,Map Seed,지도 시드,mt
 GUITRANS|Trade Requires WM Membership,Trade Requires WM Membership,무역에는 세계 시장 가입 필요,mt
 GUITRANS|Play Game Intro Cutscene,Play Game Intro Cutscene,게임 인트로 영상 재생,mt
 GUITRANS|Ore Availability,Ore Availability,광석 가용량,mt
-GUITRANS|SAVED NAV POINTS,SAVED NAV POINTS,저장된 항법 지점,mt
+GUITRANS|SAVED NAV POINTS,SAVED NAV POINTS,저장된 탐색 지점,mt
 GUITRANS|Offensive,Offensive,공세적,mt
 GUITRANS|Orbital Controls,Orbital Controls,궤도 제어,mt
 GUITRANS|Expires In,Expires In,만료까지,mt
@@ -3354,7 +3354,7 @@ GUITRANS|Add To Build Queue,Add To Build Queue,건설 대기열에 추가,mt
 GUITRANS|Add To Offer,Add To Offer,제안에 추가,mt
 GUITRANS|Add To Research Queue,Add To Research Queue,연구 대기열에 추가,mt
 GUITRANS|Add to BattleGroup,Add to BattleGroup,전투단에 추가,mt
-GUITRANS|Add to Navpoints,Add to Navpoints,항법 지점에 추가,mt
+GUITRANS|Add to Navpoints,Add to Navpoints,탐색 지점에 추가,mt
 GUITRANS|Adjust 3D Object Brightness,Adjust 3D Object Brightness,3D 물체 밝기 조절,mt
 GUITRANS|Adjust GUI Scaling,Adjust GUI Scaling,GUI 배율 조절,mt
 GUITRANS|Adjust Model Size Of Units,Adjust Model Size Of Units,유닛 모델 크기 조절,mt
@@ -3499,7 +3499,7 @@ GUITRANS|Display Land Ownership,Display Land Ownership,토지 소유 표시,mt
 GUITRANS|Display Loyalty <Ctrl> + <L>,Display Loyalty <Ctrl> + <L>,충성도 표시 <Ctrl> + <L>,mt
 GUITRANS|Display Loyalty Levels,Display Loyalty Levels,충성도 수준 표시,mt
 GUITRANS|Display Map Grid <Ctrl> + <G>,Display Map Grid <Ctrl> + <G>,지도 격자 표시 <Ctrl> + <G>,mt
-GUITRANS|Display Nav Points,Display Nav Points,항법 지점 표시,mt
+GUITRANS|Display Nav Points,Display Nav Points,탐색 지점 표시,mt
 GUITRANS|Display Population,Display Population,인구 표시,mt
 GUITRANS|Display Supply Levels,Display Supply Levels,보급 수준 표시,mt
 GUITRANS|Display Theaters,Display Theaters,전구 표시,mt
@@ -3646,9 +3646,9 @@ GUITRANS|Mission Team Size,Mission Team Size,임무 팀 규모,mt
 GUITRANS|Multiplayer Lobby Starts Visible to Everyone,Multiplayer Lobby Starts Visible to Everyone,멀티플레이 로비를 처음부터 모두에게 공개합니다.,mt
 GUITRANS|Multiplayer Saved Games,Multiplayer Saved Games,멀티플레이 저장 게임,mt
 GUITRANS|Must Select Component,Must Select Component,부품을 선택해야 합니다.,mt
-GUITRANS|NAVIGATION,NAVIGATION,항법,mt
+GUITRANS|NAVIGATION,NAVIGATION,탐색,mt
 GUITRANS|Naval Staff,Naval Staff,해군 참모,mt
-GUITRANS|Navy,Navy,해군,mt
+GUITRANS|Navy,Navy,해상,mt
 GUITRANS|New,New,새로 만들기,mt
 GUITRANS|New Messages may use Pause on Event to Stop Time Progression,New Messages may use Pause on Event to Stop Time Progression,새 메시지는 사건 시 일시 정지로 시간을 멈출 수 있습니다.,mt
 GUITRANS|News Sent To Colony Is Visible To Empire,News Sent To Colony Is Visible To Empire,식민지로 간 소식을 제국도 봅니다.,mt
@@ -3728,7 +3728,7 @@ GUITRANS|Remove From Offer,Remove From Offer,제안에서 제거,mt
 GUITRANS|Remove Transport Layer 1,Remove Transport Layer 1,수송망 1층 제거,mt
 GUITRANS|Remove Transport Layer 2,Remove Transport Layer 2,수송망 2층 제거,mt
 GUITRANS|Remove Transportation In Selected Hex,Remove Transportation In Selected Hex,선택한 헥스의 수송망 제거,mt
-GUITRANS|Remove from Navpoints,Remove from Navpoints,항법 지점에서 제거,mt
+GUITRANS|Remove from Navpoints,Remove from Navpoints,탐색 지점에서 제거,mt
 GUITRANS|Rename Focus Unit,Rename Focus Unit,주시 유닛 이름 변경,mt
 GUITRANS|Rename Our Region and Prefix,Rename Our Region and Prefix,아군 지역 이름·접두어 변경,mt
 GUITRANS|Reopen Help Message,Reopen Help Message,도움말 메시지 다시 열기,mt
@@ -3783,7 +3783,7 @@ GUITRANS|Selected/Inspected Hex,Selected/Inspected Hex,선택/조사 중인 헥�
 GUITRANS|Sell Unit,Sell Unit,유닛 판매,mt
 GUITRANS|Set Battlegroup Leader,Set Battlegroup Leader,전투단 지휘관 지정,mt
 GUITRANS|Set Geometry Variables,Set Geometry Variables,지오메트리 변수 설정,mt
-GUITRANS|Set Nav Point,Set Nav Point,항법 지점 설정,mt
+GUITRANS|Set Nav Point,Set Nav Point,탐색 지점 설정,mt
 GUITRANS|Sets All AI Players To Build Faster and Take Less Time Overall,Sets All AI Players To Build Faster and Take Less Time Overall,모든 AI가 더 빠르게 생산하고 전체 소요 시간이 줄어듭니다.,mt
 GUITRANS|Settlement Type,Settlement Type,거주지 유형,mt
 GUITRANS|Show Agriculture,Show Agriculture,농산물 표시,mt
@@ -3815,7 +3815,7 @@ GUITRANS|Show Line Of Sight,Show Line Of Sight,시야 표시,mt
 GUITRANS|Show Low Visibility / Close Combat,Show Low Visibility / Close Combat,저시정 / 근접전 표시,mt
 GUITRANS|Show Loyalty Level,Show Loyalty Level,충성도 수준 표시,mt
 GUITRANS|Show Loyatly Level,Show Loyatly Level,충성도 수준 표시,mt
-GUITRANS|Show Nav Points,Show Nav Points,항법 지점 표시,mt
+GUITRANS|Show Nav Points,Show Nav Points,탐색 지점 표시,mt
 GUITRANS|Show Only Favourite Units,Show Only Favourite Units,즐겨찾는 유닛만 표시,mt
 GUITRANS|Show Only Regionally Owned Upgrades,Show Only Regionally Owned Upgrades,지역 보유 개량만 표시,mt
 GUITRANS|Show Ore,Show Ore,광석 표시,mt
@@ -4205,7 +4205,7 @@ GUITRANS|GLOBAL OUTBREAK,GLOBAL OUTBREAK,전 세계 발병,mt
 GUITRANS|GLOBAL OUTBREAK PROGRESS,GLOBAL OUTBREAK PROGRESS,전 세계 발병 현황,mt
 GUITRANS|P_S1,P_S1,,
 GUITRANS|/      /      /,/      /      /,,
-GUITRANS|Build Capacity ,Build Capacity ,건설 용량 ,mt
+GUITRANS|Build Capacity ,Build Capacity ,생산 능력 ,mt
 GUITRANS|Fund¶Inurgency,Fund¶Inurgency,반군 자금¶지원,mt
 GUITRANS|Governor,Governor,총독,mt
 GUITRANS|Intelligence Profile,Intelligence Profile,정보 개요,mt
