@@ -77,7 +77,7 @@ def build(cfg: Config) -> Path:
         "@echo off\r\n"
         f'call "{_vcvars()}" >nul || exit /b 1\r\n'
         f'cl /nologo /utf-8 /O2 /W4 /WX /MT /LD "{src / "srhook.c"}" "{src / "srdecode.c"}" "{forwards}" '
-        f'/Fe:"{out}" /link /NOLOGO kernel32.lib advapi32.lib\r\n',
+        f'/Fe:"{out}" /link /NOLOGO kernel32.lib advapi32.lib user32.lib\r\n',
         encoding="mbcs")
     result = subprocess.run(["cmd", "/d", "/c", str(script)], cwd=out.parent, capture_output=True)
     if result.returncode != 0 or not out.is_file():

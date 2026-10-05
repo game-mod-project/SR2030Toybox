@@ -4,6 +4,7 @@
  * 이 DLL 은 WTSAPI32.dll 이름으로 게임 폴더에 놓여 먼저 로드되고(원래 함수는 시스템 DLL 로 전달),
  * 게임 실행 파일의 임포트 테이블에서 MultiByteToWideChar 를 SR-UTF8 디코더로 바꿔 끼운다.
  * 실행 파일 자체는 건드리지 않는다. 언어가 SRHOOK_LANG 일 때만 동작한다.
+ * 그 밖에 검증 도구(scripts/gamedrive.py)용으로 마우스 위치를 대신 알려 주는 기능이 있다(아래 srhook_get_cursor_pos).
  */
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -84,6 +85,61 @@ __declspec(dllexport) int WINAPI srhook_mbtowc(UINT cp, DWORD flags, LPCCH src, 
     return (int)need;
 }
 
+/* 검증용 마우스 위치. 게임은 마우스가 가리키는 곳을 메시지가 아니라 GetCursorPos 로 읽는다(툴팁, 버튼 강조,
+ * 지도 가장자리 스크롤). 창을 화면 밖에 두고 검증할 때는 실제 마우스가 창 위에 있을 수 없으므로, 검증 도구
+ * (scripts/gamedrive.py)가 공유 메모리에 적어 준 "창 안 좌표"를 화면 좌표로 바꿔 돌려준다. 실제 마우스는 건드리지 않는다.
+ * 환경 변수 SRHOOK_CURSOR=1 로 띄운 게임에만 끼운다 — 평소 실행에서는 아무것도 바꾸지 않는다.
+ * (ScreenToClient 쪽을 바꾸면 안 된다: 게임이 그 함수를 다른 계산에도 써서 마우스가 엉뚱한 곳에 있는 것으로 된다.) */
+typedef struct {
+    volatile LONG on;    /* 1 이면 아래 좌표를 쓴다 */
+    LONG x, y;           /* hwnd 의 클라이언트 좌표 */
+    volatile LONG reads; /* 게임이 마우스 위치를 물은 횟수(도구가 동작 확인에 쓴다) */
+    ULONGLONG hwnd;
+} SRCURSOR;              /* 공유 메모리 "Local\srkit.cursor.<프로세스 ID>" — gamedrive.py 의 구조체와 같아야 한다 */
+
+static BOOL(WINAPI *g_real_gcp)(LPPOINT);
+static SRCURSOR *g_cursor;
+static volatile LONG g_cursor_init;
+
+static SRCURSOR *cursor_shared(void)
+{
+    if (InterlockedCompareExchange(&g_cursor_init, 1, 0) == 0) {
+        wchar_t name[48] = L"Local\\srkit.cursor.", digits[12];
+        DWORD pid = GetCurrentProcessId();
+        int n = 0, at = lstrlenW(name);
+        HANDLE map;
+        do {
+            digits[n++] = (wchar_t)(L'0' + pid % 10);
+            pid /= 10;
+        } while (pid);
+        while (n)
+            name[at++] = digits[--n];
+        name[at] = 0;
+        map = CreateFileMappingW(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, sizeof(SRCURSOR), name);
+        if (map != NULL)
+            g_cursor = (SRCURSOR *)MapViewOfFile(map, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(SRCURSOR));
+    }
+    return g_cursor;
+}
+
+__declspec(dllexport) BOOL WINAPI srhook_get_cursor_pos(LPPOINT pt)
+{
+    SRCURSOR *c = cursor_shared();
+    if (c != NULL) {
+        InterlockedIncrement(&c->reads);
+        if (pt != NULL && c->on) {
+            POINT p;
+            p.x = c->x;
+            p.y = c->y;
+            if (ClientToScreen((HWND)(ULONG_PTR)c->hwnd, &p)) {
+                *pt = p;
+                return TRUE;
+            }
+        }
+    }
+    return g_real_gcp(pt);
+}
+
 static void patch_import(HMODULE module, const char *dll, const char *name, void *replacement)
 {
     BYTE *base = (BYTE *)module;
@@ -117,9 +173,13 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
 {
     (void)reserved;
     if (reason == DLL_PROCESS_ATTACH) {
+        char env[4];
         DisableThreadLibraryCalls(instance);
         g_real = MultiByteToWideChar;
+        g_real_gcp = GetCursorPos;
         patch_import(GetModuleHandleW(NULL), "KERNEL32.dll", "MultiByteToWideChar", (void *)srhook_mbtowc);
+        if (GetEnvironmentVariableA("SRHOOK_CURSOR", env, sizeof(env)) == 1 && env[0] == '1' && cursor_shared() != NULL)
+            patch_import(GetModuleHandleW(NULL), "USER32.dll", "GetCursorPos", (void *)srhook_get_cursor_pos);
     }
     return TRUE;
 }
