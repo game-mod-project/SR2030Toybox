@@ -1,0 +1,119 @@
+﻿key,en,ko,status
+CONTINENTS|1|0,Africa,아프리카,mt
+CONTINENTS|10|0,North America,북아메리카,mt
+CONTINENTS|2|0,Mideast,중동,mt
+CONTINENTS|4|0,Europe,유럽,mt
+CONTINENTS|5|0,Asia,아시아,mt
+CONTINENTS|6|0,Oceania,오세아니아,mt
+CONTINENTS|7|0,South America,남아메리카,mt
+CONTINENTS|9|0,Central America,중앙아메리카,mt
+FILETEXT|C193603GER|0,Germany '36,독일 '36,mt
+FILETEXT|C203001GER|0,"March 2, 2030",2030년 3월 2일,mt
+FILETEXT|C203001GER|1,"\42 Germany finds itself in the midst of mounting conflicts and tensions due to Russia's actions and the collapse of NATO. To reduce dependence on US aid, Germany takes a proactive stance in restoring peace and stability in Europe. Through a new treaty to unite European nations, Germany aims to counter Russia's escalating hostilities that seek to destabilize the continent. Germany is unwavering in its commitment to restoring peace, no matter the challenges and sacrifices. With determination, Germany leads the charge towards a harmonious and secure Europe.","\42 독일은 러시아의 행동과 NATO의 붕괴로 갈등과 긴장이 고조되는 한복판에 놓여 있습니다. 독일은 미국의 지원 의존도를 낮추기 위해 유럽의 평화와 안정을 되찾는 데 적극적으로 나섭니다. 유럽 국가들을 하나로 묶는 새 조약을 통해, 대륙을 불안에 빠뜨리려는 러시아의 적대 행위 확대에 맞서고자 합니다. 독일은 어떤 난관과 희생이 따르더라도 평화 회복이라는 의지를 굽히지 않습니다. 독일은 굳은 결의로 조화롭고 안전한 유럽을 향한 길을 이끕니다.",mt
+FILETEXT|C203001RUS|0,"March 2, 2030",2030년 3월 2일,mt
+FILETEXT|C203001RUS|1,"\42 After the failed invasion in Ukraine, Russia faced significant repercussions. We were compelled to retreat and now shoulder the responsibility of rebuilding our nation. These events have cast a shadow of shame upon our beloved Motherland, and it is our unwavering duty to restore her honor. Through resolute actions, our aim is to reclaim the lost territories and rebuild Russia into a formidable and cohesive force. Our vision is to honor the legacy of the Soviet Union and emerge as a triumphant symbol of resilience and unity.","\42 우크라이나 침공에 실패한 뒤 러시아는 막대한 후폭풍을 맞았습니다. 우리는 퇴각할 수밖에 없었고, 이제 나라를 재건할 책임을 짊어졌습니다. 이 일들은 사랑하는 조국에 치욕의 그림자를 드리웠으며, 조국의 명예를 되찾는 것이 우리의 흔들림 없는 의무입니다. 단호한 행동으로 잃어버린 영토를 되찾고 러시아를 강하고 단결된 힘으로 재건하는 것이 우리의 목표입니다. 우리의 비전은 소련의 유산을 기리며, 불굴과 단결의 승리한 상징으로 우뚝 서는 것입니다.",mt
+FILETEXT|C203002CHI|0,"March 2, 2030",2030년 3월 2일,mt
+FILETEXT|C203002CHI|1,"\42 China is strongly determined to reclaim disputed territories, reflecting our deep historical legacy and the desire to restore our rightful position among China's great leaders. We have patiently dealt with global reactions to our territorial claims. Now, it is crucial to launch a major campaign, showing our commitment to regain these territories under our control. Despite opposition, we remain steadfast in our noble cause. It is time to stop those who have taken our former lands and bring them back under our unwavering rule. Our goals extend beyond land to the surrounding oceans, which we are determined to protect. Those who challenge our claims will face our strong forces. Together, we shape our nation's future, ensuring the return of China's territories and preserving our remarkable history.","\42 중국은 분쟁 영토를 되찾겠다는 강한 결의를 품고 있습니다. 이는 우리의 깊은 역사적 유산과, 중국의 위대한 지도자들 가운데 마땅한 위치를 회복하려는 염원을 반영합니다. 우리는 영유권 주장에 대한 세계의 반응을 인내심 있게 다루어 왔습니다. 이제 이 영토들을 우리 통제 아래 되찾겠다는 의지를 보여 줄 대규모 작전을 개시할 때입니다. 반대에도 불구하고 우리는 고귀한 대의를 굳건히 지킵니다. 우리의 옛 땅을 차지한 자들을 막고 그 땅을 다시 우리의 흔들림 없는 통치 아래 되돌릴 때가 왔습니다. 우리의 목표는 땅을 넘어 우리가 반드시 지키려는 주변 해역에까지 이릅니다. 우리의 주장에 도전하는 자들은 우리의 강력한 군대와 맞서게 될 것입니다. 우리는 함께 나라의 미래를 빚어, 중국 영토의 회복을 이루고 우리의 놀라운 역사를 지켜 낼 것입니다.",mt
+FILETEXT|C203002USA|0,"March 2, 2030",2030년 3월 2일,mt
+FILETEXT|C203002USA|1,"\42 The United States stands at a critical point, facing complex challenges on the global stage. However, our citizens are hesitant to get involved in foreign conflicts. To overcome this hurdle, our strategy focuses on indirect involvement through proxy wars against formidable adversaries like Russia and China. We must navigate these conflicts carefully, as engaging directly in warfare with low civilian support would worsen our already difficult circumstances.","\42 미국은 세계 무대에서 복잡한 도전에 직면한 중대한 기로에 서 있습니다. 그러나 우리 국민은 해외 분쟁에 휘말리는 것을 꺼립니다. 이 장애물을 넘기 위해 우리의 전략은 러시아와 중국 같은 강적에 맞서 대리전을 통한 간접 개입에 초점을 맞춥니다. 민간의 지지가 낮은 상태에서 직접 전쟁에 나서면 이미 어려운 우리의 처지가 더 악화될 것이므로, 이러한 분쟁은 신중하게 다루어야 합니다.",mt
+FILETEXT|COVID-30|0,2030 Pandemic,2030 팬데믹,mt
+FILETEXT|CZOMBIECAN|0,2021 - Aftermath,2021 - 그 후,mt
+FILETEXT|CZOMBIEJAP|0,2020 - Global Outbreak,2020 - 전 세계 발병,mt
+FILETEXT|Project 2025|0,Project 2025,프로젝트 2025,mt
+FILETEXT|Project 2025|1,"\42 In early 2025, Donald Trump returned to the White House as the country's 47th president. Within days, old alliances began to shift and the United States began to travel a very different path than it had in recent years. The returning president's actions were at the very least radical, some would say controversial, and the whole world found itself wondering what might come next.","\42 2025년 초, 도널드 트럼프가 제47대 대통령으로 백악관에 복귀했습니다. 며칠 만에 오랜 동맹이 흔들리기 시작했고, 미국은 최근 몇 년과는 전혀 다른 길을 걷기 시작했습니다. 복귀한 대통령의 행보는 적어도 급진적이었고, 논란이 많다고 말하는 이도 있을 것입니다. 전 세계는 다음에 무엇이 올지 궁금해하게 되었습니다.",mt
+FILETEXT|SRGOCovidSB|0,2030 - COVID New Strain,2030 - 코로나 신종 변이,mt
+FILETEXT|SRGOSurvivalC|0,2020 - European Containment,2020 - 유럽 봉쇄,mt
+FILETEXT|SRGOZombiesSB|0,2020 - Contagion Z,2020 - 컨테이전 Z,mt
+FILETEXT|World2023|0,2023 - World,2023 - 세계,mt
+FILETEXT|World2025|0,2025 - World,2025 - 세계,mt
+FILETEXT|World2030|0,2030 - World,2030 - 세계,mt
+FILETEXT|C191406AH|0,Austria-Hungary '14,오스트리아-헝가리 '14,mt
+FILETEXT|C191406FR|0,France '14,프랑스 '14,mt
+FILETEXT|C191406GER|0,Germany '14,독일 '14,mt
+FILETEXT|C191406RU|0,Russian Empire '14,러시아 제국 '14,mt
+FILETEXT|C191406UK|0,Great Britain '14,영국 '14,mt
+FILETEXT|C193603IT|0,Italy '36,이탈리아 '36,mt
+FILETEXT|C193603JAP|0,Japan '36,일본 '36,mt
+FILETEXT|C194005GER|0,Germany '40,독일 '40,mt
+FILETEXT|C194005UK|0,United Kingdom '40,영국 '40,mt
+FILETEXT|C194106GER|0,Germany '41,독일 '41,mt
+FILETEXT|C194106JAP|0,Japan '41,일본 '41,mt
+FILETEXT|C194910US|0,US 1949,미국 1949,mt
+FILETEXT|C194910USSR|0,USSR 1949,소련 1949,mt
+FILETEXT|C202001US|0,Make America Great,미국을 위대하게,mt
+FILETEXT|ColdWar|0,1949 - Cold War,1949 - 냉전,mt
+FILETEXT|DividedStates|0,2020 - Divided States,2020 - 분열된 미국,mt
+FILETEXT|GlobalCrisis|0,2030 - Global Crisis,2030 - 세계 위기,mt
+FILETEXT|MakeAmerica|0,2020 - Make America Great,2020 - 미국을 위대하게,mt
+FILETEXT|ShatteredWorld|0,2030 - Shattered World,2030 - 부서진 세계,mt
+FILETEXT|SR1914|0,1914 - The Great War,1914 - 대전쟁,mt
+FILETEXT|SR1917|0,1917 - The Great War,1917 - 대전쟁,mt
+FILETEXT|SR1936|0,1936 - The Road to War,1936 - 전쟁으로 가는 길,mt
+FILETEXT|SR1940|0,1940 - Europe at War,1940 - 전쟁에 휩싸인 유럽,mt
+FILETEXT|SR1941|0,1941 - The World at War,1941 - 전쟁 중인 세계,mt
+FILETEXT|SR1942|0,1942 - A World in Flames,1942 - 불길에 휩싸인 세계,mt
+FILETEXT|TrumpRising|0,2017 - Trump Rising,2017 - 트럼프의 부상,mt
+FILETEXT|TrumpRising2018|0,2018 - Trump Rising,2018 - 트럼프의 부상,mt
+FILETEXT|World2020|0,2020 - World,2020 - 세계,mt
+THEATRESTEXT|1|0,Northeast Asia,동북아시아,mt
+THEATRESTEXT|1|1,NEA,,
+THEATRESTEXT|10|0,Eastern Africa,동아프리카,mt
+THEATRESTEXT|10|1,EAF,,
+THEATRESTEXT|11|0,Northwest Africa,북서아프리카,mt
+THEATRESTEXT|11|1,NAF,,
+THEATRESTEXT|12|0,Western Europe,서유럽,mt
+THEATRESTEXT|12|1,WEU,,
+THEATRESTEXT|13|0,Central Europe,중부유럽,mt
+THEATRESTEXT|13|1,CEU,,
+THEATRESTEXT|14|0,Northern Europe,북유럽,mt
+THEATRESTEXT|14|1,NEU,,
+THEATRESTEXT|15|0,Northern South America,남아메리카 북부,mt
+THEATRESTEXT|15|1,NSA,,
+THEATRESTEXT|16|0,Southern South America,남아메리카 남부,mt
+THEATRESTEXT|16|1,SSA,,
+THEATRESTEXT|17|0,North Atlantic,북대서양,mt
+THEATRESTEXT|17|1,NAO,,
+THEATRESTEXT|18|0,South Atlantic,남대서양,mt
+THEATRESTEXT|18|1,SAO,,
+THEATRESTEXT|19|0,North Pacific,북태평양,mt
+THEATRESTEXT|19|1,NPO,,
+THEATRESTEXT|20|0,South Pacific,남태평양,mt
+THEATRESTEXT|20|1,SPO,,
+THEATRESTEXT|21|0,Indian Ocean,인도양,mt
+THEATRESTEXT|21|1,INO,,
+THEATRESTEXT|23|0,Caribbean Sea,카리브해,mt
+THEATRESTEXT|23|1,CAR,,
+THEATRESTEXT|24|0,Mediterranean Sea,지중해,mt
+THEATRESTEXT|24|1,MED,,
+THEATRESTEXT|25|0,Black Sea,흑해,mt
+THEATRESTEXT|25|1,BLK,,
+THEATRESTEXT|26|0,Arabian Sea,아라비아해,mt
+THEATRESTEXT|26|1,ARS,,
+THEATRESTEXT|27|0,Malay Archipelago,말레이 제도,mt
+THEATRESTEXT|27|1,MLA,,
+THEATRESTEXT|28|0,Eastern Central America,중앙아메리카 동부,mt
+THEATRESTEXT|28|1,ECA,,
+THEATRESTEXT|29|0,Western South America,남아메리카 서부,mt
+THEATRESTEXT|29|1,WSA,,
+THEATRESTEXT|30|0,Central Asia,중앙아시아,mt
+THEATRESTEXT|30|1,CEA,,
+THEATRESTEXT|31|0,Eastern Europe,동유럽,mt
+THEATRESTEXT|31|1,EEU,,
+THEATRESTEXT|4|0,Oceania,오세아니아,mt
+THEATRESTEXT|4|1,OCN,,
+THEATRESTEXT|5|0,Middle East,중동,mt
+THEATRESTEXT|5|1,MDE,,
+THEATRESTEXT|6|0,Western Central America,중앙아메리카 서부,mt
+THEATRESTEXT|6|1,WCA,,
+THEATRESTEXT|7|0,Eastern North America,북아메리카 동부,mt
+THEATRESTEXT|7|1,ENA,,
+THEATRESTEXT|8|0,Western North America,북아메리카 서부,mt
+THEATRESTEXT|8|1,WNA,,
+THEATRESTEXT|9|0,Southern Africa,남아프리카,mt
+THEATRESTEXT|9|1,SAF,,
+THEATRESTEXT|2|0,Southeast Asia,동남아시아,mt
+THEATRESTEXT|2|1,SEA,,
+THEATRESTEXT|22|0,Baltic and North Sea,발트해·북해,mt
+THEATRESTEXT|22|1,BNS,,
+THEATRESTEXT|3|0,Northern Asia,북아시아,mt
+THEATRESTEXT|3|1,NOA,,

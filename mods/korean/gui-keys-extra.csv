@@ -1,0 +1,191 @@
+﻿key,seen_in
+Supreme Ruler Project 2025 Available on Steam,CAMP_2030
+Add To Strategic Pool,DEF2_5_LB7
+All Facilities Offline,DEF_F1
+All Facilities Online,DEF_F1
+Xxxxxxxxxxxxxxxxxxxxxxxxxxx',DEF_F2_LBM
+Allow Movement in Malacca Strait,DEF_F5
+Allow Movement in Panama Canal,DEF_F5
+Allow Movement in Suez Canal,DEF_F5
+Allow Movement in Turkish Strait,DEF_F5
+Subarmines Allowed through Neutral Regions,DEF_F5
+Scrap Selected Missle Group,DEF_MIS_AVAIL
+Scrap Selected Missile Group,DEF_MIS_AVAIL_L
+Show for ,DEF_S3
+Turn Off Automation for Selected Unit(s),DEF_S5_F1
+Capture Not Available,DEF_S5_F2_F
+Capture Units,DEF_S5_F2_F
+Apply ROE Globally to Current Units,DEF_S5_F2_G
+t',ETT_MSTATD
+Time remaining,ETT_TRANSPINFO
+List of Mutual Defense Partners,GAM_BR_DIP_SM
+Show Mutual Defense,GAM_BR_FILTER3
+Show Sanctions,GAM_BR_FILTER3
+Diplomatic Map View,GAM_BR_MM
+GAME HOTKEYS,HOTKEYS
+d/a 3611,HOTKEYS_LB1
+d/a 3612,HOTKEYS_LB1
+"xx,xxx,xxx",LAN_ETT10
+bbl/d,LAN_F2_LB
+Disable all New User Help Tips,LAN_F3
+Dismiss,LAN_F3
+Hide DEV Stuff,LOB
+First World War Era,LOB_CAM
+Global Outbreak Era,LOB_CAM
+Modern Era,LOB_CAM
+Second World War Era,LOB_CAM
+Supreme Ruler 1936 Remastered Available on Steam,LOB_CAM
+Supreme Ruler Global Outbreak Available on Steam,LOB_CAM
+Supreme Ruler The Great War Remastered Available on Steam,LOB_CAM
+abc 31 2001,LOB_CAM
+Player not Ready or File Transfer in Progress,LOB_MUL1
+Select Savegame,LOB_MUL1
+Scendate_da3665,LOB_MUL1B1
+Infection Level,LOB_SETA
+Requires Supreme Ruler Global Outbreak,LOB_SETA
+Set the Level of World Infection,LOB_SETA
+Disable Unit Banking,LOB_SETB
+Units Will Turn Across Several Hexes,LOB_SETB
+Units Will Turn Inside Their Current Hex,LOB_SETB
+Enable Sanctions,LOB_SETC
+Force Recache for Modding,LOB_SETC
+Rebuild Cahe File for Modded Data Files,LOB_SETC
+Sanction System,LOB_SETC
+Boosted Game Speed,OPT_1A
+Flat Visual for Water with No Effects,OPT_1B
+Water Visual Effect with Motion,OPT_1B
+Select Desired Language,OPT_1D
+Disable New User Help Tips,OPT_1G
+Enable New User Help Tips,OPT_1G
+New User Help Tips,OPT_1G
+Reset All Help Tips to Show,OPT_1G
+Assign Leader and Automate Battlegroup,POP_BG
+None ,POP_BG
+Select Battlegroup to Automate,POP_BG
+Select Battlegroup to disband,POP_BG
+Select Battlegroup with Assigned Leader,POP_BG
+pop_cabinet8 ¶Currently Hidden,POP_CABINET8
+store.steampowered.com,POP_DEMO
+www.battlegoat.com,POP_DEMO
+Disable all New User Tips,POP_DIP
+Our Offer,POP_DIP
+Our Request,POP_DIP
+Military Units & Missiles,POP_DIP_A
+Unit & Missile Designs,POP_DIP_A
+Available Stock,POP_DIP_A3
+Payment Frequency,POP_DIP_A3
+Treaty Integrity ,POP_DIP_PREV
+Deaths from Viral Infection Past 24h,POP_INFECTION
+Deaths from Viral Infection Total,POP_INFECTION
+Global Infection Deaths Rank,POP_INFECTION
+Global Infection Rate,POP_INFECTION
+Global Rank of Deaths Per Capita,POP_INFECTION
+Healthcare Rating,POP_INFECTION
+Infected,POP_INFECTION
+Infection Deaths as % of Total,POP_INFECTION
+Infection Rate,POP_INFECTION
+Infection Report,POP_INFECTION
+Infection Technologies Research Progress,POP_INFECTION
+Infections Traced to Trades,POP_INFECTION
+Mask Mandates are in Effect,POP_INFECTION
+Mortality Rate,POP_INFECTION
+No Mask Mandates in Effect,POP_INFECTION
+No Vaccine Mandates in Effect,POP_INFECTION
+No Work from Home Mandates in Effect,POP_INFECTION
+Sanction To / From Us,POP_INFECTION
+Vaccine Mandates are in Effect,POP_INFECTION
+Viral Spread,POP_INFECTION
+Work from Home Mandates are in Effect,POP_INFECTION
+Zombie Spread,POP_INFECTION
+Return Loyal Territory to ,POP_LOY
+100 %,POP_MAD
+25 %,POP_MAD
+50 %,POP_MAD
+75 %,POP_MAD
+GLOBAL OUTBREAK,POP_OUTBREAK
+GLOBAL OUTBREAK PROGRESS,POP_OUTBREAK
+P_S1,POP_OUTBREAK
+/      /      /,POP_PUNITA_P0
+Build Capacity ,POP_PUNITA_P0
+Fund¶Inurgency,POP_PUNITA_P8
+Governor,POP_PUNITA_P8
+Intelligence Profile,POP_PUNITA_P8
+War on Incursions,POP_PUNITA_P8
+Search,POP_RES
+Era Tech,POP_RES_SEARCH
+Sort By Year,POP_RES_SEARCH
+Unresearched,POP_RES_SEARCH
+REMOVE SANCTIONS,POP_SANCTION
+Remove,POP_SANCTION
+SANCTION REGION,POP_SANCTION
+Sanction,POP_SANCTION
+This will affect relationships with other regions,POP_SANCTION
+STA_ETT14,POP_SCO_LB1
+99.9%,POP_SCO_LB6
+Sanctions System,POP_SETTINGS
+POP_ATOM,POP_TECHRACE
+POP_INTERNET,POP_TECHRACE
+POP_MARS,POP_TECHRACE
+POP_OUTBREAK,POP_TECHRACE
+POP_SPACE,POP_TECHRACE
+23',POP_UNIT2
+ETT_HELPUSTAT~,POP_UNIT2
+No Missiles Loaded,POP_XUNITA
+Resource Department,PRO_P1_ETT
+1900,RES_LB3
+Xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',RES_S1C_LB
+100 Regions - 100% of market,SANCTION_PRICE
+Purchase Price,SANCTION_PRICE
+Sanctions Against Us,SANCTION_PRICE
+Sell Price,SANCTION_PRICE
+Confirm ,SEL_CONFIRM
+$hotrelations,SEL_INFECTION
+Leader Title and name,STA_ETT0
+Age,STA_ETT0B
+Date of Birth,STA_ETT0B
+GovType,STA_ETT0B
+Government Details,STA_ETT0B
+Head of Government,STA_ETT0B
+Next in Line,STA_ETT0B
+Opposition Leader,STA_ETT0B
+Political Party,STA_ETT0B
+Political Stance,STA_ETT0B
+Title,STA_ETT0B
+/        /        /,STA_ETT11
+Market Status,STA_ETT12
+Sanctions Against,STA_ETT12
+MARKET ACCESS,STA_ETT13
+OTHER SANCTIONS,STA_ETT13
+WM SANCTIONS,STA_ETT13
+Sphere Leader,STA_ETT20
+Sphere Loyalty,STA_ETT20
+Regional Infected Population,STA_ETT21
+Regional Mortality Rate,STA_ETT21
+Regional Rate of Infection,STA_ETT21
+"XX,XXX,XXX",STA_ETT21
+xxx%,STA_ETT21
+Sanction Region,STA_ETT4G5
+$ 0,STA_ETT4I1
+Allow Refugees,STA_S1
+Infection Details,STA_S1
+Limited Emigration,STA_S1
+Limited Immigration,STA_S1
+No Global Infections,STA_S1
+Open Emigration,STA_S1
+Open Immigraton,STA_S1
+Restrict Refugee Quantities,STA_S1
+STATE test1,STA_S1
+Fed. States of Micronesia (Player Name)1,TOOLTIPMAP_RBT
+xxxx,TOOLTIPPOLI
+TRE2_1B1,TRE2_1B1
+TRE2_1B1_2,TRE2_1B1_2
+TRE2_2B1,TRE2_2B1
+TRE2_2B1_2,TRE2_2B1_2
+Issue # ,TRE2_LB1_ETT
+$ -,TRE_F2
+Add To Selected Units,UNI1_LB4
+Add To Battlegroup - hidden - task 37006,UNI1_LB6
+150%,WELCOME
+200%,WELCOME
+300%,WELCOME
+75%,WELCOME

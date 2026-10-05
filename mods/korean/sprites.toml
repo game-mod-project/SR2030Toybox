@@ -1,0 +1,55 @@
+# 그림 글자: 언어별 스프라이트 시트 SRBITS5.png 안에 그림으로 들어 있는 문구.
+# id 는 게임의 INI\Bitmaps.csv (5번 페이지) 항목 번호이고, 영역 좌표는 거기서 읽는다. texts 는 프레임 순서대로.
+#
+# kind
+#   float  투명 바탕 위의 글자. 영역을 비우고 새로 그린다(상태별 밑줄·광채 포함).
+#   plate  단색에 가까운 판 위의 글자. 옆의 빈 판을 이어 붙여 영어를 지우고 그린다.
+#   photo  사진 위에 얹힌 글자. 어두운 띠로 덮고 그린다.
+# zone   글자를 찾을 세로 범위(프레임 높이에 대한 비율). margin 은 좌우 테두리 두께(px, 기본 7).
+#        kind·font·zone·margin 은 { Skin0 = …, Skin5 = … } 처럼 스킨별로 달리 줄 수 있다.
+
+[fonts]
+sans = { path = 'C:\Windows\Fonts\NotoSansKR-VF.ttf', weight = 900 }
+serif = { path = 'C:\Windows\Fonts\NotoSerifKR-VF.ttf', weight = 800 }
+
+[[group]]   # 옵션·로비 화면 왼쪽의 탭 (보통 / 선택 / 마우스 올림 / 둘 다)
+id = 99
+kind = "float"
+texts = ["게임 종료", "옵션 초기화", "저장", "불러오기", "옵션", "일반", "지도", "조작", "파일", "그래픽",
+         "소리", "메시지", "워크숍", "모드", "단축키"]
+
+[[group]]   # 화면 제목
+id = 385
+kind = "float"
+texts = ["불러오기", "제작진", "옵션", "싱글 플레이", "멀티플레이", "캠페인"]
+
+[[group]]   # 게임 중 메뉴 버튼
+id = 647
+kind = "plate"
+texts = ["게임 종료", "저장 후 종료", "바탕 화면으로"]
+
+[[group]]   # 작은 버튼
+id = 361
+kind = "plate"
+texts = ["시작", "뒤로", "불러오기", "호스트", "초기화", "참가", "준비"]
+
+[[group]]   # 일시 정지 표시
+id = 252
+kind = "float"
+align = "center"
+texts = ["일시 정지"]
+
+[[group]]   # 메인 메뉴 카드
+id = 826
+kind = "plate"
+zone = [0.78, 0.99]
+margin = 12          # 카드 테두리가 두껍다
+font = { Skin0 = "serif" }
+texts = ["튜토리얼", "샌드박스", "불러오기", "온라인", "캠페인"]
+
+[[group]]   # 튜토리얼 선택 카드
+id = 223
+kind = { Skin0 = "plate", Skin5 = "photo" }
+zone = { Skin0 = [0.84, 0.99], Skin5 = [0.34, 0.86] }
+font = { Skin0 = "serif" }
+texts = ["기본 개념", "연구와 경제", "통상과 외교", "국방과 전투"]
