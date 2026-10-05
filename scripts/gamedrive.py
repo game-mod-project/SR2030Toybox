@@ -124,43 +124,55 @@ def offscreen_x() -> int:
     return user32.GetSystemMetrics(SM_XVIRTUALSCREEN) + user32.GetSystemMetrics(SM_CXVIRTUALSCREEN) + 64
 
 
-def hide(hwnd: int, give_focus_to: int = 0) -> bool:
-    """게임 창을 화면 밖 맨 뒤에 둔다. 게임이 포커스를 쥐고 있으면 give_focus_to 창으로 돌려준다. 손댄 것이 있으면 True."""
-    touched = False
+def hide(hwnd: int, give_focus_to: int = 0) -> tuple[bool, bool]:
+    """게임 창을 화면 밖 맨 뒤에 둔다. 게임이 포커스를 쥐고 있으면 give_focus_to 창으로 돌려준다.
+
+    (창을 옮겼는지, 포커스를 돌려주려 했는지)를 돌려준다.
+    """
+    moved = refocused = False
     rect = wintypes.RECT()
     user32.GetWindowRect(hwnd, ctypes.byref(rect))
     if rect.left < offscreen_x():
         user32.SetWindowPos(hwnd, HWND_BOTTOM, offscreen_x(), 0, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE)
-        touched = True
+        moved = True
     if give_focus_to and give_focus_to != hwnd and user32.GetForegroundWindow() == hwnd and user32.IsWindow(give_focus_to):
         # 포커스를 쥔 스레드에 입력을 붙여야 다른 프로세스가 포커스를 옮길 수 있다
         me, game = kernel32.GetCurrentThreadId(), user32.GetWindowThreadProcessId(hwnd, None)
         user32.AttachThreadInput(me, game, True)
         user32.SetForegroundWindow(give_focus_to)
         user32.AttachThreadInput(me, game, False)
-        touched = True
-    return touched
+        refocused = True
+    return moved, refocused
 
 
-def start_in_background(exe: Path, args: list[str], settle: float = 10.0, timeout: float = 120.0) -> None:
+def start_in_background(exe: Path, args: list[str], settle: float = 5.0, watch: float = 20.0,
+                        timeout: float = 120.0) -> None:
     """게임을 띄우되 쓰던 화면을 건드리지 않는다: 활성화 없이 시작하고, 창이 생기는 대로 화면 밖으로 보낸다.
 
     게임은 시작하면서 창을 다시 만들거나 가운데로 옮기고 포커스를 가져가기도 하므로, 잠잠해질 때까지(settle 초) 지켜본다.
+    지켜보는 시간은 창이 뜬 뒤 watch 초로 제한한다 — 그 뒤에 창이 화면에 나와 있다면 사용자가 일부러 꺼낸 것일 수 있다.
     """
     previous = user32.GetForegroundWindow()
     info = subprocess.STARTUPINFO(dwFlags=subprocess.STARTF_USESHOWWINDOW, wShowWindow=SW_SHOWNOACTIVATE)
     proc = subprocess.Popen([str(exe), *args], cwd=exe.parent, startupinfo=info)
     print(f"시작: pid {proc.pid}")
     seen: set[int] = set()
-    fixes = 0
-    deadline = quiet_until = time.monotonic() + timeout
-    while time.monotonic() < min(deadline, quiet_until) and proc.poll() is None:
+    moves = refocuses = 0
+    began = last_fix = time.monotonic()
+    first_seen: float | None = None
+    while proc.poll() is None:
+        now = time.monotonic()
+        if first_seen is None and now - began > timeout:
+            break
+        if first_seen is not None and (now - first_seen > watch or now - last_fix > settle):
+            break
         win = game_window({proc.pid})
         if win:
-            moved = hide(win[0], previous)
-            fixes += moved
-            if moved or win[0] not in seen:
-                quiet_until = time.monotonic() + settle
+            first_seen = first_seen or now
+            moved, refocused = hide(win[0], previous)
+            moves, refocuses = moves + moved, refocuses + refocused
+            if moved or refocused or win[0] not in seen:
+                last_fix = time.monotonic()
             if win[0] not in seen:
                 seen.add(win[0])
                 print(f"창: {win[1]!r} 클라이언트 {win[2][0]}x{win[2][1]}")
@@ -171,14 +183,14 @@ def start_in_background(exe: Path, args: list[str], settle: float = 10.0, timeou
         print("창이 아직 없습니다")
     else:
         focus = "게임이 포커스를 쥐고 있음" if user32.GetForegroundWindow() in seen else "포커스는 다른 창에 있음"
-        print(f"창을 화면 밖에 둠 (옮기거나 포커스를 돌려준 횟수 {fixes}, {focus})")
+        print(f"창을 화면 밖에 둠 (창 옮김 {moves}회, 포커스 돌려줌 {refocuses}회, 마지막 조치는 시작 {last_fix - began:.0f}초 뒤, {focus})")
 
 
 def need_window() -> tuple[int, str, tuple[int, int]]:
     win = game_window()
     if not win:
         raise SystemExit("게임 창이 없습니다" + ("" if game_pids() else " (프로세스도 없음)"))
-    hide(win[0])        # 게임이 창을 화면으로 되돌려 놓았으면 다시 밖으로
+    hide(win[0])        # 게임이 창을 화면으로 되돌려 놓았으면 다시 밖으로 (포커스는 건드리지 않는다)
     return win
 
 
