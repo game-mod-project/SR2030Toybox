@@ -27,7 +27,7 @@ uv run srkit deploy korean           # 설치 미리보기 (--apply 로 실제 �
 uv run srkit undeploy korean         # 제거 미리보기 (--apply 로 실제 제거·복원)
 uv run srkit font-preview <spritefont> "<문자열>" <out.png>
 uv run srkit tcheck-import           # 게임의 번역 검사 로그에서 빠진 GUI 문구를 번역 테이블에 추가
-uv run python scripts/gamedrive.py start|status|shot|click|key|stop   # 게임 실행(다른 창 뒤에)·창 캡처·입력 (검증용)
+uv run python scripts/gamedrive.py start|status|shot|click|move|key|show|stop   # 게임 실행(화면 밖에서)·창 캡처·입력 (검증용)
 ```
 
 ## 구조

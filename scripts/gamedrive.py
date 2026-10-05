@@ -1,15 +1,18 @@
 """게임을 띄워 창 내용을 캡처하고 입력을 보내는 검증용 드라이버.
 
-    uv run python scripts/gamedrive.py start [게임 인자...]   # 기본 -window. 창을 활성화하지 않고 다른 창 뒤에 띄운다
+    uv run python scripts/gamedrive.py start [게임 인자...]   # 기본 -window. 창을 화면 밖에 두고 포커스를 건드리지 않는다
     uv run python scripts/gamedrive.py status
     uv run python scripts/gamedrive.py shot out.png [배율]    # 게임 창의 클라이언트 영역만 캡처
     uv run python scripts/gamedrive.py click X Y              # 클라이언트 좌표(캡처 이미지의 원본 픽셀)
+    uv run python scripts/gamedrive.py move X Y               # 누르지 않고 마우스만 올린다(툴팁 확인)
     uv run python scripts/gamedrive.py key VK [VK...]         # 가상 키 코드(16진/10진) 또는 이름(ESC, ENTER, SPACE)
+    uv run python scripts/gamedrive.py show                  # 화면 밖에 둔 게임 창을 화면으로 가져온다(직접 볼 때)
     uv run python scripts/gamedrive.py stop
 
 화면 전체가 아니라 게임 창만 PrintWindow 로 읽고, 입력도 게임 창에만 메시지로 보낸다
-(실제 마우스·키보드와 다른 창은 건드리지 않는다). 그래서 게임 창이 다른 창에 가려져 있어도 된다 —
-start 는 쓰던 창의 포커스를 뺏지 않도록 게임 창을 맨 뒤로 보낸다(최소화하면 그려지지 않으므로 최소화는 하지 않는다).
+(실제 마우스·키보드와 다른 창은 건드리지 않는다). 그래서 게임 창이 보이지 않아도 된다 —
+start 는 게임 창을 화면 밖 맨 뒤에 두고, 게임이 포커스를 가져가면 쓰던 창으로 돌려준다.
+shot·click·key 도 창이 화면에 나와 있으면 다시 밖으로 보낸다(최소화하면 그려지지 않으므로 최소화는 하지 않는다).
 """
 from __future__ import annotations
 
@@ -28,6 +31,7 @@ from srkit import config  # noqa: E402
 EXE = "SupremeRuler2030.exe"
 user32 = ctypes.WinDLL("user32", use_last_error=True)
 gdi32 = ctypes.WinDLL("gdi32", use_last_error=True)
+kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 user32.GetDC.restype = wintypes.HDC
 user32.GetDC.argtypes = [wintypes.HWND]
 user32.ReleaseDC.argtypes = [wintypes.HWND, wintypes.HDC]
@@ -47,9 +51,16 @@ user32.GetForegroundWindow.restype = wintypes.HWND
 user32.SetForegroundWindow.argtypes = [wintypes.HWND]
 user32.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
                                 wintypes.UINT]
+user32.GetWindowRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
+user32.GetWindowThreadProcessId.restype = wintypes.DWORD
+user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+user32.AttachThreadInput.argtypes = [wintypes.DWORD, wintypes.DWORD, wintypes.BOOL]
+user32.IsWindow.argtypes = [wintypes.HWND]
+kernel32.GetCurrentThreadId.restype = wintypes.DWORD
 
-SW_SHOWNOACTIVATE, HWND_BOTTOM = 4, 1
-SWP_KEEP = 0x0001 | 0x0002 | 0x0010  # NOSIZE | NOMOVE | NOACTIVATE
+SW_SHOWNOACTIVATE, HWND_TOP, HWND_BOTTOM = 4, 0, 1
+SWP_NOSIZE, SWP_NOACTIVATE = 0x0001, 0x0010
+SM_XVIRTUALSCREEN, SM_CXVIRTUALSCREEN = 76, 78
 WM_MOUSEMOVE, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_KEYDOWN, WM_KEYUP, WM_CHAR = 0x200, 0x201, 0x202, 0x100, 0x101, 0x102
 KEYS = {"ESC": 0x1B, "ENTER": 0x0D, "SPACE": 0x20, "TAB": 0x09, "UP": 0x26, "DOWN": 0x28, "LEFT": 0x25, "RIGHT": 0x27}
 
@@ -67,9 +78,9 @@ def game_pids() -> list[int]:
     return [int(line.split('","')[1]) for line in out.splitlines() if line.startswith(f'"{EXE}"')]
 
 
-def game_window() -> tuple[int, str, tuple[int, int]] | None:
+def game_window(pids: set[int] | None = None) -> tuple[int, str, tuple[int, int]] | None:
     """게임 프로세스의 보이는 최상위 창 중 가장 큰 것: (hwnd, 제목, 클라이언트 크기)."""
-    pids = set(game_pids())
+    pids = set(game_pids()) if pids is None else pids
     found: list[tuple[int, int, str, tuple[int, int]]] = []
 
     @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
@@ -108,34 +119,66 @@ def capture(hwnd: int, size: tuple[int, int]) -> Image.Image:
     return Image.frombuffer("RGBA", (w, h), buf, "raw", "BGRA", 0, 1).convert("RGB")
 
 
-def start_in_background(exe: Path, args: list[str], settle: float = 8.0, timeout: float = 120.0) -> None:
-    """게임을 띄우되 쓰던 창을 가리지 않게 한다: 활성화 없이 시작하고, 창이 생기는 대로 맨 뒤로 보낸다."""
+def offscreen_x() -> int:
+    """모든 모니터를 합친 화면의 오른쪽 끝보다 바깥인 x 좌표."""
+    return user32.GetSystemMetrics(SM_XVIRTUALSCREEN) + user32.GetSystemMetrics(SM_CXVIRTUALSCREEN) + 64
+
+
+def hide(hwnd: int, give_focus_to: int = 0) -> bool:
+    """게임 창을 화면 밖 맨 뒤에 둔다. 게임이 포커스를 쥐고 있으면 give_focus_to 창으로 돌려준다. 손댄 것이 있으면 True."""
+    touched = False
+    rect = wintypes.RECT()
+    user32.GetWindowRect(hwnd, ctypes.byref(rect))
+    if rect.left < offscreen_x():
+        user32.SetWindowPos(hwnd, HWND_BOTTOM, offscreen_x(), 0, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE)
+        touched = True
+    if give_focus_to and give_focus_to != hwnd and user32.GetForegroundWindow() == hwnd and user32.IsWindow(give_focus_to):
+        # 포커스를 쥔 스레드에 입력을 붙여야 다른 프로세스가 포커스를 옮길 수 있다
+        me, game = kernel32.GetCurrentThreadId(), user32.GetWindowThreadProcessId(hwnd, None)
+        user32.AttachThreadInput(me, game, True)
+        user32.SetForegroundWindow(give_focus_to)
+        user32.AttachThreadInput(me, game, False)
+        touched = True
+    return touched
+
+
+def start_in_background(exe: Path, args: list[str], settle: float = 10.0, timeout: float = 120.0) -> None:
+    """게임을 띄우되 쓰던 화면을 건드리지 않는다: 활성화 없이 시작하고, 창이 생기는 대로 화면 밖으로 보낸다.
+
+    게임은 시작하면서 창을 다시 만들거나 가운데로 옮기고 포커스를 가져가기도 하므로, 잠잠해질 때까지(settle 초) 지켜본다.
+    """
     previous = user32.GetForegroundWindow()
     info = subprocess.STARTUPINFO(dwFlags=subprocess.STARTF_USESHOWWINDOW, wShowWindow=SW_SHOWNOACTIVATE)
     proc = subprocess.Popen([str(exe), *args], cwd=exe.parent, startupinfo=info)
     print(f"시작: pid {proc.pid}")
     seen: set[int] = set()
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline and game_pids():
-        win = game_window()
-        if win and win[0] not in seen:      # 시작 화면 → 본 창처럼 창이 바뀌면 다시 보낸다
-            seen.add(win[0])
-            user32.SetWindowPos(win[0], HWND_BOTTOM, 0, 0, 0, 0, SWP_KEEP)
-            if previous and user32.GetForegroundWindow() == win[0]:
-                user32.SetForegroundWindow(previous)
-            print(f"창: {win[1]!r} 클라이언트 {win[2][0]}x{win[2][1]} (다른 창 뒤에 둠)")
-            deadline = min(deadline, time.monotonic() + settle)
-        time.sleep(0.5)
-    if not game_pids():
+    fixes = 0
+    deadline = quiet_until = time.monotonic() + timeout
+    while time.monotonic() < min(deadline, quiet_until) and proc.poll() is None:
+        win = game_window({proc.pid})
+        if win:
+            moved = hide(win[0], previous)
+            fixes += moved
+            if moved or win[0] not in seen:
+                quiet_until = time.monotonic() + settle
+            if win[0] not in seen:
+                seen.add(win[0])
+                print(f"창: {win[1]!r} 클라이언트 {win[2][0]}x{win[2][1]}")
+        time.sleep(0.1)
+    if proc.poll() is not None:
         print("게임이 이미 끝났습니다")
     elif not seen:
         print("창이 아직 없습니다")
+    else:
+        focus = "게임이 포커스를 쥐고 있음" if user32.GetForegroundWindow() in seen else "포커스는 다른 창에 있음"
+        print(f"창을 화면 밖에 둠 (옮기거나 포커스를 돌려준 횟수 {fixes}, {focus})")
 
 
 def need_window() -> tuple[int, str, tuple[int, int]]:
     win = game_window()
     if not win:
         raise SystemExit("게임 창이 없습니다" + ("" if game_pids() else " (프로세스도 없음)"))
+    hide(win[0])        # 게임이 창을 화면으로 되돌려 놓았으면 다시 밖으로
     return win
 
 
@@ -150,7 +193,20 @@ def main(argv: list[str]) -> int:
     elif cmd == "status":
         pids, win = game_pids(), game_window()
         print(f"프로세스: {pids or '없음'}")
-        print(f"창: {win[1]!r} 클라이언트 {win[2][0]}x{win[2][1]}" if win else "창: 없음")
+        if win:
+            rect = wintypes.RECT()
+            user32.GetWindowRect(win[0], ctypes.byref(rect))
+            where = "화면 밖" if rect.left >= offscreen_x() else f"화면 안 ({rect.left},{rect.top})"
+            focus = ", 포커스를 쥐고 있음" if user32.GetForegroundWindow() == win[0] else ""
+            print(f"창: {win[1]!r} 클라이언트 {win[2][0]}x{win[2][1]}, {where}{focus}")
+        else:
+            print("창: 없음")
+    elif cmd == "show":
+        win = game_window()
+        if not win:
+            raise SystemExit("게임 창이 없습니다")
+        user32.SetWindowPos(win[0], HWND_TOP, 80, 60, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE)
+        print("게임 창을 화면으로 가져왔습니다 (다음 shot·click·key 때 다시 화면 밖으로 갑니다)")
     elif cmd == "shot":
         hwnd, title, size = need_window()
         img = capture(hwnd, size)
@@ -169,6 +225,10 @@ def main(argv: list[str]) -> int:
         time.sleep(0.08)
         user32.PostMessageW(hwnd, WM_LBUTTONUP, 0, pos)
         print(f"클릭 {args[0]},{args[1]}")
+    elif cmd == "move":
+        hwnd, _, _ = need_window()
+        user32.PostMessageW(hwnd, WM_MOUSEMOVE, 0, (int(args[1]) << 16) | (int(args[0]) & 0xFFFF))
+        print(f"이동 {args[0]},{args[1]}")
     elif cmd == "key":
         hwnd, _, _ = need_window()
         for name in args:
