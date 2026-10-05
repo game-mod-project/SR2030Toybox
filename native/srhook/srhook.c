@@ -18,8 +18,12 @@
 
 typedef int(WINAPI *MBTOWC)(UINT, DWORD, LPCCH, int, LPWSTR, int);
 
-static MBTOWC g_real;         /* 이 DLL 자신의 임포트(진짜 함수). DllMain 에서 채운다 */
-static volatile LONG g_state; /* 0 미확인, 1 켜짐, 2 꺼짐 */
+static MBTOWC g_real;           /* 이 DLL 자신의 임포트(진짜 함수). DllMain 에서 채운다 */
+static volatile LONG g_state;   /* 0 미확인, 1 켜짐, 2 꺼짐 */
+static volatile LONG g_forced;  /* 환경 변수 SRHOOK 로 강제한 상태(1/2). 0 이면 게임 언어를 따른다 */
+static volatile DWORD g_checked; /* 게임 언어를 마지막으로 확인한 시각(GetTickCount) */
+
+#define SRHOOK_RECHECK_MS 500   /* 게임은 옵션 화면에서 언어를 바꾸면 재시작 없이 바로 전환한다. 그 변화를 따라간다 */
 
 static int language_matches(void)
 {
@@ -46,13 +50,16 @@ static int language_matches(void)
 static int enabled(void)
 {
     LONG state = g_state;
+    DWORD now = GetTickCount();
     if (state == 0) {
         char env[4];
         DWORD n = GetEnvironmentVariableA("SRHOOK", env, sizeof(env)); /* 1/0 으로 강제 */
         if (n == 1 && (env[0] == '0' || env[0] == '1'))
-            state = env[0] == '1' ? 1 : 2;
-        else
-            state = language_matches() ? 1 : 2;
+            g_forced = env[0] == '1' ? 1 : 2;
+    }
+    if (state == 0 || (g_forced == 0 && now - g_checked >= SRHOOK_RECHECK_MS)) {
+        state = g_forced ? g_forced : (language_matches() ? 1 : 2);
+        g_checked = now;
         g_state = state;
     }
     return state == 1;
@@ -140,6 +147,137 @@ __declspec(dllexport) BOOL WINAPI srhook_get_cursor_pos(LPPOINT pt)
     return g_real_gcp(pt);
 }
 
+#ifdef SRHOOK_TRACE
+/* 진단용 빌드(srkit hook-build --trace): 게임의 레지스트리 접근을 %TEMP%\srhook-trace-<pid>.log 에 적는다.
+ * 게임이 설정을 어디서 읽는지(직접 실행과 Steam 실행의 차이 등) 볼 때만 쓴다. 배포용 빌드에는 들어가지 않는다. */
+static HANDLE g_log = INVALID_HANDLE_VALUE;
+static CRITICAL_SECTION g_log_lock;
+static struct {
+    HKEY key;
+    char path[160];
+} g_keys[64];
+static LONG g_key_next;
+
+static void trace(const char *fmt, ...)
+{
+    char line[1024];
+    DWORD n, wrote;
+    va_list ap;
+    va_start(ap, fmt);
+    n = (DWORD)wvsprintfA(line, fmt, ap);
+    va_end(ap);
+    EnterCriticalSection(&g_log_lock);
+    WriteFile(g_log, line, n, &wrote, NULL);
+    LeaveCriticalSection(&g_log_lock);
+}
+
+static const char *key_name(HKEY key, char *scratch)
+{
+    int i;
+    if (key == HKEY_CURRENT_USER)
+        return "HKCU";
+    if (key == HKEY_LOCAL_MACHINE)
+        return "HKLM";
+    if (key == HKEY_CLASSES_ROOT)
+        return "HKCR";
+    if (key == HKEY_USERS)
+        return "HKU";
+    for (i = 0; i < 64; i++)
+        if (g_keys[i].key == key)
+            return g_keys[i].path;
+    wsprintfA(scratch, "key:%p", (void *)key);
+    return scratch;
+}
+
+static void remember_key(HKEY key, const char *parent, const char *sub)
+{
+    int slot = (int)(InterlockedIncrement(&g_key_next) & 63);
+    g_keys[slot].key = key;
+    lstrcpynA(g_keys[slot].path, parent, 60);
+    lstrcatA(g_keys[slot].path, "\\");
+    lstrcpynA(g_keys[slot].path + lstrlenA(g_keys[slot].path), sub ? sub : "", 96);
+}
+
+static LSTATUS WINAPI trace_open(HKEY key, LPCSTR sub, DWORD options, REGSAM sam, PHKEY out)
+{
+    char scratch[32];
+    const char *parent = key_name(key, scratch);
+    LSTATUS st = RegOpenKeyExA(key, sub, options, sam, out);
+    trace("open   %s\\%s sam=%lx -> %ld\r\n", parent, sub ? sub : "", (unsigned long)sam, (long)st);
+    if (st == ERROR_SUCCESS && out != NULL)
+        remember_key(*out, parent, sub);
+    return st;
+}
+
+static LSTATUS WINAPI trace_create(HKEY key, LPCSTR sub, DWORD reserved, LPSTR cls, DWORD options, REGSAM sam,
+                                   const LPSECURITY_ATTRIBUTES sec, PHKEY out, LPDWORD disposition)
+{
+    char scratch[32];
+    const char *parent = key_name(key, scratch);
+    LSTATUS st = RegCreateKeyExA(key, sub, reserved, cls, options, sam, sec, out, disposition);
+    trace("create %s\\%s sam=%lx -> %ld\r\n", parent, sub ? sub : "", (unsigned long)sam, (long)st);
+    if (st == ERROR_SUCCESS && out != NULL)
+        remember_key(*out, parent, sub);
+    return st;
+}
+
+static void trace_value(const char *verb, HKEY key, LPCSTR name, LSTATUS st, DWORD type, const BYTE *data, DWORD size)
+{
+    char scratch[32];
+    const char *where = key_name(key, scratch);
+    if (st != ERROR_SUCCESS || data == NULL)
+        trace("%s %s [%s] -> %ld\r\n", verb, where, name ? name : "", (long)st);
+    else if (type == REG_SZ)
+        trace("%s %s [%s] = \"%.200s\"\r\n", verb, where, name ? name : "", (const char *)data);
+    else if (type == REG_DWORD && size >= 4)
+        trace("%s %s [%s] = %lu\r\n", verb, where, name ? name : "", (unsigned long)*(const DWORD *)data);
+    else
+        trace("%s %s [%s] type %lu size %lu\r\n", verb, where, name ? name : "", (unsigned long)type, (unsigned long)size);
+}
+
+static LSTATUS WINAPI trace_query(HKEY key, LPCSTR name, LPDWORD reserved, LPDWORD type, LPBYTE data, LPDWORD size)
+{
+    DWORD got = 0;
+    LSTATUS st = RegQueryValueExA(key, name, reserved, &got, data, size);
+    if (type != NULL)
+        *type = got;
+    trace_value("query ", key, name, st, got, data, size ? *size : 0);
+    return st;
+}
+
+static LSTATUS WINAPI trace_set(HKEY key, LPCSTR name, DWORD reserved, DWORD type, const BYTE *data, DWORD size)
+{
+    LSTATUS st = RegSetValueExA(key, name, reserved, type, data, size);
+    trace_value("set   ", key, name, st, type, data, size);
+    return st;
+}
+
+static void patch_import(HMODULE module, const char *dll, const char *name, void *replacement);
+
+static void trace_start(void)
+{
+    static const char *const vars[] = {"SteamAppId", "SteamGameId", "SteamClientLaunch", "SteamEnv", "__COMPAT_LAYER",
+                                       "SRHOOK_CURSOR"};
+    char path[MAX_PATH], text[MAX_PATH];
+    HMODULE exe = GetModuleHandleW(NULL);
+    int i;
+    InitializeCriticalSection(&g_log_lock);
+    GetTempPathA(sizeof(path) - 40, path);
+    wsprintfA(path + lstrlenA(path), "srhook-trace-%lu.log", (unsigned long)GetCurrentProcessId());
+    g_log = CreateFileA(path, GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    trace("cmdline %.400s\r\n", GetCommandLineA());
+    GetCurrentDirectoryA(sizeof(text), text);
+    trace("cwd     %s\r\n", text);
+    for (i = 0; i < (int)(sizeof(vars) / sizeof(vars[0])); i++)
+        if (GetEnvironmentVariableA(vars[i], text, sizeof(text)) > 0)
+            trace("env     %s=%.100s\r\n", vars[i], text);
+    patch_import(exe, "ADVAPI32.dll", "RegOpenKeyExA", (void *)trace_open);
+    patch_import(exe, "ADVAPI32.dll", "RegCreateKeyExA", (void *)trace_create);
+    patch_import(exe, "ADVAPI32.dll", "RegQueryValueExA", (void *)trace_query);
+    patch_import(exe, "ADVAPI32.dll", "RegSetValueExA", (void *)trace_set);
+}
+#endif /* SRHOOK_TRACE */
+
 static void patch_import(HMODULE module, const char *dll, const char *name, void *replacement)
 {
     BYTE *base = (BYTE *)module;
@@ -180,6 +318,9 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
         patch_import(GetModuleHandleW(NULL), "KERNEL32.dll", "MultiByteToWideChar", (void *)srhook_mbtowc);
         if (GetEnvironmentVariableA("SRHOOK_CURSOR", env, sizeof(env)) == 1 && env[0] == '1' && cursor_shared() != NULL)
             patch_import(GetModuleHandleW(NULL), "USER32.dll", "GetCursorPos", (void *)srhook_get_cursor_pos);
+#ifdef SRHOOK_TRACE
+        trace_start();
+#endif
     }
     return TRUE;
 }
