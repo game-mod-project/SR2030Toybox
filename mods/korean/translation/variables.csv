@@ -660,17 +660,17 @@ LOCALIZE|hotkeydesc|69,Repair,수리,mt
 LOCALIZE|hotkeydesc|70,Unload,하역,mt
 LOCALIZE|hotkeydesc|71,Reserve,예비 편입,mt
 LOCALIZE|hotkeydesc|75,out of range,사거리 밖,mt
-LOCALIZE|hotkeyvalue|0,<PAUSE> or <SPACE> or <P>,,
+LOCALIZE|hotkeyvalue|0,<PAUSE> or <SPACE> or <P>,<PAUSE> / <SPACE> / <P>,mt
 LOCALIZE|hotkeyvalue|1,<ESC>,,
 LOCALIZE|hotkeyvalue|2,<PAGE UP>,,
 LOCALIZE|hotkeyvalue|3,<PAGE DOWN>,,
-LOCALIZE|hotkeyvalue|4,<END> or Keypad <+>,,
-LOCALIZE|hotkeyvalue|5,<HOME> or Keypad <->,,
+LOCALIZE|hotkeyvalue|4,<END> or Keypad <+>,<END> / 키패드 <+>,mt
+LOCALIZE|hotkeyvalue|5,<HOME> or Keypad <->,<HOME> / 키패드 <->,mt
 LOCALIZE|hotkeyvalue|6,<ENTER>,,
 LOCALIZE|hotkeyvalue|7,<@>,,
 LOCALIZE|hotkeyvalue|8,<TAB>,,
 LOCALIZE|hotkeyvalue|9,<F1>,,
-LOCALIZE|hotkeyvalue|10,<F2> to <F8>,,
+LOCALIZE|hotkeyvalue|10,<F2> to <F8>,<F2> ~ <F8>,mt
 LOCALIZE|hotkeyvalue|12,<A>,,
 LOCALIZE|hotkeyvalue|13,<B>,,
 LOCALIZE|hotkeyvalue|14,<C>,,
@@ -690,7 +690,7 @@ LOCALIZE|hotkeyvalue|27,<Ctrl> + <M>,,
 LOCALIZE|hotkeyvalue|28,<Shift> + <M>,,
 LOCALIZE|hotkeyvalue|29,<O>,,
 LOCALIZE|hotkeyvalue|30,<Shift> + <P>,,
-LOCALIZE|hotkeyvalue|31,<Ctrl> + <Q> or <F11>,,
+LOCALIZE|hotkeyvalue|31,<Ctrl> + <Q> or <F11>,<Ctrl> + <Q> / <F11>,mt
 LOCALIZE|hotkeyvalue|32,<R>,,
 LOCALIZE|hotkeyvalue|33,<Ctrl> + <R>,,
 LOCALIZE|hotkeyvalue|34,<S>,,
@@ -1851,7 +1851,7 @@ LOCALIZE|racemstone|2,3,,
 LOCALIZE|racemstone|3,4,,
 LOCALIZE|racemstone|4,5,,
 LOCALIZE|racemstone|5,6,,
-LOCALIZE|regionallocations|0,Nav Point,항법 지점,mt
+LOCALIZE|regionallocations|0,Nav Point,탐색 지점,mt
 LOCALIZE|regionallocations|1,Civilian,민간,mt
 LOCALIZE|regionallocations|2,Industrial,산업,mt
 LOCALIZE|regionallocations|3,Military,군사,mt
