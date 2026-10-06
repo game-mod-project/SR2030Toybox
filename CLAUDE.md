@@ -45,7 +45,11 @@ Supreme Ruler 2030 모드 제작 저장소. 개요는 [README.md](README.md), �
 2. 작업 브랜치 → `develop` PR, CI 통과 후 merge commit 으로 머지.
 3. 릴리스 때만 `develop` → `main` PR.
 
-현재: 원격 저장소 없이 **로컬 커밋만** 한다(사용자 결정, 2026-10-06). PR 을 올릴 곳이 없으므로 작업 브랜치를 `develop` 에
-`git merge --no-ff` 로 합치는 것이 PR 머지를 대신하고, 합치기 전에 `uv run pytest` 통과를 확인한다(CI 대신).
-`main` 은 빈 초기 커밋에 머물며 릴리스 때만 `develop` 을 합친다. 원격 저장소를 만들지는 사용자가 정한다
-(번역 테이블에 게임 원문이 들어 있어 공개 저장소는 피한다).
+원격 저장소: <https://github.com/game-mod-project/SR2030Toybox> (**공개**). 2026-10-06 에 사용자가 주소를 주고,
+번역 테이블에 게임 영어 원문이 들어 있다는 점을 안 채로 "공개 그대로 전체 푸시"를 골랐다.
+
+- 그 전까지의 이력은 원격이 없어 로컬에서 `git merge --no-ff` 로 `develop` 에 합쳤고, 한 번의 PR 로 원격 `develop` 에 올렸다.
+- 이제부터는 작업 브랜치를 푸시해 `develop` 으로 PR 을 올린다. CI 가 아직 없으므로 머지 전에 `uv run pytest` 통과를
+  직접 확인하고 PR 본문에 결과를 적는다.
+- `main` 은 빈 초기 커밋에 머물며 릴리스 때만 `develop` → `main` PR 로 올린다.
+- 공개 저장소다: 커밋에 개인 정보·키·게임 파일(이진 자료, `build/` 산출물)을 넣지 않는다.
