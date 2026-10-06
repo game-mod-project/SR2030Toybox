@@ -1,3 +1,8 @@
+import csv
+from dataclasses import replace
+
+import pytest
+
 from srkit import inventory
 
 # 지역 블록(키 값), 시나리오 설정(키: 값), 이름 붙은 행(키, 값, …) — 셋 다 키 섹션이다
@@ -187,3 +192,52 @@ def test_exe_candidates_need_two_known_names_and_a_tight_table():
     assert inventory.exe_candidates(one_known, {"startymd", "initialfunds"}) == []
     assert inventory.exe_candidates(spread, {"startymd", "initialfunds"}) == []
     assert inventory.exe_candidates(b"", {"startymd"}) == []
+
+
+def read(path):
+    with path.open(encoding="utf-8-sig", newline="") as f:
+        return list(csv.DictReader(f))
+
+
+def test_run_writes_five_tables(cfg, tmp_path):
+    exe = b"\0".join([b"startymd:", b"hiddenkey:", b"initialfunds:"])
+    fake = replace(cfg, root=tmp_path / "proj", game_dir=fake_game(tmp_path / "game", exe))
+    result = inventory.run(fake)
+    out = fake.build_dir / "inventory"
+    assert result["out"] == out and result["skipped"] == 1 and result["candidates"] == 1
+    assert sorted(p.name for p in out.iterdir()) == ["columns.csv", "exe-candidates.csv", "keys.csv", "sections.csv",
+                                                     "skipped.csv"]
+    kinds = {r["section"]: r["kind"] for r in read(out / "sections.csv")}
+    assert kinds["CVP"] == "keyed" and kinds["UNITS"] == "table" and kinds["BUILDSEQUENCE"] == "table"
+    assert {"section": "CVP", "key": "gdpc", "files": "1", "count": "2", "example": "3660"} in read(out / "keys.csv")
+    cost = [r for r in read(out / "columns.csv") if r["section"] == "UNITS" and r["name"] == "Cost"]
+    assert cost == [{"file": "Maps/DATA/DEFAULT.UNIT", "section": "UNITS", "index": "4", "name": "Cost", "filled": "2",
+                     "example": "586"}]
+    assert read(out / "exe-candidates.csv") == [{"string": "hiddenkey", "near": "startymd", "distance": "1", "colon": "1"}]
+    assert read(out / "skipped.csv") == [{"file": "Maps/World.MAPX", "reason": "이진"}]
+    assert b"\r\n" not in (out / "keys.csv").read_bytes()               # 번역 테이블과 같은 형식: BOM + LF
+    inventory.run(fake)                                                 # 다시 돌려도 같은 다섯 파일
+    assert len(list(out.iterdir())) == 5
+
+
+def test_run_refuses_a_folder_without_the_game(cfg, tmp_path):
+    fake = replace(cfg, root=tmp_path, game_dir=tmp_path / "nowhere")
+    with pytest.raises(RuntimeError, match="게임 폴더가 아닙니다"):
+        inventory.run(fake)
+    assert not (fake.build_dir / "inventory").exists()
+
+
+def test_real_game_inventory(game_dir, cfg, tmp_path):
+    """설치본에서: 키 섹션과 표가 맞게 갈리고, 치트 조사에 쓸 키·열이 실제로 나온다."""
+    fake = replace(cfg, root=tmp_path)
+    result = inventory.run(fake)
+    out = fake.build_dir / "inventory"
+    kinds = {r["section"]: r["kind"] for r in read(out / "sections.csv")}
+    assert {name for name, kind in kinds.items() if kind == "keyed"} >= {"CVP", "GMC", "WMDATA", "WMPRODDATA", "AIPARAMS"}
+    for name in ("UNITS", "TTR", "TERRAIN", "NAMESET", "OOB", "OOF", "SEVENTS"):
+        assert kinds[name] == "table", name
+    keys = {(r["section"], r["key"]) for r in read(out / "keys.csv")}
+    assert {("CVP", "treasury"), ("CVP", "gdpc"), ("GMC", "initialfunds"), ("GMC", "fastbuild")} <= keys
+    unit_columns = {r["name"] for r in read(out / "columns.csv") if r["file"] == "Maps/DATA/DEFAULT.UNIT"}
+    assert {"DaysToBuild", "Cost", "SoftAttack", "GroundDefense"} <= unit_columns
+    assert result["sections"] >= 50 and result["candidates"] > 0

@@ -6,7 +6,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from . import config, deploy, hook, korean, mt
+from . import config, deploy, hook, inventory, korean, mt
 from . import spritefont as sf
 
 
@@ -148,6 +148,16 @@ def cmd_hook_build(cfg, args) -> int:
     return 0
 
 
+def cmd_inventory(cfg, _args) -> int:
+    r = inventory.run(cfg)
+    print(f"산출물         : {r['out']}")
+    print(f"섹션           : {r['sections']}종 (키 섹션 {r['keyed']}, 표 {r['sections'] - r['keyed']})")
+    print(f"키             : {r['keys']}개")
+    print(f"실행 파일 후보 : {r['candidates']}개 (추정 — exe-candidates.csv)")
+    print(f"건너뛴 파일    : {r['skipped']}개 (skipped.csv)")
+    return 0
+
+
 def cmd_deploy(cfg, args) -> int:
     for line in deploy.deploy(cfg, args.mod, apply=args.apply):
         print(line)
@@ -203,6 +213,7 @@ def main(argv: list[str] | None = None) -> int:
     h = sub.add_parser("hook-build", help="디코딩 훅 DLL(WTSAPI32.dll) 빌드")
     h.add_argument("--trace", action="store_true", help="진단용: 게임의 레지스트리 접근을 로그로 남기는 빌드")
     h.set_defaults(fn=cmd_hook_build)
+    sub.add_parser("inventory", help="게임 데이터의 섹션·키·열 목록을 build/inventory 에 CSV 로").set_defaults(fn=cmd_inventory)
     for name, fn, text in (("deploy", cmd_deploy, "빌드한 모드를 게임 폴더에 설치"),
                            ("undeploy", cmd_undeploy, "설치한 모드를 제거하고 원본 복원")):
         d = sub.add_parser(name, help=text + " (기본은 미리보기, --apply 로 실행)")

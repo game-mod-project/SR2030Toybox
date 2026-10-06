@@ -6,12 +6,15 @@
 """
 from __future__ import annotations
 
+import csv
 import re
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import srtext
+from .config import Config
+from .deploy import GAME_EXE
 from .korean import decode_cp1252
 
 SCAN_DIRS = ("INI", "Maps", "Sandbox", "Scenario", "Campaign", "Tutorials", "Common")
@@ -206,3 +209,50 @@ def exe_candidates(data: bytes, known: set[str]) -> list[Candidate]:
             j = min(hits, key=lambda h: abs(h - i))
             found[name] = Candidate(name, names[j], abs(j - i), run[i].endswith(":"))
     return list(found.values())
+
+
+def write(inv: Inventory, candidates: list[Candidate], out_dir: Path) -> list[Path]:
+    sections, keys, columns = [], [], []
+    for name, sec in sorted(inv.sections.items()):
+        kind = "keyed" if sec.keyed else "table"
+        for rel in sorted(sec.blocks):
+            sections.append((rel, name, kind, sec.blocks[rel], sec.rows[rel]))
+        if sec.keyed:
+            keys += [(name, key, len(sec.key_files[key]), count, sec.key_example.get(key, ""))
+                     for key, count in sec.keys.items()]
+            continue
+        for rel, table in sorted(sec.tables.items()):
+            columns += [(rel, name, i, table.names[i] if i < len(table.names) else "", table.filled[i],
+                         table.example.get(i, "")) for i in range(table.width)]
+    tables = {
+        "sections.csv": (("file", "section", "kind", "blocks", "rows"), sections),
+        "keys.csv": (("section", "key", "files", "count", "example"), keys),
+        "columns.csv": (("file", "section", "index", "name", "filled", "example"), columns),
+        "exe-candidates.csv": (("string", "near", "distance", "colon"),
+                               [(c.string, c.near, c.distance, int(c.colon)) for c in candidates]),
+        "skipped.csv": (("file", "reason"), inv.skipped),
+    }
+    out_dir.mkdir(parents=True, exist_ok=True)
+    paths = []
+    for filename, (header, rows) in tables.items():
+        path = out_dir / filename
+        with path.open("w", encoding="utf-8-sig", newline="") as f:
+            w = csv.writer(f, lineterminator="\n")
+            w.writerow(header)
+            w.writerows(rows)
+        paths.append(path)
+    return paths
+
+
+def run(cfg: Config) -> dict:
+    exe = cfg.game_dir / GAME_EXE
+    if not exe.is_file():
+        raise RuntimeError(f"게임 폴더가 아닙니다({GAME_EXE} 없음): {cfg.game_dir}")
+    inv = scan(cfg.game_dir)
+    keyed = [sec for sec in inv.sections.values() if sec.keyed]
+    known = set(inv.sections) | {"END"} | {key for sec in keyed for key in sec.keys}
+    candidates = exe_candidates(exe.read_bytes(), known)
+    out = cfg.build_dir / "inventory"
+    write(inv, candidates, out)
+    return {"out": out, "sections": len(inv.sections), "keyed": len(keyed),
+            "keys": sum(len(sec.keys) for sec in keyed), "candidates": len(candidates), "skipped": len(inv.skipped)}
