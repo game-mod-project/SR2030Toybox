@@ -149,7 +149,10 @@ def test_regions_skip_empty_dead_and_inconsistent_slots(lib):
     struct.pack_into("<H", fake.objects[11], 4, 12)                           # 자기 인덱스가 칸과 다르다
     fake.region(12, 0)                                                        # 번호가 없다
     fake.poke(TABLE + 8 * 13, "<Q", 0x00007FFFFFFF0000)                       # 읽을 수 없는 포인터
-    assert state(lib, fake)["regions"] == "1106,1201,1499"
+    fake.region(20, 1403, alive=5)                                            # 이번 판에 없는 지역(남독일 같은 것)
+    fake.region(21, 2922, alive=5)
+    fake.region(22, 7, alive=1)                                               # 유엔 같은 특수한 것
+    assert state(lib, fake)["regions"] == "1106,1201,1499"                    # 사람(2)과 AI(3)가 맡은 나라만
 
 
 def label(lib, number: int) -> str:

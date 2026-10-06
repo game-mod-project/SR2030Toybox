@@ -16,7 +16,7 @@ struct GameState {
 
 // base: 실행 파일이 올라온 주소(테스트에서는 가짜 메모리). 읽을 수 없는 주소를 만나도 죽지 않는다.
 GameState read_game(const uint8_t *base, const GameAddresses &at);
-// 이번 게임에 있는 지역의 번호들(오름차순). 진행 중이 아니면 빈 목록.
+// 이번 게임에 실제로 있는 나라(사람이나 AI 가 맡은 지역)의 번호들(오름차순). 진행 중이 아니면 빈 목록.
 std::vector<int> read_regions(const uint8_t *base, const GameAddresses &at);
 
 void game_init();                  // 올라와 있는 실행 파일에서 주소를 찾는다(시작할 때 한 번). 결과를 로그에 적는다
