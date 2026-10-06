@@ -42,9 +42,17 @@ IDXGISwapChain *g_swap;                  // 게임의 swap chain (처음 걸린 
 ID3D11Device *g_device;
 ID3D11DeviceContext *g_context;
 ID3D11RenderTargetView *g_target;
+UINT g_width, g_height;                  // 게임이 그리는 면(뒷면)의 크기. 게임 창의 크기와 다를 수 있다
 bool g_ready, g_failed;
 std::string g_ini_path;
+const char *g_refusal;                   // 끼어들지 않은 까닭(로그에 적는다)
 thread_local bool t_inside, t_resizing;  // 이 스레드가 지금 우리 훅 안에 있다(재진입을 알아본다)
+
+void *refuse(const char *why)
+{
+    g_refusal = why;
+    return nullptr;
+}
 
 // 다음에 부를 것. 끼어들 때 있던 것을 부르는 것은 우리가 맨 위일 때뿐이다.
 // 아래 셋 가운데 하나면 다른 훅이 이미 돌았거나 우리를 원래 함수로 알고 되부른 것이다 — 깨끗한 진입로로 진짜 함수에 바로 간다:
@@ -110,6 +118,8 @@ bool init(IDXGISwapChain *swap)
         return false;
     }
     g_swap = swap;
+    g_width = desc.BufferDesc.Width;
+    g_height = desc.BufferDesc.Height;
     g_ready = true;
     input_install(desc.OutputWindow);
     log_line("창 준비됨 (%ux%u)", desc.BufferDesc.Width, desc.BufferDesc.Height);
@@ -125,15 +135,21 @@ void draw(IDXGISwapChain *swap)
         ID3D11Texture2D *back = nullptr;
         if (FAILED(swap->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void **>(&back))))
             return;
+        D3D11_TEXTURE2D_DESC size;
+        back->GetDesc(&size);
         const HRESULT hr = g_device->CreateRenderTargetView(back, nullptr, &g_target);
         back->Release();
         if (FAILED(hr)) {
             g_target = nullptr;
             return;
         }
+        g_width = size.Width;       // 크기가 바뀌면 hooked_resize 가 g_target 을 놓으므로 여기를 다시 지난다
+        g_height = size.Height;
     }
     ImGui_ImplDX11_NewFrame();
     ImGui_ImplWin32_NewFrame();
+    // ImGui 는 게임 창의 크기를 화면 크기로 안다. 게임이 창과 다른 크기로 그리면(화면에 늘려 보인다) 그리는 면의 크기로 고쳐 준다
+    ImGui::GetIO().DisplaySize = ImVec2(static_cast<float>(g_width), static_cast<float>(g_height));
     ImGui::NewFrame();
     ui_draw();
     ImGui::Render();
@@ -218,29 +234,45 @@ bool read_at(HANDLE file, ULONGLONG offset, void *out, DWORD size)
     return SetFilePointerEx(file, pos, nullptr, FILE_BEGIN) && ReadFile(file, out, size, &got, nullptr) && got == size;
 }
 
+// 올라와 있는 DLL 이 디스크의 그 파일과 같은 판인가. 게임이 떠 있는 동안 파일이 바뀌면(Windows 업데이트) 다르다 —
+// 그때 파일에서 읽은 바이트는 메모리의 함수와 아무 상관이 없다.
+bool same_build(HMODULE module, const IMAGE_NT_HEADERS64 &file)
+{
+    const BYTE *const base = reinterpret_cast<const BYTE *>(module);
+    const IMAGE_DOS_HEADER *const dos = reinterpret_cast<const IMAGE_DOS_HEADER *>(base);
+    if (dos->e_magic != IMAGE_DOS_SIGNATURE)
+        return false;
+    const IMAGE_NT_HEADERS64 *const loaded = reinterpret_cast<const IMAGE_NT_HEADERS64 *>(base + dos->e_lfanew);
+    return loaded->Signature == IMAGE_NT_SIGNATURE && loaded->FileHeader.TimeDateStamp == file.FileHeader.TimeDateStamp
+        && loaded->OptionalHeader.SizeOfImage == file.OptionalHeader.SizeOfImage
+        && loaded->OptionalHeader.CheckSum == file.OptionalHeader.CheckSum;
+}
+
 // 메모리의 DLL 은 다른 훅이 이미 고쳐 놓았을 수 있다(표의 칸, 함수의 머리). 디스크의 파일에서 원래 바이트를 읽는다.
 // address 는 올라와 있는 DLL 안의 주소. 실행 파일이 아니라 시스템 DLL(dxgi.dll)을 읽는다.
 bool read_image(const void *address, void *out, DWORD size, ULONGLONG *preferred_base, ULONGLONG *image_size)
 {
     const HMODULE module = module_of(address);
     wchar_t path[MAX_PATH];
-    if (module == nullptr)
-        return false;
-    const DWORD n = GetModuleFileNameW(module, path, MAX_PATH);
+    const char *why = "DLL 파일에서 원래 함수를 읽지 못했습니다";
+    const DWORD n = module == nullptr ? 0 : GetModuleFileNameW(module, path, MAX_PATH);
     if (n == 0 || n >= MAX_PATH)
-        return false;
+        return refuse(why) != nullptr;
     const HANDLE file = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING,
                                     FILE_ATTRIBUTE_NORMAL, nullptr);
     if (file == INVALID_HANDLE_VALUE)
-        return false;
+        return refuse(why) != nullptr;
 
     bool ok = false;
-    IMAGE_DOS_HEADER dos;
-    IMAGE_NT_HEADERS64 nt;
+    IMAGE_DOS_HEADER dos = {};
+    IMAGE_NT_HEADERS64 nt = {};
     const ULONGLONG rva = reinterpret_cast<ULONGLONG>(address) - reinterpret_cast<ULONGLONG>(module);
-    if (read_at(file, 0, &dos, sizeof(dos)) && dos.e_magic == IMAGE_DOS_SIGNATURE
+    const bool parsed = read_at(file, 0, &dos, sizeof(dos)) && dos.e_magic == IMAGE_DOS_SIGNATURE
         && read_at(file, static_cast<ULONGLONG>(dos.e_lfanew), &nt, sizeof(nt)) && nt.Signature == IMAGE_NT_SIGNATURE
-        && nt.OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC) {
+        && nt.OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC;
+    if (parsed && !same_build(module, nt)) {
+        why = "올라와 있는 DLL 이 디스크의 파일과 다릅니다";
+    } else if (parsed) {
         const ULONGLONG sections = static_cast<ULONGLONG>(dos.e_lfanew) + offsetof(IMAGE_NT_HEADERS64, OptionalHeader)
             + nt.FileHeader.SizeOfOptionalHeader;
         for (WORD i = 0; i < nt.FileHeader.NumberOfSections; i++) {
@@ -256,7 +288,7 @@ bool read_image(const void *address, void *out, DWORD size, ULONGLONG *preferred
         }
     }
     CloseHandle(file);
-    return ok;
+    return ok || refuse(why) != nullptr;
 }
 
 // 표의 그 칸에 원래 들어 있던 함수. 파일에는 기준 주소에 맞춘 값이 적혀 있으므로 지금 올라온 주소로 옮긴다.
@@ -267,7 +299,7 @@ void *original_function(void **entry)
         return nullptr;
     const ULONGLONG base = reinterpret_cast<ULONGLONG>(module_of(entry));
     const ULONGLONG moved = value - preferred + base;
-    return moved >= base && moved < base + size ? reinterpret_cast<void *>(moved) : nullptr;
+    return moved >= base && moved < base + size ? reinterpret_cast<void *>(moved) : refuse("가상 함수 표의 원래 값을 알 수 없습니다");
 }
 
 // 깨끗한 진입로를 만든다: 함수의 원래 첫 명령들(파일에서 읽은 것)을 그대로 실행한 뒤 함수의 그 다음 자리로 뛴다.
@@ -281,10 +313,13 @@ void *make_clean_entry(void *function, bool *patched)
         return nullptr;
     const int length = prologue_length(head, static_cast<int>(sizeof(head)), COVER);
     if (length == 0)
-        return nullptr;
+        return refuse("원래 함수의 머리를 옮길 수 없습니다");
+    // 진입로는 함수의 length 번째 바이트로 뛴다. 거기서부터가 파일과 다르면(COVER 보다 긴 훅이 걸쳐 있다) 명령의 한가운데로 뛰게 된다
+    if (memcmp(static_cast<const BYTE *>(function) + length, head + length, sizeof(head) - static_cast<size_t>(length)) != 0)
+        return refuse("다른 훅이 원래 함수의 머리를 길게 고쳐 놓았습니다");
     BYTE *code = static_cast<BYTE *>(VirtualAlloc(nullptr, 64, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE));
     if (code == nullptr)
-        return nullptr;
+        return refuse("메모리를 얻지 못했습니다");
     const ULONGLONG rest = reinterpret_cast<ULONGLONG>(function) + static_cast<ULONGLONG>(length);
     static const BYTE jump[6] = {0xFF, 0x25, 0x00, 0x00, 0x00, 0x00};   // jmp [rip+0] — 바로 뒤의 8바이트가 갈 곳
     memcpy(code, head, static_cast<size_t>(length));
@@ -295,25 +330,34 @@ void *make_clean_entry(void *function, bool *patched)
     return code;
 }
 
-// 표의 한 칸에 끼어든다. 반환: 0 실패, 1 끼어듦, 2 끼어들었고 다른 훅이 먼저 있다(표의 칸이나 함수의 머리에).
-int hook_slot(Slot &slot, void **table, int index, void *ours)
+// 표의 한 칸을 바꿔 쓴다.
+bool write_entry(void **entry, void *value)
 {
     DWORD old = 0;
+    if (!VirtualProtect(entry, sizeof(void *), PAGE_READWRITE, &old))
+        return false;
+    *entry = value;
+    VirtualProtect(entry, sizeof(void *), old, &old);
+    return true;
+}
+
+// 표의 한 칸에 끼어들 준비를 한다 — 넘길 곳을 다 적어 둘 뿐 표는 아직 고치지 않는다.
+// 반환: 0 끼어들 수 없다, 1 된다, 2 되고 다른 훅이 먼저 있다(표의 칸이나 함수의 머리에).
+int prepare_slot(Slot &slot, void **table, int index, void *ours)
+{
     bool patched = false;
     void *const found = table[index];
     // 그 칸의 값이 표와 같은 DLL 안을 가리키면 그것이 원래 함수다. 아니면(표에 다른 훅이 있다) 파일에서 원래 값을 읽는다
     const bool in_table = module_of(found) != module_of(&table[index]);
     void *const function = in_table ? original_function(&table[index]) : found;
     void *const clean = function == nullptr ? nullptr : make_clean_entry(function, &patched);
-    if (clean == nullptr || !VirtualProtect(&table[index], sizeof(void *), PAGE_READWRITE, &old))
+    if (clean == nullptr)
         return 0;
-    slot.entry = &table[index];   // 칸을 바꾸기 전에 다 적어 둔다 — 바꾸자마자 불려도 넘길 곳이 있다
+    slot.entry = &table[index];
     slot.ours = ours;
     slot.found = found;
     slot.clean = clean;
     memcpy(slot.head, ours, sizeof(slot.head));
-    table[index] = ours;
-    VirtualProtect(&table[index], sizeof(void *), old, &old);
     return in_table || patched ? 2 : 1;
 }
 
@@ -329,6 +373,16 @@ bool overlay_ready()
 {
     std::lock_guard<std::recursive_mutex> lock(ui_mutex());
     return g_ready;
+}
+
+void overlay_to_drawn(HWND window, int *x, int *y)
+{
+    std::lock_guard<std::recursive_mutex> lock(ui_mutex());
+    RECT client;
+    if (g_width == 0 || g_height == 0 || !GetClientRect(window, &client) || client.right <= 0 || client.bottom <= 0)
+        return;
+    *x = MulDiv(*x, static_cast<int>(g_width), client.right);
+    *y = MulDiv(*y, static_cast<int>(g_height), client.bottom);
 }
 
 bool overlay_install()
@@ -364,12 +418,23 @@ bool overlay_install()
     int present = 0, resize = 0;
     if (SUCCEEDED(hr)) {
         void **table = *reinterpret_cast<void ***>(swap);
-        present = hook_slot(g_present, table, SLOT_PRESENT, reinterpret_cast<void *>(hooked_present));
+        present = prepare_slot(g_present, table, SLOT_PRESENT, reinterpret_cast<void *>(hooked_present));
         if (present != 0)
-            resize = hook_slot(g_resize, table, SLOT_RESIZE, reinterpret_cast<void *>(hooked_resize));
+            resize = prepare_slot(g_resize, table, SLOT_RESIZE, reinterpret_cast<void *>(hooked_resize));
+        // 둘 다 될 때만 표를 고친다. 그리기만 하고 크기 바꾸기를 놓치면 뒷면을 쥔 채 놓지 못해 게임이 화면 크기를 못 바꾼다.
+        // 크기 바꾸기부터 고친다 — Present 를 고치자마자 그리기 시작해도 놓을 길이 이미 있다
+        if (resize != 0 && !write_entry(g_resize.entry, g_resize.ours))
+            resize = refuse("가상 함수 표를 고칠 수 없습니다") != nullptr;
+        if (resize != 0 && !write_entry(g_present.entry, g_present.ours)) {
+            write_entry(g_resize.entry, g_resize.found);
+            resize = refuse("가상 함수 표를 고칠 수 없습니다") != nullptr;
+        }
         IDXGISwapChain1 *swap1 = nullptr;
         if (resize != 0 && SUCCEEDED(swap->QueryInterface(__uuidof(IDXGISwapChain1), reinterpret_cast<void **>(&swap1)))) {
-            hook_slot(g_present1, *reinterpret_cast<void ***>(swap1), SLOT_PRESENT1, reinterpret_cast<void *>(hooked_present1));
+            void **table1 = *reinterpret_cast<void ***>(swap1);
+            if (prepare_slot(g_present1, table1, SLOT_PRESENT1, reinterpret_cast<void *>(hooked_present1)) == 0
+                || (!write_entry(g_present1.entry, g_present1.ours) && refuse("가상 함수 표를 고칠 수 없습니다") == nullptr))
+                log_line("Present1 에는 끼어들지 못했습니다 (%s) — 게임이 그것으로 화면을 내보내면 창이 보이지 않습니다", g_refusal);
             swap1->Release();
         }
         context->Release();
@@ -384,6 +449,6 @@ bool overlay_install()
     else if (FAILED(hr))
         log_line("화면에 끼어들지 못했습니다 (0x%08lX) — ToyBox 는 동작하지 않습니다", static_cast<unsigned long>(hr));
     else
-        log_line("화면에 끼어들지 못했습니다 (원래 함수의 머리를 옮길 수 없습니다) — ToyBox 는 동작하지 않습니다");
+        log_line("화면에 끼어들지 못했습니다 (%s) — ToyBox 는 동작하지 않습니다", g_refusal != nullptr ? g_refusal : "까닭을 알 수 없습니다");
     return ok;
 }

@@ -237,8 +237,8 @@ def test_the_hook_starts_toybox_and_it_writes_a_log(dll, cfg, tmp_path):
     assert "시작" in log and ("끼어들었습니다" in log or "끼어들지 못했습니다" in log), log
 
 
-def _overlay_probe(cfg, tmp_path, mode: str) -> tuple[int, int]:
-    """tests/toybox_overlay_probe.py 를 새 프로세스로 돌린다: (가짜 훅이 불린 횟수, Present 의 반환값)."""
+def _probe(cfg, tmp_path, mode: str) -> str:
+    """tests/toybox_overlay_probe.py 를 새 프로세스로 돌려 그 출력 한 줄을 받는다. ToyBox 의 로그는 tmp_path/home 에 남는다."""
     if not hook.output(cfg).is_file():
         pytest.skip("훅 DLL 미빌드 (srkit hook-build)")
     home = tmp_path / "home"
@@ -247,13 +247,31 @@ def _overlay_probe(cfg, tmp_path, mode: str) -> tuple[int, int]:
     shutil.copyfile(toybox.output(cfg), tmp_path / toybox.DLL_NAME)
     probe = Path(__file__).with_name("toybox_overlay_probe.py")
     run = subprocess.run([sys.executable, str(probe), str(tmp_path / "hookcopy.dll"), mode], capture_output=True, text=True,
-                         env={**os.environ, "SRTOYBOX_HOME": str(home)}, timeout=120)
+                         encoding="utf-8", env={**os.environ, "SRTOYBOX_HOME": str(home)}, timeout=120)
     out = run.stdout.strip()
     if out == "nodevice":
         pytest.skip("Direct3D 장치를 만들 수 없는 환경")
-    assert run.returncode == 0 and out.startswith("calls="), (run.returncode, out, run.stderr[-400:])
-    calls, hr = out.split()
-    return int(calls.split("=")[1]), int(hr.split("=")[1], 16)
+    if out.startswith("skip "):
+        pytest.skip(out[5:])
+    assert run.returncode == 0 and out, (run.returncode, out, run.stderr[-600:])
+    return out
+
+
+def _fields(out: str) -> dict[str, str]:
+    """"이름=값 이름=값 …" 을 사전으로. 마지막 값(text=…)에는 빈칸이 들어 있을 수 있다."""
+    head, _, tail = out.partition(" text=")
+    return {**dict(pair.split("=", 1) for pair in head.split()), **({"text": tail} if " text=" in out else {})}
+
+
+def _overlay_probe(cfg, tmp_path, mode: str) -> tuple[int, int]:
+    """다른 훅과 함께 돌린 결과: (가짜 훅이 불린 횟수, 마지막 반환값). 반환값은 아무 훅도 없을 때와 같아야 한다."""
+    got = _fields(_probe(cfg, tmp_path, mode))
+    assert got["hr"] == got["plain"], got
+    return int(got["calls"]), int(got["hr"], 16)
+
+
+def _ok(hr: str) -> bool:
+    return int(hr, 16) < 0x80000000                 # 성공(S_OK 또는 가려져 있다는 상태값)
 
 
 def test_present_passes_through_when_toybox_is_alone(dll, cfg, tmp_path):
@@ -282,6 +300,60 @@ def test_no_ping_pong_with_a_jump_planted_in_the_real_function(dll, cfg, tmp_pat
     """
     calls, hr = _overlay_probe(cfg, tmp_path, "inline")
     assert calls == 3 and hr < 0x80000000
+
+
+def test_no_ping_pong_in_the_layout_steam_really_made(dll, cfg, tmp_path):
+    """Steam 으로 띄운 게임에서 실제로 탄 길: 오버레이가 진짜 Present 와 ToyBox 함수 양쪽 머리에 점프를 심고,
+    ToyBox 함수의 트램펄린을 원래 함수로 부른다. 이때 ToyBox 는 재진입도 아니고 표의 칸도 그대로다 — 자기 함수의 머리가
+    바뀐 것을 보고 깨끗한 진입로로 가야 오버레이가 한 화면에 한 번만 돈다."""
+    calls, hr = _overlay_probe(cfg, tmp_path, "steam")
+    assert calls == 3 and hr < 0x80000000
+
+
+@pytest.mark.parametrize("mode", ["inline_resize", "inline_present1"])
+def test_resize_and_present1_skip_a_planted_jump_too(dll, cfg, tmp_path, mode):
+    calls, hr = _overlay_probe(cfg, tmp_path, mode)
+    assert calls == 1 and hr < 0x80000000
+
+
+def test_draws_into_the_back_buffer_and_lets_go_of_it_on_resize(dll, cfg, tmp_path):
+    got = _fields(_probe(cfg, tmp_path, "draw_resize"))
+    assert got["resize_hooked"] == "1" and _ok(got["visible"])
+    assert got["direct_resize"] == "0x887a0001"     # ToyBox 를 거치지 않으면 크기를 못 바꾼다 — 뒷면을 쥐고 있다(= 실제로 그렸다)
+    assert got["hooked_resize"] == "0x0"            # ToyBox 를 거치면 놓아 준다
+    assert _ok(got["after"]) and _ok(got["present1"]) and got["present1"] == got["present1_plain"]
+
+
+@pytest.mark.parametrize("mode, reason", [("longpatch", "길게 고쳐"), ("longpatch_resize", "길게 고쳐"), ("stale", "파일과 다릅니다")])
+def test_does_not_hook_where_the_clean_entry_cannot_be_trusted(dll, cfg, tmp_path, mode, reason):
+    """깨끗한 진입로는 디스크의 dxgi.dll 에서 읽은 첫 14바이트를 실행하고 그 뒤로 뛴다. 그 뒤가 메모리에서 이미 바뀌어 있거나
+    (14바이트보다 긴 훅) 디스크의 파일이 올라온 것과 다른 판이면 엉뚱한 자리로 뛰게 된다 — 그때는 끼어들지 않는다.
+    크기 바꾸기(ResizeBuffers)에 끼어들 수 없으면 Present 에도 끼어들지 않는다: 그리기만 하면 뒷면을 쥔 채 놓지 못한다."""
+    assert _probe(cfg, tmp_path, mode) == "nohook"
+    log = (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8")
+    assert "끼어들지 못했습니다" in log and reason in log, log
+
+
+def test_keys_and_clicks_reach_only_the_side_they_are_meant_for(dll, cfg, tmp_path):
+    got = _fields(_probe(cfg, tmp_path, "input"))
+    assert got["hotkey"] == "toybox"                # 단축키는 게임에 가지 않는다
+    assert got["button"] == "none"                  # 설정 창 위의 누름도
+    assert got["outside"] == "press+release"        # 설정 창 밖의 누름은 게임이 받는다
+    assert got["typing"] == "1" and got["done"] == "1", got
+    # 게임이 받은 글쇠는 계획 그대로다. 넣는 동안 사용자가 친 9 와 단축키(<0x54>)는 섞이지 않는다
+    keys = {13: "<Enter>", 27: "<Esc>", 83: "<S>", 17: "<Ctrl>", 16: "<Shift>"}
+    steps = [step.split() for step in expected_plan("cheat georgew")]
+    assert got["text"] == "".join(chr(int(v)) if act == "CHAR" else keys[int(v)] for act, v in steps if act in ("CHAR", "DOWN"))
+    assert got["hotkey_busy"] == "toybox"           # 넣는 동안에도 단축키는 ToyBox 의 것이고
+    assert got["title_after"] == "press+release"    # 그래서 창이 닫혔다
+    assert got["mods_left"] == "0"                  # Ctrl · Shift 가 눌린 채로 남지 않는다
+
+
+def test_mouse_follows_the_size_the_game_draws_at(dll, cfg, tmp_path):
+    """게임이 창보다 작게 그리면 화면에는 늘어나 보인다. 누른 자리는 보이는 설정 창을 기준으로 가려야 한다."""
+    got = _fields(_probe(cfg, tmp_path, "scale"))
+    assert got["title"] == "none"                   # 보이는 창의 제목 줄을 눌렀다 — 게임에 새지 않는다
+    assert got["beside"] == "press+release"         # 보이는 창의 바깥이다 — 게임이 받는다
 
 
 def test_prologue_length_knows_only_plain_function_heads(dll):
