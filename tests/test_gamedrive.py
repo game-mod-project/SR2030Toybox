@@ -43,3 +43,14 @@ def test_only_games_started_by_the_tool_are_touched(gd, cfg, tmp_path, monkeypat
     finally:
         mine.kill()
         theirs.kill()
+
+
+def test_key_names_with_modifiers(gd):
+    assert gd.parse_key("ENTER") == ([], 0x0D)
+    assert gd.parse_key("0x1B") == ([], 0x1B)
+    assert gd.parse_key("27") == ([], 27)                    # 숫자는 지금처럼 가상 키 코드다
+    assert gd.parse_key("s") == ([], 0x53)
+    assert gd.parse_key("CTRL+SHIFT+S") == ([0x11, 0x10], 0x53)
+    assert gd.parse_key("ctrl+enter") == ([0x11], 0x0D)
+    with pytest.raises(SystemExit, match="모르는 수정키"):
+        gd.parse_key("WIN+S")
