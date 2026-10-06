@@ -196,3 +196,19 @@ def test_hotkey_names(dll):
 def test_mod_folder_holds_only_the_dll(dll, cfg):
     """build/toybox 는 게임 루트 구조의 모드 폴더다. deploy 가 통째로 복사하므로 DLL 말고는 없어야 한다."""
     assert sorted(p.name for p in toybox.output(cfg).parent.iterdir()) == [toybox.DLL_NAME]
+
+
+IMGUI_FILES = ["imgui.cpp", "imgui_draw.cpp", "imgui_tables.cpp", "imgui_widgets.cpp", "imgui.h", "imgui_internal.h", "imconfig.h",
+               "imstb_rectpack.h", "imstb_textedit.h", "imstb_truetype.h", "backends/imgui_impl_win32.h",
+               "backends/imgui_impl_win32.cpp", "backends/imgui_impl_dx11.h", "backends/imgui_impl_dx11.cpp", "LICENSE.txt", "README.md"]
+
+
+def test_imgui_is_vendored_with_its_license_and_version(cfg):
+    """외부 소스는 필요한 파일만, 라이선스와 함께, 버전을 적어 둔다."""
+    root = cfg.root / toybox.IMGUI_DIR
+    assert sorted(p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file()) == sorted(IMGUI_FILES)
+    assert "MIT" in (root / "LICENSE.txt").read_text(encoding="utf-8")
+    version = re.search(r'#define IMGUI_VERSION\s+"([^"]+)"', (root / "imgui.h").read_text(encoding="utf-8"))[1]
+    readme = (root / "README.md").read_text(encoding="utf-8")
+    assert f"v{version}" in readme and "github.com/ocornut/imgui" in readme
+    assert [s for s in toybox.IMGUI_SOURCES if not (root / s).is_file()] == []
