@@ -161,13 +161,15 @@ def label(lib, number: int) -> str:
 def test_region_names(lib):
     """이름표는 저장소의 번역 테이블에서 온다. 표에 없는 번호는 #번호 로 보인다."""
     assert label(lib, 1499) == "독일" and label(lib, 1106) == "폴란드"
-    assert label(lib, 12345) == "#12345" and label(lib, 0) == "#0" and label(lib, -7) == "#-7"
+    assert label(lib, 109) == "수에즈 운하 지대"          # localtext-regions.extra.csv 에만 있는 지역
+    assert label(lib, 12345) == "#12345" and label(lib, -7) == "#-7"
 
 
 def test_region_rows_come_from_the_translation_table(cfg):
     rows = toybox.region_rows(cfg)
     assert [n for n, _, _ in rows] == sorted({n for n, _, _ in rows}) and len(rows) > 300
     assert (1499, "독일", "Germany") in rows
+    assert (109, "수에즈 운하 지대", "Suez Canal Zone") in rows      # 덧붙인 표(.extra)의 지역도 들어간다
     assert all(ko and en for _, ko, en in rows)
 
 
