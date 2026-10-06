@@ -1,6 +1,7 @@
 """빌드한 모드(build/<모드>/, 게임 루트 구조)를 게임 폴더에 설치·제거한다.
 
 덮어쓰는 원본은 build/.deploy/<모드>/backup 에 보관하고, 설치 내역(manifest.json)으로 깨끗이 되돌린다.
+한 게임 파일은 한 모드만 쥔다: 다른 모드의 설치 내역에 든 파일을 건드리는 설치는 거부한다(holders).
 apply=False 면 무엇을 할지만 알려 준다.
 """
 from __future__ import annotations
@@ -56,6 +57,26 @@ def _check_not_running(cfg: Config) -> None:
         raise RuntimeError("게임이 실행 중입니다. 게임을 끈 뒤 다시 실행하세요 (실행 중에는 파일을 바꾸지 않습니다).")
 
 
+def holders(cfg: Config, *, skip: str | None = None) -> dict[str, list[str]]:
+    """설치된 모드들이 쥐고 있는(추가했거나 교체한) 게임 파일 → 그 모드들. 한 파일은 한 모드만 쥘 수 있다.
+
+    백업이 모드별로 따로라, 둘이 같은 파일을 쥐면 제거하는 순서에 따라 원본이 아닌 파일이 게임 폴더에 남는다.
+    키는 소문자 경로다(Windows 는 대소문자를 가리지 않는다).
+    """
+    held: dict[str, list[str]] = {}
+    for path in sorted((cfg.build_dir / ".deploy").glob("*/manifest.json")):
+        if path.parent.name == skip:
+            continue
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+        for rel in manifest["added"] + manifest["replaced"]:
+            held.setdefault(rel.casefold(), []).append(path.parent.name)
+    return held
+
+
+def _undeploy_first(clashes: dict[str, list[str]]) -> str:
+    return " · ".join(f"srkit undeploy {mod} --apply" for mod in sorted({m for mods in clashes.values() for m in mods}))
+
+
 def deploy(cfg: Config, mod: str, *, apply: bool = False) -> list[str]:
     _check_game(cfg)
     src = cfg.build_dir / mod
@@ -67,9 +88,19 @@ def deploy(cfg: Config, mod: str, *, apply: bool = False) -> list[str]:
     manifest_path = state / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.is_file() \
         else {"added": [], "replaced": []}
+    files = [(path, path.relative_to(src).as_posix()) for path in sorted(p for p in src.rglob("*") if p.is_file())]
+    others = holders(cfg, skip=mod)
+    clashes = {rel: others[rel.casefold()] for _, rel in files if rel.casefold() in others}
+    if clashes and apply:
+        # 내용이 같아 지금은 바꿀 것이 없는 파일도 겹침이다 — 저쪽을 제거하면 이 모드의 파일이 함께 사라진다
+        raise RuntimeError("다른 모드가 쥐고 있는 파일이 있어 아무것도 설치하지 않았습니다(한 파일은 한 모드만 바꿀 수 있습니다). "
+                           f"먼저 {_undeploy_first(clashes)}\n"
+                           + "\n".join(f"  {rel} (모드 {', '.join(mods)})" for rel, mods in clashes.items()))
     log = []
-    for path in sorted(p for p in src.rglob("*") if p.is_file()):
-        rel = path.relative_to(src).as_posix()
+    for path, rel in files:
+        if rel in clashes:
+            log.append(f"겹침: {rel} — 설치된 모드 {', '.join(clashes[rel])} 가 쥐고 있는 파일")
+            continue
         dest = cfg.game_dir / rel
         if dest.is_file() and filecmp.cmp(path, dest, shallow=False):
             continue
@@ -91,7 +122,10 @@ def deploy(cfg: Config, mod: str, *, apply: bool = False) -> list[str]:
     if apply:
         state.mkdir(parents=True, exist_ok=True)
         manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8")
-    log.append(f"{'설치 완료' if apply else '미리보기(--apply 로 실행)'}: {len(log)}개 파일 → {cfg.game_dir}")
+    if clashes:
+        log.append(f"미리보기: 겹치는 파일 {len(clashes)}개 때문에 설치할 수 없습니다 — 먼저 {_undeploy_first(clashes)}")
+    else:
+        log.append(f"{'설치 완료' if apply else '미리보기(--apply 로 실행)'}: {len(log)}개 파일 → {cfg.game_dir}")
     return log
 
 
@@ -104,6 +138,16 @@ def undeploy(cfg: Config, mod: str, *, apply: bool = False) -> list[str]:
     if apply:
         _check_not_running(cfg)
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    others = holders(cfg, skip=mod)
+    shared = {rel: others[rel.casefold()] for rel in manifest["replaced"] + manifest["added"] if rel.casefold() in others}
+    if shared:
+        # deploy 가 겹침을 거부하므로 이 상태는 그 검사가 생기기 전의 설치에서만 나온다. 설치 순서는 기록에 없다
+        lines = [f"겹침: {rel} — 설치된 모드 {', '.join(mods)} 도 쥐고 있는 파일" for rel, mods in shared.items()]
+        why = "어느 쪽의 백업이 원본인지 알 수 없어 되돌리지 않습니다. 원본은 Steam 의 파일 무결성 검사로 되찾을 수 있습니다"
+        if apply:
+            raise RuntimeError(f"두 모드의 설치 내역이 같은 파일을 가리킵니다. {why}\n"
+                               + "\n".join(f"  {rel} (모드 {', '.join(mods)})" for rel, mods in shared.items()))
+        return lines + [f"미리보기: 제거할 수 없습니다 — {why}"]
     log = []
     for rel in manifest["replaced"]:
         log.append(f"복원: {rel}")
