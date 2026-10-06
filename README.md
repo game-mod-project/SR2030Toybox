@@ -19,6 +19,9 @@ Supreme Ruler 2030 모드 제작 작업 공간. 첫 과제는 **한글화 모드
 내장 치트가 없는 GDP 와 장비 수치는 시나리오 파일 끝에 블록을 덧붙이는 방법으로 바뀌는 것을 확인했고(장비는 비용 열 하나로 확인했다. 공격·방어 같은 다른 열은 아직 추정이다), 그 방법을 쓰는 모드는 아직 만들지 않았다.
 무엇을 만들고 무엇을 만들지 않는지, 게임 업데이트로 치트가 사라질 때의 대비는 [docs/09](docs/09-cheat-mod-plan.md).
 
+셋째로 **ToyBox**(게임 안 모드 설정 창)의 1단계를 만들었다(2026-10-06). `Ctrl+Shift+T` 로 여는 창에서 플레이어 국가에만 닿는 내장 치트 16개를
+실행한다. 한글화 모드가 설치되어 있어야 동작하고, 지금은 게임 폴더에 설치해 두지 않았다 — 쓰는 법과 한계는 [docs/10](docs/10-toybox.md).
+
 ## 빠른 시작
 
 ```
@@ -29,6 +32,7 @@ uv run srkit stats                   # 번역 진행률
 uv run srkit check                   # 번역문 검증
 uv run srkit mt-export <테이블>      # 기계 번역용 청크 내보내기 → mt-check → mt-import
 uv run srkit hook-build              # 디코딩 훅 DLL 빌드
+uv run srkit toybox-build            # ToyBox DLL(게임 안 모드 설정 창) 빌드 → build/toybox/
 uv run srkit build                   # build/korean/ 에 한글화 모드 생성
 uv run srkit deploy korean           # 설치 미리보기 (--apply 로 실제 설치)
 uv run srkit undeploy korean         # 제거 미리보기 (--apply 로 실제 제거·복원)
@@ -53,9 +57,11 @@ docs/            리서치와 설계
   07-cheats.md                  내장 치트표 (게임에서 넣어 본 결과)
   08-workshop-survey.md         Workshop 기존 모드 조사
   09-cheat-mod-plan.md          치트/모드 제작 계획, 게임 업데이트 대비
+  10-toybox.md                  ToyBox — 게임 안 모드 설정 창
 mods/
   _template/     새 모드 골격
   korean/        한글화 모드 원본 (번역 테이블, STYLE.md 번역 규칙, glossary.csv 용어집, sprites.toml 그림 글자)
+  toybox/        ToyBox 설명 (모드의 파일은 DLL 하나다)
 src/srkit/       도구
   srtext.py      게임 텍스트 형식의 무손실 파서
   srutf8.py      SR-UTF8 인코딩 (게임 엔진과 충돌하지 않는 UTF-8 변형)
@@ -68,7 +74,10 @@ src/srkit/       도구
   inventory.py   게임 데이터의 섹션·키·열 목록 (읽기 전용)
   probe.py       값 한 곳만 바꾼 시험 모드 만들기 (데이터 수정이 게임에 반영되는지 확인용)
   cheats.py      내장 치트 목록을 문서와 대조 (게임 업데이트로 치트가 사라졌는지 감지)
+  toybox.py      ToyBox DLL 빌드
 native/srhook/   디코딩 훅 DLL 소스
+native/srtoybox/ ToyBox DLL 소스 (C++)
+native/third_party/imgui/  Dear ImGui (MIT)
 scripts/         gamedrive.py — 게임 실행·창 캡처·입력 (게임 안 검증용)
 tests/           자동 테스트 (일부는 게임 설치본·빌드된 DLL 이 있을 때만 실행)
 build/           산출물 (git 제외)
