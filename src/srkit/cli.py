@@ -6,7 +6,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from . import cheats, config, deploy, hook, inventory, korean, mt, probe
+from . import cheats, config, deploy, hook, inventory, korean, mt, probe, toybox
 from . import spritefont as sf
 
 
@@ -31,6 +31,7 @@ def cmd_info(cfg: config.Config, _args) -> int:
     print(f"원문 → 대상   : {cfg.source_lang} → {cfg.target_lang} ('{cfg.display_name}')")
     print(f"한글 글꼴     : {cfg.hangul_font} ({'있음' if cfg.hangul_font.is_file() else '없음'})")
     print(f"디코딩 훅     : {hook.status(cfg)}")
+    print(f"ToyBox        : {toybox.status(cfg)}")
     return 0
 
 
@@ -148,6 +149,11 @@ def cmd_hook_build(cfg, args) -> int:
     return 0
 
 
+def cmd_toybox_build(cfg, _args) -> int:
+    print(f"빌드 완료: {toybox.build(cfg)}")
+    return 0
+
+
 def cmd_inventory(cfg, _args) -> int:
     r = inventory.run(cfg)
     print(f"산출물         : {r['out']}")
@@ -233,6 +239,8 @@ def main(argv: list[str] | None = None) -> int:
     h = sub.add_parser("hook-build", help="디코딩 훅 DLL(WTSAPI32.dll) 빌드")
     h.add_argument("--trace", action="store_true", help="진단용: 게임의 레지스트리 접근을 로그로 남기는 빌드")
     h.set_defaults(fn=cmd_hook_build)
+    sub.add_parser("toybox-build", help="ToyBox DLL(srtoybox.dll, 게임 안 모드 설정 창) 빌드 → build/toybox") \
+        .set_defaults(fn=cmd_toybox_build)
     sub.add_parser("inventory", help="게임 데이터의 섹션·키·열 목록을 build/inventory 에 CSV 로").set_defaults(fn=cmd_inventory)
     sub.add_parser("cheats-check", help="게임의 내장 치트가 docs/07 과 같은지 대조(게임 업데이트 감지)") \
         .set_defaults(fn=cmd_cheats_check)
