@@ -21,7 +21,8 @@ IMGUI_SOURCES = ["imgui.cpp", "imgui_draw.cpp", "imgui_tables.cpp", "imgui_widge
                  "backends/imgui_impl_win32.cpp", "backends/imgui_impl_dx11.cpp"]
 IMGUI_DEFINES = "/DIMGUI_IMPL_WIN32_DISABLE_GAMEPAD"    # 게임패드는 쓰지 않는다(XInput 을 불러오지 않게)
 EXE_NAME = "SupremeRuler2030.exe"
-REGION_TABLE = "mods/korean/translation/localtext-regions.csv"   # REGIONTEXT|<지역 번호>|0 행이 지역의 이름이다
+# REGIONTEXT|<지역 번호>|0 행이 지역의 이름이다. 뒤의 표(게임의 표에 없어 덧붙인 지역)가 앞의 것을 덮는다
+REGION_TABLES = ["mods/korean/translation/localtext-regions.csv", "mods/korean/translation/localtext-regions.extra.csv"]
 # native/srtoybox/locate.h 의 GameAddresses 와 같은 순서다
 ADDRESS_FIELDS = ["handler", "context", "multiplayer", "options", "program_state", "mode_state", "player_index",
                   "player_pointer", "region_table", "region_count"]
@@ -53,12 +54,13 @@ def _quoted(paths) -> str:
 def region_rows(cfg: Config) -> list[tuple[int, str, str]]:
     """번역 테이블에서 (지역 번호, 한글 이름, 영문 이름)을 번호순으로. 번역이 빈 행은 영문 이름을 쓴다."""
     rows: dict[int, tuple[str, str]] = {}
-    with (cfg.root / REGION_TABLE).open(encoding="utf-8-sig", newline="") as f:
-        for row in csv.DictReader(f):
-            m = re.fullmatch(r"REGIONTEXT\|(\d+)\|0", row["key"])
-            en = row["en"].strip()
-            if m and en:
-                rows[int(m[1])] = (row["ko"].strip() or en, en)
+    for table in REGION_TABLES:
+        with (cfg.root / table).open(encoding="utf-8-sig", newline="") as f:
+            for row in csv.DictReader(f):
+                m = re.fullmatch(r"REGIONTEXT\|(\d+)\|0", row["key"])
+                en = row["en"].strip()
+                if m and en:
+                    rows[int(m[1])] = (row["ko"].strip() or en, en)
     return [(number, *rows[number]) for number in sorted(rows)]
 
 

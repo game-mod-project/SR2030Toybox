@@ -29,13 +29,18 @@ void enter_line(std::vector<Action> &plan, const std::string &text)
 
 }  // namespace
 
-std::string build_command(const Feature &f, long long value)
+std::string build_command(const Feature &f, long long value, int region)
 {
     std::string out = f.command;
     if (f.has_value) {
         const long long v = value < f.min ? f.min : value > f.max ? f.max : value;
         out += ' ';
         out += std::to_string(v);
+    } else if (f.target != Target::None) {
+        if (region <= 0)
+            return std::string();
+        out += ' ';
+        out += std::to_string(region);
     }
     return out;
 }

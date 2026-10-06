@@ -8,6 +8,7 @@
 #include "command.h"
 #include "features.h"
 #include "game.h"
+#include "input.h"
 #include "locate.h"
 #include "log.h"
 #include "overlay.h"
@@ -47,22 +48,24 @@ EXPORT int srtoybox_feature_count(void)
     return FEATURE_COUNT;
 }
 
-// 한 줄: id, 탭, 이름, 명령, 값 있음(0/1), 기본값, 최소, 최대, 확인(0/1), 설명 — 탭 문자로 나눈다
+// 한 줄: id, 탭, 이름, 명령, 값 있음(0/1), 기본값, 최소, 최대, 확인(0/1), 설명, 대상(none/player/picked) — 탭 문자로 나눈다
 EXPORT int srtoybox_feature_info(int index, char *out, int size)
 {
     if (index < 0 || index >= FEATURE_COUNT)
         return -1;
     const Feature &f = FEATURES[index];
+    static const char *const targets[] = {"none", "player", "picked"};
     const std::string line = std::string(f.id) + '\t' + f.tab + '\t' + f.label + '\t' + f.command + '\t' + (f.has_value ? "1" : "0")
         + '\t' + std::to_string(f.def) + '\t' + std::to_string(f.min) + '\t' + std::to_string(f.max) + '\t'
-        + (f.confirm ? "1" : "0") + '\t' + f.help;
+        + (f.confirm ? "1" : "0") + '\t' + f.help + '\t' + targets[static_cast<int>(f.target)];
     return put(line, out, size);
 }
 
-EXPORT int srtoybox_command(const char *id, long long value, char *out, int size)
+EXPORT int srtoybox_command(const char *id, long long value, int region, char *out, int size)
 {
     const Feature *f = id == nullptr ? nullptr : find_feature(id);
-    return f == nullptr ? -1 : put(build_command(*f, value), out, size);
+    const std::string command = f == nullptr ? std::string() : build_command(*f, value, region);
+    return command.empty() ? -1 : put(command, out, size);
 }
 
 EXPORT int srtoybox_plan(const char *command, char *out, int size)
@@ -153,6 +156,22 @@ EXPORT void srtoybox_test_game(const unsigned char *base, const GameAddresses *a
 EXPORT int srtoybox_region_label(int number, char *out, int size)
 {
     return put(region_label(number), out, size);
+}
+
+// 테스트: 창의 나라 목록. 첫 줄 "picked=<번호>", 이어서 한 줄에 "<번호>\t<이름>".
+EXPORT int srtoybox_region_view(const int *numbers, int count, int player, int picked, const char *filter, char *out, int size)
+{
+    const std::vector<int> all(numbers, numbers + (numbers == nullptr || count < 0 ? 0 : count));
+    const RegionView view = region_view(all, player, picked, filter);
+    std::string text = "picked=" + std::to_string(view.picked) + '\n';
+    for (int number : view.rows)
+        text += std::to_string(number) + '\t' + region_label(number) + '\n';
+    return put(text, out, size);
+}
+
+EXPORT unsigned srtoybox_dbcs(unsigned char lead, unsigned char trail, unsigned codepage)
+{
+    return dbcs_combine(lead, trail, codepage);
 }
 
 EXPORT int srtoybox_hotkey_name(int vk, int mods, char *out, int size)

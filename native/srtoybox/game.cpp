@@ -48,7 +48,9 @@ bool peek_at(const uint8_t *base, uint64_t offset, T *out)
     return peek(base + offset, out, sizeof(T));
 }
 
-// 지역 객체의 머리: +0 살아 있는가(dword), +4 자기 인덱스(word), +8 지역 번호(word)
+// 지역 객체의 머리: +0 상태(dword), +4 자기 인덱스(word), +8 지역 번호(word).
+// 상태는 2030 - 세계에서 읽은 분포로 본 것이다 [확인: 실행 / 뜻은 추정]: 0 쓸 수 없다, 1 유엔, 2 사람이 고른 나라,
+// 3 AI 가 맡은 나라(223개), 5 이번 판에 없는 지역(서독 · 소련 · 네브래스카 등 128개).
 struct Region {
     uint32_t alive;
     int index, number;
@@ -71,6 +73,13 @@ bool peek_region(uint64_t pointer, Region *out)
 bool usable(const Region &r, int index)
 {
     return r.alive != 0 && r.index == index && r.number > 0 && r.number < MAX_NUMBER;
+}
+
+// 이번 판에 실제로 있는 나라인가(사람이나 AI 가 맡고 있다). 창의 나라 목록에는 이것만 올린다 —
+// 없는 지역에 "이 나라로 플레이" 같은 치트를 넣게 두지 않는다.
+bool in_play(const Region &r)
+{
+    return r.alive == 2 || r.alive == 3;
 }
 
 bool located(const uint8_t **base, GameAddresses *at)
@@ -125,7 +134,7 @@ std::vector<int> read_regions(const uint8_t *base, const GameAddresses &at)
         return out;
     for (int i = 1; i <= count; i++) {
         Region r = {};
-        if (peek_region(table[static_cast<size_t>(i)], &r) && usable(r, i))
+        if (peek_region(table[static_cast<size_t>(i)], &r) && usable(r, i) && in_play(r))
             out.push_back(r.number);
     }
     std::sort(out.begin(), out.end());

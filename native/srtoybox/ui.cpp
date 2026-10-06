@@ -1,8 +1,10 @@
 #include "ui.h"
 
+#include <cfloat>
 #include <cstring>
 #include <mutex>
 #include <string>
+#include <vector>
 
 #include "command.h"
 #include "features.h"
@@ -17,13 +19,19 @@ namespace {
 
 typedef std::lock_guard<std::recursive_mutex> Lock;
 
+const char *const DIPLOMACY_TAB = "외교·영토";   // features.cpp 의 탭 이름과 같아야 한다
+
 Settings g_settings;
 bool g_visible, g_capturing;
-float g_rect[4];          // 창의 왼쪽 · 위 · 오른쪽 · 아래 (지난 프레임)
-std::string g_confirm;    // 한 번 더 누르기를 기다리는 기능의 id
+float g_rect[4];              // 창의 왼쪽 · 위 · 오른쪽 · 아래 (지난 프레임)
+std::string g_confirm;        // 한 번 더 누르기를 기다리는 기능의 id
 std::string g_notice;
+int g_picked;                 // "외교·영토" 탭에서 고른 나라의 번호(없으면 0)
+char g_filter[64];            // 나라 검색란
+std::vector<int> g_regions;   // 이번 게임에 있는 지역
+double g_regions_at = -10.0;  // 그것을 읽은 때(ImGui 의 시계, 초)
 
-void row(const Feature &f)
+void row(const Feature &f, const GameState &game)
 {
     ImGui::PushID(f.id);
     long long value = 0;
@@ -37,19 +45,54 @@ void row(const Feature &f)
         value = stored;
         ImGui::SameLine();
     }
+    const int region = f.target == Target::Player ? game.player : f.target == Target::Picked ? g_picked : 0;
+    const bool missing = f.target != Target::None && region <= 0;   // 플레이어를 모르거나 나라를 고르지 않았다
     const bool asking = f.confirm && g_confirm == f.id;
     const std::string label = std::string(asking ? "한 번 더 누르면 실행합니다" : f.label) + "###run";
+    ImGui::BeginDisabled(missing);
     if (ImGui::Button(label.c_str())) {
         if (f.confirm && !asking) {
             g_confirm = f.id;
         } else {
             g_confirm.clear();
-            g_notice = runner_enqueue(build_command(f, value)) ? "" : "대기 중인 명령이 많아 받지 못했습니다.";
+            g_notice = runner_enqueue(build_command(f, value, region)) ? "" : "대기 중인 명령이 많아 받지 못했습니다.";
         }
     }
+    ImGui::EndDisabled();
     ImGui::TextDisabled("%s", f.help);
     ImGui::Spacing();
     ImGui::PopID();
+}
+
+// 나라 고르기: 이번 게임에 있는 나라를 이름순으로. 검색은 이름(한글 · 영문)이나 번호의 일부.
+void picker(const GameState &game)
+{
+    if (ImGui::GetTime() - g_regions_at > 1.0) {   // 지역 수백 개를 읽는다 — 프레임마다 하지 않는다
+        g_regions = game_regions();
+        g_regions_at = ImGui::GetTime();
+    }
+    const RegionView view = region_view(g_regions, game.player, g_picked, g_filter);
+    if (view.picked != g_picked) {                 // 다른 판을 불러와 그 나라가 없어졌거나, 그 나라로 플레이하게 됐다
+        g_picked = view.picked;
+        g_confirm.clear();
+    }
+    if (g_picked != 0)
+        ImGui::Text("고른 나라: %s (%d)", region_label(g_picked).c_str(), g_picked);
+    else
+        ImGui::TextDisabled("고른 나라: 없음 — 아래 목록에서 고르십시오");
+    ImGui::SetNextItemWidth(220.0f);
+    ImGui::InputTextWithHint("##search", "검색 (이름 · 번호)", g_filter, sizeof(g_filter));
+    if (ImGui::BeginListBox("##regions", ImVec2(-FLT_MIN, 6.5f * ImGui::GetTextLineHeightWithSpacing()))) {
+        for (int number : view.rows) {
+            const std::string label = region_label(number) + " (" + std::to_string(number) + ")";
+            if (ImGui::Selectable(label.c_str(), number == g_picked)) {
+                g_picked = number;
+                g_confirm.clear();   // 한 번 더 누르기를 기다리던 것은 다른 나라에 대한 것이었다
+            }
+        }
+        ImGui::EndListBox();
+    }
+    ImGui::Spacing();
 }
 
 void settings_tab()
@@ -147,10 +190,17 @@ void ui_draw()
                     continue;   // 이 탭은 앞에서 그렸다(같은 탭의 기능은 표에서 이어져 있다)
                 tab = FEATURES[i].tab;
                 if (ImGui::BeginTabItem(tab)) {
-                    ImGui::BeginDisabled(blocked);
-                    for (int j = i; j < FEATURE_COUNT && strcmp(FEATURES[j].tab, tab) == 0; j++)
-                        row(FEATURES[j]);
-                    ImGui::EndDisabled();
+                    const bool diplomacy = strcmp(tab, DIPLOMACY_TAB) == 0;
+                    if (diplomacy && !game.known) {
+                        ImGui::TextWrapped("게임 상태를 읽을 수 있을 때만 씁니다.");   // 이번 게임의 나라 목록을 모른다
+                    } else {
+                        ImGui::BeginDisabled(blocked);
+                        if (diplomacy)
+                            picker(game);
+                        for (int j = i; j < FEATURE_COUNT && strcmp(FEATURES[j].tab, tab) == 0; j++)
+                            row(FEATURES[j], game);
+                        ImGui::EndDisabled();
+                    }
                     ImGui::EndTabItem();
                 }
             }

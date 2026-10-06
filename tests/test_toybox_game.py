@@ -23,6 +23,9 @@ def lib(cfg):
     lib = toybox.library(cfg)
     lib.srtoybox_game_state.argtypes = [ctypes.c_void_p, ctypes.POINTER(toybox.GameAddresses), ctypes.c_char_p, ctypes.c_int]
     lib.srtoybox_region_label.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
+    lib.srtoybox_region_view.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_char_p,
+                                         ctypes.c_char_p, ctypes.c_int]
+    lib.srtoybox_dbcs.argtypes = [ctypes.c_ubyte, ctypes.c_ubyte, ctypes.c_uint]
     return lib
 
 
@@ -146,7 +149,10 @@ def test_regions_skip_empty_dead_and_inconsistent_slots(lib):
     struct.pack_into("<H", fake.objects[11], 4, 12)                           # 자기 인덱스가 칸과 다르다
     fake.region(12, 0)                                                        # 번호가 없다
     fake.poke(TABLE + 8 * 13, "<Q", 0x00007FFFFFFF0000)                       # 읽을 수 없는 포인터
-    assert state(lib, fake)["regions"] == "1106,1201,1499"
+    fake.region(20, 1403, alive=5)                                            # 이번 판에 없는 지역(남독일 같은 것)
+    fake.region(21, 2922, alive=5)
+    fake.region(22, 7, alive=1)                                               # 유엔 같은 특수한 것
+    assert state(lib, fake)["regions"] == "1106,1201,1499"                    # 사람(2)과 AI(3)가 맡은 나라만
 
 
 def label(lib, number: int) -> str:
@@ -158,13 +164,15 @@ def label(lib, number: int) -> str:
 def test_region_names(lib):
     """이름표는 저장소의 번역 테이블에서 온다. 표에 없는 번호는 #번호 로 보인다."""
     assert label(lib, 1499) == "독일" and label(lib, 1106) == "폴란드"
-    assert label(lib, 12345) == "#12345" and label(lib, 0) == "#0" and label(lib, -7) == "#-7"
+    assert label(lib, 109) == "수에즈 운하 지대"          # localtext-regions.extra.csv 에만 있는 지역
+    assert label(lib, 12345) == "#12345" and label(lib, -7) == "#-7"
 
 
 def test_region_rows_come_from_the_translation_table(cfg):
     rows = toybox.region_rows(cfg)
     assert [n for n, _, _ in rows] == sorted({n for n, _, _ in rows}) and len(rows) > 300
     assert (1499, "독일", "Germany") in rows
+    assert (109, "수에즈 운하 지대", "Suez Canal Zone") in rows      # 덧붙인 표(.extra)의 지역도 들어간다
     assert all(ko and en for _, ko, en in rows)
 
 
@@ -174,3 +182,45 @@ def test_region_table_escapes_names():
     assert toybox.c_string('a"b') == '"a\\"b"'
     assert toybox.c_string("a\\b") == '"a\\\\b"'
     assert toybox.regions_inc([(7, 'x"y', "z\\")]) == '{7, "x\\"y", "z\\\\"},\n'
+
+
+def view(lib, numbers: list[int], player: int, picked: int, search: str = "") -> tuple[int, list[tuple[int, str]]]:
+    """창의 나라 목록: (유지된 선택, [(번호, 이름) …])."""
+    out = ctypes.create_string_buffer(1 << 16)
+    array = (ctypes.c_int * len(numbers))(*numbers)
+    assert lib.srtoybox_region_view(array, len(numbers), player, picked, search.encode("utf-8"), out, len(out)) >= 0
+    head, *rows = out.value.decode("utf-8").splitlines()
+    return int(head.removeprefix("picked=")), [(int(n), name) for n, name in (row.split("\t") for row in rows)]
+
+
+GAME = [1106, 1201, 1499, 12345]      # 폴란드, 덴마크, 독일, 이름표에 없는 지역
+
+
+def test_region_view_lists_this_games_regions(lib):
+    """이번 게임에 있는 나라만, 플레이어 자신은 빼고, 한글 이름순으로. 이름표에 없는 번호는 #번호 로 보이고 고를 수 있다."""
+    picked, rows = view(lib, GAME, player=1499, picked=12345)
+    assert rows == [(12345, "#12345"), (1201, "덴마크"), (1106, "폴란드")]
+    assert picked == 12345
+
+
+def test_region_view_filters_by_name_and_number(lib):
+    assert [n for n, _ in view(lib, GAME, 1499, 0, "폴란")[1]] == [1106]
+    assert [n for n, _ in view(lib, GAME, 1499, 0, "DEN")[1]] == [1201]            # 영문 이름, 대소문자를 가리지 않는다
+    assert [n for n, _ in view(lib, GAME, 1499, 0, "12")[1]] == [12345, 1201]       # 번호의 일부
+    assert view(lib, GAME, 1499, 0, "없는이름")[1] == []
+    assert view(lib, GAME, 1499, 1106, "덴마")[0] == 1106                           # 검색으로 가려져도 선택은 그대로다
+
+
+def test_region_view_drops_a_pick_that_is_gone(lib):
+    """다른 판을 불러와 고른 나라가 없어졌거나, 그 나라로 플레이하게 됐으면 선택을 지운다."""
+    assert view(lib, [1201, 1499], player=1499, picked=1106)[0] == 0
+    assert view(lib, GAME, player=1106, picked=1106)[0] == 0
+    assert view(lib, [], player=0, picked=1106) == (0, [])
+
+
+def test_two_byte_characters_are_put_back_together(lib):
+    """게임 창은 ANSI 창이라 한글 한 글자가 WM_CHAR 두 번(CP949 의 앞 · 뒤 바이트)으로 온다. 합쳐서 한 글자로 넘긴다."""
+    lead, trail = "독".encode("cp949")
+    assert lib.srtoybox_dbcs(lead, trail, 949) == ord("독")
+    assert lib.srtoybox_dbcs(lead, 0x20, 949) == 0          # 앞 바이트 뒤에 엉뚱한 것이 왔다
+    assert lib.srtoybox_dbcs(0x41, 0x42, 949) == 0          # 2바이트 글자가 아니다

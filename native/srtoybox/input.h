@@ -4,3 +4,6 @@
 #include <windows.h>
 
 void input_install(HWND game_window);
+
+// 코드 페이지의 앞 · 뒤 바이트를 한 글자(UTF-16)로. 2바이트 글자가 아니면 0.
+unsigned dbcs_combine(unsigned char lead, unsigned char trail, unsigned codepage);
