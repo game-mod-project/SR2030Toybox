@@ -14,6 +14,11 @@ Supreme Ruler 2030 모드 제작 작업 공간. 첫 과제는 **한글화 모드
 번역은 기계 번역 초안 32,869 / 33,412 단위(98.4%, 지도의 도시 이름 9,999개 포함)이고 사람 검수는 아직 0 이다.
 남은 일과 확인하지 못한 항목은 [docs/04](docs/04-korean-localization.md).
 
+둘째 과제인 **치트·모드 조사**도 마쳤다(2026-10-06, 게임 12.1.1360). 게임에 든 내장 치트 89개를 게임에서 넣어 봤고(효과 45개),
+돈·자원·연구·국가 관계·부대·생산·인구는 내장 치트로 된다는 것을 확인했다 — 넣는 법과 결과는 [docs/07](docs/07-cheats.md).
+내장 치트가 없는 GDP 와 장비 수치는 시나리오 파일 끝에 블록을 덧붙이는 방법으로 바뀌는 것을 확인했고, 그 방법을 쓰는 모드는 아직 만들지 않았다.
+무엇을 만들고 무엇을 만들지 않는지, 게임 업데이트로 치트가 사라질 때의 대비는 [docs/09](docs/09-cheat-mod-plan.md).
+
 ## 빠른 시작
 
 ```
@@ -43,6 +48,11 @@ docs/            리서치와 설계
   02-modding-system.md          모드 구성 방식 (MAPS/MODS, 로드 순서, Workshop)
   03-localization-internals.md  현지화 내부 구조 (파일 형식, 글꼴, 렌더 경로)
   04-korean-localization.md     한글화 설계, 검증 현황, 다음 단계
+  05-game-systems.md            게임 구조: 12개 영역과 데이터의 대응
+  06-data-reference.md          데이터 참조: 섹션·키·열, 캐시와 데이터 수정 (srkit inventory 산출물 기준)
+  07-cheats.md                  내장 치트표 (게임에서 넣어 본 결과)
+  08-workshop-survey.md         Workshop 기존 모드 조사
+  09-cheat-mod-plan.md          치트/모드 제작 계획, 게임 업데이트 대비
 mods/
   _template/     새 모드 골격
   korean/        한글화 모드 원본 (번역 테이블, STYLE.md 번역 규칙, glossary.csv 용어집, sprites.toml 그림 글자)
