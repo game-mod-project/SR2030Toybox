@@ -53,6 +53,28 @@ def test_draw_path_buffer_contract(dll):
     assert buf.value == "한글 A"
 
 
+def test_map_names_are_replaced_when_the_whole_string_matches(dll, tmp_path):
+    """지도 이름 사전: 그려지는 문자열이 이름과 똑같을 때만 한글 이름으로 바뀐다(그리기·측정 두 경로)."""
+    names = tmp_path / "srhook-names.txt"
+    names.write_bytes(b"HANNOVER\t" + srutf8.encode("하노버") + b"\n"
+                      + "MÜNCHEN".encode("cp1252") + b"\t" + srutf8.encode("뮌헨") + b"\r\n"
+                      + b"HANNOVER\t" + srutf8.encode("나중 것") + b"\n" + b"\n" + b"no tab here\n")
+    dll.srhook_load_names.argtypes = [ctypes.c_char_p]
+    try:
+        assert dll.srhook_load_names(str(names).encode("mbcs")) == 2
+        for cp in (1252, CP_UTF8):
+            assert _decode(dll, b"HANNOVER", cp) == "하노버"
+            assert _decode(dll, "MÜNCHEN".encode("cp1252"), cp) == "뮌헨"
+            assert _decode(dll, b"HANNOVERS", cp) == "HANNOVERS"            # 일부만 같으면 그대로
+            assert _decode(dll, b"Hannover", cp) == "Hannover"              # 대소문자까지 같아야 한다
+        # 게임의 그리기 호출: 버퍼 크기 = 원래 문자열 길이. 한글 이름이 더 짧으면 널까지 들어간다
+        buf = ctypes.create_unicode_buffer(16)
+        assert dll.srhook_mbtowc(1252, 0, b"HANNOVER", -1, buf, 8) == 4 and buf.value == "하노버"
+    finally:
+        assert dll.srhook_load_names(b"") == -1                              # 사전을 비운다
+    assert _decode(dll, b"HANNOVER", 1252) == "HANNOVER"
+
+
 def test_other_codepages_pass_through(dll):
     data = "한글".encode("cp949")
     assert _decode(dll, data, 949) == "한글"

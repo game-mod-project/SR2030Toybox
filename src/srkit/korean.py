@@ -20,6 +20,15 @@ GUI_TABLE = "localtext-gui.csv"
 REGIONS_NAME = "LocalText-Regions.csv"
 EXTRA_REGIONS_TABLE = "localtext-regions.extra.csv"   # 영어판 현지화 파일에 없는 지역 이름(한국어판에만 행 추가)
 SCENARIO_DIRS = ("Scenario", "Sandbox", "Campaign", "Tutorials")
+# 지도 위 도시·시설 위치 이름. 현지화 파일이 아니라 지도 데이터(*.OOF)에 있어, 훅 DLL 이 그리는 순간에 바꾼다
+MAP_NAMES_TABLE = "map-names.csv"
+MAP_NAMES_FILE = "srhook-names.txt"     # 빌드 산출물(Localize/<대상 언어>/): "게임이 그리는 바이트<TAB>SR-UTF8 한글<LF>"
+MAP_NAME_MAX = 63                       # 훅이 사전에서 찾아보는 문자열의 최대 길이(바이트). native/srhook 의 SR_NAME_MAX
+OOF_ROW = re.compile(r'^\s*\d+,\s*-?\d+,\s*-?\d+,\s*"([^"]+)"')
+
+# 게임이 지도 라벨에 쓰는 바이트 단위 대문자화(빌드 21347933, docs/03). a–z 는 따로 대문자가 된다
+GAME_UPPER = {0x9A: 0x8A, 0x9E: 0x8E, 0xE1: 0xC1, 0xE2: 0xC2, 0xE4: 0xC4, 0xE7: 0xC7, 0xE9: 0xC9, 0xEA: 0xCA, 0xEB: 0xCB,
+              0xED: 0xCD, 0xEE: 0xD8, 0xF1: 0xD1, 0xF3: 0xD3, 0xF4: 0xD4, 0xF6: 0xD6, 0xFA: 0xDA, 0xFC: 0xDC, 0xFD: 0xDD}
 HEADER = ["key", "en", "ko", "status"]
 STATUS_MT, STATUS_OK = "mt", "ok"   # 기계 번역 초안 / 사람이 확인함
 
@@ -207,6 +216,27 @@ def extra_region_names(cfg: Config, known: set[str]) -> list[tuple[str, str]]:
             if rid not in known and len(names) == 1]
 
 
+def game_upper(data: bytes) -> bytes:
+    """게임이 지도 라벨을 그리기 전에 하는 대문자화를 그대로 흉내 낸다."""
+    return bytes(b - 32 if 0x61 <= b <= 0x7A else GAME_UPPER.get(b, b) for b in data)
+
+
+def map_files(cfg: Config) -> list[Path]:
+    """지도 물체 파일(*.OOF, 게임 루트 기준 어디든). 게임·편집기가 남긴 백업 폴더는 뺀다."""
+    return [p for p in sorted(cfg.game_dir.rglob("*.OOF"))
+            if not any("backup" in part.lower() for part in p.relative_to(cfg.game_dir).parts)]
+
+
+def map_names(cfg: Config) -> list[str]:
+    """지도 물체 파일의 이름 칸(`번호, x, y, "이름", …`)에 나오는 서로 다른 이름들."""
+    names: dict[str, None] = {}
+    for path in map_files(cfg):
+        for line in decode_cp1252(path.read_bytes()).split("\n"):
+            if m := OOF_ROW.match(line):
+                names.setdefault(m.group(1))
+    return sorted(names)
+
+
 def extract(cfg: Config) -> list[TableReport]:
     """원문을 번역 테이블로 뽑는다. 기존 번역(ko)은 키 기준으로 유지한다."""
     reports = []
@@ -225,6 +255,7 @@ def extract(cfg: Config) -> list[TableReport]:
         units = [(u.key, u.text) for u in doc.units()]
         if units:
             reports.append(_merge(cfg.translation_dir / scenario_table(rel), units))
+    reports.append(_merge(cfg.translation_dir / MAP_NAMES_TABLE, [(f"MAPNAME|{n}", n) for n in map_names(cfg)]))
     return reports
 
 
@@ -272,6 +303,12 @@ def problem(en: str, ko: str, key: str = "") -> str | None:
         return f"토큰 불일치: 원문 {srtext.tokens(en)} / 번역 {srtext.tokens(ko)}"
     if bad := srutf8.unsupported(ko):
         return f"게임에 넣을 수 없는 문자: {' '.join(bad)} (한자 일부는 쓸 수 없습니다 — 한글로 풀어 쓰세요)"
+    if key.startswith(MAP_NAMES_TABLE + "|"):
+        if len(ko) > len(en):
+            # 게임은 그리기 버퍼를 원래 이름의 바이트 수만큼만 잡는다: 그보다 긴 이름은 뒤가 잘린다
+            return f"지도 이름이 원래 이름보다 깁니다: {len(ko)}자 (최대 {len(en)}자)"
+        if re.search(r"[A-Za-zÀ-ÿ()]", ko):
+            return "지도 이름은 한글로만 적습니다(로마자·괄호 불가)"
     for pattern, limit, what in BYTE_LIMITS:
         size = len(srutf8.encode(ko))
         if pattern.search(key) and size > limit:
@@ -330,6 +367,28 @@ def _add_extra_regions(doc: srtext.Document, extras: dict[str, str]) -> int:
     return len(new)
 
 
+def map_name_entries(cfg: Config) -> dict[bytes, str]:
+    """훅이 쓸 이름 사전: 게임이 그리는 바이트열(대문자화된 원래 이름) → 한글 이름.
+
+    훅은 그려지는 문자열이 이름과 **똑같을 때** 통째로 바꾼다. 그래서 번역하지 않고 영어로 그려지는 다른 문구와
+    철자가 같은 이름은 뺀다(그 문구까지 도시 이름으로 바뀌므로).
+    """
+    skip = notranslate(cfg)
+    shown_in_english: set[bytes] = set()
+    for path in sorted(cfg.translation_dir.glob("*.csv")):
+        if path.name == MAP_NAMES_TABLE:
+            continue
+        for key, row in read_table(path).items():
+            if (not row.ko or (skip and skip.search(key))) and len(row.en) <= MAP_NAME_MAX:
+                shown_in_english.add(game_upper(row.en.encode("cp1252", "replace")))
+    entries: dict[bytes, str] = {}
+    for key, ko in _translations(cfg.translation_dir / MAP_NAMES_TABLE, skip).items():
+        drawn = game_upper(key.split("|", 1)[1].encode("cp1252"))
+        if 2 <= len(drawn) <= MAP_NAME_MAX and drawn not in shown_in_english and "\t" not in ko:
+            entries.setdefault(drawn, ko)
+    return entries
+
+
 def build_text(cfg: Config, out_root: Path) -> tuple[int, set[str]]:
     """out_root(게임 루트 구조) 아래에 한국어 텍스트 파일을 만든다. (적용된 번역 수, 쓰인 비ASCII 문자 집합)."""
     applied = 0
@@ -364,7 +423,14 @@ def build_text(cfg: Config, out_root: Path) -> tuple[int, set[str]]:
         applied += doc.apply(_translations(cfg.translation_dir / scenario_table(rel), skip))
         parts = [cfg.target_lang if p.lower() == cfg.source_lang.lower() else p for p in rel.parts]
         emit(out_root.joinpath(*parts), doc.serialize())
-    return applied + len(gui), used
+
+    # 지도 이름 사전(훅 DLL 이 읽는다). 키는 원본 데이터의 바이트 그대로라 텍스트로 다루지 않고 바이트로 쓴다
+    names = map_name_entries(cfg)
+    if names:
+        used.update(ch for ko in names.values() for ch in ko if ord(ch) > 0x7F)
+        (out_lang / MAP_NAMES_FILE).write_bytes(
+            b"".join(drawn + b"\t" + srutf8.encode(ko) + b"\n" for drawn, ko in sorted(names.items())))
+    return applied + len(gui) + len(names), used
 
 
 def font_slots(fontinfo: Path) -> dict[str, int]:
