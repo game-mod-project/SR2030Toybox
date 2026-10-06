@@ -113,6 +113,13 @@ def expected_plan(command: str) -> list[str]:
     return out + ["DOWN 27", "WAIT 50", "UP 27", "WAIT 300"]
 
 
+def typed_keys(command: str) -> str:
+    """글쇠 방식으로 그 명령을 넣을 때 게임이 받는 것(프로브의 Game.text 와 같은 표기): 글자는 그대로, 누름은 <이름>."""
+    keys = {13: "<Enter>", 27: "<Esc>", 83: "<S>", 17: "<Ctrl>", 16: "<Shift>"}
+    steps = [step.split() for step in expected_plan(command)]
+    return "".join(chr(int(v)) if act == "CHAR" else keys[int(v)] for act, v in steps if act in ("CHAR", "DOWN"))
+
+
 def test_plan_follows_the_route_checked_in_game(dll):
     plan = text(dll.srtoybox_plan, b"cheat treasury 1234").splitlines()
     assert plan == expected_plan("cheat treasury 1234")
@@ -235,9 +242,10 @@ def test_the_hook_starts_toybox_and_it_writes_a_log(dll, cfg, tmp_path):
     assert run.returncode == 0, run.stderr
     log = (home / "toybox.log").read_text(encoding="utf-8")
     assert "시작" in log and ("끼어들었습니다" in log or "끼어들지 못했습니다" in log), log
+    assert "게임 상태를 읽을 수 없습니다" in log, log     # 게임이 아닌 프로세스다 — 주소를 못 찾고 글쇠 방식으로 남는다
 
 
-def _probe(cfg, tmp_path, mode: str) -> str:
+def _probe(cfg, tmp_path, mode: str, env: dict[str, str] | None = None) -> str:
     """tests/toybox_overlay_probe.py 를 새 프로세스로 돌려 그 출력 한 줄을 받는다. ToyBox 의 로그는 tmp_path/home 에 남는다."""
     if not hook.output(cfg).is_file():
         pytest.skip("훅 DLL 미빌드 (srkit hook-build)")
@@ -247,7 +255,7 @@ def _probe(cfg, tmp_path, mode: str) -> str:
     shutil.copyfile(toybox.output(cfg), tmp_path / toybox.DLL_NAME)
     probe = Path(__file__).with_name("toybox_overlay_probe.py")
     run = subprocess.run([sys.executable, str(probe), str(tmp_path / "hookcopy.dll"), mode], capture_output=True, text=True,
-                         encoding="utf-8", env={**os.environ, "SRTOYBOX_HOME": str(home)}, timeout=120)
+                         encoding="utf-8", env={**os.environ, "SRTOYBOX_HOME": str(home), **(env or {})}, timeout=120)
     out = run.stdout.strip()
     if out == "nodevice":
         pytest.skip("Direct3D 장치를 만들 수 없는 환경")
@@ -341,9 +349,7 @@ def test_keys_and_clicks_reach_only_the_side_they_are_meant_for(dll, cfg, tmp_pa
     assert got["outside"] == "press+release"        # 설정 창 밖의 누름은 게임이 받는다
     assert got["typing"] == "1" and got["done"] == "1", got
     # 게임이 받은 글쇠는 계획 그대로다. 넣는 동안 사용자가 친 9 와 단축키(<0x54>)는 섞이지 않는다
-    keys = {13: "<Enter>", 27: "<Esc>", 83: "<S>", 17: "<Ctrl>", 16: "<Shift>"}
-    steps = [step.split() for step in expected_plan("cheat georgew")]
-    assert got["text"] == "".join(chr(int(v)) if act == "CHAR" else keys[int(v)] for act, v in steps if act in ("CHAR", "DOWN"))
+    assert got["text"] == typed_keys("cheat georgew")
     assert got["hotkey_busy"] == "toybox"           # 넣는 동안에도 단축키는 ToyBox 의 것이고
     assert got["title_after"] == "press+release"    # 그래서 창이 닫혔다
     assert got["mods_left"] == "0"                  # Ctrl · Shift 가 눌린 채로 남지 않는다
@@ -354,6 +360,23 @@ def test_mouse_follows_the_size_the_game_draws_at(dll, cfg, tmp_path):
     got = _fields(_probe(cfg, tmp_path, "scale"))
     assert got["title"] == "none"                   # 보이는 창의 제목 줄을 눌렀다 — 게임에 새지 않는다
     assert got["beside"] == "press+release"         # 보이는 창의 바깥이다 — 게임이 받는다
+
+
+def test_buttons_are_off_outside_a_game(dll, cfg, tmp_path):
+    """ToyBox 가 게임을 읽을 수 있으면, 메뉴에서는 단추를 눌러도 게임에 아무것도 가지 않는다."""
+    got = _fields(_probe(cfg, tmp_path, "gate_menu"))
+    assert got["button"] == "none" and got["text"] == ""
+
+
+def test_a_queued_command_is_dropped_when_the_game_ends_first(dll, cfg, tmp_path):
+    """단추를 누른 뒤 실행되기 전에 게임에서 나가면, 그 명령을 메뉴에 넣지 않고 버린다."""
+    got = _fields(_probe(cfg, tmp_path, "gate_leave"))
+    assert got["button"] == "none" and got["text"] == ""
+
+
+def test_the_typing_route_still_works_in_a_game_toybox_can_read(dll, cfg, tmp_path):
+    got = _fields(_probe(cfg, tmp_path, "gate_typing", env={"SRTOYBOX_DIRECT": "0"}))
+    assert got["text"] == typed_keys("cheat georgew")
 
 
 def test_prologue_length_knows_only_plain_function_heads(dll):

@@ -21,6 +21,10 @@ Present 를 부르고 창 메시지를 보낸다. Steam 오버레이 같은 다�
     draw_resize      창을 켜고 그린 뒤 ResizeBuffers · Present1 을 부른다
     input            단축키, 창 위 · 밖의 누름, 치트를 넣는 동안의 실제 글쇠, 게임이 받은 글
     scale            그리는 크기가 창의 절반일 때 창 위 · 밖의 누름
+게임 상태에 따른 단추 (출력 "button=<창 위 누름이 게임에 갔는가> text=<게임이 받은 글>"):
+    gate_menu        ToyBox 가 게임을 읽을 수 있고 메뉴에 있다 — 단추가 꺼져 있다
+    gate_leave       게임 안에서 단추를 누른 직후(실행되기 전) 메뉴로 나갔다 — 실행하지 않는다
+    gate_typing      게임 안, 글쇠 방식(SRTOYBOX_DIRECT=0) — 1단계처럼 글쇠가 간다
 
 장치를 만들 수 없으면 "nodevice", 흉내를 만들 수 없으면 "skip <이유>".
 tests/test_toybox.py 가 부른다(pytest 가 직접 모으는 테스트 파일이 아니다).
@@ -33,13 +37,14 @@ from ctypes import wintypes
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
+from toybox_fake_game import FakeGame  # noqa: E402  (이 파일과 같은 폴더)
 
 SLOT_PRESENT, SLOT_RESIZE, SLOT_PRESENT1 = 8, 13, 22
 LIMIT = 50      # 가짜 훅이 이만큼 불리면 맴도는 것이다. 여기서 끊어 프로세스가 죽지 않게 한다
 WM_KEYDOWN, WM_KEYUP, WM_CHAR, WM_MOUSEMOVE, WM_LBUTTONDOWN, WM_LBUTTONUP = 0x100, 0x101, 0x102, 0x200, 0x201, 0x202
 REAL_KEY = 0x00140001       # 실제 키보드의 메시지처럼 스캔 코드가 든 lParam (ToyBox 의 실행기가 보내는 것은 스캔 코드가 0 이다)
 # 설정 창의 자리: 처음 뜨는 곳 40,60 · 크기 500x460 · 맑은 고딕 18px 기준 (build/verify/toybox/G1-open.png)
-BUTTON = (90, 186)          # 돈 탭의 둘째 줄 "국고 +$10 B" (cheat georgew)
+BUTTON = (90, 208)          # 돈 탭의 둘째 줄 "국고 +$10 B" (cheat georgew). 상태 줄이 생기기 전에는 (90, 186)
 TITLE = (300, 70)           # 제목 줄 — 눌러도 아무 일도 없다
 NO_DIRTY_RECTS = (ctypes.c_byte * 40)()     # 0 으로 채운 DXGI_PRESENT_PARAMETERS (Present1 이 읽는 동안 살아 있어야 한다)
 
@@ -387,6 +392,38 @@ def start_game(hook: str, buffer: tuple[int, int] | None = None) -> Game | None:
     return game
 
 
+def fake_game(hook: str, handler: int | None = None) -> FakeGame:
+    """ToyBox 가 보는 "게임"을 가짜 메모리로 바꾼다. 폴란드(141, 1106)와 독일(176, 1499)이 있고 메뉴 상태다.
+
+    handler 는 명령 처리 함수 자리에 둘 함수의 주소(없으면 직접 실행을 쓰는 테스트가 아니다).
+    """
+    toybox = ctypes.WinDLL(str(Path(hook).with_name("srtoybox.dll")))
+    toybox.srtoybox_test_game.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
+    fake = FakeGame()
+    fake.region(141, 1106, alive=3)
+    fake.region(176, 1499)
+    toybox.srtoybox_test_game(fake.base, ctypes.byref(fake.at), handler)
+    return fake
+
+
+def run_gate(hook: str, mode: str) -> int:
+    game = start_game(hook)
+    if game is None:
+        return 0
+    fake = fake_game(hook)
+    if mode != "gate_menu":
+        fake.play(176)
+    game.hotkey()
+    button = game.click(BUTTON)
+    if mode == "gate_leave":
+        fake.menu()                                           # 눌린 명령이 실행되기 전에 게임에서 나갔다
+    game.got.clear()
+    game.pump(lambda: game.has("up", 0x1B), 20 if mode == "gate_typing" else 2)
+    game.wait(0.4)
+    print(f"button={button} text={game.text()}")
+    return 0
+
+
 def run_input(hook: str) -> int:
     game = start_game(hook)
     if game is None:
@@ -429,6 +466,8 @@ def main() -> int:
         return run_input(hook)
     if mode == "scale":
         return run_scale(hook)
+    if mode.startswith("gate_"):
+        return run_gate(hook, mode)
     swap, hwnd = make_swap_chain()
     if swap is None:
         print("nodevice")

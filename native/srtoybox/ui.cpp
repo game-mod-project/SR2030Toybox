@@ -6,8 +6,10 @@
 
 #include "command.h"
 #include "features.h"
+#include "game.h"
 #include "imgui.h"
 #include "overlay.h"
+#include "regions.h"
 #include "runner_win.h"
 #include "settings.h"
 
@@ -59,6 +61,19 @@ void settings_tab()
         g_capturing = true;
     ImGui::Spacing();
     ImGui::TextDisabled("설정은 %%APPDATA%%\\SR2030ToyBox 에 저장됩니다.");
+}
+
+// 상태 줄: ToyBox 가 게임을 어떻게 보고 있는지 한 줄로.
+void status_line(const GameState &game)
+{
+    if (!game.known)
+        ImGui::TextDisabled("게임 상태를 읽을 수 없습니다 — 글쇠 방식으로 동작합니다");
+    else if (game.multiplayer)
+        ImGui::TextUnformatted("멀티플레이에서는 동작하지 않습니다");
+    else if (!game.in_game)
+        ImGui::TextUnformatted("게임을 진행 중이 아닙니다 — 단추가 꺼져 있습니다");
+    else
+        ImGui::Text("플레이 중: %s (%d)", region_label(game.player).c_str(), game.player);
 }
 
 }  // namespace
@@ -121,6 +136,9 @@ void ui_draw()
     ImGui::SetNextWindowPos(ImVec2(40.0f, 60.0f), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(500.0f, 460.0f), ImGuiCond_FirstUseEver);
     if (ImGui::Begin("SR2030 ToyBox", nullptr, ImGuiWindowFlags_NoCollapse)) {
+        const GameState game = game_state();
+        const bool blocked = game.known && (!game.in_game || game.multiplayer);   // 게임을 읽을 수 있는데 진행 중이 아니다
+        status_line(game);
         if (ImGui::BeginTabBar("tabs")) {
             const char *tab = nullptr;
             for (int i = 0; i < FEATURE_COUNT; i++) {
@@ -128,8 +146,10 @@ void ui_draw()
                     continue;   // 이 탭은 앞에서 그렸다(같은 탭의 기능은 표에서 이어져 있다)
                 tab = FEATURES[i].tab;
                 if (ImGui::BeginTabItem(tab)) {
+                    ImGui::BeginDisabled(blocked);
                     for (int j = i; j < FEATURE_COUNT && strcmp(FEATURES[j].tab, tab) == 0; j++)
                         row(FEATURES[j]);
+                    ImGui::EndDisabled();
                     ImGui::EndTabItem();
                 }
             }
@@ -148,8 +168,12 @@ void ui_draw()
             ImGui::Text("마지막으로 넣은 것: %s", last.c_str());
         if (!g_notice.empty())
             ImGui::TextUnformatted(g_notice.c_str());
+        const std::string trouble = runner_notice();
+        if (!trouble.empty())
+            ImGui::TextUnformatted(trouble.c_str());
         ImGui::TextWrapped("단추를 누르면 게임의 설정 창이 잠깐 열렸다 닫힙니다.");
-        ImGui::TextWrapped("게임을 진행하는 중에만 누르십시오. 메뉴나 로비에서는 글자가 다른 곳에 들어갈 수 있습니다.");
+        if (!game.known)   // 게임을 읽을 수 있으면 게임 밖에서는 단추가 꺼져 있으므로 이 주의가 필요 없다
+            ImGui::TextWrapped("게임을 진행하는 중에만 누르십시오. 메뉴나 로비에서는 글자가 다른 곳에 들어갈 수 있습니다.");
     }
     const ImVec2 pos = ImGui::GetWindowPos(), size = ImGui::GetWindowSize();
     g_rect[0] = pos.x;
