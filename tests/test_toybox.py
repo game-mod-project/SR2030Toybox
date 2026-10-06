@@ -1,10 +1,15 @@
 """ToyBox DLL(native/srtoybox)을 직접 불러 화면 없는 부분을 확인한다(게임은 띄우지 않는다)."""
 import ctypes
+import os
 import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 
-from srkit import toybox
+from srkit import hook, toybox
 
 # 설계서의 "넣지 않는 것": 모든 지역·AI 에 닿거나, 불리해지거나, 지역 번호가 필요하거나, 넣지 않기로 한 것
 EXCLUDED = {
@@ -196,3 +201,100 @@ def test_hotkey_names(dll):
 def test_mod_folder_holds_only_the_dll(dll, cfg):
     """build/toybox 는 게임 루트 구조의 모드 폴더다. deploy 가 통째로 복사하므로 DLL 말고는 없어야 한다."""
     assert sorted(p.name for p in toybox.output(cfg).parent.iterdir()) == [toybox.DLL_NAME]
+
+
+IMGUI_FILES = ["imgui.cpp", "imgui_draw.cpp", "imgui_tables.cpp", "imgui_widgets.cpp", "imgui.h", "imgui_internal.h", "imconfig.h",
+               "imstb_rectpack.h", "imstb_textedit.h", "imstb_truetype.h", "backends/imgui_impl_win32.h",
+               "backends/imgui_impl_win32.cpp", "backends/imgui_impl_dx11.h", "backends/imgui_impl_dx11.cpp", "LICENSE.txt", "README.md"]
+
+
+def test_imgui_is_vendored_with_its_license_and_version(cfg):
+    """외부 소스는 필요한 파일만, 라이선스와 함께, 버전을 적어 둔다."""
+    root = cfg.root / toybox.IMGUI_DIR
+    assert sorted(p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file()) == sorted(IMGUI_FILES)
+    assert "MIT" in (root / "LICENSE.txt").read_text(encoding="utf-8")
+    version = re.search(r'#define IMGUI_VERSION\s+"([^"]+)"', (root / "imgui.h").read_text(encoding="utf-8"))[1]
+    readme = (root / "README.md").read_text(encoding="utf-8")
+    assert f"v{version}" in readme and "github.com/ocornut/imgui" in readme
+    assert [s for s in toybox.IMGUI_SOURCES if not (root / s).is_file()] == []
+
+
+START_PROBE = "import ctypes, sys, time; ctypes.WinDLL(sys.argv[1]); time.sleep(float(sys.argv[2]))"
+
+
+def test_the_hook_starts_toybox_and_it_writes_a_log(dll, cfg, tmp_path):
+    """훅이 불러와 srtoybox_start 를 부르면 로그에 시작 줄이 생긴다. 게임이 아닌 프로세스에서도 죽지 않는다."""
+    if not hook.output(cfg).is_file():
+        pytest.skip("훅 DLL 미빌드 (srkit hook-build)")
+    home = tmp_path / "home"
+    home.mkdir()
+    shutil.copyfile(hook.output(cfg), tmp_path / "hookcopy.dll")
+    shutil.copyfile(toybox.output(cfg), tmp_path / toybox.DLL_NAME)
+    run = subprocess.run([sys.executable, "-c", START_PROBE, str(tmp_path / "hookcopy.dll"), "8"], capture_output=True, text=True,
+                         env={**os.environ, "SRTOYBOX_HOME": str(home)}, timeout=60)
+    assert run.returncode == 0, run.stderr
+    log = (home / "toybox.log").read_text(encoding="utf-8")
+    assert "시작" in log and ("끼어들었습니다" in log or "끼어들지 못했습니다" in log), log
+
+
+def _overlay_probe(cfg, tmp_path, mode: str) -> tuple[int, int]:
+    """tests/toybox_overlay_probe.py 를 새 프로세스로 돌린다: (가짜 훅이 불린 횟수, Present 의 반환값)."""
+    if not hook.output(cfg).is_file():
+        pytest.skip("훅 DLL 미빌드 (srkit hook-build)")
+    home = tmp_path / "home"
+    home.mkdir()
+    shutil.copyfile(hook.output(cfg), tmp_path / "hookcopy.dll")
+    shutil.copyfile(toybox.output(cfg), tmp_path / toybox.DLL_NAME)
+    probe = Path(__file__).with_name("toybox_overlay_probe.py")
+    run = subprocess.run([sys.executable, str(probe), str(tmp_path / "hookcopy.dll"), mode], capture_output=True, text=True,
+                         env={**os.environ, "SRTOYBOX_HOME": str(home)}, timeout=120)
+    out = run.stdout.strip()
+    if out == "nodevice":
+        pytest.skip("Direct3D 장치를 만들 수 없는 환경")
+    assert run.returncode == 0 and out.startswith("calls="), (run.returncode, out, run.stderr[-400:])
+    calls, hr = out.split()
+    return int(calls.split("=")[1]), int(hr.split("=")[1], 16)
+
+
+def test_present_passes_through_when_toybox_is_alone(dll, cfg, tmp_path):
+    calls, hr = _overlay_probe(cfg, tmp_path, "plain")
+    assert calls == 0 and hr < 0x80000000           # 성공(S_OK 또는 가려져 있다는 상태값)
+
+
+def test_no_ping_pong_with_a_hook_that_was_there_first(dll, cfg, tmp_path):
+    """Steam 오버레이처럼 먼저 끼어든 훅이 있을 때: 화면을 세 번 내보내면 그 훅도 세 번만 불린다.
+
+    고치기 전에는 둘이 서로를 원래 함수로 알고 부르며 맴돌아 Steam 으로 띄운 게임이 죽었다.
+    """
+    calls, hr = _overlay_probe(cfg, tmp_path, "before")
+    assert calls == 3 and hr < 0x80000000
+
+
+def test_no_ping_pong_with_a_hook_placed_on_top_later(dll, cfg, tmp_path):
+    calls, hr = _overlay_probe(cfg, tmp_path, "rehook")
+    assert calls == 3 and hr < 0x80000000
+
+
+def test_no_ping_pong_with_a_jump_planted_in_the_real_function(dll, cfg, tmp_path):
+    """Steam 오버레이의 방식: 진짜 Present 의 머리에 점프를 심어 두고, 표에서 본 ToyBox 의 함수를 원래 함수로 부른다.
+
+    ToyBox 가 진짜 함수를 부르면 그 점프를 타고 훅으로 되돌아오므로, 되불렸을 때는 점프를 건너뛰는 길로 가야 한다.
+    """
+    calls, hr = _overlay_probe(cfg, tmp_path, "inline")
+    assert calls == 3 and hr < 0x80000000
+
+
+def test_prologue_length_knows_only_plain_function_heads(dll):
+    """다른 훅이 심은 점프를 건너뛰려면 함수의 원래 첫 명령들을 통째로 옮겨야 한다. 옮겨도 되는 명령만 센다."""
+    dll.srtoybox_prologue_length.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int]
+    length = lambda text, want=14: dll.srtoybox_prologue_length(bytes.fromhex(text), len(bytes.fromhex(text)), want)
+    # 이 PC 의 dxgi.dll (10.0.26100) 에서 읽은 Present · Present1 · ResizeBuffers 의 머리
+    assert length("48 89 5c 24 10 48 89 74 24 18 55 57 41 56 48 8d 6c 24 90 48 81 ec 70 01 00 00") == 14
+    assert length("48 89 5c 24 10 48 89 74 24 18 55 57 41 54 41 56 41 57 48 8d 6c 24 80 48") == 14
+    assert length("48 8b c4 44 89 48 20 44 89 40 18 89 50 10 48 89 48 08 55 53 56 57 41 54") == 14
+    assert length("48 89 5c 24 10 48 89 74 24 18 55 57 41 56 48 8d 6c 24 90", want=5) == 5
+    assert length("48 83 ec 28 48 81 ec 70 01 00 00 55 53 56") == 14        # sub rsp
+    assert length("e9 11 22 33 44 90 90 90 90 90 90 90 90 90 90 90") == 0    # 점프(이미 누가 심은 것) — 옮기지 않는다
+    assert length("48 8b 05 11 22 33 44 55 55 55 55 55 55 55 55 55") == 0    # RIP 상대 주소 — 옮기면 주소가 틀어진다
+    assert length("e8 11 22 33 44 55 55 55 55 55 55 55 55 55 55 55") == 0    # call
+    assert length("48 89 5c 24 10 48 89 74 24") == 0                         # 명령이 중간에 끊겼다
