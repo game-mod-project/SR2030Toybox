@@ -6,7 +6,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from . import config, deploy, hook, inventory, korean, mt, probe
+from . import cheats, config, deploy, hook, inventory, korean, mt, probe
 from . import spritefont as sf
 
 
@@ -158,6 +158,19 @@ def cmd_inventory(cfg, _args) -> int:
     return 0
 
 
+def cmd_cheats_check(cfg, _args) -> int:
+    r = cheats.check(cfg)
+    print(f"설치된 빌드    : {r.build or '알 수 없음'} (문서 기준 {r.doc_build or '알 수 없음'})")
+    print(f"사라진 치트    : {', '.join(r.removed) or '없음'}")
+    print(f"새로 생긴 치트 : {', '.join(r.added) or '없음'}")
+    print(f"설정 창 단축키 : {'있음' if r.settings_hotkey else '없음 — 치트 입력란을 열 수 없다'}")
+    if not r.ok:
+        print("게임이 문서와 달라졌습니다. docs/09 의 '게임 업데이트 대비'를 보세요.")
+    elif r.build != r.doc_build:
+        print("빌드가 문서와 다릅니다. 치트 목록은 같지만 효과는 문서의 빌드에서 확인한 것입니다.")
+    return 0 if r.ok else 1
+
+
 def cmd_probe(cfg, args) -> int:
     out = probe.make(cfg, args.name, args.file, args.old, args.new, after=args.after)
     print(f"시험 모드 : {out.relative_to(cfg.root)}")
@@ -221,6 +234,8 @@ def main(argv: list[str] | None = None) -> int:
     h.add_argument("--trace", action="store_true", help="진단용: 게임의 레지스트리 접근을 로그로 남기는 빌드")
     h.set_defaults(fn=cmd_hook_build)
     sub.add_parser("inventory", help="게임 데이터의 섹션·키·열 목록을 build/inventory 에 CSV 로").set_defaults(fn=cmd_inventory)
+    sub.add_parser("cheats-check", help="게임의 내장 치트가 docs/07 과 같은지 대조(게임 업데이트 감지)") \
+        .set_defaults(fn=cmd_cheats_check)
     pr = sub.add_parser("probe", help="설치본 파일에서 값 한 곳만 바꾼 시험 모드를 build/probe-<이름> 에 만들기")
     pr.add_argument("name", help="시험 이름 (설치할 때는 probe-<이름>)")
     pr.add_argument("file", help="게임 폴더 기준 경로 (예: Maps/W2030.CVP)")
