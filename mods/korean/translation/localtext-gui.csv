@@ -1160,7 +1160,7 @@ GUITRANS|Research Required,Research Required,연구 필요,mt
 GUITRANS|Research Required to Build a Launch Pad,Research Required to Build a Launch Pad,발사대 건설에 연구 필요,mt
 GUITRANS|Research Time Estimate,Research Time Estimate,예상 연구 시간,mt
 GUITRANS|Reserve Stock (Full bar equals one year of reserves),Reserve Stock (Full bar equals one year of reserves),비축량 (막대 가득 = 1년치 비축),mt
-GUITRANS|Reserves,Reserves,예비 전력,mt
+GUITRANS|Reserves,Reserves,예비,mt
 GUITRANS|Reset All Settings,Reset All Settings,모든 설정 초기화,mt
 GUITRANS|Reset Container Properties,Reset Container Properties,컨테이너 속성 초기화,mt
 GUITRANS|Reset Unit Name,Reset Unit Name,유닛 이름 초기화,mt
@@ -2208,7 +2208,7 @@ GUITRANS|Market Imports,Market Imports,시장 수입,mt
 GUITRANS|Industry Controls,Industry Controls,산업 제어,mt
 GUITRANS|Cabinet Minister,Cabinet Minister,내각 장관,mt
 GUITRANS|Materials,Materials,자재,mt
-GUITRANS|Last Day Trades,Last Day Trades,전일 교역,mt
+GUITRANS|Last Day Trades,Last Day Trades,전일 무역,mt
 GUITRANS|Space Race Technology,Space Race Technology,우주 경쟁 기술,mt
 GUITRANS|Era Technology,Era Technology,시대 기술,mt
 GUITRANS|Tech Is a Pre-Requisite,Tech Is a Pre-Requisite,선행 조건인 기술,mt
@@ -3049,7 +3049,7 @@ GUITRANS|Trade Policy,Trade Policy,무역 정책,mt
 GUITRANS|Units and HUDs Overlay,Units and HUDs Overlay,유닛 및 HUD 오버레이,mt
 GUITRANS|Unpause Game,Unpause Game,게임 재개,mt
 GUITRANS|WARNING,WARNING,경고,mt
-GUITRANS|Add Battlegroup to Selected Units,Add Battlegroup to Selected Units,선택한 유닛에 전투단 추가,mt
+GUITRANS|Add Battlegroup to Selected Units,Add Battlegroup to Selected Units,선택 유닛에 전투단 추가,mt
 GUITRANS|Add Battlegroup to Selection,Add Battlegroup to Selection,선택에 전투단 추가,mt
 GUITRANS|Add Selected Unit(s) to Battlegroup,Add Selected Unit(s) to Battlegroup,선택한 유닛을 전투단에 추가,mt
 GUITRANS|Add to Selected,Add to Selected,선택에 추가,mt
@@ -3332,7 +3332,7 @@ GUITRANS|Requires Selected Unit and Selected Battlegroup,Requires Selected Unit 
 GUITRANS|Rename Battlegroup,Rename Battlegroup,전투단 이름 변경,mt
 GUITRANS|Select Battlegroup to Rename,Select Battlegroup to Rename,이름을 바꿀 전투단 선택,mt
 GUITRANS|Select Battlegroup to Disband,Select Battlegroup to Disband,해산할 전투단 선택,mt
-GUITRANS|Select Battlegroup to Add to Selected Units,Select Battlegroup to Add to Selected Units,선택한 유닛에 추가할 전투단 선택,mt
+GUITRANS|Select Battlegroup to Add to Selected Units,Select Battlegroup to Add to Selected Units,선택 유닛에 추가할 전투단 선택,mt
 GUITRANS|( Local IP:,( Local IP:,( 로컬 IP:,mt
 GUITRANS|+ 33% Existing Level,+ 33% Existing Level,+ 현재 수준의 33%,mt
 GUITRANS|- 33% Existing Level,- 33% Existing Level,- 현재 수준의 33%,mt
@@ -3348,7 +3348,7 @@ GUITRANS|ANNUALLY,ANNUALLY,연간,mt
 GUITRANS|Acitive Personnel,Acitive Personnel,현역 인원,mt
 GUITRANS|Active Battlegroups,Active Battlegroups,활성 전투단,mt
 GUITRANS|Total Projects in Queue / Available Research Slots,Total Projects in Queue / Available Research Slots,대기열 전체 프로젝트 / 가용 연구 칸,mt
-GUITRANS|Add Selection to Selected Units,Add Selection to Selected Units,선택을 선택한 유닛에 추가,mt
+GUITRANS|Add Selection to Selected Units,Add Selection to Selected Units,고른 항목을 선택 유닛에 추가,mt
 GUITRANS|Add To Battle Group,Add To Battle Group,전투단에 추가,mt
 GUITRANS|Add To Build Queue,Add To Build Queue,건설 대기열에 추가,mt
 GUITRANS|Add To Offer,Add To Offer,제안에 추가,mt
