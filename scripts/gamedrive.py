@@ -1,6 +1,9 @@
 """게임을 띄워 창 내용을 캡처하고 입력을 보내는 검증용 드라이버.
 
     uv run python scripts/gamedrive.py start [게임 인자...]   # 기본 -window. 창을 화면 밖에 두고 포커스를 건드리지 않는다
+    uv run python scripts/gamedrive.py start --               # 인자 없이 띄운다(Steam 이 띄울 때처럼. 창 크기·모드는 저장된 설정)
+    uv run python scripts/gamedrive.py steam                  # Steam 을 거쳐 띄운다(사용자가 켜는 방식). 창은 뜨는 대로 화면 밖으로
+    uv run python scripts/gamedrive.py guard [초]             # 게임이 스스로 다시 시작할 때 새 창도 화면 밖에 두도록 지켜본다
     uv run python scripts/gamedrive.py status
     uv run python scripts/gamedrive.py shot out.png [배율]    # 게임 창의 클라이언트 영역만 캡처
     uv run python scripts/gamedrive.py click X Y              # 클라이언트 좌표(캡처 이미지의 원본 픽셀)
@@ -17,9 +20,11 @@ shot·click·key 도 창이 화면에 나와 있으면 다시 밖으로 보낸�
 from __future__ import annotations
 
 import ctypes
+import os
 import subprocess
 import sys
 import time
+from contextlib import contextmanager
 from ctypes import wintypes
 from pathlib import Path
 
@@ -48,6 +53,7 @@ gdi32.GetDIBits.argtypes = [wintypes.HDC, wintypes.HBITMAP, wintypes.UINT, winty
 gdi32.DeleteObject.argtypes = [wintypes.HGDIOBJ]
 gdi32.DeleteDC.argtypes = [wintypes.HDC]
 user32.GetForegroundWindow.restype = wintypes.HWND
+user32.GetShellWindow.restype = wintypes.HWND
 user32.SetForegroundWindow.argtypes = [wintypes.HWND]
 user32.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
                                 wintypes.UINT]
@@ -57,6 +63,20 @@ user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintyp
 user32.AttachThreadInput.argtypes = [wintypes.DWORD, wintypes.DWORD, wintypes.BOOL]
 user32.IsWindow.argtypes = [wintypes.HWND]
 kernel32.GetCurrentThreadId.restype = wintypes.DWORD
+kernel32.OpenFileMappingW.restype = wintypes.HANDLE
+kernel32.OpenFileMappingW.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.LPCWSTR]
+kernel32.MapViewOfFile.restype = ctypes.c_void_p
+kernel32.MapViewOfFile.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.DWORD, wintypes.DWORD, ctypes.c_size_t]
+kernel32.UnmapViewOfFile.argtypes = [ctypes.c_void_p]
+kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+
+FILE_MAP_ALL_ACCESS = 0xF001F
+
+
+class SharedCursor(ctypes.Structure):
+    """훅 DLL 과 나눠 쓰는 메모리 — native/srhook/srhook.c 의 SRCURSOR 와 같아야 한다."""
+    _fields_ = [("on", ctypes.c_long), ("x", ctypes.c_long), ("y", ctypes.c_long), ("reads", ctypes.c_long),
+                ("hwnd", ctypes.c_ulonglong)]
 
 SW_SHOWNOACTIVATE, HWND_TOP, HWND_BOTTOM = 4, 0, 1
 SWP_NOSIZE, SWP_NOACTIVATE = 0x0001, 0x0010
@@ -135,38 +155,39 @@ def hide(hwnd: int, give_focus_to: int = 0) -> tuple[bool, bool]:
     if rect.left < offscreen_x():
         user32.SetWindowPos(hwnd, HWND_BOTTOM, offscreen_x(), 0, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE)
         moved = True
-    if give_focus_to and give_focus_to != hwnd and user32.GetForegroundWindow() == hwnd and user32.IsWindow(give_focus_to):
+    if give_focus_to and user32.GetForegroundWindow() == hwnd:
+        # 쓰던 창이 그새 닫혔으면(예: Steam 의 실행 안내 창) 바탕 화면에라도 넘긴다 — 보이지 않는 게임이 키 입력을 받지 않게
+        target = give_focus_to if give_focus_to != hwnd and user32.IsWindow(give_focus_to) else user32.GetShellWindow()
         # 포커스를 쥔 스레드에 입력을 붙여야 다른 프로세스가 포커스를 옮길 수 있다
         me, game = kernel32.GetCurrentThreadId(), user32.GetWindowThreadProcessId(hwnd, None)
         user32.AttachThreadInput(me, game, True)
-        user32.SetForegroundWindow(give_focus_to)
+        user32.SetForegroundWindow(target)
         user32.AttachThreadInput(me, game, False)
         refocused = True
     return moved, refocused
 
 
-def start_in_background(exe: Path, args: list[str], settle: float = 5.0, watch: float = 20.0,
-                        timeout: float = 120.0) -> None:
-    """게임을 띄우되 쓰던 화면을 건드리지 않는다: 활성화 없이 시작하고, 창이 생기는 대로 화면 밖으로 보낸다.
+def keep_hidden(pids, previous: int, settle: float = 5.0, watch: float = 20.0, timeout: float = 120.0) -> None:
+    """게임 창이 생기는 대로 화면 밖으로 보내고, 게임이 가져간 포커스를 previous 창에 돌려준다. pids() 는 게임 프로세스 ID 집합.
 
     게임은 시작하면서 창을 다시 만들거나 가운데로 옮기고 포커스를 가져가기도 하므로, 잠잠해질 때까지(settle 초) 지켜본다.
     지켜보는 시간은 창이 뜬 뒤 watch 초로 제한한다 — 그 뒤에 창이 화면에 나와 있다면 사용자가 일부러 꺼낸 것일 수 있다.
+    창이 timeout 초 안에 생기지 않으면 그만둔다.
     """
-    previous = user32.GetForegroundWindow()
-    info = subprocess.STARTUPINFO(dwFlags=subprocess.STARTF_USESHOWWINDOW, wShowWindow=SW_SHOWNOACTIVATE)
-    proc = subprocess.Popen([str(exe), *args], cwd=exe.parent, startupinfo=info)
-    print(f"시작: pid {proc.pid}")
     seen: set[int] = set()
     moves = refocuses = 0
     began = last_fix = time.monotonic()
     first_seen: float | None = None
-    while proc.poll() is None:
+    while True:
         now = time.monotonic()
         if first_seen is None and now - began > timeout:
             break
         if first_seen is not None and (now - first_seen > watch or now - last_fix > settle):
             break
-        win = game_window({proc.pid})
+        running = pids()
+        if first_seen is not None and not running:
+            break
+        win = game_window(running) if running else None
         if win:
             first_seen = first_seen or now
             moved, refocused = hide(win[0], previous)
@@ -177,13 +198,51 @@ def start_in_background(exe: Path, args: list[str], settle: float = 5.0, watch: 
                 seen.add(win[0])
                 print(f"창: {win[1]!r} 클라이언트 {win[2][0]}x{win[2][1]}")
         time.sleep(0.1)
-    if proc.poll() is not None:
+    if not seen:
+        print("게임 창이 나타나지 않았습니다")
+    elif not pids():
         print("게임이 이미 끝났습니다")
-    elif not seen:
-        print("창이 아직 없습니다")
     else:
         focus = "게임이 포커스를 쥐고 있음" if user32.GetForegroundWindow() in seen else "포커스는 다른 창에 있음"
         print(f"창을 화면 밖에 둠 (창 옮김 {moves}회, 포커스 돌려줌 {refocuses}회, 마지막 조치는 시작 {last_fix - began:.0f}초 뒤, {focus})")
+
+
+def start_in_background(exe: Path, args: list[str]) -> None:
+    """게임을 띄우되 쓰던 화면을 건드리지 않는다: 활성화 없이 시작하고, 창이 생기는 대로 화면 밖으로 보낸다."""
+    previous = user32.GetForegroundWindow()
+    info = subprocess.STARTUPINFO(dwFlags=subprocess.STARTF_USESHOWWINDOW, wShowWindow=SW_SHOWNOACTIVATE)
+    proc = subprocess.Popen([str(exe), *args], cwd=exe.parent, startupinfo=info,
+                            env={**os.environ, "SRHOOK_CURSOR": "1"})      # move/click 이 알려 주는 마우스 위치를 듣게 한다
+    print(f"시작: pid {proc.pid}")
+    keep_hidden(lambda: {proc.pid} if proc.poll() is None else set(), previous)
+
+
+@contextmanager
+def shared_cursor(hwnd: int):
+    """게임 안의 훅 DLL 이 만든 공유 메모리. start 로 띄우지 않은 게임(SRHOOK_CURSOR 없음)이면 None."""
+    pid = wintypes.DWORD()
+    user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+    handle = kernel32.OpenFileMappingW(FILE_MAP_ALL_ACCESS, False, f"Local\\srkit.cursor.{pid.value}")
+    view = kernel32.MapViewOfFile(handle, FILE_MAP_ALL_ACCESS, 0, 0, ctypes.sizeof(SharedCursor)) if handle else None
+    try:
+        yield SharedCursor.from_address(view) if view else None
+    finally:
+        if view:
+            kernel32.UnmapViewOfFile(view)
+        if handle:
+            kernel32.CloseHandle(handle)
+
+
+def point_cursor(hwnd: int, x: int, y: int) -> None:
+    """게임이 읽는 마우스 위치를 클라이언트 좌표 (x, y) 로 둔다. 실제 마우스는 움직이지 않는다.
+
+    게임은 툴팁·버튼 강조·지도 가장자리 스크롤에 쓸 마우스 위치를 메시지가 아니라 GetCursorPos 로 읽으므로,
+    훅 DLL 이 이 좌표를 대신 돌려주게 한다(start 가 SRHOOK_CURSOR=1 로 띄운 게임만 듣는다).
+    """
+    with shared_cursor(hwnd) as cursor:
+        if cursor is not None:
+            cursor.hwnd, cursor.x, cursor.y, cursor.on = hwnd, x, y, 1
+    user32.PostMessageW(hwnd, WM_MOUSEMOVE, 0, (y << 16) | (x & 0xFFFF))
 
 
 def need_window() -> tuple[int, str, tuple[int, int]]:
@@ -201,7 +260,21 @@ def main(argv: list[str]) -> int:
     if cmd == "start":
         if game_pids():
             raise SystemExit("이미 실행 중입니다")
-        start_in_background(cfg.game_dir / EXE, args or ["-window"])
+        # 인자가 없으면 -window. 정말 인자 없이(Steam 이 띄우는 것처럼) 띄우려면 "--" 하나만 준다
+        start_in_background(cfg.game_dir / EXE, [] if args == ["--"] else args or ["-window"])
+    elif cmd == "guard":
+        # 이미 떠 있는 게임이 스스로 다시 시작할 때(해상도·언어 변경 뒤 Steam 을 거쳐 재실행) 새 창을 화면 밖에 둔다
+        seconds = float(args[0]) if args else 40.0
+        keep_hidden(lambda: set(game_pids()), user32.GetForegroundWindow(), settle=seconds, watch=seconds)
+    elif cmd == "steam":
+        # 사용자가 켜는 방식 그대로(Steam 을 거쳐) 띄운다. 가상 마우스는 못 쓴다(Steam 이 띄운 프로세스라 환경 변수를 줄 수 없다)
+        if game_pids():
+            raise SystemExit("이미 실행 중입니다")
+        previous = user32.GetForegroundWindow()     # Steam 의 안내 창이 뜨기 전에, 쓰던 창을 기억해 둔다
+        appid = (cfg.game_dir / "steam_appid.txt").read_text().strip()
+        os.startfile(f"steam://rungameid/{appid}")
+        print(f"Steam 으로 실행 요청: {appid}")
+        keep_hidden(lambda: set(game_pids()), previous, timeout=float(args[0]) if args else 90.0)
     elif cmd == "status":
         pids, win = game_pids(), game_window()
         print(f"프로세스: {pids or '없음'}")
@@ -211,6 +284,12 @@ def main(argv: list[str]) -> int:
             where = "화면 밖" if rect.left >= offscreen_x() else f"화면 안 ({rect.left},{rect.top})"
             focus = ", 포커스를 쥐고 있음" if user32.GetForegroundWindow() == win[0] else ""
             print(f"창: {win[1]!r} 클라이언트 {win[2][0]}x{win[2][1]}, {where}{focus}")
+            with shared_cursor(win[0]) as cursor:
+                if cursor is None:
+                    print("가상 마우스: 없음 (start 로 띄운 게임이 아님)")
+                else:
+                    where = f"({cursor.x},{cursor.y})" if cursor.on else "꺼짐(실제 마우스 위치 사용)"
+                    print(f"가상 마우스: {where}, 게임이 위치를 물은 횟수 {cursor.reads}")
         else:
             print("창: 없음")
     elif cmd == "show":
@@ -231,7 +310,7 @@ def main(argv: list[str]) -> int:
     elif cmd == "click":
         hwnd, _, _ = need_window()
         pos = (int(args[1]) << 16) | (int(args[0]) & 0xFFFF)
-        user32.PostMessageW(hwnd, WM_MOUSEMOVE, 0, pos)
+        point_cursor(hwnd, int(args[0]), int(args[1]))
         time.sleep(0.15)
         user32.PostMessageW(hwnd, WM_LBUTTONDOWN, 1, pos)
         time.sleep(0.08)
@@ -239,7 +318,7 @@ def main(argv: list[str]) -> int:
         print(f"클릭 {args[0]},{args[1]}")
     elif cmd == "move":
         hwnd, _, _ = need_window()
-        user32.PostMessageW(hwnd, WM_MOUSEMOVE, 0, (int(args[1]) << 16) | (int(args[0]) & 0xFFFF))
+        point_cursor(hwnd, int(args[0]), int(args[1]))
         print(f"이동 {args[0]},{args[1]}")
     elif cmd == "key":
         hwnd, _, _ = need_window()

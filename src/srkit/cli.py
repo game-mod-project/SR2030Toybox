@@ -140,8 +140,11 @@ def cmd_mt_import(cfg, args) -> int:
     return 0
 
 
-def cmd_hook_build(cfg, _args) -> int:
-    print(f"빌드 완료: {hook.build(cfg)}")
+def cmd_hook_build(cfg, args) -> int:
+    print(f"빌드 완료: {hook.build(cfg, trace=args.trace)}")
+    if args.trace:
+        print("진단용 빌드입니다: 게임의 레지스트리 접근을 %TEMP%\\srhook-trace-<pid>.log 에 적습니다. "
+              "다 본 뒤 --trace 없이 다시 빌드하세요.")
     return 0
 
 
@@ -197,7 +200,9 @@ def main(argv: list[str] | None = None) -> int:
     m = sub.add_parser("mt-import", help="검증을 통과한 청크 결과를 번역 테이블에 병합(status=mt)")
     m.add_argument("--overwrite", action="store_true", help="이미 번역이 있는 행도 덮어쓰기")
     m.set_defaults(fn=cmd_mt_import)
-    sub.add_parser("hook-build", help="디코딩 훅 DLL(WTSAPI32.dll) 빌드").set_defaults(fn=cmd_hook_build)
+    h = sub.add_parser("hook-build", help="디코딩 훅 DLL(WTSAPI32.dll) 빌드")
+    h.add_argument("--trace", action="store_true", help="진단용: 게임의 레지스트리 접근을 로그로 남기는 빌드")
+    h.set_defaults(fn=cmd_hook_build)
     for name, fn, text in (("deploy", cmd_deploy, "빌드한 모드를 게임 폴더에 설치"),
                            ("undeploy", cmd_undeploy, "설치한 모드를 제거하고 원본 복원")):
         d = sub.add_parser(name, help=text + " (기본은 미리보기, --apply 로 실행)")

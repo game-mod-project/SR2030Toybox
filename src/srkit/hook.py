@@ -62,7 +62,8 @@ def _vcvars() -> Path:
     return vcvars
 
 
-def build(cfg: Config) -> Path:
+def build(cfg: Config, *, trace: bool = False) -> Path:
+    """훅 DLL 을 빌드한다. trace 는 게임의 레지스트리 접근을 기록하는 진단용 빌드(배포하지 않는다)."""
     src = cfg.root / "native" / "srhook"
     out = output(cfg)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -76,8 +77,9 @@ def build(cfg: Config) -> Path:
     script.write_text(
         "@echo off\r\n"
         f'call "{_vcvars()}" >nul || exit /b 1\r\n'
-        f'cl /nologo /utf-8 /O2 /W4 /WX /MT /LD "{src / "srhook.c"}" "{src / "srdecode.c"}" "{forwards}" '
-        f'/Fe:"{out}" /link /NOLOGO kernel32.lib advapi32.lib\r\n',
+        f'cl /nologo /utf-8 /O2 /W4 /WX /MT /LD {"/DSRHOOK_TRACE " if trace else ""}'
+        f'"{src / "srhook.c"}" "{src / "srdecode.c"}" "{forwards}" '
+        f'/Fe:"{out}" /link /NOLOGO kernel32.lib advapi32.lib user32.lib\r\n',
         encoding="mbcs")
     result = subprocess.run(["cmd", "/d", "/c", str(script)], cwd=out.parent, capture_output=True)
     if result.returncode != 0 or not out.is_file():

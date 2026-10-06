@@ -35,11 +35,15 @@ def test_extra_region_names_cover_sandbox_regions_missing_from_localization(cfg,
     assert "REGIONTEXT|2314|0" not in dict(korean.extra_region_names(cfg, known={"2314"}))
 
 
-def test_patch_uisettings_appends_language_once():
-    text = 'langdirs, "LOCALEN", "LOCALPT", ""\nlangs, "English", "Portuguese", ""\nother, 1'
+def test_patch_uisettings_puts_language_second():
+    """옵션 화면이 앞의 6개 언어만 보여 주므로 영어 바로 다음에 넣는다. 끝에 들어 있던 것은 옮긴다."""
+    text = 'langdirs, "LOCALEN", "LOCALPT", ""\r\nlangs, "English", "Portuguese", ""\r\nother, 1'
+    want = 'langdirs, "LOCALEN", "LOCALKO", "LOCALPT", ""\r\nlangs, "English", "Korean", "Portuguese", ""\r\nother, 1'
     out = korean.patch_uisettings(text, "LOCALKO", "Korean")
-    assert out == 'langdirs, "LOCALEN", "LOCALPT", "LOCALKO", ""\nlangs, "English", "Portuguese", "Korean", ""\nother, 1'
+    assert out == want
     assert korean.patch_uisettings(out, "LOCALKO", "Korean") == out
+    appended = 'langdirs, "LOCALEN", "LOCALPT", "LOCALKO", ""\r\nlangs, "English", "Portuguese", "Korean", ""\r\nother, 1'
+    assert korean.patch_uisettings(appended, "LOCALKO", "Korean") == want
 
 
 def test_table_roundtrip_keeps_translations(tmp_path):

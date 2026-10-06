@@ -406,15 +406,24 @@ def build_fonts(cfg: Config, out_fonts: Path, extra_chars: set[str], only: set[s
     return built
 
 
-def patch_uisettings(text: str, lang_dir: str, display: str) -> str:
-    """INI/UISettings.csv 의 언어 목록(langdirs/langs) 끝에 새 언어를 넣는다. 끝의 빈 항목은 유지."""
+def patch_uisettings(text: str, lang_dir: str, display: str, position: int = 1) -> str:
+    """INI/UISettings.csv 의 언어 목록(langdirs/langs)에 새 언어를 넣는다. 끝의 빈 항목은 유지.
+
+    옵션 화면의 언어 목록은 앞의 6개만 보여 준다(게임 화면으로 확인). 끝에 붙이면 7번째라 고를 수 없으므로
+    영어 다음(position)에 넣는다 — 대신 원래 6번째였던 언어(포르투갈어)가 목록에서 밀려난다.
+    이미 들어 있으면 그 자리로 옮긴다.
+    """
     out = []
     for line in text.split("\n"):
         head = line.split(",", 1)[0].strip().lower()
         value = {"langdirs": lang_dir, "langs": display}.get(head)
-        if value and f'"{value}"' not in line:
-            body = line.rstrip()
-            line = body[:-len(', ""')] + f', "{value}", ""' if body.endswith(', ""') else body + f', "{value}"'
+        if value and '"' in line:
+            items = re.findall(r'"([^"]*)"', line)
+            closed = items[-1] == ""
+            names = [item for item in items if item not in ("", value)]
+            names.insert(min(position, len(names)), value)
+            line = (line[:line.index('"')] + ", ".join(f'"{item}"' for item in names + [""] * closed)
+                    + line[len(line.rstrip()):])
         out.append(line)
     return "\n".join(out)
 
