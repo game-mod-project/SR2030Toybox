@@ -25,6 +25,11 @@ Present 를 부르고 창 메시지를 보낸다. Steam 오버레이 같은 다�
     gate_menu        ToyBox 가 게임을 읽을 수 있고 메뉴에 있다 — 단추가 꺼져 있다
     gate_leave       게임 안에서 단추를 누른 직후(실행되기 전) 메뉴로 나갔다 — 실행하지 않는다
     gate_typing      게임 안, 글쇠 방식(SRTOYBOX_DIRECT=0) — 1단계처럼 글쇠가 간다
+직접 실행 (출력 "lines=<명령 처리 함수가 받은 줄들. 빈칸은 _, 줄 사이는 |> text=<게임이 받은 글>"):
+    direct           게임 안에서 단추를 세 번 — 둘째 뒤에 치트 허용이 꺼진다(메뉴에 나갔다 온 것처럼)
+    direct_fault     명령 처리 함수가 잘못된 주소에 쓴다 — ToyBox 가 잡고, 그 뒤로는 아무것도 실행하지 않는다
+    direct_off       SRTOYBOX_DIRECT=0 — 명령 처리 함수를 부르지 않고 글쇠를 넣는다
+    direct_menu      명령 처리 함수를 부를 수 있지만 게임 밖이다 — 부르지 않는다
 
 장치를 만들 수 없으면 "nodevice", 흉내를 만들 수 없으면 "skip <이유>".
 tests/test_toybox.py 가 부른다(pytest 가 직접 모으는 테스트 파일이 아니다).
@@ -37,7 +42,7 @@ from ctypes import wintypes
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
-from toybox_fake_game import FakeGame  # noqa: E402  (이 파일과 같은 폴더)
+from toybox_fake_game import OPTIONS, FakeGame  # noqa: E402  (이 파일과 같은 폴더)
 
 SLOT_PRESENT, SLOT_RESIZE, SLOT_PRESENT1 = 8, 13, 22
 LIMIT = 50      # 가짜 훅이 이만큼 불리면 맴도는 것이다. 여기서 끊어 프로세스가 죽지 않게 한다
@@ -73,6 +78,7 @@ PRESENT = ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p, ctypes.c_uint, ctyp
 PRESENT1 = ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint, ctypes.c_void_p)
 RESIZE = ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint, ctypes.c_uint, ctypes.c_uint, ctypes.c_uint)
 WNDPROC = ctypes.WINFUNCTYPE(LRESULT, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)
+HANDLER = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_char_p)    # 게임의 명령 처리 함수: void f(void *context, const char *line)
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 user32 = ctypes.WinDLL("user32", use_last_error=True)
 user32.CreateWindowExW.restype = wintypes.HWND
@@ -424,6 +430,48 @@ def run_gate(hook: str, mode: str) -> int:
     return 0
 
 
+def crash_stub() -> int:
+    """부르면 0 번지에 쓰는 함수(mov dword ptr [0],1 / ret) — 게임의 함수 안에서 나는 접근 위반을 흉내 낸다."""
+    code = kernel32.VirtualAlloc(None, 16, 0x3000, 0x40)
+    ctypes.memmove(code, bytes([0xC7, 0x04, 0x25, 0, 0, 0, 0, 1, 0, 0, 0, 0xC3]), 12)
+    return code
+
+
+def run_direct(hook: str, mode: str) -> int:
+    game = start_game(hook)
+    if game is None:
+        return 0
+    lines: list[str] = []
+    box: dict[str, FakeGame] = {}
+
+    def body(_context, line):
+        lines.append(line.decode())
+        if line == b"cheat allowcheats":                      # 게임이 하듯 치트 허용 비트를 세운다
+            box["fake"].poke(OPTIONS, "<I", box["fake"].peek(OPTIONS, "<I") | 0x40)
+
+    handler = HANDLER(body)
+    fake = box["fake"] = fake_game(hook, crash_stub() if mode == "direct_fault" else ctypes.cast(handler, ctypes.c_void_p).value)
+    if mode != "direct_menu":
+        fake.play(176)
+    game.hotkey()
+    game.got.clear()
+    if mode == "direct_off":
+        game.click(BUTTON)
+        game.pump(lambda: game.has("up", 0x1B), 20)
+        game.wait(0.4)
+    elif mode == "direct_menu":
+        game.click(BUTTON)
+        game.wait(1.0)
+    else:
+        for press in range(3):
+            if press == 2:
+                fake.poke(OPTIONS, "<I", 0)                   # 메뉴에 나갔다 온 것처럼 치트 허용이 꺼졌다
+            game.click(BUTTON)
+            game.wait(0.4)
+    print("lines=" + "|".join(line.replace(" ", "_") for line in lines) + " text=" + game.text())
+    return 0
+
+
 def run_input(hook: str) -> int:
     game = start_game(hook)
     if game is None:
@@ -468,6 +516,8 @@ def main() -> int:
         return run_scale(hook)
     if mode.startswith("gate_"):
         return run_gate(hook, mode)
+    if mode.startswith("direct"):
+        return run_direct(hook, mode)
     swap, hwnd = make_swap_chain()
     if swap is None:
         print("nodevice")

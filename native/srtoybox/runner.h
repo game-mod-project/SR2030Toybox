@@ -23,6 +23,7 @@ public:
     void tick(Sink &sink);                      // 한 번에 동작 하나. WAIT 가 다 지나기 전에는 아무것도 하지 않는다
     bool starting() const { return plan_.empty() && !queue_.empty(); }   // 다음 틱에 새 명령을 시작한다
     void clear();                               // 대기열을 비운다(넣던 것이 있으면 그것도)
+    std::string take();                         // 대기열의 맨 앞 명령을 꺼낸다(직접 실행). 마지막으로 넣은 것으로 적는다
     bool busy() const { return !plan_.empty() || !queue_.empty(); }
     size_t pending() const { return queue_.size() + (plan_.empty() ? 0 : 1); }
     const std::string &last() const { return last_; }

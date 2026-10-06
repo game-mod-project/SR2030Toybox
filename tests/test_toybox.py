@@ -379,6 +379,41 @@ def test_the_typing_route_still_works_in_a_game_toybox_can_read(dll, cfg, tmp_pa
     assert got["text"] == typed_keys("cheat georgew")
 
 
+def test_direct_run_calls_the_games_handler(dll, cfg, tmp_path):
+    """게임 안에서는 글쇠를 넣지 않고 게임의 명령 처리 함수에 바로 넘긴다.
+
+    치트 허용이 꺼져 있으면 먼저 cheat allowcheats 를 부르고, 켜져 있으면 다시 부르지 않는다
+    (메뉴에 나갔다 오면 게임이 꺼 두므로 그때는 다시 부른다).
+    """
+    got = _fields(_probe(cfg, tmp_path, "direct"))
+    assert got["lines"].replace("_", " ").split("|") == ["cheat allowcheats", "cheat georgew", "cheat georgew",
+                                                        "cheat allowcheats", "cheat georgew"]
+    assert got["text"] == ""                                    # 글쇠는 가지 않는다 — 게임의 설정 창이 뜨지 않는다
+    log = (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8")
+    assert log.count("직접 실행: cheat georgew") == 3
+
+
+def test_a_fault_in_the_games_handler_is_caught_and_nothing_runs_after(dll, cfg, tmp_path):
+    """명령 처리 함수 안에서 예외가 나도 프로세스가 죽지 않는다. 게임의 상태가 어긋났을 수 있으므로 그 뒤로는
+    직접으로도 글쇠로도 실행하지 않는다."""
+    got = _fields(_probe(cfg, tmp_path, "direct_fault"))
+    assert got["lines"] == "" and got["text"] == ""
+    log = (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8")
+    assert log.count("직접 실행 중 예외 0xC0000005") == 1         # 한 번 잡은 뒤로는 다시 부르지 않는다
+
+
+def test_the_games_handler_is_not_called_outside_a_game(dll, cfg, tmp_path):
+    """명령 처리 함수는 게임이 진행 중인지 검사하지 않고 플레이어 포인터를 따라간다 — 게임 밖에서 부르면 죽는다."""
+    got = _fields(_probe(cfg, tmp_path, "direct_menu"))
+    assert got["lines"] == "" and got["text"] == ""
+
+
+def test_srtoybox_direct_0_keeps_the_typing_route(dll, cfg, tmp_path):
+    """탈출구: SRTOYBOX_DIRECT=0 이면 명령 처리 함수를 부를 수 있어도 글쇠를 넣는다."""
+    got = _fields(_probe(cfg, tmp_path, "direct_off", env={"SRTOYBOX_DIRECT": "0"}))
+    assert got["lines"] == "" and got["text"] == typed_keys("cheat georgew")
+
+
 def test_prologue_length_knows_only_plain_function_heads(dll):
     """다른 훅이 심은 점프를 건너뛰려면 함수의 원래 첫 명령들을 통째로 옮겨야 한다. 옮겨도 되는 명령만 센다."""
     dll.srtoybox_prologue_length.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int]
