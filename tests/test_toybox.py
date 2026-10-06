@@ -11,14 +11,13 @@ import pytest
 
 from srkit import hook, toybox
 
-# 설계서의 "넣지 않는 것": 모든 지역·AI 에 닿거나, 불리해지거나, 지역 번호가 필요하거나, 넣지 않기로 한 것
+# 넣지 않는 것: 모든 지역 · AI 에 닿거나, 불리해지거나, 반응이 없었거나, 넣지 않기로 한 것
 EXCLUDED = {
     "onedaybuild", "allunit", "gates", "devcheat", "endday", "increaseday", "eventnow", "peace", "worldwar", "darren",
     "democracy", "saddam", "breakground", "depopulate", "trumpme", "sanction", "wmsanction", "shelovesmenot", "saddamme",
-    "approval", "love", "hate", "neutral", "annex", "colonize", "novichok", "fight", "treaty", "becomeregion",
-    "resettutorial", "allowcheats",
+    "hate", "liberate", "revolt", "resettutorial", "allowcheats",
 }
-TABS = ["돈", "물자", "연구", "인구·여론", "부대", "화면·진행"]
+TABS = ["돈", "물자", "연구", "인구·여론", "외교·영토", "부대", "화면·진행"]
 TEXT_CALLS = ["srtoybox_feature_info", "srtoybox_command", "srtoybox_plan", "srtoybox_simulate",
               "srtoybox_settings_normalize", "srtoybox_settings_file", "srtoybox_hotkey_name"]
 
@@ -30,7 +29,7 @@ def dll(cfg):
         pytest.skip("ToyBox DLL 미빌드 (srkit toybox-build)")
     lib = ctypes.CDLL(str(path))
     lib.srtoybox_feature_info.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
-    lib.srtoybox_command.argtypes = [ctypes.c_char_p, ctypes.c_longlong, ctypes.c_char_p, ctypes.c_int]
+    lib.srtoybox_command.argtypes = [ctypes.c_char_p, ctypes.c_longlong, ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
     lib.srtoybox_plan.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int]
     lib.srtoybox_simulate.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
     lib.srtoybox_settings_normalize.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int]
@@ -50,9 +49,11 @@ def text(call, *args, size: int = 1 << 17) -> str | None:
 def features(dll) -> list[dict]:
     out = []
     for i in range(dll.srtoybox_feature_count()):
-        ident, tab, label, command, has_value, default, low, high, confirm, help_ = text(dll.srtoybox_feature_info, i).split("\t")
+        ident, tab, label, command, has_value, default, low, high, confirm, help_, target = \
+            text(dll.srtoybox_feature_info, i).split("\t")
         out.append({"id": ident, "tab": tab, "label": label, "command": command, "has_value": has_value == "1",
-                    "default": int(default), "min": int(low), "max": int(high), "confirm": confirm == "1", "help": help_})
+                    "default": int(default), "min": int(low), "max": int(high), "confirm": confirm == "1", "help": help_,
+                    "target": target})
     return out
 
 
@@ -69,37 +70,53 @@ def documented(cfg) -> dict[str, tuple[str, str]]:
 
 def test_feature_table(dll):
     fs = features(dll)
-    assert len(fs) == 16
-    assert len({f["id"] for f in fs}) == 16 and len({f["command"] for f in fs}) == 16
+    assert len(fs) == 25
+    assert len({f["id"] for f in fs}) == 25 and len({f["command"] for f in fs}) == 25
     assert [t for i, t in enumerate(f["tab"] for f in fs) if i == 0 or fs[i - 1]["tab"] != t] == TABS   # 탭끼리 모여 있고 이 순서다
     for f in fs:
         assert f["command"] == "cheat " + f["id"] and f["label"] and f["help"]
+        assert not (f["has_value"] and f["target"] != "none")           # 한 기능의 인자는 하나다
         if f["has_value"]:
             assert f["min"] <= f["default"] <= f["max"]
     assert {f["id"] for f in fs if f["has_value"]} == {"treasury", "products", "technology", "spawnunit"}
-    assert [f["id"] for f in fs if f["confirm"]] == ["instantwin"]
-    assert dll.srtoybox_feature_info(16, ctypes.create_string_buffer(8), 8) == -1
+    assert {f["id"] for f in fs if f["target"] == "player"} == {"approval"}
+    assert {f["id"] for f in fs if f["target"] == "picked"} == {"love", "neutral", "annex", "colonize", "novichok", "fight",
+                                                                "becomeregion"}
+    # 되돌릴 수 없는 것은 한 번 더 누르게 한다
+    assert [f["id"] for f in fs if f["confirm"]] == ["annex", "colonize", "novichok", "fight", "becomeregion", "instantwin"]
+    assert {f["id"] for f in fs if f["tab"] == "외교·영토"} == {"love", "neutral", "treaty", "annex", "colonize", "novichok",
+                                                              "fight", "becomeregion"}
+    assert dll.srtoybox_feature_info(25, ctypes.create_string_buffer(8), 8) == -1
 
 
-def test_only_player_cheats_that_were_seen_working(dll, cfg):
-    """요구: 설정은 플레이어가 플레이 중인 국가에만 적용된다. 게임이 플레이어에게만 적용하는 것으로 확인된 치트만 내놓는다."""
+def test_only_cheats_that_were_seen_working_and_reach_what_the_user_chose(dll, cfg):
+    """요구: 설정은 플레이어가 플레이 중인 국가에만 적용된다. 게임에서 효과를 확인한 치트만 내놓고,
+    플레이어 밖에 닿는 것은 사용자가 창이나 지도에서 고른 나라 하나에만 닿는 것이어야 한다(2026-10-07, 사용자가 범위를 정했다)."""
     rows = documented(cfg)
     for f in features(dll):
         target, verdict = rows[f["id"]]
         assert verdict == "[확인: 효과]", f["id"]
-        assert target.startswith("플레이어") or target == "고른 부대", (f["id"], target)
         assert f["id"] not in EXCLUDED
+        if f["tab"] == "외교·영토" or f["target"] == "player":
+            assert target in ("지정한 지역", "고른 지역", "플레이어"), (f["id"], target)
+        else:
+            assert target.startswith("플레이어") or target == "고른 부대", (f["id"], target)
 
 
 def test_command_text(dll):
-    assert text(dll.srtoybox_command, b"treasury", 1234) == "cheat treasury 1234"
-    assert text(dll.srtoybox_command, b"treasury", 0) == "cheat treasury 1"                    # 범위로 잘라 맞춘다
-    assert text(dll.srtoybox_command, b"treasury", -5) == "cheat treasury 1"
-    assert text(dll.srtoybox_command, b"treasury", 10**12) == "cheat treasury 1000000"
-    assert text(dll.srtoybox_command, b"georgew", 999) == "cheat georgew"                      # 값이 없는 기능은 값을 무시한다
-    assert text(dll.srtoybox_command, b"e=mc2", 0) == "cheat e=mc2"
-    assert text(dll.srtoybox_command, b"depopulate", 0) is None                                # 표에 없는 것은 만들지 않는다
-    assert text(dll.srtoybox_command, b"treasury", 1, size=4) is None                          # 버퍼가 작으면 넘치지 않고 -1
+    assert text(dll.srtoybox_command, b"treasury", 1234, 0) == "cheat treasury 1234"
+    assert text(dll.srtoybox_command, b"treasury", 0, 0) == "cheat treasury 1"                 # 범위로 잘라 맞춘다
+    assert text(dll.srtoybox_command, b"treasury", -5, 0) == "cheat treasury 1"
+    assert text(dll.srtoybox_command, b"treasury", 10**12, 0) == "cheat treasury 1000000"
+    assert text(dll.srtoybox_command, b"georgew", 999, 1106) == "cheat georgew"                # 값도 대상도 없는 기능은 둘 다 무시한다
+    assert text(dll.srtoybox_command, b"e=mc2", 0, 0) == "cheat e=mc2"
+    assert text(dll.srtoybox_command, b"approval", 0, 1499) == "cheat approval 1499"           # 대상이 있는 기능은 지역 번호가 붙는다
+    assert text(dll.srtoybox_command, b"love", 0, 1106) == "cheat love 1106"
+    assert text(dll.srtoybox_command, b"treaty", 0, 1106) == "cheat treaty"                    # 게임이 지도에서 고른 나라를 쓴다
+    assert text(dll.srtoybox_command, b"love", 0, 0) is None                                   # 나라를 고르지 않았으면 만들지 않는다
+    assert text(dll.srtoybox_command, b"approval", 0, -1) is None
+    assert text(dll.srtoybox_command, b"depopulate", 0, 0) is None                             # 표에 없는 것은 만들지 않는다
+    assert text(dll.srtoybox_command, b"treasury", 1, 0, size=4) is None                       # 버퍼가 작으면 넘치지 않고 -1
 
 
 def expected_plan(command: str) -> list[str]:

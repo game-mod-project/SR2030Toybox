@@ -6,8 +6,9 @@
 
 #include "features.h"
 
-// 값은 기능의 범위로 잘라 맞춘다. 값이 없는 기능은 값을 무시한다.
-std::string build_command(const Feature &f, long long value);
+// 값은 기능의 범위로 잘라 맞춘다. 대상이 있는 기능은 region(지역 번호)을 뒤에 붙인다 — region 이 0 이하이면
+// (플레이어를 모르거나 나라를 고르지 않았다) 빈 글을 준다. 값도 대상도 없는 기능은 둘 다 무시한다.
+std::string build_command(const Feature &f, long long value, int region);
 
 enum class Act { Mods, Down, Up, Char, Wait };
 

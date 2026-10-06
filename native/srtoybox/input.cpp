@@ -34,6 +34,30 @@ int mods_now()
 bool is_key(UINT m) { return m >= WM_KEYFIRST && m <= WM_KEYLAST; }
 // 실제 키보드에서 온 글쇠 메시지에는 스캔 코드가 있다. 실행기(runner_win.cpp)와 검증 도구(gamedrive.py)가 보내는 것에는 없다
 bool from_keyboard(LPARAM l) { return ((l >> 16) & 0xFF) != 0; }
+
+// ANSI 창에서는 한글 한 글자가 WM_CHAR 두 번(코드 페이지의 앞 · 뒤 바이트)으로 온다. ImGui 의 Win32 백엔드는 한 바이트씩
+// 바꿔서 깨뜨리므로, 설정 창이 글을 받는 동안에는 여기서 둘을 합쳐 한 글자로 넘긴다. 삼켰으면 true.
+bool take_dbcs(ImGuiIO &io, WPARAM w)
+{
+    static unsigned char lead;
+    if (!io.WantTextInput) {
+        lead = 0;
+        return false;
+    }
+    const unsigned char byte = static_cast<unsigned char>(w);
+    if (lead != 0) {
+        const unsigned unit = dbcs_combine(lead, byte, CP_ACP);
+        lead = 0;
+        if (unit != 0)
+            io.AddInputCharacterUTF16(static_cast<ImWchar16>(unit));
+        return true;
+    }
+    if (IsDBCSLeadByteEx(CP_ACP, byte)) {
+        lead = byte;
+        return true;
+    }
+    return false;
+}
 bool is_mouse(UINT m) { return m >= WM_MOUSEFIRST && m <= WM_MOUSELAST; }
 
 LRESULT CALLBACK wrapped(HWND h, UINT m, WPARAM w, LPARAM l)
@@ -72,11 +96,15 @@ LRESULT CALLBACK wrapped(HWND h, UINT m, WPARAM w, LPARAM l)
                 drawn = MAKELPARAM(x, y);
                 io.AddMousePosEvent(static_cast<float>(x), static_cast<float>(y));
             }
-            ImGui_ImplWin32_WndProcHandler(h, m, w, drawn);
-            if (is_mouse(m))   // 창 위인지는 사각형으로 직접 가린다 — ImGui 의 판단(WantCaptureMouse)은 한 프레임 늦다
-                swallow = (positioned && ui_hit(x, y)) || io.WantCaptureMouse;
-            else
-                swallow = io.WantCaptureKeyboard;
+            if (!g_unicode && m == WM_CHAR && take_dbcs(io, w)) {
+                swallow = true;
+            } else {
+                ImGui_ImplWin32_WndProcHandler(h, m, w, drawn);
+                if (is_mouse(m))   // 창 위인지는 사각형으로 직접 가린다 — ImGui 의 판단(WantCaptureMouse)은 한 프레임 늦다
+                    swallow = (positioned && ui_hit(x, y)) || io.WantCaptureMouse;
+                else
+                    swallow = io.WantCaptureKeyboard;
+            }
         }
         if (swallow)
             return 0;
@@ -100,4 +128,11 @@ void input_install(HWND game)
         g_original = reinterpret_cast<WNDPROC>(GetWindowLongPtrA(game, GWLP_WNDPROC));
         SetWindowLongPtrA(game, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(wrapped));
     }
+}
+
+unsigned dbcs_combine(unsigned char lead, unsigned char trail, unsigned codepage)
+{
+    const char bytes[2] = {static_cast<char>(lead), static_cast<char>(trail)};
+    wchar_t unit = 0;
+    return MultiByteToWideChar(codepage, MB_ERR_INVALID_CHARS, bytes, 2, &unit, 1) == 1 ? static_cast<unsigned>(unit) : 0;
 }
