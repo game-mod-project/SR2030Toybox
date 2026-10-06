@@ -32,6 +32,8 @@ int mods_now()
 }
 
 bool is_key(UINT m) { return m >= WM_KEYFIRST && m <= WM_KEYLAST; }
+// 실제 키보드에서 온 글쇠 메시지에는 스캔 코드가 있다. 실행기(runner_win.cpp)와 검증 도구(gamedrive.py)가 보내는 것에는 없다
+bool from_keyboard(LPARAM l) { return ((l >> 16) & 0xFF) != 0; }
 bool is_mouse(UINT m) { return m >= WM_MOUSEFIRST && m <= WM_MOUSELAST; }
 
 LRESULT CALLBACK wrapped(HWND h, UINT m, WPARAM w, LPARAM l)
@@ -42,8 +44,9 @@ LRESULT CALLBACK wrapped(HWND h, UINT m, WPARAM w, LPARAM l)
         runner_tick(h);
         return 0;
     }
-    if (is_key(m) && runner_injecting())
-        return pass(h, m, w, l);                             // 실행기가 넣는 중이다 — 설정 창이 가로채지 않는다
+    const bool injecting = is_key(m) && runner_injecting();
+    if (injecting && !from_keyboard(l))
+        return pass(h, m, w, l);                             // 실행기가 넣는 글쇠다 — 설정 창이 가로채지 않는다
     if (m == WM_KEYDOWN || m == WM_SYSKEYDOWN) {
         const int vk = static_cast<int>(w);
         if (ui_capturing_hotkey()) {
@@ -62,17 +65,26 @@ LRESULT CALLBACK wrapped(HWND h, UINT m, WPARAM w, LPARAM l)
             std::lock_guard<std::recursive_mutex> lock(ui_mutex());
             ImGuiIO &io = ImGui::GetIO();
             const bool positioned = is_mouse(m) && m != WM_MOUSEWHEEL && m != WM_MOUSEHWHEEL;   // 휠의 좌표는 화면 좌표다
-            if (positioned)
-                io.AddMousePosEvent(static_cast<float>(GET_X_LPARAM(l)), static_cast<float>(GET_Y_LPARAM(l)));
-            ImGui_ImplWin32_WndProcHandler(h, m, w, l);
+            int x = GET_X_LPARAM(l), y = GET_Y_LPARAM(l);
+            LPARAM drawn = l;                                // ImGui 에는 그리는 좌표로 알려 준다. 게임에는 받은 그대로 넘긴다
+            if (positioned) {
+                overlay_to_drawn(h, &x, &y);
+                drawn = MAKELPARAM(x, y);
+                io.AddMousePosEvent(static_cast<float>(x), static_cast<float>(y));
+            }
+            ImGui_ImplWin32_WndProcHandler(h, m, w, drawn);
             if (is_mouse(m))   // 창 위인지는 사각형으로 직접 가린다 — ImGui 의 판단(WantCaptureMouse)은 한 프레임 늦다
-                swallow = (positioned && ui_hit(GET_X_LPARAM(l), GET_Y_LPARAM(l))) || io.WantCaptureMouse;
+                swallow = (positioned && ui_hit(x, y)) || io.WantCaptureMouse;
             else
                 swallow = io.WantCaptureKeyboard;
         }
         if (swallow)
             return 0;
     }
+    // 실행기가 넣는 동안 사용자가 누른 글쇠는 게임에 넘기지 않는다 — 치트를 받아 적는 줄에 섞인다.
+    // 뗌은 넘긴다(게임이 그 글쇠를 눌린 채로 알지 않게). Alt 조합(WM_SYS*)도 넘긴다(Alt+F4 등)
+    if (injecting && (m == WM_KEYDOWN || m == WM_CHAR || m == WM_DEADCHAR || m == WM_UNICHAR))
+        return 0;
     return pass(h, m, w, l);
 }
 
