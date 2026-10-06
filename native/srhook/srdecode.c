@@ -1,7 +1,20 @@
 #include "srdecode.h"
 
-#define PARA 0xB6     /* 줄바꿈 기호: 엔진이 바이트로 직접 비교한다 */
-#define ESC_CONT 0xFF /* 연속 바이트 0xB6 대체 */
+#define PARA 0xB6 /* 줄바꿈 기호: 엔진이 바이트로 직접 비교한다 */
+
+/* 파일에는 엔진의 바이트 단위 처리에 걸리지 않는 값으로 바꿔 쓴다(규칙과 이유는 src/srkit/srutf8.py).
+ *   연속 바이트: B6 → FF (줄바꿈 기호와 충돌), 9A → F7, 9E → FE (지도 라벨 대문자화에 걸림)
+ *   3바이트 선두: EA → E5, EB → E6, ED → E8, E2 → E0 (대문자화에 걸림)
+ * 바꿔 쓰기 전의 값도 그대로 읽는다. */
+static unsigned char cont_in(unsigned char b)
+{
+    return b == 0xFF ? 0xB6 : b == 0xF7 ? 0x9A : b == 0xFE ? 0x9E : b;
+}
+
+static unsigned char lead_in(unsigned char b)
+{
+    return b == 0xE5 ? 0xEA : b == 0xE6 ? 0xEB : b == 0xE8 ? 0xED : b == 0xE0 ? 0xE2 : b;
+}
 
 static const unsigned short CP1252_HIGH[32] = {
     0x20AC, 0x0081, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021,
@@ -17,12 +30,12 @@ static unsigned cp1252(unsigned char b)
 
 static int is_cont(unsigned char b)
 {
-    return (b >= 0x80 && b <= 0xBF && b != PARA) || b == ESC_CONT;
+    return (b >= 0x80 && b <= 0xBF && b != PARA) || b == 0xFF || b == 0xF7 || b == 0xFE;
 }
 
 static unsigned cont(unsigned char b)
 {
-    return (b == ESC_CONT ? PARA : b) & 0x3F;
+    return cont_in(b) & 0x3Fu;
 }
 
 #define EMIT(u)                           \
@@ -63,7 +76,7 @@ size_t sr_decode(const unsigned char *s, size_t n, int measure, wchar_t *dst, si
         }
         if (b >= 0xE0 && b <= 0xEF) {
             if (i + 2 < n && is_cont(s[i + 1]) && is_cont(s[i + 2])) {
-                unsigned cp = ((b & 0x0Fu) << 12) | (cont(s[i + 1]) << 6) | cont(s[i + 2]);
+                unsigned cp = ((lead_in(b) & 0x0Fu) << 12) | (cont(s[i + 1]) << 6) | cont(s[i + 2]);
                 if (cp >= 0x800 && !(cp >= 0xD800 && cp <= 0xDFFF)) {
                     EMIT(cp);
                     i += 3;
