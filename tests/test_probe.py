@@ -39,12 +39,37 @@ def test_anchor_must_be_unique_and_close(fake, monkeypatch):
         probe.make(fake, "x", "Maps/W2030.CVP", "gdpc 51203", "gdpc 1", after="&&CVP 1")
     with pytest.raises(RuntimeError, match="기준 문자열이 0번"):
         probe.make(fake, "x", "Maps/W2030.CVP", "gdpc 51203", "gdpc 1", after="&&CVP 777")
-    monkeypatch.setattr(probe, "NEAR", 20)      # 기준 블록에 값이 없으면 다음 블록의 값을 바꾸지 않는다
+    monkeypatch.setattr(probe, "NEAR", 20)      # 같은 블록 안이어도 기준에서 멀면 바꾸지 않는다
     with pytest.raises(RuntimeError, match="안에 바꿀 문자열이 없습니다"):
-        probe.make(fake, "x", "Maps/W2030.CVP", "techlevel 110", "techlevel 1", after="&&CVP 1499")
+        probe.make(fake, "x", "Maps/W2030.CVP", "techlevel 110", "techlevel 1", after="&&CVP 1500")
     assert not (fake.build_dir / "probe-x").exists()
 
 
 def test_missing_game_file_is_refused(fake):
     with pytest.raises(RuntimeError, match="게임 폴더에 없는 파일"):
         probe.make(fake, "x", "Maps/NOPE.CVP", "a", "b")
+
+
+def test_paths_outside_the_game_tree_are_refused(fake):
+    """절대 경로나 .. 를 받으면 읽은 게임 파일에 그대로 쓰게 된다. 받지 않는다."""
+    target = fake.game_dir / "Maps" / "W2030.CVP"
+    rooted = "/" + target.relative_to(target.anchor).as_posix()        # 드라이브 없이 루트부터
+    for rel in (str(target), target.as_posix(), rooted, "../game/Maps/W2030.CVP", "Maps/../Maps/W2030.CVP"):
+        with pytest.raises(RuntimeError, match="게임 폴더 기준 상대 경로"):
+            probe.make(fake, "abs", rel, "techlevel 110", "techlevel 140")
+    assert target.read_bytes() == CVP                                   # 게임 파일은 그대로
+    assert not (fake.build_dir / "probe-abs").exists()
+
+
+def test_name_cannot_leave_the_build_folder(fake):
+    for name in ("../x", "a/b", "a\\b", "..", "", "C:x", "a\x08"):
+        with pytest.raises(RuntimeError, match="시험 이름"):
+            probe.make(fake, name, "Maps/W2030.CVP", "techlevel 110", "techlevel 140")
+    assert not fake.build_dir.exists()
+
+
+def test_anchor_search_stays_inside_its_block(fake):
+    """기준 블록에 그 값이 없으면 다음 블록의 같은 값을 바꾸지 않는다. 블록은 다음 줄머리의 && 에서 끝난다."""
+    with pytest.raises(RuntimeError, match="안에 바꿀 문자열이 없습니다"):
+        probe.make(fake, "x", "Maps/W2030.CVP", "techlevel 110", "techlevel 1", after="&&CVP 1499")
+    assert not (fake.build_dir / "probe-x").exists()
