@@ -42,3 +42,10 @@ void Runner::clear()
     queue_.clear();
     plan_.clear();
 }
+
+std::string Runner::take()
+{
+    last_ = queue_.front();
+    queue_.pop_front();
+    return last_;
+}

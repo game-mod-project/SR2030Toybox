@@ -137,7 +137,8 @@ void ui_draw()
     ImGui::SetNextWindowSize(ImVec2(500.0f, 460.0f), ImGuiCond_FirstUseEver);
     if (ImGui::Begin("SR2030 ToyBox", nullptr, ImGuiWindowFlags_NoCollapse)) {
         const GameState game = game_state();
-        const bool blocked = game.known && (!game.in_game || game.multiplayer);   // 게임을 읽을 수 있는데 진행 중이 아니다
+        const bool faulted = runner_faulted();
+        const bool blocked = faulted || (game.known && (!game.in_game || game.multiplayer));
         status_line(game);
         if (ImGui::BeginTabBar("tabs")) {
             const char *tab = nullptr;
@@ -169,9 +170,14 @@ void ui_draw()
         if (!g_notice.empty())
             ImGui::TextUnformatted(g_notice.c_str());
         const std::string trouble = runner_notice();
-        if (!trouble.empty())
+        if (faulted)
+            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", trouble.c_str());
+        else if (!trouble.empty())
             ImGui::TextUnformatted(trouble.c_str());
-        ImGui::TextWrapped("단추를 누르면 게임의 설정 창이 잠깐 열렸다 닫힙니다.");
+        if (game.known && runner_direct())   // 직접 실행에서는 게임의 설정 창이 뜨지 않는다. 대신 열려 있던 패널이 스스로 다시 그려지지 않는다 [확인: 게임]
+            ImGui::TextWrapped("일시 정지 중에는 게임 화면의 숫자가 그 패널을 누르거나 다시 열 때 바뀝니다.");
+        else
+            ImGui::TextWrapped("단추를 누르면 게임의 설정 창이 잠깐 열렸다 닫힙니다.");
         if (!game.known)   // 게임을 읽을 수 있으면 게임 밖에서는 단추가 꺼져 있으므로 이 주의가 필요 없다
             ImGui::TextWrapped("게임을 진행하는 중에만 누르십시오. 메뉴나 로비에서는 글자가 다른 곳에 들어갈 수 있습니다.");
     }

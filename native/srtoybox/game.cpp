@@ -17,6 +17,22 @@ std::mutex g_lock;
 const uint8_t *g_base;
 GameAddresses g_at;
 bool g_located, g_told;
+void *g_handler;    // 명령 처리 함수
+void *g_context;    // 그 첫 인자(게임이 넘기는 것과 같은 전역 객체)
+
+typedef void (*Handler)(void *context, const char *line);
+
+// 구조적 예외(잘못된 주소 접근 등)를 잡는다. __try 가 든 함수에는 소멸자가 있는 지역 변수를 둘 수 없어 따로 뗐다.
+bool guarded_call(Handler handler, void *context, const char *line, unsigned long *code)
+{
+    __try {
+        handler(context, line);
+        return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        *code = GetExceptionCode();
+        return false;
+    }
+}
 
 // 안전한 읽기: 낡은 포인터를 만나도 죽지 않는다.
 bool peek(const void *address, void *out, size_t size)
@@ -129,6 +145,8 @@ void game_init()
         g_at = at;
         g_located = why == nullptr;
         g_told = false;
+        g_handler = why == nullptr ? const_cast<uint8_t *>(base) + at.handler : nullptr;
+        g_context = why == nullptr ? const_cast<uint8_t *>(base) + at.context : nullptr;
     }
     if (why == nullptr)
         log_line("게임 상태를 읽습니다 (명령 처리 함수 +0x%X)", at.handler);
@@ -162,10 +180,30 @@ std::vector<int> game_regions()
 
 void game_set_for_test(const uint8_t *base, const GameAddresses *at, void *handler)
 {
-    (void)handler;   // 명령 처리 함수는 직접 실행(Task 3)에서 쓴다
     std::lock_guard<std::mutex> lock(g_lock);
     g_base = base;
     g_at = at != nullptr ? *at : GameAddresses();
     g_located = base != nullptr && at != nullptr;
     g_told = false;
+    g_handler = g_located ? handler : nullptr;
+    g_context = g_located ? const_cast<uint8_t *>(base) + g_at.context : nullptr;
+}
+
+bool game_can_call()
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    return g_located && g_handler != nullptr;
+}
+
+bool game_call(const char *line, unsigned long *code)
+{
+    Handler handler = nullptr;
+    void *context = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(g_lock);
+        handler = reinterpret_cast<Handler>(g_handler);
+        context = g_context;
+    }
+    *code = 0;
+    return handler != nullptr && guarded_call(handler, context, line, code);
 }
