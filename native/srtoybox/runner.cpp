@@ -35,3 +35,10 @@ void Runner::tick(Sink &sink)
     if (at_ >= plan_.size())
         plan_.clear();
 }
+
+
+void Runner::clear()
+{
+    queue_.clear();
+    plan_.clear();
+}

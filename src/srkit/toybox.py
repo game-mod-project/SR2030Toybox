@@ -1,7 +1,9 @@
 """ToyBox DLL(native/srtoybox) 빌드. 게임 안 모드 설정 창이다 — 한글화 훅(WTSAPI32.dll)이 게임 폴더에서 불러온다."""
 from __future__ import annotations
 
+import csv
 import ctypes
+import re
 import struct
 import subprocess
 from pathlib import Path
@@ -11,7 +13,7 @@ from .config import Config
 
 DLL_NAME = "srtoybox.dll"
 SOURCES = ["features.cpp", "command.cpp", "runner.cpp", "settings.cpp", "exports.cpp",
-           "log.cpp", "runner_win.cpp", "ui.cpp", "input.cpp", "prologue.cpp", "locate.cpp", "overlay.cpp"]
+           "log.cpp", "runner_win.cpp", "ui.cpp", "input.cpp", "prologue.cpp", "locate.cpp", "game.cpp", "regions.cpp", "overlay.cpp"]
 LIBS = ["kernel32.lib", "user32.lib", "gdi32.lib", "imm32.lib", "dwmapi.lib", "d3d11.lib", "dxgi.lib", "d3dcompiler.lib"]
 FLAGS = "/nologo /c /utf-8 /std:c++17 /O2 /MT /EHsc /DNDEBUG /DNOMINMAX"   # NDEBUG: 게임 안에서 assert 로 죽지 않게. NOMINMAX: windows.h 의 min · max 매크로를 끈다
 IMGUI_DIR = "native/third_party/imgui"
@@ -19,6 +21,7 @@ IMGUI_SOURCES = ["imgui.cpp", "imgui_draw.cpp", "imgui_tables.cpp", "imgui_widge
                  "backends/imgui_impl_win32.cpp", "backends/imgui_impl_dx11.cpp"]
 IMGUI_DEFINES = "/DIMGUI_IMPL_WIN32_DISABLE_GAMEPAD"    # 게임패드는 쓰지 않는다(XInput 을 불러오지 않게)
 EXE_NAME = "SupremeRuler2030.exe"
+REGION_TABLE = "mods/korean/translation/localtext-regions.csv"   # REGIONTEXT|<지역 번호>|0 행이 지역의 이름이다
 # native/srtoybox/locate.h 의 GameAddresses 와 같은 순서다
 ADDRESS_FIELDS = ["handler", "context", "multiplayer", "options", "program_state", "mode_state", "player_index",
                   "player_pointer", "region_table", "region_count"]
@@ -47,6 +50,27 @@ def _quoted(paths) -> str:
     return " ".join(f'"{p}"' for p in paths)
 
 
+def region_rows(cfg: Config) -> list[tuple[int, str, str]]:
+    """번역 테이블에서 (지역 번호, 한글 이름, 영문 이름)을 번호순으로. 번역이 빈 행은 영문 이름을 쓴다."""
+    rows: dict[int, tuple[str, str]] = {}
+    with (cfg.root / REGION_TABLE).open(encoding="utf-8-sig", newline="") as f:
+        for row in csv.DictReader(f):
+            m = re.fullmatch(r"REGIONTEXT\|(\d+)\|0", row["key"])
+            en = row["en"].strip()
+            if m and en:
+                rows[int(m[1])] = (row["ko"].strip() or en, en)
+    return [(number, *rows[number]) for number in sorted(rows)]
+
+
+def c_string(text: str) -> str:
+    return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def regions_inc(rows: list[tuple[int, str, str]]) -> str:
+    """native/srtoybox/regions.cpp 가 끼워 넣는 초기화 목록(한 줄에 지역 하나)."""
+    return "".join(f"{{{number}, {c_string(ko)}, {c_string(en)}}},\n" for number, ko, en in rows)
+
+
 def build(cfg: Config) -> Path:
     src = cfg.root / "native" / "srtoybox"
     out, obj = output(cfg), cfg.build_dir / "toybox-obj"      # 중간 산출물(.obj .lib .exp)은 모드 폴더 밖에 둔다
@@ -56,7 +80,8 @@ def build(cfg: Config) -> Path:
     ours = [src / name for name in SOURCES]
     theirs = [imgui / name for name in IMGUI_SOURCES]
     objs = [obj / (p.stem + ".obj") for p in ours + theirs]
-    include = f'/I"{imgui}" /I"{imgui / "backends"}" {IMGUI_DEFINES}'
+    (obj / "regions_table.inc").write_text(regions_inc(region_rows(cfg)), encoding="utf-8", newline="\n")
+    include = f'/I"{imgui}" /I"{imgui / "backends"}" /I"{obj}" {IMGUI_DEFINES}'
     script = obj / "build.cmd"
     script.write_text(
         "@echo off\r\n"

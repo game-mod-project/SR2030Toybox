@@ -2,6 +2,7 @@
 
 #include <mutex>
 
+#include "game.h"
 #include "runner.h"
 
 namespace {
@@ -9,6 +10,7 @@ namespace {
 std::mutex g_lock;      // 단추(그리는 스레드)와 틱(창 스레드)이 함께 만진다
 Runner g_runner;
 BYTE g_before[2];       // 넣기 전의 Ctrl · Shift 상태
+std::string g_notice;   // 실행하지 못한 까닭
 
 // scripts/gamedrive.py 가 밖에서 하는 일과 같다: 키 상태표에 수정키를 눌린 것으로 적고 메시지를 보낸다.
 struct GameSink : Sink {
@@ -60,6 +62,15 @@ bool runner_enqueue(const std::string &command)
 void runner_tick(HWND hwnd)
 {
     std::lock_guard<std::mutex> lock(g_lock);
+    if (g_runner.starting()) {
+        const GameState game = game_state();
+        if (game.known && (!game.in_game || game.multiplayer)) {
+            g_runner.clear();   // 누른 뒤 게임에서 나갔다 — 메뉴에 글쇠를 넣지 않는다
+            g_notice = "게임이 진행 중이 아니어서 실행하지 않았습니다.";
+            return;
+        }
+        g_notice.clear();
+    }
     GameSink sink(hwnd);
     g_runner.tick(sink);
 }
@@ -80,4 +91,11 @@ std::string runner_last()
 {
     std::lock_guard<std::mutex> lock(g_lock);
     return g_runner.last();
+}
+
+
+std::string runner_notice()
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    return g_notice;
 }

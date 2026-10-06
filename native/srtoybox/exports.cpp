@@ -7,10 +7,12 @@
 
 #include "command.h"
 #include "features.h"
+#include "game.h"
 #include "locate.h"
 #include "log.h"
 #include "overlay.h"
 #include "prologue.h"
+#include "regions.h"
 #include "runner.h"
 #include "settings.h"
 #include "ui.h"
@@ -128,6 +130,31 @@ EXPORT int srtoybox_locate(const unsigned char *image, unsigned long long size, 
     return 0;
 }
 
+// 테스트: 가짜 메모리에서 상태를 읽는다. "known=1 in_game=1 multiplayer=0 cheats=0 player=1499 regions=1106,1499"
+EXPORT int srtoybox_game_state(const unsigned char *base, const GameAddresses *at, char *out, int size)
+{
+    if (at == nullptr)
+        return -1;
+    const GameState s = read_game(base, *at);
+    std::string regions;
+    for (int number : read_regions(base, *at))
+        regions += (regions.empty() ? "" : ",") + std::to_string(number);
+    return put("known=" + std::to_string(s.known) + " in_game=" + std::to_string(s.in_game) + " multiplayer="
+               + std::to_string(s.multiplayer) + " cheats=" + std::to_string(s.cheats_on) + " player=" + std::to_string(s.player)
+               + " regions=" + regions, out, size);
+}
+
+// 테스트: 이 프로세스의 "게임"을 가짜 메모리로 바꾼다(주소 찾기의 결과를 덮어쓴다).
+EXPORT void srtoybox_test_game(const unsigned char *base, const GameAddresses *at, void *handler)
+{
+    game_set_for_test(base, at, handler);
+}
+
+EXPORT int srtoybox_region_label(int number, char *out, int size)
+{
+    return put(region_label(number), out, size);
+}
+
 EXPORT int srtoybox_hotkey_name(int vk, int mods, char *out, int size)
 {
     return put(hotkey_name(vk, mods), out, size);
@@ -139,5 +166,6 @@ EXPORT void WINAPI srtoybox_start(void)
 {
     log_line("시작 (프로세스 %lu)", GetCurrentProcessId());
     ui_init();
+    game_init();          // 화면에 끼어들기 전에 끝낸다 — 창이 뜰 때는 게임을 읽을 수 있는지가 이미 정해져 있다
     overlay_install();
 }
