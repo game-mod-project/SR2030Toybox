@@ -13,10 +13,12 @@ Supreme Ruler 2030 을 열두 영역으로 나눠, 영역마다 게임에서 무
 | 수단 | 언제 적용되나 | 누구에게 |
 |---|---|---|
 | 내장 치트 (`cheat …`) | 진행 중인 게임 | 대부분 플레이어, 일부는 모든 지역 |
-| 시나리오 설정 (`*.scenario` 의 `&&GMC`, 그리고 파일 끝에 덧붙이는 `&&CVP` · `&&UNITS`) | 새 게임. 캐시를 다시 만들지 않아도 된다고 한다 [위키] | 설정에 따라 |
-| 데이터 표 (`Maps\*.CVP`, `Maps\DATA\DEFAULT.*`, `INI\*.csv`) | 새 게임. 대부분 캐시를 다시 만들어야 한다 [위키] | 모든 지역 또는 지정한 지역 |
+| 시나리오 설정 (`*.scenario` 의 `&&GMC`, 그리고 파일 끝에 덧붙이는 `&&CVP` · `&&UNITS`) | 새 게임. 캐시를 다시 만들지 않아도 반영된다 [확인: [06](06-data-reference.md)] | 설정에 따라 |
+| 데이터 표 (`Maps\*.CVP`, `Maps\DATA\DEFAULT.*`, `INI\*.csv`) | 새 게임. `*.CVP` 와 `DEFAULT.UNIT` 은 캐시를 다시 만들어야 반영된다 [확인: 06] | 모든 지역 또는 지정한 지역 |
 
-치트의 효과는 이 문서에서 모두 [위키]다. 게임에서 확인한 결과는 [07](07-cheats.md)의 "검증" 열에 있다.
+**이 문서의 치트 설명은 게임에서 넣어 본 결과([07](07-cheats.md))를 따른다.** 영역마다 효과를 본 것 **[확인: 07]** 과 넣었으나 변화를 보지
+못한 것 **[07: 반응 없음]** 을 나눠 적었다. "위키:" 뒤의 말은 공식 위키의 설명이고 이 빌드에서 확인되지 않은 것이다. 반응이 없었다는 것은
+본 화면에서 변화가 없었다는 뜻이지 효과가 없다는 증명이 아니다 — 무엇을 봤는지는 07 에 있다.
 
 ## 국가
 
@@ -34,8 +36,9 @@ Supreme Ruler 2030 을 열두 영역으로 나눠, 영역마다 게임에서 무
 | `Maps\W2030.REGIONINCL` · `REGIONINCL` | 지역 번호 | 시나리오에 나오는 지역 | [확인: 파일] |
 | `Sandbox\World2030\World 2030 Regions.csv` · `REGIONSCEN` | `inscenario` `nonplayable` `spawncmdunit` | 시나리오별 포함·플레이 여부 | [추정] |
 
-**내장 치트** — `cheat becomeregion`(다른 지역으로 갈아탄다), `cheat annex`(병합), `cheat colonize`(식민지로), `cheat liberate`(종주국에서 해방),
-`cheat revolt`(파르티잔 발생), `cheat reviveall`(세계를 쪼갠다), `cheat populate` · `cheat depopulate`(인구·예비군·현역 ±100만).
+**내장 치트** — 효과를 본 것 [확인: 07]: `cheat becomeregion <지역 번호>`(플레이어가 그 지역이 된다), `cheat annex <지역 번호>`(그 지역의 땅이 플레이어 영토가 된다),
+`cheat colonize <지역 번호>`(플레이어의 식민지이자 동맹국이 된다), `cheat populate`(인구 +100만). `cheat depopulate` 는 **인구를 1 로 만든다** — 쓰지 않는다(위키: 100만 감소).
+넣었으나 변화를 보지 못한 것 [07: 반응 없음]: `cheat liberate`(위키: 종주국에서 해방), `cheat revolt`(위키: 파르티잔 발생), `cheat reviveall`(위키: 세계를 쪼갠다).
 
 **바꿀 수 있는 수단**
 
@@ -62,14 +65,15 @@ Supreme Ruler 2030 을 열두 영역으로 나눠, 영역마다 게임에서 무
 | 〃 | `debtfree` | 1 = 부채 없이 시작 | [위키] |
 | 〃 | `difficulty` 의 둘째 값 | 경제 난이도 | [위키] |
 
-**내장 치트** — `cheat treasury N`(국고 +N 백만), `cheat georgew`(+100억), `cheat georgeww`(+1000억), `cheat trumpme`(±1조).
-GDP 를 직접 바꾸는 치트는 없다.
+**내장 치트** — 효과를 본 것 [확인: 07]: `cheat treasury N`(국고 +N 백만 달러), `cheat georgew`(+$10 B), `cheat georgeww`(+$100 B),
+`cheat trumpme`(첫 입력은 국고에서 $1 T 를 **뺀다**. 한 번 더 넣으면 다시 더한다). GDP 를 직접 바꾸는 치트는 없다.
 
 **바꿀 수 있는 수단**
 
 - 내장 치트: 돈은 치트로 충분하다.
-- 시나리오 설정: `initialfunds` `debtfree`. GDP 는 시나리오 파일 끝의 `&&CVP <지역>` 에 `gdpc` 를 적는 방법이 유력하다 [위키].
-- 데이터 표: `*.CVP` 의 `gdpc` `treasury`. 캐시 재생성이 필요하다 [위키].
+- 시나리오 설정: `initialfunds`(2 → 3 으로 시작 국고 4배 [확인]) `debtfree`. GDP 는 시나리오 파일 끝의 `&&CVP <지역>` 에 `gdpc` 를 적으면
+  캐시 재생성 없이 바뀐다 [확인: 06]. 같은 자리의 `treasury` 는 달러 단위로 국고를 통째로 정한다 [확인].
+- 데이터 표: `*.CVP` 의 `gdpc` `treasury`. 캐시 재생성이 필요하고 [확인], GDP 를 올리면 국가 부채도 함께 는다 [확인].
 
 **모르는 것** — `gdpc` 가 진행 중에 어떻게 변하는지(사회 지출·교육과 묶여 있다는 것만 게임 문구에 있다). 시작 뒤에 GDP 를 올리는 수단은 찾지 못했다.
 
@@ -90,7 +94,8 @@ GDP 를 직접 바꾸는 치트는 없다.
 | `Maps\W2030.CVP` · `REGIONPRODUCTS` | – | 지역의 물자 설정(열의 뜻 모름) | [추정] |
 | `*.scenario` · `GMC` | `resources` | 자원 설정 0~4 (로비 옵션의 기본값) | [위키] |
 
-**내장 치트** — `cheat products N`(모든 물자 재고 +N), `cheat branson`(+10만), `cheat bezos`(+100만), `cheat gates`(모든 플레이어 +10만).
+**내장 치트** — 효과를 본 것 [확인: 07]: `cheat products N`(모든 물자 재고 +N), `cheat branson`(모든 물자 +100만), `cheat bezos`(약 +1억),
+`cheat gates`(독일의 모든 물자 +100만. 다른 지역은 보지 않았다 — 위키: 모든 플레이어에게). 수량은 위키(+10만 · +100만 · +10만)보다 크게 나왔다.
 
 **바꿀 수 있는 수단**
 
@@ -115,12 +120,12 @@ GDP 를 직접 바꾸는 치트는 없다.
 | `Maps\DATA\DEFAULT.TTRX` · `TTR` | 효과 16, 18, 36~55, 72~95 | 시설 건설 속도, 시설 효율, 물자별 생산량·효율 | [위키] |
 | `Maps\W2030.CVP` · `CVP` | `prodefficiency` | 지역의 기준 생산 효율 | [위키] |
 
-**내장 치트** — `cheat breakground`(시설이 하루 만에 완성. 하루치 비용과 공업재는 든다. 도로에는 안 된다).
+**내장 치트** — 효과를 본 것 [확인: 07]: `cheat breakground`(60일짜리 시설이 착수한 다음 날 완성됐다. 위키: 하루치 비용과 공업재는 들고 도로에는 안 된다 — 이 둘은 보지 않았다).
 
 **바꿀 수 있는 수단**
 
 - 내장 치트: 시설 건설은 `breakground`.
-- 데이터 표: `UNITS` 의 시설 행에서 `DaysToBuild` · `Cost` 를 고친다(캐시 재생성 필요 [위키]). 또는 `TTR` 에 건설 속도 효과(16)가 큰 기술을 둔다.
+- 데이터 표: `UNITS` 의 시설 행에서 `DaysToBuild` · `Cost` 를 고친다(캐시 재생성 필요 [확인: 06 — 부대 행의 비용 열로 확인했다]). 또는 `TTR` 에 건설 속도 효과(16)가 큰 기술을 둔다.
 - 시나리오 설정: `GMC` 의 `fastbuild` 는 쓰이지 않는다 [위키].
 
 **모르는 것** — `breakground` 가 AI 에게도 적용되는지.
@@ -141,8 +146,9 @@ GDP 를 직접 바꾸는 치트는 없다.
 | 〃 · `REGIONTECHS` | 기술 번호 | 지역이 갖고 시작하는 기술(선행 기술 포함) | [위키] |
 | `*.scenario` · `GMC` | `groupresearchmerge` `victorytech` | 묶을 때 연구 합치기, 승리 조건 기술 | [위키] |
 
-**내장 치트** — `cheat technology N`(기술 수준 N 이하를 전부 연구된 것으로), `cheat e=mc2`(모든 연구가 하루에 끝난다. 비용은 청구된다),
-`cheat finalexam`(기술 수준 +1), `cheat allunit`(연구하지 않은 부대도 만들 수 있다 — AI 도 그렇다).
+**내장 치트** — 효과를 본 것 [확인: 07]: `cheat technology N`(기술 수준 N 이하를 전부 연구된 것으로), `cheat e=mc2`(대기열에 건 연구가 넣는 즉시 보유 기술이 된다.
+대기열이 비어 있으면 변화가 없다), `cheat finalexam`(지식 지수 순위 6위 → 1위. 위키: 기술 수준 +1 — 그 숫자가 나오는 화면은 찾지 못했다),
+`cheat allunit`(생산할 수 있는 설계가 크게 는다. 위키: AI 도 그렇다).
 
 **바꿀 수 있는 수단**
 
@@ -150,7 +156,7 @@ GDP 를 직접 바꾸는 치트는 없다.
 - 시나리오 설정: 시나리오 파일 끝의 `&&CVP <지역>` 에 `techlevel` 을 적는다(위키의 예가 바로 이것이다).
 - 데이터 표: `TTR` 의 일수·비용, `REGIONTECHS` 에 기술 추가.
 
-**모르는 것** — `e=mc2` 가 진행 중인 연구만 끝내는지 대기열 전체를 끝내는지.
+**모르는 것** — `finalexam` 이 기술 수준을 실제로 올리는지(지식 지수 순위가 1위가 되는 것만 봤다). `e=mc2` 는 대기열에 건 연구를 넣는 즉시 보유로 바꾼다 [확인: 07].
 
 ## 정치
 
@@ -170,8 +176,9 @@ GDP 를 직접 바꾸는 치트는 없다.
 | `INI\deptprior.csv` · `CABPRIORITIES` | – | 각료의 우선순위 | [추정] |
 | `*.scenario` · `GMC` | `govchoice` `approvaleff` | 정부 형태 선택, 지지율 효과 0~4 | [위키] |
 
-**내장 치트** — `cheat approval`(국민·군부 지지율을 0% 와 100% 사이에서 뒤집는다), `cheat democracy`(민주 AI 지역의 선거를 당일로 당기고 집권자가 진다),
-`cheat novichok`(지정한 지역의 지도자 사망).
+**내장 치트** — 효과를 본 것 [확인: 07]: `cheat approval <지역 번호>`(국내 지지율이 100% 가 된다. 다시 넣어도 100% 그대로 — 위키: 0% 와 100% 를 오간다),
+`cheat democracy`(하루 뒤 여러 나라에 선거 결과 알림이 뜬다. 플레이어에게도 떴다 — 위키: 민주 AI 지역의 집권자가 진다),
+`cheat novichok <지역 번호>`(그 지역의 지도자가 죽는다).
 
 **바꿀 수 있는 수단**
 
@@ -197,9 +204,12 @@ GDP 를 직접 바꾸는 치트는 없다.
 | `Maps\DATA\_W2030.WMDATA` · `WMDATA` | `wmsanctionapproval` `wmsanctionpercentage` `wmrelrate` | 세계 시장 제재 | [추정] |
 | `*.scenario` · `GMC` | `relationseffect` `wminvolve` `nosphere` `regionallies` `regionaxis` | 관계 변동성, UN 관여, 세력권, 진영 | [위키] |
 
-**내장 치트** — `cheat love` · `cheat hate` · `cheat neutral`(지정한 지역과의 관계를 최고·최저·0 으로), `cheat treaty`(고른 지역과 동맹, 번호를 주면 그 조약),
-`cheat peace`(모두 평화), `cheat worldwar`(모두 전쟁), `cheat fight`(두 지역을 전쟁으로), `cheat saddam` · `cheat saddamme`(무작위 선전포고),
-`cheat shelovesmenot`(UN 관계 0%), `cheat moreoffers`(거래 제안이 잦아진다). 실행 파일에만 있는 것: `cheat mutualdef` `cheat dipaccept` `cheat sanction` `cheat wmsanction` `cheat shelovesme`.
+**내장 치트** — 효과를 본 것 [확인: 07]: `cheat love` · `cheat hate` · `cheat neutral` + 지역 번호(그 지역과의 관계를 최고 · 최저 · 절반으로),
+`cheat treaty`(고른 지역과 동맹 — 조약 13종이 한꺼번에 맺어진다. 번호를 준 경우는 시험하지 않았다), `cheat peace`(전쟁 중이던 나라와 휴전),
+`cheat worldwar`(동맹국까지 적이 된다), `cheat fight <지역 번호>`(지역을 고른 채 넣자 "동맹국 공격받음" 알림이 떴다. 두 지역의 전쟁 상태는 직접 보지 못했다),
+`cheat saddam` · `cheat saddamme`(다른 나라끼리 / 플레이어에게 선전포고), `cheat shelovesme` · `cheat shelovesmenot`(세계 시장 여론과 보조금률이 최고 / 최저로).
+`cheat sanction`(고른 지역이 플레이어에게 무역 제재를 건다) · `cheat wmsanction`(세계 시장과 거의 모든 나라가 건다)은 **플레이어가 제재를 당하는** 치트다.
+넣었으나 변화를 보지 못한 것 [07: 반응 없음]: `cheat moreoffers`(위키: 거래 제안이 잦아진다), 실행 파일에만 있는 `cheat mutualdef` · `cheat dipaccept`.
 
 **바꿀 수 있는 수단**
 
@@ -207,7 +217,7 @@ GDP 를 직접 바꾸는 치트는 없다.
 - 시나리오 설정: `* Regions.csv` 의 `CVPREL`(캐시 뒤에 읽는다 [확인: 시나리오 파일]), 이벤트 5(조약 설정).
 - 데이터 표: `CVP` 의 세력권.
 
-**모르는 것** — 실행 파일에만 있는 다섯 치트의 효과.
+**모르는 것** — `mutualdef` · `dipaccept` 가 하는 일(넣었으나 변화를 보지 못했다 [07: 반응 없음]).
 
 ## 군사
 
@@ -224,11 +234,13 @@ GDP 를 직접 바꾸는 치트는 없다.
 | `Maps\DATA\_W2030.WMDATA` · `WMDATA` | `battstrdefault` | 병과별 기본 대대 병력 | [위키] |
 | `Maps\DATA\DEFAULT.TTRX` · `TTR` | 효과 6, 7, 8, 116~127 | 방첩·첩보·군사 효율, **그 지역 모든 부대의 공격·방어** | [위키] |
 
-**내장 치트** — `cheat 007`(첩보 임무가 전부 성공), `cheat maxsat` · `cheat satellite`(위성을 만들지 않고 띄운다), `cheat populate`(예비군·현역 포함 +100만).
+**내장 치트** — 효과를 본 것 [확인: 07]: `cheat populate`(인구 +100만. 예비군과 현역이 함께 느는지는 보지 않았다 — 위키: 함께 는다).
+넣었으나 변화를 보지 못한 것 [07: 반응 없음]: `cheat 007`(위키: 첩보 임무가 전부 성공 — 임무를 걸어 보지 않았다),
+`cheat maxsat` · `cheat satellite`(위키: 위성을 만들지 않고 띄운다 — 위성 수가 나오는 화면을 찾지 못했다).
 
 **바꿀 수 있는 수단**
 
-- 내장 치트: 병력 수와 첩보.
+- 내장 치트: 인구(`populate`). 첩보와 위성 치트는 효과를 확인하지 못했다.
 - 데이터 표: `TTR` 의 효과 116~127 로 한 지역의 모든 부대 수치를 올릴 수 있다고 한다 [위키] — 기술 하나를 고치거나 더해 "부대 스탯"을 바꾸는 길이다.
 - 시나리오 설정: 시나리오 파일 끝의 `&&CVP <지역>` 에 `poptotalarmy`.
 
@@ -248,17 +260,20 @@ GDP 를 직접 바꾸는 치트는 없다.
 | 〃 | `createbattlegroupsize` | 전투단 크기 | [추정] |
 | `Maps\theatres.csv` · `THEATRES` `THEATRETRANSF` `NAVALTRANSIT` | – | 전구와 전구 사이 이동 | [확인: 파일] |
 
-**내장 치트** — `cheat damage N`(고른 부대에 피해), `cheat stranded`(고른 부대의 탄약·보급을 채우거나 비운다), `cheat nomove`(부대가 명령을 받지 않는다),
-`cheat darran`(각 병과 최강 부대 한 묶음을 받고 적 부대의 4분의 1쯤이 사라진다), `cheat darren`(AI 가 받고 모두 선전포고), `cheat selloffunits`(AI 가 부대를 판다).
-실행 파일에만 있는 것: `cheat spawnunit`(이름으로는 부대 생성), `cheat launchattack`.
+**내장 치트** — 효과를 본 것 [확인: 07]: `cheat spawnunit <장비 번호>`(고른 육각에 그 장비의 부대 하나를 만든다. 실행 파일에만 있다),
+`cheat stranded`(고른 부대의 연료·보급·탄약을 100% 로. 다시 넣으면 0%), `cheat darran`(배치된 지상 부대가 1 → 43 으로 늘었다.
+위키: 적 부대의 4분의 1쯤이 사라진다 — 보지 않았다), `cheat darren`(플레이어의 지상 부대가 약 22% 줄고 선전포고가 쌓였다).
+넣었으나 변화를 보지 못한 것 [07: 반응 없음]: `cheat damage N`(위키: 고른 부대에 피해 — 체력이 그대로였다), `cheat nomove`(위키: 부대가 명령을 받지 않는다),
+`cheat selloffunits`(위키: AI 가 부대를 판다), 실행 파일에만 있는 `cheat launchattack`.
 
 **바꿀 수 있는 수단**
 
-- 내장 치트: `darran` 은 종류를 고를 수 없다. 원하는 부대를 골라 받는 수단은 `spawnunit` 의 동작에 달려 있다(모름).
+- 내장 치트: 땅을 고르고 `cheat spawnunit <장비 번호>` 로 원하는 부대를 만들고, 그 부대를 고른 채 `cheat stranded` 로 연료·보급·탄약을 채운다 [확인: 07].
+  `darran` 은 종류를 고를 수 없다.
 - 시나리오 설정: 이벤트 10 으로 시작 직후 원하는 부대를 받는다 [위키]. 실행 파일에만 있는 `nounits`(부대 없이 시작 [위키]).
 - 데이터 표: `OOB` 의 수량. 전투서열은 캐시에 구워지고 캐시 생성 시간의 대부분을 차지한다 [위키].
 
-**모르는 것** — `spawnunit` 의 인자.
+**모르는 것** — `spawnunit` 으로 만든 부대의 경험·효율을 정하는 방법. 전투서열을 고쳤을 때 캐시 재생성이 걸리는 시간(시험하지 않았다).
 
 ## 장비
 
@@ -276,14 +291,17 @@ GDP 를 직접 바꾸는 치트는 없다.
 | `Maps\W2030.CVP` · `REGIONUNITDESIGNS` | 장비 번호 | 지역이 갖고 시작하는 설계 | [위키] |
 | 〃 · `CVP` | `worldavail` `armsavail` | 만들 수 있는 장비의 지역 코드 | [위키] |
 
-**내장 치트** — `cheat allunit`(연구 없이 모든 부대 생산. AI 도 그렇다), `cheat unitdesign N`(그 설계를 가진 것으로), `cheat onedaybuild`(주문한 부대가 다음 날 완성. AI 도 그렇다).
+**내장 치트** — 효과를 본 것 [확인: 07]: `cheat allunit`(생산할 수 있는 설계가 크게 는다 — 보병 16 → 557), `cheat onedaybuild`(84일짜리 부대가 생산을 시작한 다음 날 완성됐다).
+둘 다 AI 도 쓴다 [위키].
+넣었으나 변화를 보지 못한 것 [07: 반응 없음]: `cheat unitdesign N`(위키: 그 설계를 가진 것으로 — 선행 기술이 없어 목록에 안 뜬 것일 수 있다).
 장비의 수치를 바꾸는 치트는 없다.
 
 **바꿀 수 있는 수단**
 
-- 내장 치트: 생산 조건과 속도. 다만 `allunit` 과 `onedaybuild` 는 AI 도 함께 혜택을 본다.
-- 시나리오 설정: 시나리오 파일 끝에 `&&UNITS` 행을 덧붙여 장비의 수치를 덮어쓴다고 한다 [위키] — 캐시를 다시 만들지 않는 길이다.
-- 데이터 표: `DEFAULT.UNIT` 을 고친다(캐시 재생성 필요 [위키]). Workshop 의 장비 모드들이 쓰는 방법이다([08](08-workshop-survey.md)).
+- 내장 치트: 생산 조건과 속도. 다만 `allunit` 과 `onedaybuild` 는 AI 도 함께 혜택을 본다 [위키].
+- 시나리오 설정: 시나리오 파일 끝에 `&&UNITS` 행을 덧붙이면 캐시 재생성 없이 장비의 수치가 바뀐다 [확인: 06]. 그 장비가 보유 설계에서
+  빠지므로 `&&REGIONUNITDESIGNS <지역>` 에 장비 번호를 함께 적는다 [확인].
+- 데이터 표: `DEFAULT.UNIT` 을 고친다(캐시 재생성 필요 [확인]). Workshop 의 장비 모드들이 쓰는 방법이다([08](08-workshop-survey.md)).
 
 **모르는 것** — 플레이어만 빠르게 만드는 수단. 수치가 전투 계산에 들어가는 식.
 
@@ -303,8 +321,9 @@ GDP 를 직접 바꾸는 치트는 없다.
 | 〃 | `alliedvictory` `victoryhex` `victorytech` `gamelength` `difficulty` 의 첫 값 | 승리 조건, 군사 난이도 | [위키] |
 | `INI\orders.csv` · `ORDERS` | – | 부대 명령 | [확인: 파일] |
 
-**내장 치트** — `cheat worldwar` · `cheat peace` · `cheat fight`(외교 참조), `cheat instantwin`(승리. 이어서 할 수 있다), `cheat blueskies`(날씨와 지면 상태 초기화),
-`cheat endday`(부대의 계산을 꺼서 하루가 1초에 지나간다. 부대는 멈춘다). 실행 파일에만 있는 것: `cheat killeveryone`.
+**내장 치트** — 효과를 본 것 [확인: 07]: `cheat worldwar` · `cheat peace` · `cheat fight`(외교 참조), `cheat instantwin`("승리!" 창. 이어서 할 수 있다),
+`cheat endday`(**최고 속도에서만** 빨라진다 — 10초에 136일. 다시 넣으면 꺼진다. 위키: 부대의 계산을 끄므로 부대는 멈춘다 — 보지 않았다).
+넣었으나 변화를 보지 못한 것 [07: 반응 없음]: `cheat blueskies`(위키: 날씨와 지면 상태 초기화), 실행 파일에만 있는 `cheat killeveryone`.
 
 **바꿀 수 있는 수단**
 
@@ -312,7 +331,7 @@ GDP 를 직접 바꾸는 치트는 없다.
 - 시나리오 설정: 핵, 승리 조건. 실행 파일에만 있는 `fogofwar` `advfogofwar` `norangemult` `nospotrangemult` 는 전장의 안개와 탐지 설정으로 보인다.
 - 데이터 표: `TERRAIN` 은 `INI\AllLoad.ini` 가 매번 다시 읽으므로 캐시와 무관하게 반영될 가능성이 크다 [추정].
 
-**모르는 것** — 전투 계산식. 전장의 안개를 끄는 수단(치트 `fullmapshow` 는 GUI 를 숨기는 것이지 안개를 걷는 것이 아니다 [위키]).
+**모르는 것** — 전투 계산식. 전장의 안개를 끄는 수단(치트 `fullmapshow` 는 GUI 를 숨긴다 [확인: 07]. 안개를 걷는 것은 아니라고 한다 [위키]. 진행 중의 게임 설정 창에 "전장의 안개" 옵션이 있다 [확인: 화면] — 바꿔 보지는 않았다).
 
 ## AI
 
@@ -330,7 +349,9 @@ GDP 를 직접 바꾸는 치트는 없다.
 | `Maps\DATA\_W2030.WMDATA` · `WMDATA` | `aiplayrich` `aiunitbuildmilgoods` `aiunitbuildpetrol` `aiunitbuildreserve` | AI 가 부대를 만들 때의 자원 기준 | [추정] |
 | `*.scenario` · `GMC` | `aistance` `difficulty` | 전체 AI 태세, 난이도 | [위키] |
 
-**내장 치트** — `cheat airequest`(AI 가 내부 요청을 할 때마다 알림), `cheat nomove`(부대가 명령을 받지 않는다). 실행 파일에만 있는 것: `cheat noaiinit` `cheat fullaiinit`.
+**내장 치트** — 효과를 본 것은 없다.
+넣었으나 변화를 보지 못한 것 [07: 반응 없음]: `cheat airequest`(위키: AI 가 내부 요청을 할 때마다 알림 — 알림 중요도를 낮추지 않고 봤다),
+`cheat nomove`(위키: 부대가 명령을 받지 않는다), 실행 파일에만 있는 `cheat noaiinit` · `cheat fullaiinit`.
 
 **바꿀 수 있는 수단**
 
