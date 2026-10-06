@@ -6,7 +6,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from . import config, deploy, hook, inventory, korean, mt
+from . import config, deploy, hook, inventory, korean, mt, probe
 from . import spritefont as sf
 
 
@@ -158,6 +158,13 @@ def cmd_inventory(cfg, _args) -> int:
     return 0
 
 
+def cmd_probe(cfg, args) -> int:
+    out = probe.make(cfg, args.name, args.file, args.old, args.new, after=args.after)
+    print(f"시험 모드 : {out.relative_to(cfg.root)}")
+    print(f"설치      : uv run srkit deploy probe-{args.name}   (미리보기. --apply 로 실행, 끝나면 undeploy)")
+    return 0
+
+
 def cmd_deploy(cfg, args) -> int:
     for line in deploy.deploy(cfg, args.mod, apply=args.apply):
         print(line)
@@ -214,6 +221,13 @@ def main(argv: list[str] | None = None) -> int:
     h.add_argument("--trace", action="store_true", help="진단용: 게임의 레지스트리 접근을 로그로 남기는 빌드")
     h.set_defaults(fn=cmd_hook_build)
     sub.add_parser("inventory", help="게임 데이터의 섹션·키·열 목록을 build/inventory 에 CSV 로").set_defaults(fn=cmd_inventory)
+    pr = sub.add_parser("probe", help="설치본 파일에서 값 한 곳만 바꾼 시험 모드를 build/probe-<이름> 에 만들기")
+    pr.add_argument("name", help="시험 이름 (설치할 때는 probe-<이름>)")
+    pr.add_argument("file", help="게임 폴더 기준 경로 (예: Maps/W2030.CVP)")
+    pr.add_argument("old", help="바꿀 문자열 (파일에 한 번만 나와야 한다)")
+    pr.add_argument("new", help="새 문자열")
+    pr.add_argument("--after", help="이 문자열(한 번만 나와야 한다) 뒤의 첫 일치를 바꾼다")
+    pr.set_defaults(fn=cmd_probe)
     for name, fn, text in (("deploy", cmd_deploy, "빌드한 모드를 게임 폴더에 설치"),
                            ("undeploy", cmd_undeploy, "설치한 모드를 제거하고 원본 복원")):
         d = sub.add_parser(name, help=text + " (기본은 미리보기, --apply 로 실행)")
