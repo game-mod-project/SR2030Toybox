@@ -12,7 +12,15 @@
   langdirs, "LOCALEN", "LOCALDE", "LOCALES", "LOCALFR", "LOCALIT", "LOCALPT", ""
   langs, "English", "Deutsch", "Español", "Français", "Italiano", "Portuguese", ""
   ```
-  끝의 빈 항목 앞에 새 언어를 넣으면 옵션 → FILES → Game Language 목록에 나타난다. **[게임 안에서 확인]**
+  **목록은 앞의 6개만 보여 준다.** 7번째로 붙인 언어는 목록에 나오지 않아 고를 수 없다(그 언어가 현재 값일 때 항목 옆에
+  이름이 표시될 뿐이다). 한국어판은 영어 다음(2번째)에 넣고, 포르투갈어가 목록에서 밀려난다. **[게임 안에서 확인]**
+- 목록에서 언어를 고르면 **재시작 없이 바로** 그 언어로 바뀌고 `Language File` 이 저장된다. **[게임 안에서 확인]**
+- 게임은 시작할 때 `HKLM\Software\BattleGoat\Supreme Ruler 2030`(64비트 보기, 없음)을 열어 보고 `HKCU\…` 에서 설정 65개를 읽은 뒤,
+  읽은 값을 그대로 다시 쓴다. Steam 의 설치 스크립트(`installscript.vdf`)는 Steam 의 게임 언어에 맞춰
+  `HKLM\Software\WOW6432Node\…\language file` 을 쓰지만(english → `LOCALEN` 등 4개 언어) 게임은 그 값을 읽지 않는다.
+  **[확인: 진단용 훅 빌드의 레지스트리 접근 로그]**
+- 해상도를 바꾸고 옵션을 나가면 게임이 Steam 을 거쳐 스스로 다시 시작한다(부모 프로세스가 `steam.exe`). 명령줄 `-window` 는
+  창 크기를 1024x768 로 되돌려 저장한다. 인자 없이 띄우면 저장된 크기·창 모드를 쓴다. **[게임 안에서 확인]**
 
 ## 언어 폴더 구성 (`Localize\LOCALEN`)
 

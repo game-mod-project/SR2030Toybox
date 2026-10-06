@@ -8,8 +8,10 @@ Supreme Ruler 2030 모드 제작 작업 공간. 첫 과제는 **한글화 모드
 ## 현재 상태
 
 한글화 도구 체인이 갖춰졌고, **게임 안에서 한글 표시·줄바꿈·언어 등록이 동작하는 것을 확인했다**(2026-10-06, 게임 12.1.1360).
-모드는 게임 폴더에 설치되어 있고 언어는 `LOCALKO` 로 지정되어 있다. 번역은 기계 번역 초안 22,870 / 23,413 단위(97.7%)이고
-사람 검수는 아직 0 이다.
+모드 파일은 게임 폴더에 설치되어 있고 게임 언어도 한국어로 바꿔 두었다(2026-10-06. Steam 으로 띄운 게임의 메뉴·옵션 화면이
+한글로 나오는 것까지 확인). 영어로 되돌리려면 게임 옵션 → 파일 → 게임 언어 → `English`.
+다른 PC 에 설치할 때는 파일을 넣은 뒤 옵션 → FILES → Game Language → `Korean` 을 한 번 골라야 한다([docs/04](docs/04-korean-localization.md)).
+번역은 기계 번역 초안 22,870 / 23,413 단위(97.7%)이고 사람 검수는 아직 0 이다.
 남은 일과 확인하지 못한 항목은 [docs/04](docs/04-korean-localization.md).
 
 ## 빠른 시작
@@ -27,7 +29,7 @@ uv run srkit deploy korean           # 설치 미리보기 (--apply 로 실제 �
 uv run srkit undeploy korean         # 제거 미리보기 (--apply 로 실제 제거·복원)
 uv run srkit font-preview <spritefont> "<문자열>" <out.png>
 uv run srkit tcheck-import           # 게임의 번역 검사 로그에서 빠진 GUI 문구를 번역 테이블에 추가
-uv run python scripts/gamedrive.py start|status|shot|click|move|key|show|stop   # 게임 실행(화면 밖에서)·창 캡처·입력 (검증용)
+uv run python scripts/gamedrive.py start|steam|status|shot|click|move|key|show|stop   # 게임 실행(화면 밖에서)·창 캡처·입력 (검증용)
 ```
 
 ## 구조
