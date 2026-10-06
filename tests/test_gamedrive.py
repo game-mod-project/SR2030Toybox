@@ -1,5 +1,6 @@
 """scripts/gamedrive.py 가 자기가 띄운 게임만 다루는지 확인한다(게임은 띄우지 않는다)."""
 import importlib.util
+import io
 import json
 import subprocess
 import sys
@@ -54,3 +55,17 @@ def test_key_names_with_modifiers(gd):
     assert gd.parse_key("ctrl+enter") == ([0x11], 0x0D)
     with pytest.raises(SystemExit, match="모르는 수정키"):
         gd.parse_key("WIN+S")
+
+
+def test_output_is_utf8_even_when_the_pipe_is_cp949(gd, cfg, monkeypatch):
+    """파이프로 받으면 한국어 Windows 의 표준 출력은 CP949 다. shot 이 찍는 "–"(U+2013)는 CP949 에 없어 거기서 죽었다."""
+    pipe = io.TextIOWrapper(io.BytesIO(), encoding="cp949")
+    monkeypatch.setattr(sys, "stdout", pipe)
+    monkeypatch.setattr(gd.config, "load", lambda: cfg)
+    monkeypatch.setattr(gd, "game_pids", lambda: [])            # 떠 있는 게임이 있어도 건드리지 않는다
+    assert gd.main(["status"]) == 0
+    print("밝기 0–255")                                         # shot 의 출력에 들어가는 글자
+    pipe.flush()
+    out = pipe.buffer.getvalue()
+    assert "프로세스: 없음".encode("utf-8") in out
+    assert "밝기 0–255".encode("utf-8") in out

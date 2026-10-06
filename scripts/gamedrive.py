@@ -343,6 +343,9 @@ def held(hwnd: int, mods: list[int]):
 
 
 def main(argv: list[str]) -> int:
+    # 파이프로 받으면 표준 출력이 CP949 가 되어 shot 의 "–" 에서 죽는다. srkit 명령처럼 UTF-8 로 고정한다
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     ctypes.windll.shcore.SetProcessDpiAwareness(2)
     cmd, *args = argv or ["status"]
     cfg = config.load()
