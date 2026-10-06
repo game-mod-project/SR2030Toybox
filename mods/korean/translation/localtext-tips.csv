@@ -1,0 +1,128 @@
+﻿key,en,ko,status
+TIPOFDAYTEXT|1|0,Fuel Capacity,연료 용량,mt
+TIPOFDAYTEXT|1|1,Amount of fuel remaining and total fuel capacity.,남은 연료량과 전체 연료 용량입니다.,mt
+TIPOFDAYTEXT|10|0,Fortification Attack,요새 공격,mt
+TIPOFDAYTEXT|10|1,Attack value versus facilities and complexes.,시설과 단지에 대한 공격력입니다.,mt
+TIPOFDAYTEXT|100|2,Game speed controls,게임 속도 조절,mt
+TIPOFDAYTEXT|100|3,You can issue orders and take actions while the game is paused. Select a speed to start time.,게임이 일시 정지된 상태에서도 명령을 내리고 행동할 수 있습니다. 속도를 선택하면 시간이 흐르기 시작합니다.,mt
+TIPOFDAYTEXT|101|2,Hotspots,핫스팟,mt
+TIPOFDAYTEXT|101|3,"If you allow your minister to control your military forces, you can use Hotspots to give your minister military targets","장관에게 군사력 통제를 맡기면, 핫스팟으로 장관에게 군사 표적을 지정해 줄 수 있습니다.",mt
+TIPOFDAYTEXT|102|2,Transportation,교통,mt
+TIPOFDAYTEXT|102|3,"Roads and Rails are important for military unit movement and supply in your region. Units move faster on rail, but are loaded onto trains which are more vulnerable. Both roads and rails extend the reach of supply sources.","도로와 철도는 지역 내 군사 유닛의 이동과 보급에 중요합니다. 유닛은 철도에서 더 빠르게 이동하지만, 열차에 실리므로 더 취약합니다. 도로와 철도 모두 보급원의 도달 범위를 넓혀 줍니다.",mt
+TIPOFDAYTEXT|103|2,State Departement,외교부,mt
+TIPOFDAYTEXT|103|3,"In the State department you can propose diplomatic offers to other nations, assign espionage missions, and take actions against other regions including declarations of war.Click on the region name to access a searchable list of all regions in the world.","외교부에서는 다른 나라에 외교 제안을 하고, 첩보 임무를 배정하며, 선전포고를 포함해 다른 지역에 대한 조치를 취할 수 있습니다. 지역 이름을 클릭하면 세계 모든 지역의 검색 가능한 목록이 열립니다.",mt
+TIPOFDAYTEXT|106|2,Research Queue,연구 대기열,mt
+TIPOFDAYTEXT|106|3,Add technology projects or units to the research queue to unlock benefits for your region or new unit designs.,기술 프로젝트나 유닛을 연구 대기열에 추가하면 지역에 이로운 효과나 새로운 유닛 설계를 얻을 수 있습니다.,mt
+TIPOFDAYTEXT|107|2,Cabinet Ministers,내각 장관,mt
+TIPOFDAYTEXT|107|3,"Ministers can be assigned very specific priorities from this lists. If your minister is given to priorities with opposite instructions, they will try to do both and not do either very well.",장관에게는 이 목록에서 매우 구체적인 우선순위를 지정할 수 있습니다. 장관에게 서로 상반되는 우선순위를 주면 둘 다 하려고 하다가 어느 쪽도 제대로 하지 못합니다.,mt
+TIPOFDAYTEXT|108|2,Diplomatic Negotiations,외교 협상,mt
+TIPOFDAYTEXT|108|3,"Trades with other nations are heavily affected by their relations. Nations that like you less will ask higher prices. Treaty integrity is also very important. It is a rating of your reliability as a trade partner. Just like a reputation, treaty integrity takes a long time to build, and is easily lost if the world dislikes the actions you take.","다른 나라와의 무역은 그 나라와의 관계에 크게 좌우됩니다. 당신을 덜 좋아하는 나라일수록 더 높은 가격을 요구합니다. 조약 신뢰도도 매우 중요합니다. 이는 무역 상대로서 당신의 신뢰성을 나타내는 평가입니다. 평판과 마찬가지로 조약 신뢰도는 쌓는 데 오래 걸리고, 세계가 당신의 행동을 못마땅해하면 쉽게 잃습니다.",mt
+TIPOFDAYTEXT|109|2,Regional Atlas,지역 아틀라스,mt
+TIPOFDAYTEXT|109|3,"The regional atlas shows statistics for all regions in the world. By default Colonies are shown, but dead regions are not. Filters to control this are shown in the lower right. There is also a search function at the top of the list. Your region is always shown above the list so you can compare your situation to other regions. There is a significant amount of data spread over the 5 pages which you can select top centre of this popup window.","지역 아틀라스는 세계 모든 지역의 통계를 보여 줍니다. 기본적으로 식민지는 표시되지만 소멸한 지역은 표시되지 않습니다. 이를 조절하는 필터는 오른쪽 아래에 있습니다. 목록 상단에는 검색 기능도 있습니다. 내 지역은 항상 목록 위에 표시되므로 다른 지역과 상황을 비교할 수 있습니다. 상당한 양의 데이터가 5개 페이지에 나뉘어 있으며, 이 팝업 창의 위쪽 가운데에서 선택할 수 있습니다.",mt
+TIPOFDAYTEXT|11|0,Close Air Attack,저고도 대공 공격,mt
+TIPOFDAYTEXT|11|1,Attack value versus air units flying at lower altitudes,낮은 고도로 비행하는 항공 유닛에 대한 공격력,mt
+TIPOFDAYTEXT|110|2,Finance Dept.,재무부,mt
+TIPOFDAYTEXT|110|3,"The treasury of your region changes at the end of each day. Your treasury changes based on your previous day income, previous day expenses and previous day trades. The values can be shown daily or annually based on the button setting in the top right of your screen.","지역의 국고는 매일 하루가 끝날 때 변동합니다. 국고는 전날의 수익, 전날의 지출, 전날의 무역에 따라 바뀝니다. 값은 화면 오른쪽 위의 버튼 설정에 따라 일별 또는 연별로 표시할 수 있습니다.",mt
+TIPOFDAYTEXT|111|2,Income Report,수익 보고서,mt
+TIPOFDAYTEXT|111|3,"Most of your income comes from taxation and selling resources to your population. Research cannot directly create income, but technologies or designs can be traded for money or resources. Same with the defense departement, you can sell military equipment for profit but it does not generate income.","수익 대부분은 세금과 국민에게 자원을 판매하는 데서 나옵니다. 연구는 직접 수익을 만들 수 없지만, 기술이나 설계는 돈이나 자원과 교환할 수 있습니다. 국방부도 마찬가지로 군사 장비를 팔아 이윤을 낼 수는 있지만 수익을 창출하지는 않습니다.",mt
+TIPOFDAYTEXT|112|2,Expense Resport,지출 보고서,mt
+TIPOFDAYTEXT|112|3,"Production and Social Spending are often a country's largest expenses, however these can be offset with taxes and markup on domestic sales. State, Research and Defense expenses often have benefits for security and projecting power around the world, but are only possible if nations can afford those expenses.","생산과 사회 지출은 흔히 국가의 가장 큰 지출이지만, 세금과 내수 판매 마진으로 상쇄할 수 있습니다. 외교, 연구, 국방 지출은 안보와 세계 곳곳에 대한 영향력 투사에 이로운 경우가 많지만, 나라가 그 비용을 감당할 수 있을 때만 가능합니다.",mt
+TIPOFDAYTEXT|113|2,Taxes,세금,mt
+TIPOFDAYTEXT|113|3,Taxation is a key tool for increasing your treasury. Different taxes will affect different parts of your population and some taxes have higher value than others. You want taxes to be high enough so your country can afford to pay for its various services and projects but not so high that your population gets angry about that tax rates.,"세금은 국고를 늘리는 핵심 수단입니다. 세금 종류마다 국민의 다른 계층에 영향을 주며, 일부 세금은 다른 세금보다 가치가 높습니다. 나라가 각종 서비스와 프로젝트 비용을 감당할 만큼 세금을 높게 유지하되, 국민이 세율에 분노할 만큼 높아서는 안 됩니다.",mt
+TIPOFDAYTEXT|114|2,Social Spending,사회 지출,mt
+TIPOFDAYTEXT|114|3,"Social services have positive effects on your population. Educated and healthy families will mean more workers and higher outputs. However, paying for these services can be very expensive.",사회 서비스는 국민에게 긍정적인 효과를 줍니다. 교육받고 건강한 가정은 더 많은 노동력과 더 높은 생산량으로 이어집니다. 하지만 이런 서비스의 비용은 매우 클 수 있습니다.,mt
+TIPOFDAYTEXT|115|2,Bonds,채권,mt
+TIPOFDAYTEXT|115|3,"National Debt is represented as bonds which renew annually. On renewal, the interest rate will be updated based on the country's economic situation. Interest payments will appear as an expense in the treasury's expense report.",국가 부채는 매년 갱신되는 채권으로 표시됩니다. 갱신 시 이자율은 나라의 경제 상황에 따라 조정됩니다. 이자 지급액은 국고의 지출 보고서에 지출로 나타납니다.,mt
+TIPOFDAYTEXT|116|2,Resource Dept.,자원부,mt
+TIPOFDAYTEXT|116|3,"The world's economies are driven by 11 different commodities. Some are consumed by the population, others are used as raw materials to produce other goods. Hold over a commodity medallion for more information on that commodity.","세계 경제는 11가지 상품으로 움직입니다. 일부는 국민이 소비하고, 일부는 다른 물품을 생산하는 원자재로 쓰입니다. 상품 메달 위에 마우스를 올리면 해당 상품에 대한 자세한 정보를 볼 수 있습니다.",mt
+TIPOFDAYTEXT|117|2,Industry Controls,산업 통제,mt
+TIPOFDAYTEXT|117|3,"When the cost to produce a commodity is higher than the market price, it may not be profitable to produce to a country's full capacity. Production can be set as a percentage of either total capacity or as a percentage of the demand. Reserve Days tells you when you would run out if production was set to zero.","상품의 생산 비용이 시장 가격보다 높으면, 나라의 전체 생산 능력만큼 생산하는 것이 수익성이 없을 수 있습니다. 생산량은 전체 생산 능력의 비율 또는 수요의 비율로 설정할 수 있습니다. 비축 일수는 생산을 0으로 설정했을 때 언제 바닥나는지를 알려 줍니다.",mt
+TIPOFDAYTEXT|118|2,Missile Units Designs,미사일 유닛 설계,mt
+TIPOFDAYTEXT|118|3,"Regular bombs and ammunition come directly from military goods, but some of the more significant types of missiles must be build specifically based on known designs. Missiles have a defined platform which can launch them and a size per missile. Only certain types of military units have a missile capacity.","일반 폭탄과 탄약은 군수품에서 바로 나오지만, 더 중요한 일부 미사일은 알려진 설계에 따라 따로 제작해야 합니다. 미사일에는 발사할 수 있는 정해진 플랫폼과 미사일별 크기가 있습니다. 일부 종류의 군사 유닛만 미사일 용량을 가집니다.",mt
+TIPOFDAYTEXT|119|2,Research Popup,연구 팝업,mt
+TIPOFDAYTEXT|119|3,"The Research popup provides details about a specific technology project and where it fits into the overall technology tree. On the left are listed technologies that preceded the current project. On the right are the projects and/or unit designs unlocked by completing the project. Title, description and effects are shown here with space at the bottom of the popup where it shows if the current project leads to other interesting technologies further up the tech tree.¶¶Double click a technology name plate to make it the focus in this popup.","연구 팝업은 특정 기술 프로젝트의 상세 정보와 전체 기술 트리 안에서의 위치를 보여 줍니다. 왼쪽에는 현재 프로젝트에 앞서는 기술이 나열됩니다. 오른쪽에는 이 프로젝트를 완료하면 해금되는 프로젝트나 유닛 설계가 나옵니다. 제목, 설명, 효과가 여기에 표시되며, 팝업 아래쪽 공간에는 현재 프로젝트가 기술 트리 위쪽의 다른 흥미로운 기술로 이어지는지 나옵니다.¶¶기술 이름표를 더블클릭하면 이 팝업의 중심으로 삼을 수 있습니다.",mt
+TIPOFDAYTEXT|12|0,Mid Air Attack,중고도 대공 공격,mt
+TIPOFDAYTEXT|12|1,Attack value versus air units flying at mid altitudes,중간 고도로 비행하는 항공 유닛에 대한 공격력,mt
+TIPOFDAYTEXT|120|2,Unit Design Popup,유닛 설계 팝업,mt
+TIPOFDAYTEXT|120|3,"The military units used across the world and numerous and have many different properties. This is a design for a unit, showing data such as the basic properties, combat statistics, cost to build and the associated technologies. Units belong to a class which is part of a branch, such as Tank class in the Land branch. Units require fuel to move and supplies to shoot. The different combat statistics define how they will perform in various land, air or naval combat situations. The coloured dots below the unit picture are a general quality rating to provide clues to their power versus other designs known around the world. When any nation anywhere completes a new design, all designs in the world are re-evaluated to see if they remain top in their class. The unit rating dots will change as new designs replace older ones.","세계에서 쓰이는 군사 유닛은 수가 많고 속성도 제각각입니다. 이것은 유닛의 설계로, 기본 속성, 전투 능력치, 생산 비용, 관련 기술 같은 데이터를 보여 줍니다. 유닛은 분류에 속하고, 분류는 계열에 속합니다(예: 지상 계열의 전차 분류). 유닛은 이동에 연료가, 사격에 보급이 필요합니다. 다양한 전투 능력치는 지상, 공중, 해상 전투 상황에서의 성능을 결정합니다. 유닛 그림 아래의 색깔 점은 세계에 알려진 다른 설계와 비교한 전반적인 품질 평가로, 위력을 가늠하는 단서입니다. 어느 나라든 새 설계를 완성하면 세계의 모든 설계를 다시 평가해 해당 분류에서 여전히 최상위인지 확인합니다. 새 설계가 이전 설계를 대체함에 따라 유닛 평가 점도 바뀝니다.",mt
+TIPOFDAYTEXT|121|2,Tech Races,기술 경쟁,mt
+TIPOFDAYTEXT|121|3,"Certain technologies are part of milestone achievements in human history. These tech races are broken up into 6 steps, each with two or three associated technologies. Completing a tech race is an optional victory condition and can help guide players in finding some of the bigger tech advances.¶¶Mouse over the technologies in each step to see their name and status. Double click them to view the technology in the Research Popup.","일부 기술은 인류 역사의 이정표적 성취에 속합니다. 이런 기술 경쟁은 6단계로 나뉘며, 각 단계에는 두세 개의 관련 기술이 있습니다. 기술 경쟁 완료는 선택 가능한 승리 조건이며, 중요한 기술 발전을 찾는 데 길잡이가 되어 줍니다.¶¶각 단계의 기술 위에 마우스를 올리면 이름과 상태를 볼 수 있습니다. 더블클릭하면 연구 팝업에서 해당 기술을 볼 수 있습니다.",mt
+TIPOFDAYTEXT|122|2,Defense Production Designs,국방 생산 설계,mt
+TIPOFDAYTEXT|122|3,"When adding units to the production queue, take not of the settings in the top left of this panel. Turning on continuous build will automatically add one more of the same unit type to the queue when the current unit is completed. If autodeploy is off, units will stay in reserves when completed. These settings can be altered in the production queue list if you wish to change your strategy.",생산 대기열에 유닛을 추가할 때는 이 패널 왼쪽 위의 설정을 확인하십시오. 연속 생산을 켜면 현재 유닛이 완성될 때 같은 종류의 유닛이 대기열에 하나 더 자동으로 추가됩니다. 자동 배치를 끄면 완성된 유닛은 예비 전력으로 남습니다. 전략을 바꾸고 싶다면 이 설정은 생산 대기열 목록에서 바꿀 수 있습니다.,mt
+TIPOFDAYTEXT|13|0,High Air Attack,고고도 대공 공격,mt
+TIPOFDAYTEXT|13|1,Attack value versus air units flying at very high altitudes,매우 높은 고도로 비행하는 항공 유닛에 대한 공격력,mt
+TIPOFDAYTEXT|14|0,Naval Surface Attack,해상 공격,mt
+TIPOFDAYTEXT|14|1,Attack value versus naval surface units.,수상 함정 유닛에 대한 공격력입니다.,mt
+TIPOFDAYTEXT|15|0,Submerged Attack,수중 공격,mt
+TIPOFDAYTEXT|15|1,Attack value versus submerged naval units,잠항 중인 해군 유닛에 대한 공격력,mt
+TIPOFDAYTEXT|16|0,Close Attack,근접 공격,mt
+TIPOFDAYTEXT|16|1,Attack value versus land units in close terrain or cities,밀집 지형이나 도시에 있는 지상 유닛에 대한 공격력,mt
+TIPOFDAYTEXT|17|0,Ground/Surface Defense,지상/해상 방어,mt
+TIPOFDAYTEXT|17|1,Defense value when unit is at ground level or naval surface,유닛이 지상이나 수면에 있을 때의 방어력,mt
+TIPOFDAYTEXT|18|0,Air Defense,공중 방어,mt
+TIPOFDAYTEXT|18|1,Defense value when unit is in the air,유닛이 공중에 있을 때의 방어력,mt
+TIPOFDAYTEXT|19|0,Indirect Defense,간접 방어,mt
+TIPOFDAYTEXT|19|1,Defense value when being attacked by indirect fire,간접 사격을 받을 때의 방어력,mt
+TIPOFDAYTEXT|20|0,Close Defense,근접 방어,mt
+TIPOFDAYTEXT|20|1,Defense value when unit is in close combat locations.,유닛이 근접전 지형에 있을 때의 방어력입니다.,mt
+TIPOFDAYTEXT|26|0,Combat Time,전투 지속 시간,mt
+TIPOFDAYTEXT|26|1,The number of shots the unit can take with a single load of ammo.,탄약 한 번 적재로 유닛이 쏠 수 있는 발수입니다.,mt
+TIPOFDAYTEXT|28|0,Missile Capacity,미사일 용량,mt
+TIPOFDAYTEXT|28|1,Capacity is used based on the point size of missiles loaded,적재한 미사일의 점수 크기에 따라 용량이 소모됩니다.,mt
+TIPOFDAYTEXT|32|0,Carrier Capacity,항모 수용량,mt
+TIPOFDAYTEXT|32|1,Number of squadrons loaded and air squadron capacity.,적재된 비행대 수와 비행대 수용량입니다.,mt
+TIPOFDAYTEXT|4|0,Profile/Stealth,외형/스텔스,mt
+TIPOFDAYTEXT|4|1,Rating of unit visibility where lower values represent more easily spotted,"유닛의 가시성 등급이며, 값이 낮을수록 쉽게 발견됩니다.",mt
+TIPOFDAYTEXT|49|0,Move Speed / Range,이동 속도 / 사거리,mt
+TIPOFDAYTEXT|49|1,Travel speed of the unit and the range it can travel on a full load of fuel,"유닛의 이동 속도와, 연료를 가득 채웠을 때 이동할 수 있는 거리",mt
+TIPOFDAYTEXT|5|0,Spotting,탐지,mt
+TIPOFDAYTEXT|5|1,Ability of a unit to see other units. Spotting becomes weaker over distance.,유닛이 다른 유닛을 볼 수 있는 능력입니다. 거리가 멀수록 약해집니다.,mt
+TIPOFDAYTEXT|50|0,Combat Initiative,전투 재량,mt
+TIPOFDAYTEXT|50|1,Rate of combat engagement. Higher values will shoot and reload faster.,교전 속도입니다. 값이 높을수록 더 빨리 쏘고 재장전합니다.,mt
+TIPOFDAYTEXT|52|0,Unit Strength,유닛 전력,mt
+TIPOFDAYTEXT|52|1,Relative health of the unit. Either total remaining vehicles or % condition.,유닛의 상대적 상태입니다. 남은 전체 차량 수 또는 상태 백분율로 표시됩니다.,mt
+TIPOFDAYTEXT|53|1,High Ground,고지대,mt
+TIPOFDAYTEXT|53|2,Increased spotting range for land forces,지상군의 탐지 범위 증가,mt
+TIPOFDAYTEXT|60|0,Population,인구,mt
+TIPOFDAYTEXT|60|1,Civilian population who live at this map location.,이 지도 위치에 거주하는 민간인 인구입니다.,mt
+TIPOFDAYTEXT|61|0,Treaty Integrity,조약 신뢰도,mt
+TIPOFDAYTEXT|61|1,Level of trust to meet treaty obligations - impacts chances of successful negotiations,"조약상 의무를 이행할 것이라는 신뢰 수준이며, 협상 성공 확률에 영향을 줍니다.",mt
+TIPOFDAYTEXT|62|1,Domestic Approval Rating,국내 지지율,mt
+TIPOFDAYTEXT|62|2,Measure of civilian approval towards the government. A key values for Monarchies and Democracies,정부에 대한 국민의 지지 정도입니다. 군주제와 민주주의에서 핵심 수치입니다.,mt
+TIPOFDAYTEXT|63|0,Average Social Rating,평균 사회 점수,mt
+TIPOFDAYTEXT|63|1,The average quality of all social programs. Social programs can have significant costs but are necessary to keep a population happy.,모든 사회 프로그램의 평균 수준입니다. 사회 프로그램은 비용이 클 수 있지만 국민의 만족을 유지하는 데 필요합니다.,mt
+TIPOFDAYTEXT|64|0,Overall Tax Rate,전체 세율,mt
+TIPOFDAYTEXT|64|1,The average rate of taxation in the region. Different tax types will impact different sectors of the population.,지역의 평균 세율입니다. 세금 종류마다 국민의 다른 부문에 영향을 줍니다.,mt
+TIPOFDAYTEXT|65|1,Technical Readout,기술 제원,mt
+TIPOFDAYTEXT|65|2,View all the specifications of this actual unit. The Technical Blueprint for all units of this type is accessible from that screen.,이 실제 유닛의 모든 사양을 봅니다. 해당 종류 유닛 전체의 기술 설계도는 그 화면에서 열 수 있습니다.,mt
+TIPOFDAYTEXT|66|0,Scrap Unit,유닛 폐기,mt
+TIPOFDAYTEXT|66|1,Scrap the selected unit(s) to recover their weight in Military Goods,선택한 유닛을 폐기하고 무게만큼 군수품을 회수합니다.,mt
+TIPOFDAYTEXT|67|0,Rename Unit,유닛 이름 변경,mt
+TIPOFDAYTEXT|67|1,Affects only the last unit selected in the list to assign a new name. Reset the name go restore its original naming convention.,목록에서 마지막으로 선택한 유닛에만 적용되어 새 이름을 지정합니다. 이름을 초기화하면 원래 명명 규칙으로 돌아갑니다.,mt
+TIPOFDAYTEXT|68|0,Rules of Engagement,교전 규칙,mt
+TIPOFDAYTEXT|68|1,Adjust how a unit performs actions such as pathing and loss tolerance. Can be applied to select units or entire military force.,"경로 선택, 손실 허용 정도 같은 유닛의 행동 방식을 조정합니다. 선택한 유닛이나 전체 군사력에 적용할 수 있습니다.",mt
+TIPOFDAYTEXT|69|0,Add to Selected Units,선택 유닛에 추가,mt
+TIPOFDAYTEXT|69|1,Add the units chosen in this list to the active selection list to issue orders.,이 목록에서 고른 유닛을 현재 선택 목록에 추가해 명령을 내립니다.,mt
+TIPOFDAYTEXT|7|0,Supplies,보급품,mt
+TIPOFDAYTEXT|7|1,Includes ammunition and supplies needed to fight.,전투에 필요한 탄약과 보급품을 포함합니다.,mt
+TIPOFDAYTEXT|70|0,Select All in List,목록 전체 선택,mt
+TIPOFDAYTEXT|70|1,Orders are only given to units in this list that are selected/highlight. Select all to issue orders to all units.,명령은 이 목록에서 선택/강조된 유닛에만 내려집니다. 전체를 선택하면 모든 유닛에 명령을 내립니다.,mt
+TIPOFDAYTEXT|71|0,Deploy Unit,유닛 배치,mt
+TIPOFDAYTEXT|71|1,Assign personnel to the selected reserved unit(s) and deploy them for use.,선택한 예비 유닛에 인원을 배정하고 투입합니다.,mt
+TIPOFDAYTEXT|72|0,Deploy All Units,전체 유닛 배치,mt
+TIPOFDAYTEXT|72|1,Assign personnel to all reserved units and deploy them for use.,모든 예비 유닛에 인원을 배정하고 투입합니다.,mt
+TIPOFDAYTEXT|73|0,Clear Orders,명령 해제,mt
+TIPOFDAYTEXT|73|1,Clear the orders of the units actively selected in the list,목록에서 선택된 유닛의 명령을 해제합니다.,mt
+TIPOFDAYTEXT|75|0,Clear All Orders,전체 명령 해제,mt
+TIPOFDAYTEXT|75|1,Clear all orders from all units in this list,이 목록의 모든 유닛의 명령을 해제합니다.,mt
+TIPOFDAYTEXT|76|0,Load Missiles,미사일 적재,mt
+TIPOFDAYTEXT|76|1,Manage the missile loadout of a selected unit. Loading missilles is limited by missile size and total capacity,선택한 유닛의 미사일 적재량을 관리합니다. 미사일 적재는 미사일 크기와 전체 용량에 제한됩니다.,mt
+TIPOFDAYTEXT|8|0,Soft Attack,연성 공격,mt
+TIPOFDAYTEXT|8|1,Attack value versus soft target units.,연성 표적 유닛에 대한 공격력입니다.,mt
+TIPOFDAYTEXT|83|2,Supply Level,보급 수준,mt
+TIPOFDAYTEXT|83|3,Supply levels affect production output and rate of military resupply for fuel and ammunition. Certain buildings generate supply such as airfields and piers.,보급 수준은 생산량과 연료·탄약의 군사 재보급 속도에 영향을 줍니다. 비행장과 부두 같은 일부 건물은 보급을 생성합니다.,mt
+TIPOFDAYTEXT|88|0,Annual/Daily Figures,연간/일일 수치,mt
+TIPOFDAYTEXT|88|1,Financial values currently showing Annualized estimates. Click to set values to previous day totals.,재무 수치가 현재 연간 환산 추정치로 표시되고 있습니다. 클릭하면 전날 합계로 바뀝니다.,mt
+TIPOFDAYTEXT|88|2,Financial values currently showing previous day totals. Click to set values to annualized estimates.,재무 수치가 현재 전날 합계로 표시되고 있습니다. 클릭하면 연간 환산 추정치로 바뀝니다.,mt
+TIPOFDAYTEXT|9|0,Hard Attack,경성 공격,mt
+TIPOFDAYTEXT|9|1,Attack value versus hard target units.,경성 표적 유닛에 대한 공격력입니다.,mt
