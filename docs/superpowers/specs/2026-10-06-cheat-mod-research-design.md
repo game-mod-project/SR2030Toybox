@@ -2,7 +2,7 @@
 
 - 작성: 2026-10-06
 - 대상 게임: Supreme Ruler 2030, Steam appid `2093410`, build `21347933` (게임 표시 버전 12.1.1360)
-- 상태: 설계 승인됨(대화), 문서 검토 대기
+- 상태: 문서 승인됨(2026-10-06). 구현 계획을 쓰며 확인한 사실로 같은 날 보완 — 맨 아래 "보완 내역"
 
 표기: **[확인]** 파일·실행 파일·게임 안에서 직접 확인, **[추정]** 정황으로 판단, **[위키]** 공식 위키에 적혀 있으나 이 빌드에서 미확인.
 
@@ -48,12 +48,18 @@
   `Real Unit Stats`, `Economic Overhaul`, `Unit Overhaul` 이 있다. **[확인: Workshop 목록]**
 - `scripts/gamedrive.py` 의 `key` 는 키를 하나씩 보내며 조합키를 보내지 못한다. `type` 은 글자 입력을 한다. **[확인: 코드]**
 - 이 PC 에는 Workshop 구독 항목이 없다(`steamapps\workshop\content\2093410` 없음). **[확인]**
+- 로비 설정 화면(`LOB_SETC`)에 "Force Recache For Modding" 옵션이 있다. **[확인: 번역 테이블·번역 검사 로그]**
+- 실행 파일의 설정 키 표에 `ignorecache:` `magicresupply:` 처럼 어느 시나리오 파일에도 쓰이지 않은 `키:` 꼴 이름이 있다.
+  **[확인: 실행 파일 문자열]** 무엇을 하는지는 모른다.
+- 지역 데이터(`&&CVP`)에 `treasury` `gdpc` `techlevel` `civapproval` 키가 있다. **[확인: 파일]**
+- 실행 파일은 `GetKeyState` 와 `GetAsyncKeyState` 를 모두 임포트한다. 메시지만 보내서는 수정키가 눌린 것으로 읽히지 않을 수 있다. **[확인]**
 
 ## 범위
 
 **한다**
 
 - 읽기 전용 도구 `srkit inventory` 추가
+- 시험 모드를 만드는 도구 `srkit probe` 추가
 - 문서 다섯 개(`docs/05` ~ `docs/09`) 작성, `docs/01` 과 `README.md` 갱신
 - 게임 안 검증 V1 ~ V4
 
@@ -102,27 +108,43 @@
   `korean.decode_cp1252` 를 쓴다.
 - **훑는 폴더**: `INI` `Maps` `Sandbox` `Scenario` `Campaign` `Tutorials` `Common`.
   `HAPS`(GUI) · `Localize`(현지화) · `Graphics` · `Sounds` · `Cache` · `Misc` 는 훑지 않는다. GUI 와 현지화는 `docs/03` 의 범위다.
-- **읽는 줄 모양 세 가지**
+- **읽는 줄 모양**
   1. 섹션 머리 `&&이름 [번호]`. 줄 처음에 온 것만 센다. `//` 주석 안의 `&&`(`hotkeys.csv` 의 `&&HOTKEYSTEXT`)와
      종료 표시 `&&END` 는 섹션으로 세지 않는다.
-  2. 키-값 줄: `키 값`(`CVP`) 과 `키: 값`(`GMC`)
+  2. 이름으로 시작하는 줄: `키 값`(`CVP`), `키: 값`(`GMC`), `키, 값, 값…`(`WMDATA` `AIPARAMS`)
   3. 쉼표 행(`UNITS` 등). 열 이름은 섹션 앞의 `//` 머리 주석에서 얻는다. 머리 주석이 없으면 열 번호만 낸다.
+- **키 섹션과 표의 구분**: 섹션 이름을 코드에 적어 두지 않고 데이터로 정한다. 행의 90% 이상이 소문자로 시작하는
+  이름으로 시작하면 키 섹션(`keys.csv`), 아니면 표(`columns.csv`)다. 판정 결과는 `sections.csv` 의 `kind` 열에 드러난다.
+  이 빌드에서 키 섹션은 `CVP` `GMC` `MAP` `SAV` `WMDATA` `WMPRODDATA` `UISETTINGS` `AIPARAMS` 여덟 가지다.
 - **출력** (`build/inventory/`, git 제외)
 
   | 파일 | 열 |
   |---|---|
-  | `sections.csv` | 파일, 섹션, 블록 수, 행 수 |
-  | `keys.csv` | 섹션, 키, 등장 파일 수, 등장 횟수, 예시 값 |
-  | `columns.csv` | 파일, 섹션, 열 번호, 열 이름, 값이 있는 행 수, 예시 값 |
-  | `exe-candidates.csv` | 문자열, 이웃한 알려진 키 |
-  | `skipped.csv` | 파일, 이유 |
+  | `sections.csv` | `file` `section` `kind`(keyed/table) `blocks` `rows` |
+  | `keys.csv` | `section` `key` `files`(등장 파일 수) `count`(등장 횟수) `example` |
+  | `columns.csv` | `file` `section` `index` `name` `filled`(값이 있는 행 수) `example` |
+  | `exe-candidates.csv` | `string` `near`(같은 표에서 가장 가까운 알려진 이름) `distance`(몇 칸 떨어졌나) `colon`(`이름:` 꼴인가) |
+  | `skipped.csv` | `file` `reason` |
 
-- **실행 파일 대조**: 실행 파일의 ASCII 문자열 가운데 `keys.csv` 의 키와 이웃해 있으면서 어느 파일에도 쓰이지 않은 것을
-  `exe-candidates.csv` 에 낸다. 후보일 뿐이므로 문서에는 [추정]으로만 올린다.
-- **오류 처리**: 게임 폴더가 없으면 기존 명령과 같은 메시지로 끝낸다. NUL 바이트가 있는 파일(이진)과 읽지 못한 파일은
-  멈추지 않고 `skipped.csv` 에 적는다.
+  형식은 번역 테이블과 같다(UTF-8 BOM + LF, 머리 행은 영문).
+- **실행 파일 대조**: 실행 파일에서 이름 꼴 문자열이 붙어 있는 구간을 표 하나로 보고, 알려진 이름(파일에 쓰인 키·섹션)이
+  둘 이상 든 표의 나머지 이름을 `exe-candidates.csv` 에 낸다. 같은 표에 GUI·글꼴 키도 섞여 있어 후보가 수백 개 나온다
+  (이 빌드에서 759개). 후보일 뿐이므로 문서에는 [추정]으로만 올린다.
+- **오류 처리**: 게임 폴더가 없으면 기존 명령과 같은 메시지로 끝낸다. 이진 파일과 읽지 못한 파일은 멈추지 않고
+  `skipped.csv` 에 적는다. 이진 여부는 끝에 붙은 NUL 을 뗀 뒤 NUL 이 남는가로 본다(`*.OOF` 는 텍스트인데 끝에 NUL 이 하나 있다).
 - **테스트**: `tests/test_inventory.py`. 합성 자료로 줄 모양 세 가지, 머리 주석 없는 표, 이진 파일 건너뛰기를 검사한다.
   설치본이 있을 때만 도는 테스트 하나가 `CVP` `GMC` `UNITS` 가 결과에 있는지 본다(기존 `conftest.py` 의 건너뛰기 방식).
+
+## 도구: `srkit probe`
+
+설치본의 파일 하나에서 값 한 곳만 바꾼 사본을 `build/probe-<이름>/` 에 게임 루트 구조로 만든다. 그 폴더가 곧
+`srkit deploy probe-<이름>` 으로 설치하는 시험 모드다. 게임 폴더는 읽기만 한다.
+
+- **위치**: `src/srkit/probe.py`, 명령 `srkit probe <이름> <파일> <바꿀 문자열> <새 문자열> [--after <기준 문자열>]`
+- 바이트를 그대로 다뤄 인코딩과 줄 끝을 건드리지 않는다(시험 결과가 인코딩 손상과 섞이지 않게).
+- 바꿀 문자열은 파일에 한 번만 나와야 한다. `--after` 를 주면 기준 문자열(한 번만 나와야 한다) 뒤 4096바이트 안의
+  첫 일치를 바꾼다. 조건에 안 맞으면 파일을 만들지 않고 끝낸다.
+- **테스트**: `tests/test_probe.py`. 합성 자료로 한 곳만 바뀌는지, 나머지 바이트(CRLF, CP1252)가 그대로인지, 거부 조건을 검사한다.
 
 ## 게임 안 검증
 
@@ -131,8 +153,9 @@
 
 ### V1 — 내장 치트
 
-1. **입력 경로 확보.** 먼저 메뉴 클릭으로 Game Settings 를 여는 길을 찾는다. 없으면 `gamedrive.py key` 에 조합키를
-   보강한다(별도 브랜치, `tests/test_gamedrive.py` 갱신). 둘 다 안 되면 V1 을 "막힘"으로 기록하고 보고한다.
+1. **입력 경로 확보.** 차례로 시도한다: ① 채팅 창(`ENTER`, 조합키가 필요 없다)에 치트가 먹는지 ② 메뉴 클릭으로
+   Game Settings 를 여는 길 ③ `gamedrive.py key` 에 조합키 보강(별도 브랜치, `tests/test_gamedrive.py` 갱신).
+   셋 다 안 되면 V1 을 "막힘"으로 기록하고 보고한다. 훅 DLL 을 고치는 방법은 한글화 모드를 다시 설치해야 하므로 이 범위 밖이다.
 2. `cheat allowcheats` 뒤 치트를 하나씩 넣고 전후 화면을 남긴다.
 3. 대상은 실행 파일의 91개 전부다.
    - Galactic Ruler 에서 온 것으로 보이는 명령(`voyager` `enterprise` `q` `adama` `warp9` `charge!` `planetcloud`
@@ -156,8 +179,13 @@
 **실험 한 번의 절차**: `srkit deploy <시험 모드>` 미리보기로 한글화 모드와 겹치는 파일이 없는지 확인 → `--apply` →
 게임 시작 → 관찰 → 게임 종료 → `srkit undeploy <시험 모드> --apply` → 바꿨던 파일이 원본과 같은지 해시로 확인.
 
-**V2 에서 반영되지 않으면**: 캐시가 우선한다는 뜻이다. 재생성 방법을 두 가지까지만 시도한다(시나리오 사본에서 `&&SAV` 를
-빼고 원본 로드를 강제 / 모드 경로에 캐시 파일을 두어 가리기). 둘 다 안 되면 `docs/09` 의 미해결 문제로 넘긴다.
+**V2 에서 반영되지 않으면**: 캐시가 우선한다는 뜻이다. 재생성 방법을 두 가지까지만 시도한다 — ① 로비 설정의
+"Force Recache For Modding" 옵션 ② 시나리오 `&&GMC` 에 `ignorecache: 1`(실행 파일에만 있는 키, 효과는 추정).
+둘 다 안 되면 `docs/09` 의 미해결 문제로 넘긴다.
+
+**캐시 파일 보호**: 캐시를 다시 만들면 게임이 `Cache\*.SAV` 를 고쳐 쓸 수 있다. 실험 전에 `Cache\W2030.SAV` 의 사본을
+`build/cache-orig/` 에 두고 해시를 적어 둔다. 실험 뒤 해시가 달라졌으면 `srkit deploy cache-orig --apply` 로 원본을 되돌리고
+(게임 폴더를 바꾸는 경로는 `srkit deploy` 뿐이다) 그 사실을 결과에 적는다.
 
 **완료 기준**: `docs/01` 의 캐시 관련 [추정] 두 줄이 [확인]으로 바뀌거나, 무엇을 시도했고 왜 확정하지 못했는지가 적힌다.
 
@@ -184,8 +212,9 @@
 | 0 | `docs/cheat-mod-spec` | 이 설계 문서와 구현 계획 |
 | 1 | `feat/inventory` | `srkit inventory` 와 테스트 |
 | 2 | `docs/cheat-mod-research` | `docs/05` `docs/06` `docs/07` 초안 `docs/08` |
-| 3 | (필요하면) `feat/gamedrive-combo-keys` | V1 의 입력 경로 보강 |
-| 4 | `docs/cheat-mod-research` 이어서 | V1 ~ V4 결과 반영, `docs/09`, `docs/01` · `README.md` 갱신 |
+| 3 | `feat/probe` | `srkit probe` 와 테스트 |
+| 4 | (필요하면) `feat/gamedrive-combo-keys` | V1 의 입력 경로 보강 |
+| 5 | `docs/cheat-mod-verify` | V1 ~ V4 결과 반영, `docs/09`, `docs/01` · `README.md` 갱신 |
 
 게임 안 검증을 백그라운드 에이전트에 맡긴 동안에는 작업 브랜치를 바꾸지 않는다(`gamedrive.py` 가 바뀐다).
 
@@ -201,9 +230,20 @@
 
 ## 완료 기준
 
-- `uv run srkit inventory` 가 다섯 CSV 를 만들고 `uv run pytest` 가 통과한다.
+- `uv run srkit inventory` 가 다섯 CSV 를 만들고, `uv run srkit probe` 가 시험 모드를 만들고, `uv run pytest` 가 통과한다.
 - `docs/05` ~ `docs/09` 가 있고, 12개 영역과 `sections.csv` 에 나온 섹션 전부(이 빌드에서 53종)가 빠짐없이 다뤄진다
   (깊이 다루지 않는 섹션은 이유와 함께 나열).
 - 내장 치트 91개에 검증 상태가 붙어 있다.
 - Workshop 53개가 분류되어 있다.
 - `docs/09` 의 분류표에서 원안 ②의 예시 아홉 개가 모두 "그대로 쓴다 / 만든다 / 안 만든다" 중 하나로 끝난다.
+
+## 보완 내역 (2026-10-06, 구현 계획을 쓰며)
+
+승인 뒤에 실제 데이터로 규칙을 시험하면서 바꾼 곳이다. 범위와 산출물은 그대로다.
+
+- 목록 도구: 키 섹션과 표를 데이터로 구분하는 규칙을 적었다. CSV 머리 행을 영문으로 정하고 `kind` `distance` `colon` 열을 더했다.
+- 목록 도구: 이진 판정을 "끝의 NUL 은 뗀다"로 고쳤다. 그러지 않으면 `*.OOF` 가 빠져 섹션이 52종이 된다.
+- 시험 모드를 만드는 `srkit probe` 를 도구로 올렸다(브랜치 `feat/probe`). 손으로 고치면 인코딩 손상이 실험 결과와 섞인다.
+- V1: 입력 경로의 첫 시도로 채팅 창을 넣었다. 훅 DLL 수정은 범위 밖임을 적었다.
+- V2: 캐시 재생성 방법을 추측 두 가지에서, 게임에 실제로 있는 로비 옵션과 실행 파일의 `ignorecache` 키로 바꿨다. 캐시 파일 보호 절차를 더했다.
+- 브랜치: 검증 결과와 `docs/09` 는 `docs/cheat-mod-verify` 로 따로 낸다(앞 브랜치는 그 전에 머지된다).
