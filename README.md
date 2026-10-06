@@ -29,6 +29,7 @@ uv run srkit deploy korean           # 설치 미리보기 (--apply 로 실제 �
 uv run srkit undeploy korean         # 제거 미리보기 (--apply 로 실제 제거·복원)
 uv run srkit font-preview <spritefont> "<문자열>" <out.png>
 uv run srkit tcheck-import           # 게임의 번역 검사 로그에서 빠진 GUI 문구를 번역 테이블에 추가
+uv run srkit inventory               # 게임 데이터의 섹션·키·열 목록 → build/inventory/*.csv (치트·모드 조사용)
 uv run python scripts/gamedrive.py start|steam|status|shot|click|move|key|show|stop   # 게임 실행(화면 밖에서)·창 캡처·입력 (검증용)
 ```
 
@@ -52,6 +53,7 @@ src/srkit/       도구
   sprites.py     그림 글자(메뉴·제목·버튼 스프라이트) 한글로 다시 그리기
   hook.py        훅 DLL 빌드
   deploy.py      게임 폴더 설치·제거
+  inventory.py   게임 데이터의 섹션·키·열 목록 (읽기 전용)
 native/srhook/   디코딩 훅 DLL 소스
 scripts/         gamedrive.py — 게임 실행·창 캡처·입력 (게임 안 검증용)
 tests/           자동 테스트 (일부는 게임 설치본·빌드된 DLL 이 있을 때만 실행)
