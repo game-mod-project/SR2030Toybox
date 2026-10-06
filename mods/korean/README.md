@@ -22,6 +22,7 @@ Excel 에서 열어 `status` 로 필터하면 된다(UTF-8 BOM 으로 저장되�
 | `custom.default.csv` | 사용자 시나리오 기본 문구 |
 | `localtext-regions.extra.csv` | 영어판 현지화 파일에 없는 지역 이름. 한국어판에만 행으로 추가된다 |
 | `scen.<시나리오>.<파일>.csv` | 시나리오 폴더 안의 전용 문구(Arena 6A 기술 이름, Battle of Russia 브리핑) |
+| `map-names.csv` | 지도 위 도시·시설 위치 이름(지도 데이터 `*.OOF` 에서 추출). 훅이 그리는 순간에 바꾼다. 한글로만, 원래 이름 글자 수 이하 |
 
 지역 이름(`localtext-regions*.csv` 의 `…|0` 행)은 **한글 10자(30바이트)까지**만 화면에 나온다. `srkit check` 가 검사한다.
 `uv run srkit tm-fill` 은 시나리오 테이블의 빈 행을 다른 테이블의 같은 원문 번역으로 채운다.

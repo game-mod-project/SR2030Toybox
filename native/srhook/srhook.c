@@ -65,6 +65,116 @@ static int enabled(void)
     return state == 1;
 }
 
+/* 지도 이름 사전. 도시 이름은 현지화 파일이 아니라 지도 데이터(Maps\*.OOF)에 있어 번역 파일로는 바꿀 수 없다.
+ * 그래서 게임이 그리거나 폭을 재려는 문자열이 사전의 이름과 "똑같으면" 한글 이름으로 바꿔서 디코딩한다.
+ * 사전: Localize\<SRHOOK_LANG>\srhook-names.txt, 한 줄에 "게임이 그리는 바이트<TAB>SR-UTF8 한글<LF>" (srkit build 가 만든다).
+ * 게임은 그리기 버퍼를 원래 문자열의 바이트 수만큼만 잡으므로 한글 이름은 그 글자 수를 넘으면 뒤가 잘린다. */
+#define SR_NAME_MAX 63
+#define SR_NAMES_FILE "srhook-names.txt"
+
+typedef struct {
+    const unsigned char *key, *val;
+    unsigned char klen, vlen;
+} SRNAME;
+
+static SRNAME *volatile g_names;
+static volatile LONG g_name_mask;
+static volatile LONG g_names_state; /* 0 아직 안 읽음, 1 읽는 중, 2 준비됨, 3 없음 */
+
+static unsigned name_hash(const unsigned char *s, size_t n)
+{
+    unsigned h = 2166136261u;
+    while (n--) {
+        h ^= *s++;
+        h *= 16777619u;
+    }
+    return h;
+}
+
+/* 사전 파일을 읽는다. 읽은 이름 수를 돌려주고, 못 읽으면 사전을 비우고 -1. (테스트에서도 직접 부른다) */
+__declspec(dllexport) int WINAPI srhook_load_names(const char *path)
+{
+    HANDLE file, heap = GetProcessHeap();
+    DWORD size, got = 0;
+    unsigned char *buf, *p, *end;
+    SRNAME *table;
+    size_t lines = 0, slots = 16, count = 0;
+
+    g_names_state = 1;
+    g_names = NULL;
+    file = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (file == INVALID_HANDLE_VALUE) {
+        g_names_state = 3;
+        return -1;
+    }
+    size = GetFileSize(file, NULL);
+    buf = (size == INVALID_FILE_SIZE || size > 16u * 1024 * 1024) ? NULL : (unsigned char *)HeapAlloc(heap, 0, (size_t)size + 1);
+    if (buf == NULL || !ReadFile(file, buf, size, &got, NULL) || got != size) {
+        CloseHandle(file);
+        g_names_state = 3;
+        return -1;
+    }
+    CloseHandle(file);
+    end = buf + size;
+    *end = '\n';
+    for (p = buf; p < end; p++)
+        lines += *p == '\n';
+    while (slots < (lines + 1) * 2)
+        slots *= 2;
+    table = (SRNAME *)HeapAlloc(heap, HEAP_ZERO_MEMORY, slots * sizeof(SRNAME));
+    if (table == NULL) {
+        g_names_state = 3;
+        return -1;
+    }
+    for (p = buf; p < end;) {
+        unsigned char *key = p, *tab = NULL, *eol;
+        for (; *p != '\n'; p++)
+            if (*p == '\t' && tab == NULL)
+                tab = p;
+        eol = (p > key && p[-1] == '\r') ? p - 1 : p;
+        p++;
+        if (tab != NULL && tab > key && tab - key <= SR_NAME_MAX && eol > tab + 1 && eol - tab - 1 <= 255) {
+            size_t klen = (size_t)(tab - key), at = name_hash(key, klen) & (slots - 1);
+            while (table[at].key != NULL && !(table[at].klen == klen && memcmp(table[at].key, key, klen) == 0))
+                at = (at + 1) & (slots - 1);
+            if (table[at].key == NULL) { /* 같은 키가 또 나오면 처음 것을 쓴다 */
+                table[at].key = key;
+                table[at].klen = (unsigned char)klen;
+                table[at].val = tab + 1;
+                table[at].vlen = (unsigned char)(eol - tab - 1);
+                count++;
+            }
+        }
+    }
+    g_name_mask = (LONG)(slots - 1);
+    g_names = table;
+    g_names_state = count ? 2 : 3;
+    return (int)count;
+}
+
+static const SRNAME *name_find(const unsigned char *s, size_t n)
+{
+    SRNAME *table;
+    size_t at, mask;
+
+    if (g_names_state == 0 && InterlockedCompareExchange(&g_names_state, 1, 0) == 0) {
+        char path[MAX_PATH + 64];
+        DWORD len = GetModuleFileNameA(NULL, path, MAX_PATH);
+        while (len > 0 && path[len - 1] != '\\')
+            len--;
+        lstrcpyA(path + len, "Localize\\" SRHOOK_LANG "\\" SR_NAMES_FILE);
+        srhook_load_names(path);
+    }
+    table = g_names;
+    if (g_names_state != 2 || table == NULL)
+        return NULL;
+    mask = (size_t)g_name_mask;
+    for (at = name_hash(s, n) & mask; table[at].key != NULL; at = (at + 1) & mask)
+        if (table[at].klen == n && memcmp(table[at].key, s, n) == 0)
+            return &table[at];
+    return NULL;
+}
+
 __declspec(dllexport) int WINAPI srhook_mbtowc(UINT cp, DWORD flags, LPCCH src, int cb, LPWSTR dst, int cch)
 {
     size_t n, need, wrote;
@@ -74,6 +184,13 @@ __declspec(dllexport) int WINAPI srhook_mbtowc(UINT cp, DWORD flags, LPCCH src, 
         return g_real(cp, flags, src, cb, dst, cch);
 
     n = with_nul ? strlen(src) : (size_t)cb;
+    if (n >= 2 && n <= SR_NAME_MAX) {
+        const SRNAME *name = name_find((const unsigned char *)src, n);
+        if (name != NULL) { /* 지도 이름: 한글 이름으로 바꿔 디코딩한다(그리기·측정 두 경로 모두) */
+            src = (LPCCH)name->val;
+            n = name->vlen;
+        }
+    }
     need = sr_decode((const unsigned char *)src, n, cp == CP_UTF8, NULL, 0) + (with_nul ? 1 : 0);
     if (cch == 0)
         return (int)need;

@@ -144,6 +144,36 @@ def test_build_text_applies_translation_in_sr_utf8(cfg, game_dir, tmp_path):
     assert news.count(b"\xb6") > 1000 and b"\xc2\xb6" not in news
 
 
+def test_map_names_come_from_map_data_and_build_a_hook_dictionary(cfg, game_dir, tmp_path):
+    names = korean.map_names(cfg)
+    assert "HANNOVER" in names and "MÜNCHEN" in names and len(names) > 9000
+    assert all("backup" not in str(p).lower() for p in korean.map_files(cfg))
+
+    fake = replace(cfg, root=tmp_path)
+    tr = fake.translation_dir
+    korean.write_table(tr / korean.MAP_NAMES_TABLE, {
+        "MAPNAME|HANNOVER": korean.Row("HANNOVER", "하노버", "mt"),
+        "MAPNAME|MÜNCHEN": korean.Row("MÜNCHEN", "뮌헨", "mt"),
+        "MAPNAME|Ciudad HIDALGO": korean.Row("Ciudad HIDALGO", "시우다드이달고", "mt"),
+        "MAPNAME|NATO": korean.Row("NATO", "나토", "mt"),          # 번역하지 않는 GUI 문구와 철자가 같다
+        "MAPNAME|ESSEN": korean.Row("ESSEN"),                      # 아직 번역 없음
+    })
+    korean.write_table(tr / korean.GUI_TABLE, {"GUITRANS|NATO": korean.Row("NATO"),
+                                               "GUITRANS|Accept": korean.Row("Accept", "수락", "mt")})
+    entries = korean.map_name_entries(fake)
+    assert entries == {b"HANNOVER": "하노버", "MÜNCHEN".encode("cp1252"): "뮌헨", b"CIUDAD HIDALGO": "시우다드이달고"}
+
+    out = tmp_path / "out"
+    applied, used = korean.build_text(fake, out)
+    lines = (out / "Localize" / "LOCALKO" / korean.MAP_NAMES_FILE).read_bytes().split(b"\n")
+    assert lines[1] == b"HANNOVER\t" + srutf8.encode("하노버") and lines[-1] == b"" and len(lines) == 4
+    assert "뮌" in used and applied >= 4                        # 이름에 쓰인 글자도 글꼴에 들어가야 한다
+    # 게임은 원래 이름의 바이트 수만큼만 그린다
+    assert korean.problem("ULM", "울름시청", "map-names.csv|MAPNAME|ULM")
+    assert korean.problem("ULM", "울름", "map-names.csv|MAPNAME|ULM") is None
+    assert korean.problem("NEW ULM", "뉴 Ulm", "map-names.csv|MAPNAME|NEW ULM")       # 한글로만
+
+
 def test_deploy_and_undeploy_restore_game_folder(cfg, tmp_path):
     game, root = tmp_path / "game", tmp_path / "proj"
     (game / "INI").mkdir(parents=True)
