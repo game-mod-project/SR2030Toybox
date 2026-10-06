@@ -8,9 +8,12 @@
     uv run python scripts/gamedrive.py shot out.png [배율]    # 게임 창의 클라이언트 영역만 캡처
     uv run python scripts/gamedrive.py click X Y              # 클라이언트 좌표(캡처 이미지의 원본 픽셀)
     uv run python scripts/gamedrive.py move X Y               # 누르지 않고 마우스만 올린다(툴팁 확인)
+    uv run python scripts/gamedrive.py wheel N [X Y]          # 마우스 휠 N칸(음수 = 아래로). 지도 확대·축소
     uv run python scripts/gamedrive.py key VK [VK...]         # 가상 키 코드(16진/10진) 또는 이름(ESC, ENTER, SPACE)
     uv run python scripts/gamedrive.py show                  # 화면 밖에 둔 게임 창을 화면으로 가져온다(직접 볼 때)
-    uv run python scripts/gamedrive.py stop
+    uv run python scripts/gamedrive.py stop                   # 이 도구가 띄운 게임만 끝낸다 (--all: 전부)
+
+이 도구는 **자기가 띄운 게임만** 다룬다(build/gamedrive-pids.json 에 기록). 사용자가 직접 켠 게임에는 캡처·입력·종료를 하지 않는다.
 
 화면 전체가 아니라 게임 창만 PrintWindow 로 읽고, 입력도 게임 창에만 메시지로 보낸다
 (실제 마우스·키보드와 다른 창은 건드리지 않는다). 그래서 게임 창이 보이지 않아도 된다 —
@@ -20,6 +23,7 @@ shot·click·key 도 창이 화면에 나와 있으면 다시 밖으로 보낸�
 from __future__ import annotations
 
 import ctypes
+import json
 import os
 import subprocess
 import sys
@@ -70,7 +74,12 @@ kernel32.MapViewOfFile.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.DWO
 kernel32.UnmapViewOfFile.argtypes = [ctypes.c_void_p]
 kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
 
+kernel32.OpenProcess.restype = wintypes.HANDLE
+kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+kernel32.GetProcessTimes.argtypes = [wintypes.HANDLE] + [ctypes.POINTER(wintypes.FILETIME)] * 4
+
 FILE_MAP_ALL_ACCESS = 0xF001F
+OWNED_FILE = "gamedrive-pids.json"   # build/ 아래: 이 도구가 띄운 게임의 프로세스 ID 와 시작 시각
 
 
 class SharedCursor(ctypes.Structure):
@@ -82,6 +91,7 @@ SW_SHOWNOACTIVATE, HWND_TOP, HWND_BOTTOM = 4, 0, 1
 SWP_NOSIZE, SWP_NOACTIVATE = 0x0001, 0x0010
 SM_XVIRTUALSCREEN, SM_CXVIRTUALSCREEN = 76, 78
 WM_MOUSEMOVE, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_KEYDOWN, WM_KEYUP, WM_CHAR = 0x200, 0x201, 0x202, 0x100, 0x101, 0x102
+WM_MOUSEWHEEL = 0x020A
 KEYS = {"ESC": 0x1B, "ENTER": 0x0D, "SPACE": 0x20, "TAB": 0x09, "UP": 0x26, "DOWN": 0x28, "LEFT": 0x25, "RIGHT": 0x27}
 
 
@@ -207,12 +217,13 @@ def keep_hidden(pids, previous: int, settle: float = 5.0, watch: float = 20.0, t
         print(f"창을 화면 밖에 둠 (창 옮김 {moves}회, 포커스 돌려줌 {refocuses}회, 마지막 조치는 시작 {last_fix - began:.0f}초 뒤, {focus})")
 
 
-def start_in_background(exe: Path, args: list[str]) -> None:
+def start_in_background(cfg: config.Config, exe: Path, args: list[str]) -> None:
     """게임을 띄우되 쓰던 화면을 건드리지 않는다: 활성화 없이 시작하고, 창이 생기는 대로 화면 밖으로 보낸다."""
     previous = user32.GetForegroundWindow()
     info = subprocess.STARTUPINFO(dwFlags=subprocess.STARTF_USESHOWWINDOW, wShowWindow=SW_SHOWNOACTIVATE)
     proc = subprocess.Popen([str(exe), *args], cwd=exe.parent, startupinfo=info,
                             env={**os.environ, "SRHOOK_CURSOR": "1"})      # move/click 이 알려 주는 마우스 위치를 듣게 한다
+    record_owned(cfg, [proc.pid])
     print(f"시작: pid {proc.pid}")
     keep_hidden(lambda: {proc.pid} if proc.poll() is None else set(), previous)
 
@@ -245,10 +256,44 @@ def point_cursor(hwnd: int, x: int, y: int) -> None:
     user32.PostMessageW(hwnd, WM_MOUSEMOVE, 0, (y << 16) | (x & 0xFFFF))
 
 
-def need_window() -> tuple[int, str, tuple[int, int]]:
-    win = game_window()
+def started_at(pid: int) -> int:
+    """프로세스가 시작된 시각(FILETIME). 프로세스 ID 는 재사용되므로 '같은 프로세스'인지 가릴 때 함께 본다."""
+    handle = kernel32.OpenProcess(0x1000, False, pid)   # PROCESS_QUERY_LIMITED_INFORMATION
+    if not handle:
+        return 0
+    times = [wintypes.FILETIME() for _ in range(4)]
+    ok = kernel32.GetProcessTimes(handle, *(ctypes.byref(t) for t in times))
+    kernel32.CloseHandle(handle)
+    return (times[0].dwHighDateTime << 32 | times[0].dwLowDateTime) if ok else 0
+
+
+def owned_pids(cfg: config.Config) -> set[int]:
+    """이 도구가 띄운 게임 중 아직 살아 있는 것. 사용자가 직접 켠 게임은 여기에 없다."""
+    try:
+        recorded = json.loads((cfg.build_dir / OWNED_FILE).read_text())
+    except (OSError, ValueError):
+        return set()
+    return {int(pid) for pid, began in recorded.items() if began and started_at(int(pid)) == began} & set(game_pids())
+
+
+def record_owned(cfg: config.Config, pids) -> None:
+    cfg.build_dir.mkdir(exist_ok=True)
+    keep = {pid: started_at(pid) for pid in owned_pids(cfg) | set(pids)}
+    (cfg.build_dir / OWNED_FILE).write_text(json.dumps({str(pid): began for pid, began in keep.items() if began}))
+
+
+def not_ours() -> str:
+    return "실행 중인 게임은 이 도구가 띄운 것이 아닙니다 — 사용자가 켠 게임일 수 있어 건드리지 않습니다"
+
+
+def need_window(cfg: config.Config) -> tuple[int, str, tuple[int, int]]:
+    """이 도구가 띄운 게임의 창. 사용자가 켠 게임은 캡처도 입력도 하지 않는다(창을 화면 밖으로 옮기게 되므로)."""
+    mine = owned_pids(cfg)
+    if not mine:
+        raise SystemExit(not_ours() if game_pids() else "게임 창이 없습니다 (프로세스도 없음)")
+    win = game_window(mine)
     if not win:
-        raise SystemExit("게임 창이 없습니다" + ("" if game_pids() else " (프로세스도 없음)"))
+        raise SystemExit("게임 창이 없습니다")
     hide(win[0])        # 게임이 창을 화면으로 되돌려 놓았으면 다시 밖으로 (포커스는 건드리지 않는다)
     return win
 
@@ -257,27 +302,29 @@ def main(argv: list[str]) -> int:
     ctypes.windll.shcore.SetProcessDpiAwareness(2)
     cmd, *args = argv or ["status"]
     cfg = config.load()
+    if cmd in ("start", "steam") and game_pids():
+        raise SystemExit("이미 실행 중입니다" + ("" if owned_pids(cfg) else f" — {not_ours()}"))
     if cmd == "start":
-        if game_pids():
-            raise SystemExit("이미 실행 중입니다")
         # 인자가 없으면 -window. 정말 인자 없이(Steam 이 띄우는 것처럼) 띄우려면 "--" 하나만 준다
-        start_in_background(cfg.game_dir / EXE, [] if args == ["--"] else args or ["-window"])
+        start_in_background(cfg, cfg.game_dir / EXE, [] if args == ["--"] else args or ["-window"])
     elif cmd == "guard":
-        # 이미 떠 있는 게임이 스스로 다시 시작할 때(해상도·언어 변경 뒤 Steam 을 거쳐 재실행) 새 창을 화면 밖에 둔다
+        # 이 도구가 띄운 게임이 스스로 다시 시작할 때(해상도 변경 뒤 Steam 을 거쳐 재실행) 새 창도 화면 밖에 두고 이어받는다.
+        # 재시작을 일으킨 조작 바로 뒤에만 쓴다 — 이 명령이 도는 동안 뜬 게임은 이 도구의 것으로 친다
         seconds = float(args[0]) if args else 40.0
         keep_hidden(lambda: set(game_pids()), user32.GetForegroundWindow(), settle=seconds, watch=seconds)
+        record_owned(cfg, game_pids())
     elif cmd == "steam":
         # 사용자가 켜는 방식 그대로(Steam 을 거쳐) 띄운다. 가상 마우스는 못 쓴다(Steam 이 띄운 프로세스라 환경 변수를 줄 수 없다)
-        if game_pids():
-            raise SystemExit("이미 실행 중입니다")
         previous = user32.GetForegroundWindow()     # Steam 의 안내 창이 뜨기 전에, 쓰던 창을 기억해 둔다
         appid = (cfg.game_dir / "steam_appid.txt").read_text().strip()
         os.startfile(f"steam://rungameid/{appid}")
         print(f"Steam 으로 실행 요청: {appid}")
         keep_hidden(lambda: set(game_pids()), previous, timeout=float(args[0]) if args else 90.0)
+        record_owned(cfg, game_pids())
     elif cmd == "status":
-        pids, win = game_pids(), game_window()
-        print(f"프로세스: {pids or '없음'}")
+        pids, mine = game_pids(), owned_pids(cfg)
+        win = game_window(set(pids))
+        print("프로세스: " + (", ".join(f"{pid}{'' if pid in mine else ' (이 도구가 띄운 것 아님)'}" for pid in pids) or "없음"))
         if win:
             rect = wintypes.RECT()
             user32.GetWindowRect(win[0], ctypes.byref(rect))
@@ -293,13 +340,14 @@ def main(argv: list[str]) -> int:
         else:
             print("창: 없음")
     elif cmd == "show":
-        win = game_window()
+        mine = owned_pids(cfg)
+        win = game_window(mine) if mine else None
         if not win:
-            raise SystemExit("게임 창이 없습니다")
+            raise SystemExit(not_ours() if game_pids() else "게임 창이 없습니다")
         user32.SetWindowPos(win[0], HWND_TOP, 80, 60, 0, 0, SWP_NOSIZE | SWP_NOACTIVATE)
         print("게임 창을 화면으로 가져왔습니다 (다음 shot·click·key 때 다시 화면 밖으로 갑니다)")
     elif cmd == "shot":
-        hwnd, title, size = need_window()
+        hwnd, title, size = need_window(cfg)
         img = capture(hwnd, size)
         scale = float(args[1]) if len(args) > 1 else 1.0
         if scale != 1.0:
@@ -308,7 +356,7 @@ def main(argv: list[str]) -> int:
         lo, hi = img.convert("L").getextrema()
         print(f"{title!r} {size[0]}x{size[1]} → {args[0]} (밝기 {lo}–{hi}{', 빈 화면일 수 있음' if hi - lo < 8 else ''})")
     elif cmd == "click":
-        hwnd, _, _ = need_window()
+        hwnd, _, _ = need_window(cfg)
         pos = (int(args[1]) << 16) | (int(args[0]) & 0xFFFF)
         point_cursor(hwnd, int(args[0]), int(args[1]))
         time.sleep(0.15)
@@ -317,11 +365,23 @@ def main(argv: list[str]) -> int:
         user32.PostMessageW(hwnd, WM_LBUTTONUP, 0, pos)
         print(f"클릭 {args[0]},{args[1]}")
     elif cmd == "move":
-        hwnd, _, _ = need_window()
+        hwnd, _, _ = need_window(cfg)
         point_cursor(hwnd, int(args[0]), int(args[1]))
         print(f"이동 {args[0]},{args[1]}")
+    elif cmd == "wheel":
+        # wheel N [X Y]: 마우스 휠 N칸(양수 = 위로 굴림). 지도 확대·축소 확인용
+        hwnd, _, size = need_window(cfg)
+        x, y = (int(args[1]), int(args[2])) if len(args) > 2 else (size[0] // 2, size[1] // 2)
+        point_cursor(hwnd, x, y)
+        screen = wintypes.POINT(x, y)
+        user32.ClientToScreen(hwnd, ctypes.byref(screen))
+        for _ in range(abs(int(args[0]))):
+            delta = 120 if int(args[0]) > 0 else -120
+            user32.PostMessageW(hwnd, WM_MOUSEWHEEL, (delta & 0xFFFF) << 16, ((screen.y & 0xFFFF) << 16) | (screen.x & 0xFFFF))
+            time.sleep(0.15)
+        print(f"휠 {args[0]} @ {x},{y}")
     elif cmd == "key":
-        hwnd, _, _ = need_window()
+        hwnd, _, _ = need_window(cfg)
         for name in args:
             vk = KEYS.get(name.upper()) or int(name, 0)
             user32.PostMessageW(hwnd, WM_KEYDOWN, vk, 1)
@@ -332,15 +392,18 @@ def main(argv: list[str]) -> int:
     elif cmd == "type":
         # 게임 입력란은 바이트 단위로 글자를 받는다: 한글은 게임 파일과 같은 SR-UTF8 바이트로 보낸다
         from srkit import srutf8
-        hwnd, _, _ = need_window()
+        hwnd, _, _ = need_window(cfg)
         for b in srutf8.encode(" ".join(args)):
             user32.PostMessageW(hwnd, WM_CHAR, b, 1)
             time.sleep(0.03)
         print(f"입력 {' '.join(args)!r}")
     elif cmd == "stop":
-        for pid in game_pids():
+        # 이 도구가 띄운 게임만 끝낸다. 사용자가 켠 게임까지 끝내려면 --all 을 분명히 준다
+        mine, everything = owned_pids(cfg), set(game_pids())
+        for pid in (everything if args == ["--all"] else mine):
             subprocess.run(["taskkill", "/PID", str(pid), "/F"], capture_output=True)
-        print("종료")
+        left = set() if args == ["--all"] else everything - mine
+        print("종료" + (f" (이 도구가 띄우지 않은 게임 {sorted(left)} 은 그대로 둠)" if left else ""))
     else:
         raise SystemExit(__doc__)
     return 0
