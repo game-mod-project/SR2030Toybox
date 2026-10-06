@@ -1,6 +1,8 @@
 """ToyBox DLL(native/srtoybox) 빌드. 게임 안 모드 설정 창이다 — 한글화 훅(WTSAPI32.dll)이 게임 폴더에서 불러온다."""
 from __future__ import annotations
 
+import ctypes
+import struct
 import subprocess
 from pathlib import Path
 
@@ -9,13 +11,26 @@ from .config import Config
 
 DLL_NAME = "srtoybox.dll"
 SOURCES = ["features.cpp", "command.cpp", "runner.cpp", "settings.cpp", "exports.cpp",
-           "log.cpp", "runner_win.cpp", "ui.cpp", "input.cpp", "prologue.cpp", "overlay.cpp"]
+           "log.cpp", "runner_win.cpp", "ui.cpp", "input.cpp", "prologue.cpp", "locate.cpp", "overlay.cpp"]
 LIBS = ["kernel32.lib", "user32.lib", "gdi32.lib", "imm32.lib", "dwmapi.lib", "d3d11.lib", "dxgi.lib", "d3dcompiler.lib"]
 FLAGS = "/nologo /c /utf-8 /std:c++17 /O2 /MT /EHsc /DNDEBUG /DNOMINMAX"   # NDEBUG: 게임 안에서 assert 로 죽지 않게. NOMINMAX: windows.h 의 min · max 매크로를 끈다
 IMGUI_DIR = "native/third_party/imgui"
 IMGUI_SOURCES = ["imgui.cpp", "imgui_draw.cpp", "imgui_tables.cpp", "imgui_widgets.cpp",
                  "backends/imgui_impl_win32.cpp", "backends/imgui_impl_dx11.cpp"]
 IMGUI_DEFINES = "/DIMGUI_IMPL_WIN32_DISABLE_GAMEPAD"    # 게임패드는 쓰지 않는다(XInput 을 불러오지 않게)
+EXE_NAME = "SupremeRuler2030.exe"
+# native/srtoybox/locate.h 의 GameAddresses 와 같은 순서다
+ADDRESS_FIELDS = ["handler", "context", "multiplayer", "options", "program_state", "mode_state", "player_index",
+                  "player_pointer", "region_table", "region_count"]
+ADDRESS_NAMES = {"handler": "명령 처리 함수", "context": "그 함수의 첫 인자(전역 객체)", "multiplayer": "멀티플레이 표시(byte)",
+                 "options": "옵션 묶음(dword, 0x40 = 치트 허용)", "program_state": "프로그램 상태(dword)",
+                 "mode_state": "모드 상태(dword)", "player_index": "플레이어 지역의 인덱스(dword)",
+                 "player_pointer": "플레이어 지역 객체의 포인터(qword)", "region_table": "지역 포인터 표(qword × 1024)",
+                 "region_count": "지역 수(dword)"}
+
+
+class GameAddresses(ctypes.Structure):
+    _fields_ = [(name, ctypes.c_uint32) for name in ADDRESS_FIELDS]
 
 
 def output(cfg: Config) -> Path:
@@ -55,3 +70,38 @@ def build(cfg: Config) -> Path:
     if result.returncode != 0 or not out.is_file():
         raise RuntimeError(f"ToyBox DLL 빌드 실패:\n{hook.output_text(result.stdout)}\n{hook.output_text(result.stderr)}")
     return out
+
+
+def library(cfg: Config) -> ctypes.CDLL:
+    """빌드한 DLL 을 불러 주소 찾기 함수의 인자 형을 적어 둔다(srkit locate 와 테스트가 쓴다)."""
+    lib = ctypes.CDLL(str(output(cfg)))
+    lib.srtoybox_locate.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong, ctypes.POINTER(GameAddresses), ctypes.c_char_p, ctypes.c_int]
+    return lib
+
+
+def image_of(exe: bytes) -> bytes:
+    """실행 파일을 RVA 대로 펼친다 — 게임이 메모리에 올린 모양이다. 파일에 없는(초기화되지 않은) 자리는 0."""
+    pe = struct.unpack_from("<I", exe, 0x3C)[0]
+    sections, optional = struct.unpack_from("<H", exe, pe + 6)[0], struct.unpack_from("<H", exe, pe + 20)[0]
+    size, headers = struct.unpack_from("<II", exe, pe + 24 + 56)
+    image = bytearray(size)
+    image[:headers] = exe[:headers]
+    for i in range(sections):
+        _name, virtual_size, rva, raw_size, raw = struct.unpack_from("<8sIIII", exe, pe + 24 + optional + 40 * i)
+        n = min(virtual_size, raw_size)
+        image[rva:rva + n] = exe[raw:raw + n]
+    return bytes(image)
+
+
+def locate(cfg: Config) -> tuple[dict[str, int] | None, str]:
+    """설치된 게임의 실행 파일에서 ToyBox 가 쓰는 주소를 찾는다: (이름 → RVA, "") 또는 (None, 까닭).
+
+    게임 안에서 ToyBox 가 도는 것과 같은 코드(DLL 의 locate)를 쓴다. 파일을 읽기만 한다.
+    """
+    if not output(cfg).is_file():
+        return None, "ToyBox DLL 이 없습니다 — srkit toybox-build"
+    image = image_of((cfg.game_dir / EXE_NAME).read_bytes())
+    found, error = GameAddresses(), ctypes.create_string_buffer(256)
+    if library(cfg).srtoybox_locate(image, len(image), ctypes.byref(found), error, len(error)) != 0:
+        return None, error.value.decode("utf-8")
+    return {name: getattr(found, name) for name in ADDRESS_FIELDS}, ""
