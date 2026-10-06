@@ -7,6 +7,7 @@
 
 #include "command.h"
 #include "features.h"
+#include "locate.h"
 #include "log.h"
 #include "overlay.h"
 #include "prologue.h"
@@ -111,6 +112,20 @@ EXPORT int srtoybox_settings_file(char *out, int size)
 EXPORT int srtoybox_prologue_length(const unsigned char *code, int size, int want)
 {
     return prologue_length(code, size, want);
+}
+
+// 실행 파일의 이미지(RVA 대로 펼친 것)에서 주소를 찾는다. 0 이면 out 을 채웠다. -1 이면 error 에 까닭.
+EXPORT int srtoybox_locate(const unsigned char *image, unsigned long long size, GameAddresses *out, char *error, int error_size)
+{
+    GameAddresses found = {};
+    const char *why = locate_game(image, static_cast<size_t>(size), &found);
+    if (why != nullptr) {
+        put(why, error, error_size);
+        return -1;
+    }
+    if (out != nullptr)
+        *out = found;
+    return 0;
 }
 
 EXPORT int srtoybox_hotkey_name(int vk, int mods, char *out, int size)

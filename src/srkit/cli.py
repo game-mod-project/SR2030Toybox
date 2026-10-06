@@ -154,6 +154,22 @@ def cmd_toybox_build(cfg, _args) -> int:
     return 0
 
 
+def cmd_locate(cfg, _args) -> int:
+    exe = cfg.game_dir / toybox.EXE_NAME
+    data = exe.read_bytes()
+    stamp = int.from_bytes(data[int.from_bytes(data[0x3C:0x40], "little") + 8:][:4], "little")
+    print(f"{exe.name}: {len(data):,} 바이트, PE TimeDateStamp {stamp:#x}")
+    found, why = toybox.locate(cfg)
+    if found is None:
+        print(f"주소를 찾지 못했습니다: {why}")
+        print("ToyBox 는 이 빌드에서 글쇠 방식으로만 동작합니다(docs/10).")
+        return 1
+    for name in toybox.ADDRESS_FIELDS:
+        print(f"  {found[name]:#010x}  {toybox.ADDRESS_NAMES[name]}")
+    print("주소를 모두 찾았습니다(대조 통과). docs/11 의 표와 다르면 게임이 바뀐 것입니다.")
+    return 0
+
+
 def cmd_inventory(cfg, _args) -> int:
     r = inventory.run(cfg)
     print(f"산출물         : {r['out']}")
@@ -241,6 +257,8 @@ def main(argv: list[str] | None = None) -> int:
     h.set_defaults(fn=cmd_hook_build)
     sub.add_parser("toybox-build", help="ToyBox DLL(srtoybox.dll, 게임 안 모드 설정 창) 빌드 → build/toybox") \
         .set_defaults(fn=cmd_toybox_build)
+    sub.add_parser("locate", help="설치된 게임에서 ToyBox 가 쓰는 주소를 찾아 보고(게임 업데이트 뒤 cheats-check 다음에)") \
+        .set_defaults(fn=cmd_locate)
     sub.add_parser("inventory", help="게임 데이터의 섹션·키·열 목록을 build/inventory 에 CSV 로").set_defaults(fn=cmd_inventory)
     sub.add_parser("cheats-check", help="게임의 내장 치트가 docs/07 과 같은지 대조(게임 업데이트 감지)") \
         .set_defaults(fn=cmd_cheats_check)
