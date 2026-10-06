@@ -1,0 +1,2688 @@
+﻿key,en,ko,status
+LOCALIZE|aibuildreduction|0,None,없음,mt
+LOCALIZE|aibuildreduction|1,Low (25%),낮음 (25%),mt
+LOCALIZE|aibuildreduction|2,Medium (50%),중간 (50%),mt
+LOCALIZE|aibuildreduction|3,High (75%),높음 (75%),mt
+LOCALIZE|airinit|0,NONE - All units engaged will fire back and resupply where they are positioned.,없음 - 교전 중인 모든 유닛은 현 위치에서 응사하고 재보급을 받습니다.,mt
+LOCALIZE|airinit|1,"LOW - Units will also go for repair, perform some border recon and defensive pre-positioning.","낮음 - 유닛이 수리를 받으러 가고, 일부 국경 정찰과 방어 사전 배치도 수행합니다.",mt
+LOCALIZE|airinit|2,"MEDIUM - Units will also retreat, increase border recon and units will react in defensive situations.  Air patrols begin.","중간 - 유닛이 후퇴하고, 국경 정찰을 늘리며, 방어 상황에 대응합니다. 항공 순찰이 시작됩니다.",mt
+LOCALIZE|airinit|3,HIGH - Units will also actively attack and defend.  Recapture lost territory and invade regions while at war.  Units will call for resupply.,높음 - 유닛이 적극적으로 공격하고 방어합니다. 교전 중에는 잃은 영토를 되찾고 지역을 침공합니다. 유닛이 재보급을 요청합니다.,mt
+LOCALIZE|airinit|4,FULL - Units will also actively reserve and deploy.,최대 - 유닛이 적극적으로 예비 편입과 배치를 수행합니다.,mt
+LOCALIZE|allowexpimp|0,Allow %s Purchases/Imports,%s 구매/수입 허용,mt
+LOCALIZE|allowexpimp|1,Allow %s Sales/Exports,%s 판매/수출 허용,mt
+LOCALIZE|aloadtip|0,Autoload Missiles,미사일 자동 장전,mt
+LOCALIZE|aloadtip|1,Autoload Missiles to Match Role(s),역할에 맞춰 미사일 자동 장전,mt
+LOCALIZE|approvaleffects|0,Low,낮음,mt
+LOCALIZE|approvaleffects|1,Medium,중간,mt
+LOCALIZE|approvaleffects|2,High,높음,mt
+LOCALIZE|autobuild1|0,Defensive,방어형,mt
+LOCALIZE|autobuild1|1,Balanced Off/Def,공수 균형,mt
+LOCALIZE|autobuild1|2,Offensive,공세형,mt
+LOCALIZE|autobuild2|0,Quantity,수량 중시,mt
+LOCALIZE|autobuild2|1,Balanced Qual/Quan,질·양 균형,mt
+LOCALIZE|autobuild2|2,Quality,품질 중시,mt
+LOCALIZE|battlegroupactions|0,Create Battlegroup,전투단 창설,mt
+LOCALIZE|battlegroupactions|1,Remove From Battlegroup,전투단에서 제외,mt
+LOCALIZE|battlezonetradepriority|0,"0 - (They have high interest, we do not)",0 - (상대는 관심이 높고 우리는 없음),mt
+LOCALIZE|battlezonetradepriority|1,1 - (This is much more interesting to them),1 - (상대 쪽 관심이 훨씬 높음),mt
+LOCALIZE|battlezonetradepriority|2,2 - (This is slightly more interesting to them),2 - (상대 쪽 관심이 조금 높음),mt
+LOCALIZE|battlezonetradepriority|3,3 - (Similar Interest Level),3 - (관심 수준 비슷),mt
+LOCALIZE|battlezonetradepriority|4,4 - (This is slightly more interesting to us),4 - (우리 쪽 관심이 조금 높음),mt
+LOCALIZE|battlezonetradepriority|5,5 - (This is much more interesting to us),5 - (우리 쪽 관심이 훨씬 높음),mt
+LOCALIZE|battlezonetradepriority|6,"6 - (We have high interest, they do not)",6 - (우리는 관심이 높고 상대는 없음),mt
+LOCALIZE|bfcovertop|0,ESPIONAGE,첩보,mt
+LOCALIZE|bfcovertop|1,SABOTAGE,파괴 공작,mt
+LOCALIZE|bfcovertop|2,ASSASSINATION,암살,mt
+LOCALIZE|bfcovertop|3,BIOLOGICAL ATTACK,생물학 공격,mt
+LOCALIZE|bffundtarget|0,OPPOSITION,야당,mt
+LOCALIZE|bffundtarget|1,PROTESTORS,시위대,mt
+LOCALIZE|bffundtarget|2,TERRORISTS,테러 조직,mt
+LOCALIZE|bffundtarget|3,INSURGENTS,반군,mt
+LOCALIZE|bffundtarget|4,PSYCHOLOGICAL OPS,심리전,mt
+LOCALIZE|bffundtarget|5,AGAINST OUR ECONOMY,자국 경제 공격,mt
+LOCALIZE|bfspytarget|0,CAPITAL,수도,mt
+LOCALIZE|bfspytarget|1,CABINET,내각,mt
+LOCALIZE|bfspytarget|2,MILITARY,군,mt
+LOCALIZE|bfspytarget|3,SOCIETY,사회,mt
+LOCALIZE|bregion|0,Border Region,국경 지역,mt
+LOCALIZE|bregion|1,Not a Border Region,국경 지역 아님,mt
+LOCALIZE|buildmilbranch|0,Army,육군,mt
+LOCALIZE|buildmilbranch|1,Air Force,공군,mt
+LOCALIZE|buildmilbranch|2,Navy,해군,mt
+LOCALIZE|buildmilbranch|3,Missile,미사일,mt
+LOCALIZE|buildmilbranch|4,Missile,미사일,mt
+LOCALIZE|buildstatus|0,INSUFFICIENT FUNDS,자금 부족,mt
+LOCALIZE|buildstatus|1,PRODUCTION SHORTAGES,생산 물자 부족,mt
+LOCALIZE|buildstatus|2,Insufficient Personnel,인력 부족,mt
+LOCALIZE|buildstatus|3,Fuel Shortages,연료 부족,mt
+LOCALIZE|buildstatus|4,Supply Shortages,보급 부족,mt
+LOCALIZE|buildstatus|5,Low Morale,사기 저하,mt
+LOCALIZE|buildstatus|6,Heavy Losses,큰 손실,mt
+LOCALIZE|buildstatus|7,Idle bases,유휴 기지,mt
+LOCALIZE|buildunits|0,Build Unit,유닛 생산,mt
+LOCALIZE|buildunits|1,Hold Unit Construction,유닛 생산 보류,mt
+LOCALIZE|buildunits|2,Resume Construction,생산 재개,mt
+LOCALIZE|buildunits|3,Remove Unit,유닛 제거,mt
+LOCALIZE|buildunits|4,Clear All Units,전체 유닛 비우기,mt
+LOCALIZE|butgrid|0,Insufficient Reserves,예비 전력 부족,mt
+LOCALIZE|butgrid|1,At Maximum,최대치,mt
+LOCALIZE|butgrid|2,Insufficient Personnel,인력 부족,mt
+LOCALIZE|butgrid|3,Select Unit to Deploy,배치할 유닛 선택,mt
+LOCALIZE|butgrid|4,Under Construction,건설 중,mt
+LOCALIZE|butgrid|5,At Maximum,최대치,mt
+LOCALIZE|butgrid|6,Insufficient Credit Rating,신용 등급 부족,mt
+LOCALIZE|butgrid|7,Bond Issue Pending,채권 발행 대기,mt
+LOCALIZE|butgrid|8,Insufficient Funds for Repurchase,환매 자금 부족,mt
+LOCALIZE|butgrid|9,Bond Repurchase Pending,채권 환매 대기,mt
+LOCALIZE|butgrid|10,No Selected Bond,선택한 채권 없음,mt
+LOCALIZE|butgrid|11,Incompatible Role,역할 불일치,mt
+LOCALIZE|butgrid|12,Insufficient Tech Level,기술 수준 부족,mt
+LOCALIZE|butgrid|13,Banned by Treaty,조약으로 금지,mt
+LOCALIZE|butgrid|14,Waiting for Research Slot,연구 슬롯 대기,mt
+LOCALIZE|butgrid|15,Prerequisite Pending,선행 조건 대기,mt
+LOCALIZE|butgrid|16,Launch Pending,발사 대기,mt
+LOCALIZE|butgrid|17,No Satellites Available,가용 위성 없음,mt
+LOCALIZE|buyunits|0,LAND UNITS,지상 유닛,mt
+LOCALIZE|buyunits|1,AIR UNITS,항공 유닛,mt
+LOCALIZE|buyunits|2,NAVAL UNITS,해상 유닛,mt
+LOCALIZE|buyunits|3,MISSILE UNITS,미사일 유닛,mt
+LOCALIZE|buyunits|4,MISSILE UNITS,미사일 유닛,mt
+LOCALIZE|bzfocus|0,None,없음,mt
+LOCALIZE|bzfocus|1,Defensive,방어형,mt
+LOCALIZE|bzfocus|2,Balanced,균형형,mt
+LOCALIZE|bzfocus|3,Offensive,공세형,mt
+LOCALIZE|bzpriority|0,None,없음,mt
+LOCALIZE|bzpriority|1,Low,낮음,mt
+LOCALIZE|bzpriority|2,Medium,중간,mt
+LOCALIZE|bzpriority|3,High,높음,mt
+LOCALIZE|cabinetdisposition|0,Frustrated,좌절,mt
+LOCALIZE|cabinetdisposition|1,Busy,바쁨,mt
+LOCALIZE|cabinetdisposition|2,Neutral / Polite,중립/정중,mt
+LOCALIZE|cabinetdisposition|3,Nervous,불안,mt
+LOCALIZE|cabinetopinion|0,We have no opinion on this trade...,이번 무역에 대해 의견이 없습니다...,mt
+LOCALIZE|cabinetopinion|1,We are strongly opposed to this deal!,이번 거래에 강력히 반대합니다!,mt
+LOCALIZE|cabinetopinion|2,This deal is not in our best interests.,이번 거래는 우리에게 이롭지 않습니다.,mt
+LOCALIZE|cabinetopinion|3,Are you sure you want to be this generous?,정말 이렇게까지 후하게 베푸시겠습니까?,mt
+LOCALIZE|cabinetopinion|4,There is a slight disadvantage to this offer.,이번 제안은 약간 불리합니다.,mt
+LOCALIZE|cabinetopinion|5,This appears to be a fair trade.,공정한 거래로 보입니다.,mt
+LOCALIZE|cabinetopinion|6,The benefits appear to outweigh the consequences.,이익이 부담보다 클 것으로 보입니다.,mt
+LOCALIZE|cabinetopinion|7,This agreement definitely seems worthwhile.,이번 합의는 분명 가치가 있어 보입니다.,mt
+LOCALIZE|cabinetopinion|8,Our region would be quite happy with this deal!,우리 지역이 이번 거래를 매우 반길 것입니다!,mt
+LOCALIZE|cabinetopinion|9,This is an excellent deal!,훌륭한 거래입니다!,mt
+LOCALIZE|cargoicon|0,Cargo Capable,화물 적재 가능,mt
+LOCALIZE|cargoicon|1,Carrying Units,유닛 적재 중,mt
+LOCALIZE|cargoicon|2,Mostly Full of Units,유닛 대부분 적재,mt
+LOCALIZE|chatfont|0,Small,작게,mt
+LOCALIZE|chatfont|1,Medium,보통,mt
+LOCALIZE|chatfont|2,Large,크게,mt
+LOCALIZE|chathapsize|0,Minimal,최소,mt
+LOCALIZE|chathapsize|1,Normal,보통,mt
+LOCALIZE|chathapsize|2,Tall,높게,mt
+LOCALIZE|chatopt|0,Include Player in Custom Chat,플레이어를 맞춤 채팅에 포함,mt
+LOCALIZE|chatopt|1,Do not include in Custom Chat,맞춤 채팅에 포함하지 않음,mt
+LOCALIZE|chatopt|2,Block Chat from Player,플레이어 채팅 차단,mt
+LOCALIZE|chatoptions|0,Font Size,글꼴 크기,mt
+LOCALIZE|chatoptions|1,Chat Box Size,채팅창 크기,mt
+LOCALIZE|chatoptions|2,Chat Target,채팅 대상,mt
+LOCALIZE|chatoptions|3,Custom set,맞춤 설정,mt
+LOCALIZE|chatrel|0,All,전체,mt
+LOCALIZE|chatrel|1,Allies,동맹국,mt
+LOCALIZE|chatrel|2,Neutrals,중립국,mt
+LOCALIZE|chatrel|3,Enemies,적국,mt
+LOCALIZE|chatrel|4,Selected,선택,mt
+LOCALIZE|chatrel|5,Local,현지,mt
+LOCALIZE|chattarget|0,All,전체,mt
+LOCALIZE|chattarget|1,Allies,동맹국,mt
+LOCALIZE|chattarget|2,Enemies,적국,mt
+LOCALIZE|chattarget|3,Neutrals,중립국,mt
+LOCALIZE|cilevel|0,Unknown,알 수 없음,mt
+LOCALIZE|cilevel|1,Low,낮음,mt
+LOCALIZE|cilevel|2,Medium,중간,mt
+LOCALIZE|cilevel|3,High,높음,mt
+LOCALIZE|cilevel|4,Very High,매우 높음,mt
+LOCALIZE|cilevel|5,Extreme,극도로 높음,mt
+LOCALIZE|coldefault|0,Manual Focus,수동 중점,mt
+LOCALIZE|coldefault|1,Advancement Focus,발전 중점,mt
+LOCALIZE|coldefault|2,Mobilize Focus,동원 중점,mt
+LOCALIZE|coldefault|3,Defend Focus,방어 중점,mt
+LOCALIZE|coldefault|4,Economy Focus,경제 중점,mt
+LOCALIZE|collapselbtt|0,Collapse Listbox,목록 접기,mt
+LOCALIZE|colordepth|0,16 Bit,,
+LOCALIZE|colordepth|1,32 Bit,,
+LOCALIZE|complex|0,Civilian,민간,mt
+LOCALIZE|complex|1,Industrial,산업,mt
+LOCALIZE|complex|2,Military,군사,mt
+LOCALIZE|complex|3,Other,기타,mt
+LOCALIZE|currencyspace|0,",",,
+LOCALIZE|currencyspace|1,.,,
+LOCALIZE|currencysymbol|0,$,,
+LOCALIZE|currencysymbol|1,ú,,
+LOCALIZE|currencysymbol|2,Ñ,,
+LOCALIZE|currencysymbol|3,ñ,,
+LOCALIZE|currencysymbol|4,Ç,,
+LOCALIZE|currencysymbol|5,ó,,
+LOCALIZE|cwphrases|0,Delete Messages?,메시지를 삭제할까요?,mt
+LOCALIZE|cwphrases|1,Unit Repairing,유닛 수리 중,mt
+LOCALIZE|cwphrases|2,No Units In Battlezone,전투 구역에 유닛 없음,mt
+LOCALIZE|cwphrases|3,No Units In Theater,전구에 유닛 없음,mt
+LOCALIZE|cwphrases|4,No Units in Battlezone,전투 구역에 유닛 없음,mt
+LOCALIZE|cwphrases|5,No Units in Theater,전구에 유닛 없음,mt
+LOCALIZE|cwphrases|6,Show City Names On Map,지도에 도시 이름 표시,mt
+LOCALIZE|cwphrases|7,You have no saved games.,저장된 게임이 없습니다.,mt
+LOCALIZE|cwphrases|8,No Selected Units,선택한 유닛 없음,mt
+LOCALIZE|cwwords|0,Previous,이전,mt
+LOCALIZE|cwwords|1,Next,다음,mt
+LOCALIZE|cwwords|2,/A,,
+LOCALIZE|cwwords|3,/a,,
+LOCALIZE|cwwords|4,/Annual,/연,mt
+LOCALIZE|cwwords|5,%s - Parent,%s - 상위,mt
+LOCALIZE|cwwords|6,Calculating,계산 중,mt
+LOCALIZE|datedays|0,Day,일,mt
+LOCALIZE|datedays|1,Days,일,mt
+LOCALIZE|dateformat|0,mm/dd/yy,,
+LOCALIZE|dateformat|1,dd/mm/yy,,
+LOCALIZE|dateformat|2,yy/mm/dd,,
+LOCALIZE|dateyears|0,Year,년,mt
+LOCALIZE|dateyears|1,Years,년,mt
+LOCALIZE|dayhalves|0,AM,오전,mt
+LOCALIZE|dayhalves|1,PM,오후,mt
+LOCALIZE|daynames|0,Sunday,일요일,mt
+LOCALIZE|daynames|1,Monday,월요일,mt
+LOCALIZE|daynames|2,Tuesday,화요일,mt
+LOCALIZE|daynames|3,Wednesday,수요일,mt
+LOCALIZE|daynames|4,Thursday,목요일,mt
+LOCALIZE|daynames|5,Friday,금요일,mt
+LOCALIZE|daynames|6,Saturday,토요일,mt
+LOCALIZE|defcons|0,PEACE,평화,mt
+LOCALIZE|defcons|1,GUARDED,경계,mt
+LOCALIZE|defcons|2,ELEVATED,상승,mt
+LOCALIZE|defcons|3,HIGH,높음,mt
+LOCALIZE|defcons|4,WAR,전쟁,mt
+LOCALIZE|defdep|0,ALL DEPLOYED,전체 배치됨,mt
+LOCALIZE|defdep|1,LAND DEPLOYED,지상 배치됨,mt
+LOCALIZE|defdep|2,AIR DEPLOYED,항공 배치됨,mt
+LOCALIZE|defdep|3,NAVAL DEPLOYED,해상 배치됨,mt
+LOCALIZE|defdep|4,MISSILES DEPLOYED,미사일 배치됨,mt
+LOCALIZE|defdep|5,MISSILES DEPLOYED,미사일 배치됨,mt
+LOCALIZE|defdept|0,LAND,지상,mt
+LOCALIZE|defdept|1,AIR,항공,mt
+LOCALIZE|defdept|2,NAVAL,해상,mt
+LOCALIZE|defdept|3,SUPPORT,지원,mt
+LOCALIZE|defdeptprior|0,udef0,,
+LOCALIZE|defdeptprior|1,udef1,,
+LOCALIZE|defdeptprior|2,udef2,,
+LOCALIZE|defdeptprior|3,udef3,,
+LOCALIZE|defdeptprior|4,udef4,,
+LOCALIZE|defdeptprior|5,udef5,,
+LOCALIZE|defdesigns|0,LAND DESIGNS,지상 설계,mt
+LOCALIZE|defdesigns|1,AIR DESIGNS,항공 설계,mt
+LOCALIZE|defdesigns|2,NAVAL DESIGNS,해상 설계,mt
+LOCALIZE|defdesigns|3,MISSILE DESIGNS,미사일 설계,mt
+LOCALIZE|defdesigns|4,MISSILE DESIGNS,미사일 설계,mt
+LOCALIZE|deffab|0,LAND FABRICATION,지상 제조창,mt
+LOCALIZE|deffab|1,AIR FABRICATION,항공 제조창,mt
+LOCALIZE|deffab|2,NAVAL FABRICATION,해상 제조창,mt
+LOCALIZE|defnodes|0,Production,생산,mt
+LOCALIZE|defnodes|1,Reserves,예비 전력,mt
+LOCALIZE|defnodes|2,Support,지원,mt
+LOCALIZE|defres|0,LAND RESERVES,지상 예비 전력,mt
+LOCALIZE|defres|1,AIR RESERVES,항공 예비 전력,mt
+LOCALIZE|defres|2,NAVAL RESERVES,해상 예비 전력,mt
+LOCALIZE|defres|3,MISSILE RESERVES,미사일 예비 전력,mt
+LOCALIZE|defres|4,MISSILE RESERVES,미사일 예비 전력,mt
+LOCALIZE|defsubdept|0,SPENDING,지출,mt
+LOCALIZE|defsubdept|1,DEFENSE CONDITION,방어 준비 태세,mt
+LOCALIZE|defsubdept|2,SUMMARY,요약,mt
+LOCALIZE|defsubdept|3,FACILITIES,시설,mt
+LOCALIZE|defsubdept|4,FABRICATION,제조창,mt
+LOCALIZE|defsubdept|5,BUYING UNITS,유닛 구매,mt
+LOCALIZE|defsubdept|6,RESERVES / DEPLOYED,예비 전력 / 배치,mt
+LOCALIZE|defsubdept|7,GLOBAL RULES OF ENGAGEMENT,전역 교전 규칙,mt
+LOCALIZE|defsubdept|8,SILO CONTROL,사일로 통제,mt
+LOCALIZE|defsubdept|9,10,,
+LOCALIZE|deftitle1|0,ALL FABRICATION,전체 제조창,mt
+LOCALIZE|deftitle1|1,BASE FABRICATION,기지 제조창,mt
+LOCALIZE|deftitle2|0,ALL RESERVES,전체 예비 전력,mt
+LOCALIZE|deftitle2|1,BASE RESERVES,기지 예비 전력,mt
+LOCALIZE|delmessage|0,Here,이곳,mt
+LOCALIZE|delmessage|1,In This Theatre,이 전구 내,mt
+LOCALIZE|delmessage|2,In This Country,이 국가 내,mt
+LOCALIZE|delmessage|3,Of This Type,이 유형,mt
+LOCALIZE|departments|0,LAND,국토,mt
+LOCALIZE|departments|1,RESOURCES,자원,mt
+LOCALIZE|departments|2,RESEARCH,연구,mt
+LOCALIZE|departments|3,FINANCE,재무,mt
+LOCALIZE|departments|4,STATE,외교,mt
+LOCALIZE|departments|5,DEFENSE,국방,mt
+LOCALIZE|departments|6,DEFENSE,국방,mt
+LOCALIZE|departments|7,COMMAND,지휘,mt
+LOCALIZE|deployunits|0,Deploy Unit,유닛 배치,mt
+LOCALIZE|deployunits|1,Deploy Land Units,지상 유닛 배치,mt
+LOCALIZE|deployunits|2,Deploy Air Units,항공 유닛 배치,mt
+LOCALIZE|deployunits|3,Deploy Naval Units,해상 유닛 배치,mt
+LOCALIZE|deployunits|4,Deploy All Units,전체 유닛 배치,mt
+LOCALIZE|dipofferitem|0,Best %s Offer,%s 최상 제안,mt
+LOCALIZE|dipofferitem|1,Best Offer Of %s,%s 최상 제안 항목,mt
+LOCALIZE|dipofferitem|2,Equalize Offer With %s,%s와(과) 제안 균형 맞추기,mt
+LOCALIZE|diprel|0,Ourselves,자국,mt
+LOCALIZE|diprel|1,Allied,동맹국,mt
+LOCALIZE|diprel|2,Neutral,중립,mt
+LOCALIZE|diprel|3,At War,교전 중,mt
+LOCALIZE|emailcontrols|0,Delete Message,메시지 삭제,mt
+LOCALIZE|emailcontrols|1,Send Message,메시지 보내기,mt
+LOCALIZE|emailcontrols|2,Reply to Message,메시지 답장,mt
+LOCALIZE|emailcontrols|3,Reply to All,전체 답장,mt
+LOCALIZE|emailcontrols|4,Forward Message,메시지 전달,mt
+LOCALIZE|emailcontrols|5,Read Message,메시지 읽기,mt
+LOCALIZE|emailcontrols|6,E-mail Options,이메일 옵션,mt
+LOCALIZE|emailcontrols|7,New Message,새 메시지,mt
+LOCALIZE|emailoptions|0,Read Mail,메일 읽기,mt
+LOCALIZE|emailoptions|1,Email Settings,이메일 설정,mt
+LOCALIZE|emailoptions|2,Delete Selected Message,선택한 메시지 삭제,mt
+LOCALIZE|emailoptions|4,Mark/Unmark Pause-on-Event,이벤트 시 일시 정지 표시/해제,mt
+LOCALIZE|emailoptions|5,Increase Priority,우선순위 올리기,mt
+LOCALIZE|emailoptions|6,Decrease Priority,우선순위 내리기,mt
+LOCALIZE|emailresponses|0,-,,
+LOCALIZE|emailresponses|1,Agree,동의,mt
+LOCALIZE|emailresponses|2,Disagree,반대,mt
+LOCALIZE|emailresponses|3,Hold off,보류,mt
+LOCALIZE|emailresponses|4,Contact,연락,mt
+LOCALIZE|emailresponses|5,Diplomacy,외교,mt
+LOCALIZE|emailresponses|6,Cabinet,내각,mt
+LOCALIZE|emailresponses|7,Declare War!,선전포고!,mt
+LOCALIZE|emailresponses|8,End Alliance,동맹 종료,mt
+LOCALIZE|emailresponses|9,Negotiate,협상,mt
+LOCALIZE|emailresponses|10,Request Help,지원 요청,mt
+LOCALIZE|emailresponses|11,Agree,동의,mt
+LOCALIZE|emailresponses|12,Accept,수락,mt
+LOCALIZE|emailresponses|13,Reject,거절,mt
+LOCALIZE|emailresponses|14,Counter,역제안,mt
+LOCALIZE|emailresponses|15,View Tags,태그 보기,mt
+LOCALIZE|emailresponses|16,Ignore,무시,mt
+LOCALIZE|emailresponses|17,OK,확인,mt
+LOCALIZE|emailresponses|18,Agree,동의,mt
+LOCALIZE|emailresponses|19,Ground Units,지상 유닛,mt
+LOCALIZE|emailresponses|20,Air Units,항공 유닛,mt
+LOCALIZE|emailresponses|21,Naval Units,해상 유닛,mt
+LOCALIZE|emailresponses|22,Sub Units,잠수함 유닛,mt
+LOCALIZE|emailresponses|23,Equal Mix,균등 혼합,mt
+LOCALIZE|emailresponses|24,No Draft,징집 안 함,mt
+LOCALIZE|emailresponses|25,Abstain,기권,mt
+LOCALIZE|emailresponses|26,Follow Up,후속 조치,mt
+LOCALIZE|emailresponses|27,Benevolent,관대하게,mt
+LOCALIZE|emailresponses|28,Tough,강경하게,mt
+LOCALIZE|emailresponses|29,Yes,예,mt
+LOCALIZE|emailresponses|30,No,아니요,mt
+LOCALIZE|emailresponses|31,Renew,갱신,mt
+LOCALIZE|emailresponses|32,Default,기본값,mt
+LOCALIZE|emailresponses|33,Warn,경고,mt
+LOCALIZE|emailresponses|34,Forgive,용서,mt
+LOCALIZE|emailresponses|35,Retaliate,보복,mt
+LOCALIZE|emailresponses|36,Cancel All,전체 취소,mt
+LOCALIZE|emailresponses|37,Cancel,취소,mt
+LOCALIZE|emailresponses|38,Zoom To,위치로 이동,mt
+LOCALIZE|emailresponses|39,Ops Dept,지휘부,mt
+LOCALIZE|emailresponses|40,Defense Dept,국방부,mt
+LOCALIZE|emailresponses|41,Treasury,국고,mt
+LOCALIZE|emailresponses|42,Commerce,상무,mt
+LOCALIZE|emailresponses|43,Interior,내무,mt
+LOCALIZE|emailresponses|44,Make Public,공개,mt
+LOCALIZE|emailresponses|45,Deny,부인,mt
+LOCALIZE|emailresponses|46,Apologize,사과,mt
+LOCALIZE|emailresponses|47,Go To Dept,부서로 이동,mt
+LOCALIZE|emailresponses|48,Upgrade,개량,mt
+LOCALIZE|emailresponses|49,Center Map,지도 중앙으로,mt
+LOCALIZE|emailresponses|50,Go To Unit,유닛으로 이동,mt
+LOCALIZE|emailresponses|51,Negotiate,협상,mt
+LOCALIZE|emailresponses|52,Negotiate,협상,mt
+LOCALIZE|emailresponses|53,Legislate,입법,mt
+LOCALIZE|emailresponses|54,Research,연구,mt
+LOCALIZE|emailresponses|55,Support,지지,mt
+LOCALIZE|emailresponses|56,Condemn,규탄,mt
+LOCALIZE|emailresponses|57,Auto Accept,자동 수락,mt
+LOCALIZE|emailresponses|58,Decline,거절,mt
+LOCALIZE|emailresponses|59,Accept,수락,mt
+LOCALIZE|emoticons|0,THREATENING,위협적,mt
+LOCALIZE|emoticons|1,DEMANDING,요구적,mt
+LOCALIZE|emoticons|2,ARROGANT,오만함,mt
+LOCALIZE|emoticons|3,POLITE,공손함,mt
+LOCALIZE|emoticons|4,FRIENDLY,우호적,mt
+LOCALIZE|emoticons|5,GRATEFUL,감사,mt
+LOCALIZE|emoticons|6,PLEADING,간청,mt
+LOCALIZE|emptyplatform|0,Platform Empty,플랫폼 비어 있음,mt
+LOCALIZE|emptyplatform|1,No Missile Capacity,미사일 수용량 없음,mt
+LOCALIZE|emptyplatform|2,No Cargo Capacity,화물 수용량 없음,mt
+LOCALIZE|endfill|0,Computer,컴퓨터,mt
+LOCALIZE|endfill|1,Eliminated,탈락,mt
+LOCALIZE|endfill|2,Surrendered,항복,mt
+LOCALIZE|endfill|3,Available,참가 가능,mt
+LOCALIZE|errortext|0,Unable to Assign Player - Incorrect Password,플레이어를 지정할 수 없음 - 비밀번호 불일치,mt
+LOCALIZE|errortext|1,Unable to Assign Player - Hardware Lock,플레이어를 지정할 수 없음 - 하드웨어 잠금,mt
+LOCALIZE|espmissions|0,RECON,정찰,mt
+LOCALIZE|espmissions|1,THEFT,절취,mt
+LOCALIZE|espmissions|2,SABOTAGE,파괴 공작,mt
+LOCALIZE|espmissions|3,DECEPTION,기만,mt
+LOCALIZE|espmissions|4,COUNTER INTEL,방첩,mt
+LOCALIZE|expmisgrid|0,Platform Full,플랫폼 가득 참,mt
+LOCALIZE|expmisgrid|1,Missile Point Size Exceeds Platform Capability,미사일 크기가 플랫폼 수용 한계 초과,mt
+LOCALIZE|expmisgrid|2,Non-Compatible Platform Type,호환되지 않는 플랫폼 유형,mt
+LOCALIZE|expwords|0,Battlegroup,전투단,mt
+LOCALIZE|expwords|1,up to,최대,mt
+LOCALIZE|facilitylistcol|0,Urban,도심,mt
+LOCALIZE|facilitylistcol|1,Agriculture,농산물,mt
+LOCALIZE|facilitylistcol|2,Rubber,고무,mt
+LOCALIZE|facilitylistcol|3,Timber,목재,mt
+LOCALIZE|facilitylistcol|4,Petroleum,석유,mt
+LOCALIZE|facilitylistcol|5,Coal,석탄,mt
+LOCALIZE|facilitylistcol|6,Metal Ore,금속 광석,mt
+LOCALIZE|facilitylistcol|7,Uranium,우라늄,mt
+LOCALIZE|facilitylistcol|8,Electric Power,전력,mt
+LOCALIZE|facilitylistcol|9,Consumer Goods,소비재,mt
+LOCALIZE|facilitylistcol|10,Industry Goods,산업재,mt
+LOCALIZE|facilitylistcol|11,Military Goods,군수품,mt
+LOCALIZE|facilitylistcol|12,Defense,국방,mt
+LOCALIZE|facilitylistcol|13,Command,지휘,mt
+LOCALIZE|factionactions|0,Diplomacy,외교,mt
+LOCALIZE|factionactions|1,Declare War,선전포고,mt
+LOCALIZE|factionactions|2,Switch To,전환,mt
+LOCALIZE|factionactions|3,Liberate,해방,mt
+LOCALIZE|factionactions|4,Offer Peace,평화 제안,mt
+LOCALIZE|factionactions|5,Break Treaties,조약 파기,mt
+LOCALIZE|filterto|0,No Players in this Filter,이 필터에 플레이어 없음,mt
+LOCALIZE|filterto|1,Filter To,필터 대상,mt
+LOCALIZE|filterunitspecialties|0,Anti Submarine,대잠,mt
+LOCALIZE|filterunitspecialties|1,Strategic Bomber,전략 폭격기,mt
+LOCALIZE|filterunitspecialties|2,Mid-Air Refueling,공중 급유,mt
+LOCALIZE|filterunitspecialties|3,Carrier Landing,항공모함 착함,mt
+LOCALIZE|filterunitspecialties|4,Carrier Capacity,항공모함 수용량,mt
+LOCALIZE|filterunitspecialties|5,Missile Capable,미사일 운용 가능,mt
+LOCALIZE|filterunitspecialties|6,Amphibious,상륙,mt
+LOCALIZE|filterunitspecialties|7,Bridging,가교,mt
+LOCALIZE|filterunitspecialties|8,Air Droppable,공중 투하 가능,mt
+LOCALIZE|filterunitspecialties|9,Engineer,공병,mt
+LOCALIZE|focusdefname|0,All Production,전체 생산,mt
+LOCALIZE|focusdefname|1,All Reserves,전체 예비 전력,mt
+LOCALIZE|focusdefname|2,Battlezone,전투 구역,mt
+LOCALIZE|focusdefname|3,Custom Selection,사용자 지정,mt
+LOCALIZE|forcecontents|0,Force Contents - Land,병력 구성 - 지상,mt
+LOCALIZE|forcecontents|1,Force Contents - Air,병력 구성 - 항공,mt
+LOCALIZE|forcecontents|2,Force Contents - Navy,병력 구성 - 해군,mt
+LOCALIZE|forcecontents|4,Force Contents - Mixed,병력 구성 - 혼합,mt
+LOCALIZE|gamediff|0,Very Easy,매우 쉬움,mt
+LOCALIZE|gamediff|1,Easy,쉬움,mt
+LOCALIZE|gamediff|2,Normal,보통,mt
+LOCALIZE|gamediff|3,Hard,어려움,mt
+LOCALIZE|gamediff|4,Very Hard,매우 어려움,mt
+LOCALIZE|gamediff|5,Combined,복합,mt
+LOCALIZE|gamelen|0,None,없음,mt
+LOCALIZE|gamelen|1,6 Months,6개월,mt
+LOCALIZE|gamelen|2,12 Months,12개월,mt
+LOCALIZE|gamelen|3,18 Months,18개월,mt
+LOCALIZE|gamelen|4,24 Months,24개월,mt
+LOCALIZE|gamelen|5,36 Months,36개월,mt
+LOCALIZE|gamelen|6,48 Months,48개월,mt
+LOCALIZE|gamelen|7,60 Months,60개월,mt
+LOCALIZE|gamelen|8,72 Months,72개월,mt
+LOCALIZE|gamelen|9,84 Months,84개월,mt
+LOCALIZE|gamelen|10,96 Months,96개월,mt
+LOCALIZE|gamelen|11,108 Months,108개월,mt
+LOCALIZE|gamelen|12,120 Months,120개월,mt
+LOCALIZE|gameresource|0,Depleted,고갈,mt
+LOCALIZE|gameresource|1,Dwindling,감소 중,mt
+LOCALIZE|gameresource|2,Standard,표준,mt
+LOCALIZE|gameresource|3,Abundant,풍부,mt
+LOCALIZE|gameresource|4,Stockpiled,비축,mt
+LOCALIZE|gamespeed|0,Paused,일시 정지,mt
+LOCALIZE|gamespeed|1,Very Slow,매우 느림,mt
+LOCALIZE|gamespeed|2,Slow,느림,mt
+LOCALIZE|gamespeed|3,Normal,보통,mt
+LOCALIZE|gamespeed|4,Fast,빠름,mt
+LOCALIZE|gamespeed|5,Very Fast,매우 빠름,mt
+LOCALIZE|gamespeed|6,Fastest,최고 속도,mt
+LOCALIZE|gametechdef|0,None,없음,mt
+LOCALIZE|gametechdef|1,Basic,기초,mt
+LOCALIZE|gametechdef|2,Standard,표준,mt
+LOCALIZE|gametechdef|3,Accelerated,가속,mt
+LOCALIZE|gametechdef|4,Futuristic,미래형,mt
+LOCALIZE|gametypes|0,START SINGLE PLAYER GAME,싱글 플레이 게임 시작,mt
+LOCALIZE|gametypes|1,START SINGLE PLAYER CAMPAIGN,싱글 플레이 캠페인 시작,mt
+LOCALIZE|gametypes|2,HOST MULTI PLAYER GAME,멀티플레이 게임 호스트,mt
+LOCALIZE|gametypes|3,JOIN MULTI PLAYER GAME,멀티플레이 게임 참가,mt
+LOCALIZE|gamevictory|0,Complete,완전 정복,mt
+LOCALIZE|gamevictory|1,Capital,수도,mt
+LOCALIZE|gamevictory|2,Capture,점령,mt
+LOCALIZE|gamevictory|3,Unification,통일,mt
+LOCALIZE|gamevictory|4,Total Score,총점,mt
+LOCALIZE|gamevictory|5,Dipl Score,외교 점수,mt
+LOCALIZE|gamevictory|6,Econ Score,경제 점수,mt
+LOCALIZE|gamevictory|7,Tech Score,기술 점수,mt
+LOCALIZE|gamevictory|8,Aprv Score,지지율 점수,mt
+LOCALIZE|gamevictory|9,Mil Score,군사 점수,mt
+LOCALIZE|gamevictory|10,Sphere,세력권,mt
+LOCALIZE|gamevictory|11,Tech Race,기술 경쟁,mt
+LOCALIZE|gamevictory|12,Victory Points,승점,mt
+LOCALIZE|gamevictory|13,Capture Objective,목표 점령,mt
+LOCALIZE|gamevictory|14,Hold Objective,목표 사수,mt
+LOCALIZE|gamevictory|15,Future,미래,mt
+LOCALIZE|genders|0,MALE,남성,mt
+LOCALIZE|genders|1,FEMALE,여성,mt
+LOCALIZE|generalmsg|0,Quitting to Menu...,메뉴로 나가는 중...,mt
+LOCALIZE|generalmsg|1,Processing...,처리 중...,mt
+LOCALIZE|generalmsg|2,Loading...,불러오는 중...,mt
+LOCALIZE|govtitles|0,President,대통령,mt
+LOCALIZE|govtitles|1,Prime Minister,총리,mt
+LOCALIZE|govtitles|2,King,국왕,mt
+LOCALIZE|govtitles|3,Chancellor,수상,mt
+LOCALIZE|govtitles|4,Chairman,주석,mt
+LOCALIZE|govtitles|5,Premier,국무총리,mt
+LOCALIZE|govtitles|6,High Representative,고등대표,mt
+LOCALIZE|govtitles|7,Governor,총독,mt
+LOCALIZE|govtitles|8,Chief Minister,주 총리,mt
+LOCALIZE|govtitles|9,Supreme Leader,최고 지도자,mt
+LOCALIZE|govtitles|10,Taoiseach,아일랜드 총리,mt
+LOCALIZE|govtitles|11,Secretary-General,사무총장,mt
+LOCALIZE|govtitles|12,Administrator,행정관,mt
+LOCALIZE|govtitles|13,Prefect,지사,mt
+LOCALIZE|govtitles|14,Caiph,칼리프,mt
+LOCALIZE|govtitles|15,Councillor,평의원,mt
+LOCALIZE|govtitles|16,President,대통령,mt
+LOCALIZE|govtitles|17,Prime Minister,총리,mt
+LOCALIZE|govtitles|18,Queen,여왕,mt
+LOCALIZE|govtitles|19,Chancellor,수상,mt
+LOCALIZE|govtitles|20,Chair,의장,mt
+LOCALIZE|govtitles|21,Premier,국무총리,mt
+LOCALIZE|govtitles|22,High Representative,고등대표,mt
+LOCALIZE|govtitles|23,Governor,총독,mt
+LOCALIZE|govtitles|24,Chief Minister,주 총리,mt
+LOCALIZE|govtitles|25,Supreme Leader,최고 지도자,mt
+LOCALIZE|govtitles|26,Taoiseach,아일랜드 총리,mt
+LOCALIZE|govtype|0,World Market,세계 시장,mt
+LOCALIZE|govtype|1,Democracy,민주주의,mt
+LOCALIZE|govtype|2,Monarchy,군주제,mt
+LOCALIZE|govtype|3,Communism,공산주의,mt
+LOCALIZE|govtype|4,Dictatorship,독재,mt
+LOCALIZE|govtype|5,Theocracy,신정,mt
+LOCALIZE|govtype|6,Colony,식민지,mt
+LOCALIZE|govtype|7,District,특별구,mt
+LOCALIZE|govtype|8,Totalitarianism,전체주의,mt
+LOCALIZE|govtype|9,Democracy,민주주의,mt
+LOCALIZE|govtype|10,Autocracy,전제 정치,mt
+LOCALIZE|govtype|11,Pandemic,팬데믹,mt
+LOCALIZE|gridactionunload|0,No suitable terrain to unload unit,유닛을 내릴 적합한 지형 없음,mt
+LOCALIZE|gridactionunload|1,No units to unload,내릴 유닛 없음,mt
+LOCALIZE|gridactionunload|2,Unload this unit,이 유닛 하역,mt
+LOCALIZE|gridactionunload|3,Unload all units,전체 유닛 하역,mt
+LOCALIZE|gridactionunload|4,Unload selected units,선택한 유닛 하역,mt
+LOCALIZE|gridactionunload|5,No units selected,선택한 유닛 없음,mt
+LOCALIZE|gridactionunload|6,Load all units,전체 유닛 탑재,mt
+LOCALIZE|gridactionunload|7,Deploy all units,전체 유닛 배치,mt
+LOCALIZE|gridactionunload|8,Load all units into transports,전체 유닛을 수송 수단에 탑재,mt
+LOCALIZE|gridactionunload|9,Deploy unit,유닛 배치,mt
+LOCALIZE|gridactionunload|10,Load unit into transport,유닛을 수송 수단에 탑재,mt
+LOCALIZE|gridactionunload|11,No transport available,이용 가능한 수송 수단 없음,mt
+LOCALIZE|gridactionunload|15,Not a carrier unit,운반 유닛 아님,mt
+LOCALIZE|gridactionunload|16,No units on hex to load,헥스에 탑재할 유닛 없음,mt
+LOCALIZE|gridtech|0,Insufficient Tech Level,기술 수준 부족,mt
+LOCALIZE|gridtech|1,Banned by Treaty,조약으로 금지,mt
+LOCALIZE|gridtech|2,Waiting for Research Slot,연구 슬롯 대기,mt
+LOCALIZE|gridtech|3,Prerequisite Pending,선행 조건 대기,mt
+LOCALIZE|grouplabel|0,Press to Select Group,눌러서 그룹 선택,mt
+LOCALIZE|hexinfo|0,Park,공원,mt
+LOCALIZE|hexinfo|3,Naval,해상,mt
+LOCALIZE|hexinfo|4,Tropical,열대,mt
+LOCALIZE|hexinfo|5,Desert,사막,mt
+LOCALIZE|hexinfo|6,Alpine,고산,mt
+LOCALIZE|hexinfo|7,Freezable,결빙 가능,mt
+LOCALIZE|hexinfo|8,Low Visibility,저시정,mt
+LOCALIZE|hexinfo|9,High Ground,고지,mt
+LOCALIZE|hexmaprtdip|0,Send Email,이메일 보내기,mt
+LOCALIZE|hexmaprtdip|1,Diplomacy,외교,mt
+LOCALIZE|hexmaprtdip|2,Intel Ops,정보 작전,mt
+LOCALIZE|hexmaprtdip|3,Military Ops,군사 작전,mt
+LOCALIZE|hexmaprtdip|4,Declare War,선전포고,mt
+LOCALIZE|hexmaprtdip|5,Ceasefire,휴전,mt
+LOCALIZE|hexmaprtdip|6,Relations...,관계...,mt
+LOCALIZE|hexmaprtdip|7,Treaties...,조약...,mt
+LOCALIZE|hexmaprtdip|8,Boycotts...,불매...,mt
+LOCALIZE|hexmaprtpop|0,Pop %d,인구 %d,mt
+LOCALIZE|hexmaprtpop|1,Build...,건설...,mt
+LOCALIZE|hexmaprtpop|2,Rebuild Transp,수송망 재건,mt
+LOCALIZE|hexmaprtpop|3,Destroy Transp,수송망 파괴,mt
+LOCALIZE|hexmaprtpop|4,Air Drop,공중 투하,mt
+LOCALIZE|hexmaprtpop|5,Supply Request,보급 요청,mt
+LOCALIZE|hexmaprtpop|6,Air Patrol,공중 순찰,mt
+LOCALIZE|hexmaprtpop|7,Ground Patrol,지상 순찰,mt
+LOCALIZE|hexmaprtpop|8,Naval Patrol,해상 순찰,mt
+LOCALIZE|hexmaprtpop|9,Clear Mines,지뢰 제거,mt
+LOCALIZE|hexmaprtpop|10,Lay Mines,지뢰 매설,mt
+LOCALIZE|hexmaprtpop|11,Capture,점령,mt
+LOCALIZE|hexmaprtpop|12,Air Strike,공습,mt
+LOCALIZE|hexmaprtpop|13,Bombard,포격,mt
+LOCALIZE|hexmaprtpop|14,Missile Attack,미사일 공격,mt
+LOCALIZE|hexmaprtpop|15,Ground Attack,지상 공격,mt
+LOCALIZE|hexmaprtpop|16,Naval Attack,해상 공격,mt
+LOCALIZE|hexmaprtpop|17,Defend,방어,mt
+LOCALIZE|hexmaprtpop|18,Industry...,산업...,mt
+LOCALIZE|hexmaprtpop|19,Military...,군사...,mt
+LOCALIZE|hexmaprtpop|20,Transport...,수송...,mt
+LOCALIZE|hexmaprtpop|21,Details...,상세...,mt
+LOCALIZE|hexmaprtpop|22,Rename...,이름 변경...,mt
+LOCALIZE|hexmaprtpop|23,Cancel Request,요청 취소,mt
+LOCALIZE|hexmaprtug|0,Deactivate,비활성화,mt
+LOCALIZE|hexmaprtug|1,Destroy,파괴,mt
+LOCALIZE|hexmaprtug|2,Scrap,폐기,mt
+LOCALIZE|hexmaprtug|3,Undep Reserves,예비 배치 해제,mt
+LOCALIZE|hexmaprtug|4,Cancel Constr,건설 취소,mt
+LOCALIZE|hexmaprtug|5,Pause Constr,건설 중지,mt
+LOCALIZE|hexmaprtug|6,Rebuild,재건,mt
+LOCALIZE|hexmaprtug|7,Resume Constr,건설 재개,mt
+LOCALIZE|hexmaprtug|8,Activate,활성화,mt
+LOCALIZE|hexmaprtug|9,Upgrade,개량,mt
+LOCALIZE|hexmaprtug|10,Insuf Reserves,예비 전력 부족,mt
+LOCALIZE|hexspec|0,Park Designated,공원 지정,mt
+LOCALIZE|hexspec|1,Earthquake Zone,지진 지대,mt
+LOCALIZE|hexspec|2,Hurricane/Tornado Zone,허리케인/토네이도 지대,mt
+LOCALIZE|hexspec|3,Population,인구,mt
+LOCALIZE|hexspec|4,Owned by %s,%s 소유,mt
+LOCALIZE|hexspec|5,Loyal to %s,%s 충성,mt
+LOCALIZE|hexspec|6,Pollution Rating,오염도,mt
+LOCALIZE|hexspec|7,Raw Materials Production,원자재 생산,mt
+LOCALIZE|hexspec|8,NONE,없음,mt
+LOCALIZE|hexspec|9,Finished Goods Production,완제품 생산,mt
+LOCALIZE|hexspec|10,REGIONAL CAPITAL,지역 수도,mt
+LOCALIZE|hotkeydesc|0,Pause Game,게임 일시 정지,mt
+LOCALIZE|hotkeydesc|1,Cancel Action / Game Menu,동작 취소 / 게임 메뉴,mt
+LOCALIZE|hotkeydesc|2,Increase Game Speed,게임 속도 올리기,mt
+LOCALIZE|hotkeydesc|3,Decrease Game Speed,게임 속도 내리기,mt
+LOCALIZE|hotkeydesc|4,Increase Map Zoom,지도 확대,mt
+LOCALIZE|hotkeydesc|5,Decrease Map Zoom,지도 축소,mt
+LOCALIZE|hotkeydesc|6,Open Multiplayer Chat,멀티플레이 채팅 열기,mt
+LOCALIZE|hotkeydesc|7,Whisper in Multiplayer Chat,멀티플레이 귓속말,mt
+LOCALIZE|hotkeydesc|8,Cycle Map Hotspots,지도 핫스팟 순환,mt
+LOCALIZE|hotkeydesc|9,Help Tips,도움말 팁,mt
+LOCALIZE|hotkeydesc|10,Government Departements,정부 부처,mt
+LOCALIZE|hotkeydesc|11,Cabinet Popup,내각 창,mt
+LOCALIZE|hotkeydesc|12,Atlas / Scorecard,지도책 / 성적표,mt
+LOCALIZE|hotkeydesc|13,Open Defense Unit Production,국방 유닛 생산 열기,mt
+LOCALIZE|hotkeydesc|14,Centre Map on Selected Hex,선택한 헥스를 지도 중앙에,mt
+LOCALIZE|hotkeydesc|15,Centre Map on Capital,수도를 지도 중앙에,mt
+LOCALIZE|hotkeydesc|16,Open Diplomacy for Map Location,지도 위치에 대한 외교 열기,mt
+LOCALIZE|hotkeydesc|17,Toggle Unit HUD,유닛 HUD 전환,mt
+LOCALIZE|hotkeydesc|18,Alternate HUD Position,HUD 위치 바꾸기,mt
+LOCALIZE|hotkeydesc|19,Show Garrisons Overlay,수비대 오버레이 표시,mt
+LOCALIZE|hotkeydesc|20,Show Map Grid,지도 격자 표시,mt
+LOCALIZE|hotkeydesc|21,Show High Ground Overlay,고지 오버레이 표시,mt
+LOCALIZE|hotkeydesc|22,Infection Data Pop Up,감염 정보 창,mt
+LOCALIZE|hotkeydesc|23,Toggle Unit Sizes,유닛 크기 전환,mt
+LOCALIZE|hotkeydesc|24,Toggle Unit Zoom option,유닛 확대/축소 옵션 전환,mt
+LOCALIZE|hotkeydesc|25,Toggle Fog of War/Line of Sight,전장의 안개/시야 전환,mt
+LOCALIZE|hotkeydesc|26,Toggle Loyalty Overlay,충성도 오버레이 전환,mt
+LOCALIZE|hotkeydesc|27,Mute Sound,소리 끄기,mt
+LOCALIZE|hotkeydesc|28,Minimap Show/Hide,미니맵 표시/숨기기,mt
+LOCALIZE|hotkeydesc|29,Objectives (When Applicable),목표 (해당하는 경우),mt
+LOCALIZE|hotkeydesc|30,Toggle Unit Path Lines,유닛 경로선 전환,mt
+LOCALIZE|hotkeydesc|31,Quit Game,게임 종료,mt
+LOCALIZE|hotkeydesc|32,Open Research,연구 열기,mt
+LOCALIZE|hotkeydesc|33,Toggle 3D Perspective,3D 원근 전환,mt
+LOCALIZE|hotkeydesc|34,Supply Model Map Overlay,보급 모델 지도 오버레이,mt
+LOCALIZE|hotkeydesc|35,Switch Focus Colony/Empire,식민지/제국 중점 전환,mt
+LOCALIZE|hotkeydesc|36,Game Settings,게임 설정,mt
+LOCALIZE|hotkeydesc|37,Ground Defense Overlay,지상 방어 오버레이,mt
+LOCALIZE|hotkeydesc|38,Show Terrain Layer,지형 레이어 표시,mt
+LOCALIZE|hotkeydesc|39,Low Visibility/Close Combat Overlay,저시정/근접전 오버레이,mt
+LOCALIZE|hotkeydesc|40,Weather Overlay,기상 오버레이,mt
+LOCALIZE|hotkeydesc|41,Water Overlay,수계 오버레이,mt
+LOCALIZE|hotkeydesc|42,Remove all transport in hex,헥스의 모든 수송망 제거,mt
+LOCALIZE|hotkeydesc|43,Max Zoom Out,최대 축소,mt
+LOCALIZE|hotkeydesc|44,Normal Zoom Level,기본 확대 수준,mt
+LOCALIZE|hotkeydesc|45,Max Zoom In,최대 확대,mt
+LOCALIZE|hotkeydesc|46,Scrap entire hex,헥스 전체 폐기,mt
+LOCALIZE|hotkeydesc|48,--- Modding ---,--- 모딩 ---,mt
+LOCALIZE|hotkeydesc|49,Unit Mesh Properties,유닛 메시 속성,mt
+LOCALIZE|hotkeydesc|51,--- Unit Specific Actions ---,--- 유닛별 동작 ---,mt
+LOCALIZE|hotkeydesc|52,Toggle Formation Move,대형 이동 전환,mt
+LOCALIZE|hotkeydesc|53,Camera Follow,카메라 추적,mt
+LOCALIZE|hotkeydesc|54,Select Group #,그룹 # 선택,mt
+LOCALIZE|hotkeydesc|55,Create Group #,그룹 # 생성,mt
+LOCALIZE|hotkeydesc|56,Add Group # to selection,그룹 #를 선택에 추가,mt
+LOCALIZE|hotkeydesc|57,Add to Group #,그룹 #에 추가,mt
+LOCALIZE|hotkeydesc|59,--- Unit Orders ---,--- 유닛 명령 ---,mt
+LOCALIZE|hotkeydesc|60,Attack Unit,유닛 공격,mt
+LOCALIZE|hotkeydesc|61,Bombard,포격,mt
+LOCALIZE|hotkeydesc|62,Construction Assist,건설 지원,mt
+LOCALIZE|hotkeydesc|63,Attack Facility,시설 공격,mt
+LOCALIZE|hotkeydesc|64,Scrap,폐기,mt
+LOCALIZE|hotkeydesc|65,Load Unit,유닛 탑재,mt
+LOCALIZE|hotkeydesc|66,Move,이동,mt
+LOCALIZE|hotkeydesc|67,Entrench,참호 구축,mt
+LOCALIZE|hotkeydesc|68,Patrol,순찰,mt
+LOCALIZE|hotkeydesc|69,Repair,수리,mt
+LOCALIZE|hotkeydesc|70,Unload,하역,mt
+LOCALIZE|hotkeydesc|71,Reserve,예비 편입,mt
+LOCALIZE|hotkeydesc|75,out of range,사거리 밖,mt
+LOCALIZE|hotkeyvalue|0,<PAUSE> or <SPACE> or <P>,<PAUSE> / <SPACE> / <P>,mt
+LOCALIZE|hotkeyvalue|1,<ESC>,,
+LOCALIZE|hotkeyvalue|2,<PAGE UP>,,
+LOCALIZE|hotkeyvalue|3,<PAGE DOWN>,,
+LOCALIZE|hotkeyvalue|4,<END> or Keypad <+>,<END> / 키패드 <+>,mt
+LOCALIZE|hotkeyvalue|5,<HOME> or Keypad <->,<HOME> / 키패드 <->,mt
+LOCALIZE|hotkeyvalue|6,<ENTER>,,
+LOCALIZE|hotkeyvalue|7,<@>,,
+LOCALIZE|hotkeyvalue|8,<TAB>,,
+LOCALIZE|hotkeyvalue|9,<F1>,,
+LOCALIZE|hotkeyvalue|10,<F2> to <F8>,<F2> ~ <F8>,mt
+LOCALIZE|hotkeyvalue|12,<A>,,
+LOCALIZE|hotkeyvalue|13,<B>,,
+LOCALIZE|hotkeyvalue|14,<C>,,
+LOCALIZE|hotkeyvalue|15,<Ctrl> + <C>,,
+LOCALIZE|hotkeyvalue|16,<D>,,
+LOCALIZE|hotkeyvalue|17,<Shift> + <D>,,
+LOCALIZE|hotkeyvalue|18,<Ctrl> + <D>,,
+LOCALIZE|hotkeyvalue|19,<G>,,
+LOCALIZE|hotkeyvalue|20,<Ctrl> + <G>,,
+LOCALIZE|hotkeyvalue|21,<H>,,
+LOCALIZE|hotkeyvalue|22,<I>,,
+LOCALIZE|hotkeyvalue|23,<Shift> + <J>,,
+LOCALIZE|hotkeyvalue|24,<Ctrl> + <Shift> + <J>,,
+LOCALIZE|hotkeyvalue|25,<L>,,
+LOCALIZE|hotkeyvalue|26,<Ctrl> + <L>,,
+LOCALIZE|hotkeyvalue|27,<Ctrl> + <M>,,
+LOCALIZE|hotkeyvalue|28,<Shift> + <M>,,
+LOCALIZE|hotkeyvalue|29,<O>,,
+LOCALIZE|hotkeyvalue|30,<Shift> + <P>,,
+LOCALIZE|hotkeyvalue|31,<Ctrl> + <Q> or <F11>,<Ctrl> + <Q> / <F11>,mt
+LOCALIZE|hotkeyvalue|32,<R>,,
+LOCALIZE|hotkeyvalue|33,<Ctrl> + <R>,,
+LOCALIZE|hotkeyvalue|34,<S>,,
+LOCALIZE|hotkeyvalue|35,<Ctrl> + <S>,,
+LOCALIZE|hotkeyvalue|36,<Ctrl> + <Shift> + <S>,,
+LOCALIZE|hotkeyvalue|37,<T>,,
+LOCALIZE|hotkeyvalue|38,<Ctrl> + <T>,,
+LOCALIZE|hotkeyvalue|39,<V>,,
+LOCALIZE|hotkeyvalue|40,<W>,,
+LOCALIZE|hotkeyvalue|41,<Shift> + <W>,,
+LOCALIZE|hotkeyvalue|42,<Ctrl> + <Shift> + <X>,,
+LOCALIZE|hotkeyvalue|43,<Ctrl> + <X>,,
+LOCALIZE|hotkeyvalue|44,<Z>,,
+LOCALIZE|hotkeyvalue|45,<Ctrl> + <Z>,,
+LOCALIZE|hotkeyvalue|46,<Ctrl> + <Shift> + <Z>,,
+LOCALIZE|hotkeyvalue|49,<U>,,
+LOCALIZE|hotkeyvalue|52,<F>,,
+LOCALIZE|hotkeyvalue|53,<Ctrl> + <F>,,
+LOCALIZE|hotkeyvalue|54,<#>,,
+LOCALIZE|hotkeyvalue|55,<Ctrl> + <#>,,
+LOCALIZE|hotkeyvalue|56,<Shift> + <#>,,
+LOCALIZE|hotkeyvalue|57,<Ctrl> + <Shift> + <#>,,
+LOCALIZE|hotkeyvalue|60,<Ctrl> + <Shift> + <A>,,
+LOCALIZE|hotkeyvalue|61,<Ctrl> + <Shift> + <B>,,
+LOCALIZE|hotkeyvalue|62,<Ctrl> + <Shift> + <C>,,
+LOCALIZE|hotkeyvalue|63,<Ctrl> + <Shift> + <F>,,
+LOCALIZE|hotkeyvalue|64,<Ctrl> + <Shift> + <K>,,
+LOCALIZE|hotkeyvalue|65,<Ctrl> + <Shift> + <L>,,
+LOCALIZE|hotkeyvalue|66,<Ctrl> + <Shift> + <M>,,
+LOCALIZE|hotkeyvalue|67,<Ctrl> + <Shift> + <N>,,
+LOCALIZE|hotkeyvalue|68,<Ctrl> + <Shift> + <P>,,
+LOCALIZE|hotkeyvalue|69,<Ctrl> + <Shift> + <R>,,
+LOCALIZE|hotkeyvalue|70,<Ctrl> + <Shift> + <U>,,
+LOCALIZE|hotkeyvalue|71,<Ctrl> + <Shift> + <V>,,
+LOCALIZE|hotkeyvalue|75,out of range,사거리 밖,mt
+LOCALIZE|hotrelations|0,None,없음,mt
+LOCALIZE|hotrelations|1,Low,낮음,mt
+LOCALIZE|hotrelations|2,Medium,중간,mt
+LOCALIZE|hotrelations|3,High,높음,mt
+LOCALIZE|hotrelations|4,Very High,매우 높음,mt
+LOCALIZE|hotspotparams|0,Priority,우선순위,mt
+LOCALIZE|hotspotparams|1,Force Size,병력 규모,mt
+LOCALIZE|hotspotparams|2,Mission,임무,mt
+LOCALIZE|hotspotparams|3,Type,유형,mt
+LOCALIZE|hotspotparams|4,Support,지원,mt
+LOCALIZE|hotspotreq|0,Garrison,수비대,mt
+LOCALIZE|hotspotreq|1,Defense,방어,mt
+LOCALIZE|hotspotreq|2,Assistance,지원 요청,mt
+LOCALIZE|hotspotreq|3,Supplies,보급품,mt
+LOCALIZE|hotspotreq|4,Air Support,항공 지원,mt
+LOCALIZE|hotspotreq|5,Land Transport,육상 수송,mt
+LOCALIZE|hotspotreq|6,Sea Supply,해상 보급,mt
+LOCALIZE|hotspotreq|7,Sea Attack,해상 공격,mt
+LOCALIZE|hotspotreq|8,Attack,공격,mt
+LOCALIZE|hotspotreq|9,Battle Support,전투 지원,mt
+LOCALIZE|industry|0,CONSUMER GOODS,소비재,mt
+LOCALIZE|industry|1,INDUSTRY GOODS,산업재,mt
+LOCALIZE|industry|2,MILITARY GOODS,군수품,mt
+LOCALIZE|industry|3,RESERVED,예약됨,mt
+LOCALIZE|landdev|0,Improve Cities,도시 개선,mt
+LOCALIZE|landdev|1,Improve Military,군사 개선,mt
+LOCALIZE|landdev|2,Improve Industries,산업 개선,mt
+LOCALIZE|landinit|0,NONE - All units engaged will fire back and resupply where they are positioned.,없음 - 교전 중인 모든 유닛은 현 위치에서 응사하고 재보급을 받습니다.,mt
+LOCALIZE|landinit|1,"LOW - Units will also go for repair, perform some border recon and defensive pre-positioning.","낮음 - 유닛이 수리를 받으러 가고, 일부 국경 정찰과 방어 사전 배치도 수행합니다.",mt
+LOCALIZE|landinit|2,"MEDIUM - Units will also retreat, increase border recon and units will react in defensive situations.","중간 - 유닛이 후퇴하고, 국경 정찰을 늘리며, 방어 상황에 대응합니다.",mt
+LOCALIZE|landinit|3,HIGH - Units will also actively attack and defend.  Recapture lost territory and invade regions while at war.  Units will call for resupply.,높음 - 유닛이 적극적으로 공격하고 방어합니다. 교전 중에는 잃은 영토를 되찾고 지역을 침공합니다. 유닛이 재보급을 요청합니다.,mt
+LOCALIZE|landinit|4,FULL - Units will also actively reserve and deploy.,최대 - 유닛이 적극적으로 예비 편입과 배치를 수행합니다.,mt
+LOCALIZE|lansubdept|0,COMPLEX DETAILS,단지 상세,mt
+LOCALIZE|lansubdept|1,MILITARY PRESENCE,군 주둔 현황,mt
+LOCALIZE|lansubdept|2,MAP FILTERS,지도 필터,mt
+LOCALIZE|lansubdept|3,LAND DEVELOPMENT,국토 개발,mt
+LOCALIZE|lansubdept|4,TRANSPORTATION,수송,mt
+LOCALIZE|lansubdept|5,LAND TAGS,국토 태그,mt
+LOCALIZE|lansubdept|6,7,,
+LOCALIZE|lansubdept|7,8,,
+LOCALIZE|lansubdept|8,9,,
+LOCALIZE|lansubdept|9,10,,
+LOCALIZE|leadass|0,Use Minister,장관 판단에 맡김,mt
+LOCALIZE|leadass|1,Low,낮음,mt
+LOCALIZE|leadass|2,Medium,중간,mt
+LOCALIZE|leadass|3,High,높음,mt
+LOCALIZE|leadass|4,Critical,최우선,mt
+LOCALIZE|leaderattitude|0,Threatening-Demanding,위협적·요구적,mt
+LOCALIZE|leaderattitude|1,Arrogant,오만함,mt
+LOCALIZE|leaderattitude|2,Polite,공손함,mt
+LOCALIZE|leaderattitude|3,Friendly,우호적,mt
+LOCALIZE|levelword|0,NONE,없음,mt
+LOCALIZE|levelword|1,LOW,낮음,mt
+LOCALIZE|levelword|2,MEDIUM,중간,mt
+LOCALIZE|levelword|3,HIGH,높음,mt
+LOCALIZE|levelword|4,ALL,전체,mt
+LOCALIZE|listdata|0,Sort by,정렬 기준,mt
+LOCALIZE|listdata|1,Filter to,필터 대상,mt
+LOCALIZE|listdata|2,Population,인구,mt
+LOCALIZE|listdata|3,Large Populations,대규모 인구,mt
+LOCALIZE|listdata|4,Casus Belli Towards,대상 전쟁 명분,mt
+LOCALIZE|listdata|5,Casus Belli From,피해 전쟁 명분,mt
+LOCALIZE|listdata|6,Trade Size,무역 규모,mt
+LOCALIZE|listdata|7,Tech Level,기술 수준,mt
+LOCALIZE|listdata|8,Alphabetically,가나다순,mt
+LOCALIZE|listdata|9,Tech Bump Bonus,기술 도약 보너스,mt
+LOCALIZE|listdata|10,Public Opinion,국내 여론,mt
+LOCALIZE|listdata|11,World Opinion,세계 여론,mt
+LOCALIZE|listdata|12,Time Remaining - Least,남은 시간 - 짧은 순,mt
+LOCALIZE|listdata|13,Time Remaining - Most,남은 시간 - 긴 순,mt
+LOCALIZE|listdata|14,Projects with Effects,효과 있는 프로젝트,mt
+LOCALIZE|listdata|15,Bordering Regions,인접 지역,mt
+LOCALIZE|listdata|16,Thread Level Assigned,지정된 위협 수준,mt
+LOCALIZE|listdata|17,Relations,관계,mt
+LOCALIZE|listdata|18,United Nations Member,유엔 회원국,mt
+LOCALIZE|listdata|19,Movement Type,이동 유형,mt
+LOCALIZE|listdata|20,Attack Range,공격 사거리,mt
+LOCALIZE|listdata|21,Target Type,표적 유형,mt
+LOCALIZE|listdata|22,Platform Type,플랫폼 유형,mt
+LOCALIZE|listdata|23,Missile Size,미사일 크기,mt
+LOCALIZE|loadmsg|0,Loading Graphics...,그래픽 불러오는 중...,mt
+LOCALIZE|loadmsg|1,Loading Main Map...,주 지도 불러오는 중...,mt
+LOCALIZE|loadmsg|2,Scenario:,시나리오:,mt
+LOCALIZE|lobbyheader|0,Sandbox,샌드박스,mt
+LOCALIZE|lobbyheader|1,Scenarios,시나리오,mt
+LOCALIZE|lobbyheader|2,Workshop,워크숍,mt
+LOCALIZE|lobbyheader|4,Custom,사용자 지정,mt
+LOCALIZE|lobbyheader|5,Workshop,워크숍,mt
+LOCALIZE|lobopt120035|0,Region Name,지역 이름,mt
+LOCALIZE|lobopt120035|1,Player Name,플레이어 이름,mt
+LOCALIZE|lobopt1206|0,Off,끔,mt
+LOCALIZE|lobopt1206|1,0.1,,
+LOCALIZE|lobopt1206|2,0.25,,
+LOCALIZE|lobopt1206|3,0.5,,
+LOCALIZE|lobopt120606|0,Off,끔,mt
+LOCALIZE|lobopt120606|1,10 Sec.,10초,mt
+LOCALIZE|lobopt120606|2,20 Sec.,20초,mt
+LOCALIZE|lobopt120606|3,30 Sec.,30초,mt
+LOCALIZE|lobopt1231|0,4 Lines,4줄,mt
+LOCALIZE|lobopt1231|1,6 Lines,6줄,mt
+LOCALIZE|lobopt1231|2,8 Lines,8줄,mt
+LOCALIZE|lobopt1236|0,7 Days,7일,mt
+LOCALIZE|lobopt1236|1,15 Days,15일,mt
+LOCALIZE|lobopt1236|2,30 Days,30일,mt
+LOCALIZE|lobopt1236|3,60 Days,60일,mt
+LOCALIZE|lobopt1236|4,Never Delete,삭제 안 함,mt
+LOCALIZE|lobopt1249|0,16 Lines,16줄,mt
+LOCALIZE|lobopt1249|1,32 Lines,32줄,mt
+LOCALIZE|lobopt1249|2,48 Lines,48줄,mt
+LOCALIZE|lobopt1825|0,None,없음,mt
+LOCALIZE|lobopt1825|1,1 Day,1일,mt
+LOCALIZE|lobopt1825|2,7 Days,7일,mt
+LOCALIZE|lobopt1825|3,14 Days,14일,mt
+LOCALIZE|lobopt1825|4,30 Days,30일,mt
+LOCALIZE|localadditions|0,None Available,가능 항목 없음,mt
+LOCALIZE|localadditions|1,Players,플레이어,mt
+LOCALIZE|localadditions|2,PLAYER,플레이어,mt
+LOCALIZE|localadditions|3,New Game,새 게임,mt
+LOCALIZE|localadditions|4,AutoSave,자동 저장,mt
+LOCALIZE|localadditions|5,Log On,접속,mt
+LOCALIZE|localadditions|6,Log Off,접속 종료,mt
+LOCALIZE|localadditions|7,Ready,준비 완료,mt
+LOCALIZE|localadditions|8,Waiting,대기 중,mt
+LOCALIZE|localphrases|0,%s¶¶Popular Opinion: %s¶World Opinion: %s¶%s¶%s¶%s%s%s,%s¶¶국내 여론: %s¶세계 여론: %s¶%s¶%s¶%s%s%s,mt
+LOCALIZE|localphrases|1,Player %d (%s) DISCONNECTED.,플레이어 %d (%s) 접속이 끊겼습니다.,mt
+LOCALIZE|localphrases|2,Arrears %s,연체 %s,mt
+LOCALIZE|localphrases|3,Previous Capital,이전 수도,mt
+LOCALIZE|localphrases|4,%4.1f Hexes,%4.1f 헥스,mt
+LOCALIZE|localphrases|5,Months,개월,mt
+LOCALIZE|localphrases|6,%d Experience,경험 %d,mt
+LOCALIZE|localphrases|7,%d Payments,%d회 납입,mt
+LOCALIZE|localphrases|8,Provides,제공,mt
+LOCALIZE|localphrases|9,%s News,%s 뉴스,mt
+LOCALIZE|localphrases|10,%s Research Discovery¶,%s 연구 성과¶,mt
+LOCALIZE|localphrases|11,%s Reserve Unit¶,%s 예비 유닛¶,mt
+LOCALIZE|localphrases|12,%s Unit Design¶,%s 유닛 설계¶,mt
+LOCALIZE|localphrases|13,(%3.0f%% Strength Remaining),(남은 전력 %3.0f%%),mt
+LOCALIZE|localphrases|14,(%s Remaining),(%s 남음),mt
+LOCALIZE|localphrases|15,(AT PEACE - MAX DEFCON 2),(평화 시 - 최대 데프콘 2),mt
+LOCALIZE|localphrases|16,(AT WAR - MIN DEFCON 3),(전시 - 최소 데프콘 3),mt
+LOCALIZE|localphrases|17,(Daily Build Cost %s),(일일 생산 비용 %s),mt
+LOCALIZE|localphrases|18,¶¶---------Previous Message---------¶,¶¶---------이전 메시지---------¶,mt
+LOCALIZE|localphrases|19,¶Cabinet Opinion: %s.¶,¶내각 의견: %s.¶,mt
+LOCALIZE|localphrases|20,"¶Financial Value: Offered %s, Requested %s.¶","¶재정 가치: 제시 %s, 요청 %s.¶",mt
+LOCALIZE|localphrases|21,¶----- Items REQUESTED by %s:¶,¶----- %s 측 요청 항목:¶,mt
+LOCALIZE|localphrases|22,¶Message:¶,¶메시지:¶,mt
+LOCALIZE|localphrases|23,¶Offer Valid Until %s.¶,¶제안 유효 기한: %s.¶,mt
+LOCALIZE|localphrases|24,¶This Offer EXPIRED on %s.¶,¶이 제안은 만료되었습니다(만료일: %s).¶,mt
+LOCALIZE|localphrases|25,¶----- Items OFFERED by %s:¶,¶----- %s 측 제안 항목:¶,mt
+LOCALIZE|localphrases|26,Base Under Construction,기지 건설 중,mt
+LOCALIZE|localphrases|27,Being Demolished,철거 중,mt
+LOCALIZE|localphrases|28,Build %s,%s 건설,mt
+LOCALIZE|localphrases|29,Build New,신규 건설,mt
+LOCALIZE|localphrases|30,Change Government to %s,정부를 %s(으)로 변경,mt
+LOCALIZE|localphrases|31,Civ Demand %s %s,민간 수요 %s %s,mt
+LOCALIZE|localphrases|32,Design: %s,설계: %s,mt
+LOCALIZE|localphrases|33,Email From %s,이메일 발신: %s,mt
+LOCALIZE|localphrases|34,First Available,첫 번째 가능 항목,mt
+LOCALIZE|localphrases|35,Game Speed Changed to %s,게임 속도가 %s(으)로 변경됨,mt
+LOCALIZE|localphrases|36,Has Joined Game.,게임에 참가했습니다.,mt
+LOCALIZE|localphrases|37,Incompatible Game Version.,호환되지 않는 게임 버전입니다.,mt
+LOCALIZE|localphrases|38,Land Tag %d (%d sq km) (%d),국토 태그 %d (%d 제곱km) (%d),mt
+LOCALIZE|localphrases|39,Loyal to,충성 대상,mt
+LOCALIZE|localphrases|40,Mis Design: %s,미사일 설계: %s,mt
+LOCALIZE|localphrases|41,No Cargo,화물 없음,mt
+LOCALIZE|localphrases|42,No Cargo/Missiles,화물/미사일 없음,mt
+LOCALIZE|localphrases|43,No Demand,수요 없음,mt
+LOCALIZE|localphrases|44,No Limit,제한 없음,mt
+LOCALIZE|localphrases|45,No Missiles,미사일 없음,mt
+LOCALIZE|localphrases|46,No Notes.,메모 없음.,mt
+LOCALIZE|localphrases|47,No Outstanding Bonds,미상환 채권 없음,mt
+LOCALIZE|localphrases|48,No Reserves,예비 전력 없음,mt
+LOCALIZE|localphrases|49,No Target,표적 없음,mt
+LOCALIZE|localphrases|50,No Undeployed,미배치 유닛 없음,mt
+LOCALIZE|localphrases|51,None Available,가능 항목 없음,mt
+LOCALIZE|localphrases|52,None of this type,이 유형 없음,mt
+LOCALIZE|localphrases|53,None Selected,선택 없음,mt
+LOCALIZE|localphrases|54,ON HOLD,보류 중,mt
+LOCALIZE|localphrases|55,Owned by,소유자,mt
+LOCALIZE|localphrases|56,Pending Capital,예정 수도,mt
+LOCALIZE|localphrases|57,Player %d (%s) is ELIMINATED.,플레이어 %d (%s) 탈락.,mt
+LOCALIZE|localphrases|58,Power Gen %s %s,발전 %s %s,mt
+LOCALIZE|localphrases|59,Regional Capital,지역 수도,mt
+LOCALIZE|localphrases|61,Size %d,규모 %d,mt
+LOCALIZE|localphrases|62,Storage Limit Reached,저장 한도 도달,mt
+LOCALIZE|localphrases|63,Sync Error: Different Game Versions.,동기화 오류: 게임 버전 불일치.,mt
+LOCALIZE|localphrases|64,Sync Error: Mismatched %s File.,동기화 오류: %s 파일 불일치.,mt
+LOCALIZE|localphrases|65,%s DISCONNECTED.,%s 접속 끊김.,mt
+LOCALIZE|localphrases|66,%s (%s) is ELIMINATED.,%s (%s) 탈락.,mt
+LOCALIZE|localphrases|67,%s (%s) has SURRENDERED.	,%s (%s) 항복.,mt
+LOCALIZE|localphrases|68,--,,
+LOCALIZE|localphrases|69,--,,
+LOCALIZE|localphrases|70,--,,
+LOCALIZE|localphrases|71,Target Facility,표적 시설,mt
+LOCALIZE|localphrases|72,Target Settlement,표적 거주지,mt
+LOCALIZE|localphrases|73,Target Transport,표적 수송망,mt
+LOCALIZE|localphrases|74,This is a pre-requisite for Facility Construction.¶,시설 건설의 선행 조건입니다.¶,mt
+LOCALIZE|localphrases|75,This is a pre-requisite for Unit Designs.¶,유닛 설계의 선행 조건입니다.¶,mt
+LOCALIZE|localphrases|76,This is not a Tradable development.,거래할 수 없는 개발 항목입니다.,mt
+LOCALIZE|localphrases|77,Unit Design: %s,유닛 설계: %s,mt
+LOCALIZE|localphrases|78,We do not presently have the resources requested by this offer.¶,이번 제안이 요청한 자원이 현재 없습니다.¶,mt
+LOCALIZE|localphrases|79,Self Sufficient,자급자족,mt
+LOCALIZE|localphrases|80,Sync Error: Mismatched TER File.,동기화 오류: TER 파일 불일치.,mt
+LOCALIZE|localphrases|81,Unit Design,유닛 설계,mt
+LOCALIZE|localphrases|82,No Supply,보급 없음,mt
+LOCALIZE|localphrases|83,Quality Rating,품질 등급,mt
+LOCALIZE|localphrases|84,Hosting at IP Address,IP 주소로 호스팅 중,mt
+LOCALIZE|localphrases|85,Player %d (%s) has SURRENDERED.,플레이어 %d (%s) 항복.,mt
+LOCALIZE|localphrases|86,(Ruling Party),(집권당),mt
+LOCALIZE|localphrases|87,Player %d (%s) HAS LEFT THE GAME.,플레이어 %d (%s) 게임 이탈.,mt
+LOCALIZE|localphrases|88,%s Saved on %s.¶,%s 저장일: %s.¶,mt
+LOCALIZE|localphrases|89,Nothing to report.¶,보고할 내용이 없습니다.¶,mt
+LOCALIZE|localphrases|90,Restrict %s Sales/Exports,%s 판매/수출 제한,mt
+LOCALIZE|localphrases|91,Restrict %s Purchases/Imports,%s 구매/수입 제한,mt
+LOCALIZE|localphrases|92,%11s %15s (Sell),%11s %15s (판매),mt
+LOCALIZE|localphrases|93,%11s %15s (Buy),%11s %15s (구매),mt
+LOCALIZE|localphrases|94,%15s (Sell),%15s (판매),mt
+LOCALIZE|localphrases|95,%15s (Buy),%15s (구매),mt
+LOCALIZE|localphrases|96,Normal,보통,mt
+LOCALIZE|localphrases|97,PAUSED,일시 정지,mt
+LOCALIZE|localphrases|98,Conditions Unable to Support %s,조건 부족: %s 유지 불가,mt
+LOCALIZE|localphrases|99,Select All %s,%s 전체 선택,mt
+LOCALIZE|localphrases|100,No Unit Selected,선택한 유닛 없음,mt
+LOCALIZE|localphrases|101,Minister Build Priority -,장관 생산 우선순위 -,mt
+LOCALIZE|localphrases|102,In Transit,통행 중,mt
+LOCALIZE|localphrases|103,%d Population Lost to Starvation on Previous Day,전날 아사로 인구 %d명 감소,mt
+LOCALIZE|localphrases|104,Reports of Starvation,아사 보고,mt
+LOCALIZE|localphrases|105,No Movement Filters,이동 필터 없음,mt
+LOCALIZE|localphrases|106,Movement Filters,이동 필터,mt
+LOCALIZE|localphrases|107,No Specialty Filters,특기 필터 없음,mt
+LOCALIZE|localphrases|108,Specialty Filters - AND,특기 필터 - AND,mt
+LOCALIZE|localphrases|109,Specialty Filters - OR,특기 필터 - OR,mt
+LOCALIZE|localphrases|110,You must have a Resources Status treaty signed with this country to view this information.,이 정보를 보려면 이 나라와 자원 현황 조약을 체결해야 합니다.,mt
+LOCALIZE|localphrases|111,Region has a Notable Debt Level,부채 수준이 눈에 띄는 지역,mt
+LOCALIZE|localphrases|112,Region has a Significant Debt Level,부채 수준이 심각한 지역,mt
+LOCALIZE|localphrases|113,% tariff applied,% 관세 적용,mt
+LOCALIZE|localrelate|0,%s Feels Diplomatically %s Towards %s,%s 측의 외교적 태도: %s (대상: %s),mt
+LOCALIZE|localrelate|1,The People of %s Feel %s Towards %s,%s 국민의 감정: %s (대상: %s),mt
+LOCALIZE|localrelate|2,%s has %s War Justification Towards %s,%s 측 전쟁 명분: %s (대상: %s),mt
+LOCALIZE|localrelate|3,%s has a Treaty Integrity Rating of %s,%s 측 조약 신뢰도: %s,mt
+LOCALIZE|localrelate|4,The World Market Feels %s Towards %s,세계 시장의 감정: %s (대상: %s),mt
+LOCALIZE|localrelate|5,%s has a World Market Subsidy Rating of %s,%s 측 세계 시장 보조금 등급: %s,mt
+LOCALIZE|localrelate|6,%s has %s Provocation Towards %s,%s 측 도발 수준: %s (대상: %s),mt
+LOCALIZE|localrelate|7,The likelihood %s will attack %s is %s,%s 측의 공격 가능성 (대상: %s): %s,mt
+LOCALIZE|localwords|0,--,,
+LOCALIZE|localwords|1,(Observer),(관전자),mt
+LOCALIZE|localwords|2,(Unknown),(알 수 없음),mt
+LOCALIZE|localwords|3,--> ALL,--> 전체,mt
+LOCALIZE|localwords|4,--> SELECTED,--> 선택,mt
+LOCALIZE|localwords|5,Arrears,연체,mt
+LOCALIZE|localwords|6,CANCEL,취소,mt
+LOCALIZE|localwords|7,CAPITAL,수도,mt
+LOCALIZE|localwords|8,CARGO,화물,mt
+LOCALIZE|localwords|9,Construction,건설,mt
+LOCALIZE|localwords|10,Dept,부서,mt
+LOCALIZE|localwords|11,DESTINATION,목적지,mt
+LOCALIZE|localwords|12,Idle,유휴,mt
+LOCALIZE|localwords|13,--,,
+LOCALIZE|localwords|14,IMMEDIATE,즉시,mt
+LOCALIZE|localwords|15,Inactive,비활성,mt
+LOCALIZE|localwords|16,Leadership,지도부,mt
+LOCALIZE|localwords|17,Military,군사,mt
+LOCALIZE|localwords|18,Construction,건설,mt
+LOCALIZE|localwords|19,Mixed,혼합,mt
+LOCALIZE|localwords|20,n/a,해당 없음,mt
+LOCALIZE|localwords|21,None,없음,mt
+LOCALIZE|localwords|22,Potential,잠재력,mt
+LOCALIZE|localwords|23,Provides,제공,mt
+LOCALIZE|localwords|24,RE:,,
+LOCALIZE|localwords|25,Retooling,설비 교체,mt
+LOCALIZE|localwords|26,Inspecting %s,%s 조사 중,mt
+LOCALIZE|localwords|28,Str %d,전력 %d,mt
+LOCALIZE|localwords|29,SUP %d %s,보급 %d %s,mt
+LOCALIZE|localwords|30,UNKNOWN,알 수 없음,mt
+LOCALIZE|localwords|31,Unknown,알 수 없음,mt
+LOCALIZE|localwords|32,Waiting,대기 중,mt
+LOCALIZE|localwords|33,--> AVAILABLE,--> 가용,mt
+LOCALIZE|localwords|34,Nothing,없음,mt
+LOCALIZE|localwords|35,Difficulty,난이도,mt
+LOCALIZE|localwords|36,Missile,미사일,mt
+LOCALIZE|localwords|37,ICBM,,
+LOCALIZE|localwords|38,Mission Game¶,임무 게임¶,mt
+LOCALIZE|localwords|39,Campaign Game¶,캠페인 게임¶,mt
+LOCALIZE|localwords|40,City,도시,mt
+LOCALIZE|localwords|41,Open,열림,mt
+LOCALIZE|localwords|42,Closed,닫힘,mt
+LOCALIZE|localwords|43,Regions,지역,mt
+LOCALIZE|losetext|5,You have failed in your efforts to unify your neighbors .  %s has emerged the victor of the unification vote!,이웃 국가를 통일하려던 노력이 실패했습니다. %s 측이 통일 투표의 승자가 되었습니다.,mt
+LOCALIZE|losetext|6,You have been Eliminated!  Your region has fallen and you have been forced from office in disgrace.,"탈락했습니다! 당신의 지역은 무너졌고, 불명예 속에 공직에서 쫓겨났습니다.",mt
+LOCALIZE|losetext|8,You have not met your objectives in the time available.  You have been forced to resign in disgrace...,주어진 시간 안에 목표를 달성하지 못했습니다. 불명예 속에 사임할 수밖에 없었습니다...,mt
+LOCALIZE|losetext|9,You have not been able to meet your objectives and protect your senior leadership from attack.  You have been ousted from power.,목표를 달성하지 못했고 최고 지도부도 공격으로부터 지키지 못했습니다. 권좌에서 쫓겨났습니다.,mt
+LOCALIZE|losetext|10,"Regrettably, your Sphere of Influence has totally collapsed and %s has achieved a decisive victory in the Cold War.","안타깝게도 당신의 세력권이 완전히 무너졌고, %s 측이 냉전에서 결정적인 승리를 거두었습니다.",mt
+LOCALIZE|losetext|11,"Regrettably, %s has achieved a significant Victory by becoming the first to successfully accomplish %s.",안타깝게도 %s 측이 %s을(를) 가장 먼저 달성해 중대한 승리를 거두었습니다.,mt
+LOCALIZE|losetextmp|5,You have failed in your efforts to unify your neighbors .  %s (%s) has emerged the victor!,이웃 국가를 통일하려던 노력이 실패했습니다. %s (%s) 측이 승리했습니다!,mt
+LOCALIZE|losetextmp|6,You have failed in your quest to defeat the other human opponents.  Your region has fallen and you have been forced from office in disgrace.,"다른 인간 상대들을 물리치려던 시도가 실패했습니다. 당신의 지역은 무너졌고, 불명예 속에 공직에서 쫓겨났습니다.",mt
+LOCALIZE|losetextmp|8,You have not met your objectives in the time available.,주어진 시간 안에 목표를 달성하지 못했습니다.,mt
+LOCALIZE|losetextmp|9,You have not been able to meet your objectives and protect your senior leadership from attack.  You have been ousted from power.,목표를 달성하지 못했고 최고 지도부도 공격으로부터 지키지 못했습니다. 권좌에서 쫓겨났습니다.,mt
+LOCALIZE|losetextmp|10,"Through their Sphere of Influence, only one Super Power remains in the World.  %s (%s) has emerged the victor!",세력권 경쟁 끝에 세계에 초강대국이 하나만 남았습니다. %s (%s) 측이 승리했습니다!,mt
+LOCALIZE|losetextmp|11,You have failed to be the first to achieve %s.  %s (%s) has emerged the victor!,%s을(를) 가장 먼저 달성하지 못했습니다. %s (%s) 측이 승리했습니다!,mt
+LOCALIZE|manuallang|0,Supreme Ruler 1936.pdf,,
+LOCALIZE|manuallang|1,Supreme Ruler Ultimate.pdf,,
+LOCALIZE|mapeditbrushsize|0,Single Hex,단일 헥스,mt
+LOCALIZE|mapeditbrushsize|1,Small Brush,작은 브러시,mt
+LOCALIZE|mapeditbrushsize|2,Medium Brush,중간 브러시,mt
+LOCALIZE|mapeditbrushsize|3,Large Brush,큰 브러시,mt
+LOCALIZE|milbranch|0,ARMY,육군,mt
+LOCALIZE|milbranch|1,AIR FORCE,공군,mt
+LOCALIZE|milbranch|2,NAVY,해군,mt
+LOCALIZE|milbranch|3,SUBMARINE,잠수함,mt
+LOCALIZE|milbranchunit|0,Battalion,대대,mt
+LOCALIZE|milbranchunit|1,Squadron,비행대,mt
+LOCALIZE|milbranchunit|2,Ship,함정,mt
+LOCALIZE|milbranchunit|3,Submarine,잠수함,mt
+LOCALIZE|milbranchunitsh|0,BATT,,
+LOCALIZE|milbranchunitsh|1,SQN,,
+LOCALIZE|milbranchunitsh|2,SHIP,,
+LOCALIZE|milbranchunitsh|3,SUB,,
+LOCALIZE|milclass|0,Infantry,보병,mt
+LOCALIZE|milclass|1,Recon,정찰,mt
+LOCALIZE|milclass|2,Tank,전차,mt
+LOCALIZE|milclass|3,Anti-Tank,대전차,mt
+LOCALIZE|milclass|4,Artillery,포병,mt
+LOCALIZE|milclass|5,Air Defense,방공,mt
+LOCALIZE|milclass|6,Transport,수송,mt
+LOCALIZE|milclass|7,Helicopter,헬리콥터,mt
+LOCALIZE|milclass|8,Missile,미사일,mt
+LOCALIZE|milclass|9,Interceptor,요격기,mt
+LOCALIZE|milclass|10,Tactical Bomber,전술 폭격기,mt
+LOCALIZE|milclass|11,Multi-Role,다목적기,mt
+LOCALIZE|milclass|12,Strategic Bomber,전략 폭격기,mt
+LOCALIZE|milclass|13,Patrol,초계,mt
+LOCALIZE|milclass|14,Transport,수송,mt
+LOCALIZE|milclass|15,Submarines,잠수함,mt
+LOCALIZE|milclass|16,Carriers,항공모함,mt
+LOCALIZE|milclass|17,Capital Ships,주력함,mt
+LOCALIZE|milclass|18,Escort Ships,호위함,mt
+LOCALIZE|milclass|19,Patrol Ships,경비함,mt
+LOCALIZE|milclass|20,Transport,수송,mt
+LOCALIZE|milclass|21,Facility,시설,mt
+LOCALIZE|milclassabbr|0,INF,,
+LOCALIZE|milclassabbr|1,REC,,
+LOCALIZE|milclassabbr|2,TANK,,
+LOCALIZE|milclassabbr|3,AT,,
+LOCALIZE|milclassabbr|4,ARTY,,
+LOCALIZE|milclassabbr|5,AA,,
+LOCALIZE|milclassabbr|6,TRP,,
+LOCALIZE|milclassabbr|7,HELI,,
+LOCALIZE|milclassabbr|8,MIS,,
+LOCALIZE|milclassabbr|9,INT,,
+LOCALIZE|milclassabbr|10,FTR,,
+LOCALIZE|milclassabbr|11,MULT,,
+LOCALIZE|milclassabbr|12,BOM,,
+LOCALIZE|milclassabbr|13,PTR,,
+LOCALIZE|milclassabbr|14,TRP,,
+LOCALIZE|milclassabbr|15,SUB,,
+LOCALIZE|milclassabbr|16,CAR,,
+LOCALIZE|milclassabbr|17,CAP,,
+LOCALIZE|milclassabbr|18,ESC,,
+LOCALIZE|milclassabbr|19,PAT,,
+LOCALIZE|milclassabbr|20,TRP,,
+LOCALIZE|milclassabbr|21,FAC,,
+LOCALIZE|milclassfilter|0,Infantry,보병,mt
+LOCALIZE|milclassfilter|1,Recon,정찰,mt
+LOCALIZE|milclassfilter|2,Tank,전차,mt
+LOCALIZE|milclassfilter|3,Anti-Tank,대전차,mt
+LOCALIZE|milclassfilter|4,Artillery,포병,mt
+LOCALIZE|milclassfilter|5,Air Defence,방공,mt
+LOCALIZE|milclassfilter|6,Transport,수송,mt
+LOCALIZE|milclassfilter|7,Helicopter,헬리콥터,mt
+LOCALIZE|milclassfilter|8,Missile,미사일,mt
+LOCALIZE|milclassfilter|9,Interceptor,요격기,mt
+LOCALIZE|milclassfilter|10,Tactical Bomber,전술 폭격기,mt
+LOCALIZE|milclassfilter|11,Multi-Role,다목적기,mt
+LOCALIZE|milclassfilter|12,Strategic Bomber,전략 폭격기,mt
+LOCALIZE|milclassfilter|13,Patrol,초계,mt
+LOCALIZE|milclassfilter|14,Transport,수송,mt
+LOCALIZE|milclassfilter|15,Submarines,잠수함,mt
+LOCALIZE|milclassfilter|16,Carriers,항공모함,mt
+LOCALIZE|milclassfilter|17,Capital Ships,주력함,mt
+LOCALIZE|milclassfilter|18,Escort Ships,호위함,mt
+LOCALIZE|milclassfilter|19,Patrol Ships,경비함,mt
+LOCALIZE|milclassfilter|20,Transport,수송,mt
+LOCALIZE|milclassfilter|21,Facility,시설,mt
+LOCALIZE|milclassfilter|22,All,전체,mt
+LOCALIZE|milclassshort|0,Infantry,보병,mt
+LOCALIZE|milclassshort|1,Recon,정찰,mt
+LOCALIZE|milclassshort|2,Tank,전차,mt
+LOCALIZE|milclassshort|3,AntiTank,대전차,mt
+LOCALIZE|milclassshort|4,Artillery,포병,mt
+LOCALIZE|milclassshort|5,AntiAir,대공,mt
+LOCALIZE|milclassshort|6,Transport,수송,mt
+LOCALIZE|milclassshort|7,Helicopter,헬리콥터,mt
+LOCALIZE|milclassshort|8,Missile,미사일,mt
+LOCALIZE|milclassshort|9,Intercept,요격,mt
+LOCALIZE|milclassshort|10,Fighter,전투기,mt
+LOCALIZE|milclassshort|11,Multi-Role,다목적기,mt
+LOCALIZE|milclassshort|12,Bomber,폭격기,mt
+LOCALIZE|milclassshort|13,Patrol,초계,mt
+LOCALIZE|milclassshort|14,Transport,수송,mt
+LOCALIZE|milclassshort|15,Submarine,잠수함,mt
+LOCALIZE|milclassshort|16,Carrier,항공모함,mt
+LOCALIZE|milclassshort|17,Capital,주력함,mt
+LOCALIZE|milclassshort|18,Escort,호위,mt
+LOCALIZE|milclassshort|19,Patrol,경비,mt
+LOCALIZE|milclassshort|20,Transport,수송,mt
+LOCALIZE|milclassshort|21,Facility,시설,mt
+LOCALIZE|milclassu|0,INFANTRY,보병,mt
+LOCALIZE|milclassu|1,RECON,정찰,mt
+LOCALIZE|milclassu|2,TANK,전차,mt
+LOCALIZE|milclassu|3,ANTI-TANK,대전차,mt
+LOCALIZE|milclassu|4,ARTILLERY,포병,mt
+LOCALIZE|milclassu|5,AIR DEFENSE,방공,mt
+LOCALIZE|milclassu|6,TRANSPORT,수송,mt
+LOCALIZE|milclassu|7,HELICOPTER,헬리콥터,mt
+LOCALIZE|milclassu|8,MISSILE,미사일,mt
+LOCALIZE|milclassu|9,INTERCEPTOR,요격기,mt
+LOCALIZE|milclassu|10,TACTICAL BOMBER,전술 폭격기,mt
+LOCALIZE|milclassu|11,MULTI-ROLE,다목적기,mt
+LOCALIZE|milclassu|12,STRATEGIC BOMBER,전략 폭격기,mt
+LOCALIZE|milclassu|13,PATROL/AWACS,초계/AWACS,mt
+LOCALIZE|milclassu|14,TRANSPORT,수송,mt
+LOCALIZE|milclassu|15,SUBMARINES,잠수함,mt
+LOCALIZE|milclassu|16,CARRIERS,항공모함,mt
+LOCALIZE|milclassu|17,CAPITAL SHIPS,주력함,mt
+LOCALIZE|milclassu|18,ESCORT SHIPS,호위함,mt
+LOCALIZE|milclassu|19,PATROL SHIPS,경비함,mt
+LOCALIZE|milclassu|20,TRANSPORT,수송,mt
+LOCALIZE|milclassu|21,FACILITY,시설,mt
+LOCALIZE|mildesignfav|0,Favorite,즐겨찾기,mt
+LOCALIZE|mildesignfav|1,Standard,표준,mt
+LOCALIZE|mildesignfav|2,Excluded,제외,mt
+LOCALIZE|milfuels|0,None,없음,mt
+LOCALIZE|milfuels|1,Diesel,디젤,mt
+LOCALIZE|milfuels|2,Gasoline,휘발유,mt
+LOCALIZE|milfuels|3,MultiFuel,다중 연료,mt
+LOCALIZE|milfuels|4,Jet Fuel,제트 연료,mt
+LOCALIZE|milfuels|5,reserved,,
+LOCALIZE|milfuels|6,reserved,,
+LOCALIZE|milfuels|7,reserved,,
+LOCALIZE|milfuels|8,Nuclear,핵,mt
+LOCALIZE|milgroups-airf|0,Squadron,비행대,mt
+LOCALIZE|milgroups-airf|1,Group,비행전대,mt
+LOCALIZE|milgroups-airf|2,Wing,비행단,mt
+LOCALIZE|milgroups-airf|3,Air Force,공군,mt
+LOCALIZE|milgroups-airf|4,Command,사령부,mt
+LOCALIZE|milgroups-army|0,Battalion,대대,mt
+LOCALIZE|milgroups-army|1,Regiment,연대,mt
+LOCALIZE|milgroups-army|2,Division,사단,mt
+LOCALIZE|milgroups-army|3,Corps,군단,mt
+LOCALIZE|milgroups-army|4,Army,야전군,mt
+LOCALIZE|milgroups-navy|0,Ship,함정,mt
+LOCALIZE|milgroups-navy|1,Task Group,기동단,mt
+LOCALIZE|milgroups-navy|2,Task Force,기동부대,mt
+LOCALIZE|milgroups-navy|3,Fleet,함대,mt
+LOCALIZE|milgroups-navy|4,Command,사령부,mt
+LOCALIZE|milgroups-sub|0,Sub,잠수함,mt
+LOCALIZE|milgroups-sub|1,Task Group,기동단,mt
+LOCALIZE|milgroups-sub|2,Task Force,기동부대,mt
+LOCALIZE|milgroups-sub|3,Fleet,함대,mt
+LOCALIZE|milgroups-sub|4,Command,사령부,mt
+LOCALIZE|milindirect|0,Indirect Missile Fire,간접 미사일 사격,mt
+LOCALIZE|milindirect|1,Indirect Ballistic Fire,간접 탄도 사격,mt
+LOCALIZE|milindirect|2,Indirect Air Bombardment,간접 공중 폭격,mt
+LOCALIZE|milmedals|0,Distinguished Conduct Medal,수훈 훈장,mt
+LOCALIZE|milmedals|1,Commendation Medal,표창 훈장,mt
+LOCALIZE|milmedals|2,Meritorious Service Medal,공로 훈장,mt
+LOCALIZE|milmedals|3,Bronze Star,동성 훈장,mt
+LOCALIZE|milmedals|4,Silver Star,은성 훈장,mt
+LOCALIZE|milmedals|5,Distinguished Flying Cross,수훈 비행 십자장,mt
+LOCALIZE|milmedals|6,Distinguished Service Cross,수훈 십자장,mt
+LOCALIZE|milmedals|7,Military Cross,군사 십자장,mt
+LOCALIZE|milmove|0,Unmounted,도보,mt
+LOCALIZE|milmove|1,Wheel,차륜,mt
+LOCALIZE|milmove|2,Half-Track,반궤도,mt
+LOCALIZE|milmove|3,Tracked,궤도,mt
+LOCALIZE|milmove|4,Towed,견인,mt
+LOCALIZE|milmove|5,Variable,가변,mt
+LOCALIZE|milmove|6,Mech,기계화,mt
+LOCALIZE|milmove|7,Hover,호버,mt
+LOCALIZE|milmove|8,reserved,,
+LOCALIZE|milmove|9,reserved,,
+LOCALIZE|milmove|10,Naval,해상,mt
+LOCALIZE|milmove|11,reserved,,
+LOCALIZE|milmove|12,Close Air,근접 항공,mt
+LOCALIZE|milmove|13,Mission Air,임무 항공,mt
+LOCALIZE|milmove|14,Amphib,상륙,mt
+LOCALIZE|milmove|15,Supply,보급,mt
+LOCALIZE|milplatformtype|0,Land Launch,지상 발사,mt
+LOCALIZE|milplatformtype|1,Air Launch,공중 발사,mt
+LOCALIZE|milplatformtype|2,Naval Launch,해상 발사,mt
+LOCALIZE|milplatformtype|3,Sub Launch,잠수함 발사,mt
+LOCALIZE|milplatformtype|4,Silo Launch,사일로 발사,mt
+LOCALIZE|milplatformtypeu|0,LAND LAUNCH,지상 발사,mt
+LOCALIZE|milplatformtypeu|1,AIR LAUNCH,공중 발사,mt
+LOCALIZE|milplatformtypeu|2,NAVAL LAUNCH,해상 발사,mt
+LOCALIZE|milplatformtypeu|3,SUB LAUNCH,잠수함 발사,mt
+LOCALIZE|milplatformtypeu|4,SILO LAUNCH,사일로 발사,mt
+LOCALIZE|milranks-airf|0,Lieutenant,중위,mt
+LOCALIZE|milranks-airf|1,Captain,대위,mt
+LOCALIZE|milranks-airf|2,Major,소령,mt
+LOCALIZE|milranks-airf|3,Lt Colonel,중령,mt
+LOCALIZE|milranks-airf|4,Colonel,대령,mt
+LOCALIZE|milranks-airf|5,Brig Gen,준장,mt
+LOCALIZE|milranks-airf|6,Major Gen,소장,mt
+LOCALIZE|milranks-airf|7,Lt General,중장,mt
+LOCALIZE|milranks-airf|8,General,대장,mt
+LOCALIZE|milranks-airf|9,FldMarshall,원수,mt
+LOCALIZE|milranks-army|0,Lieutenant,중위,mt
+LOCALIZE|milranks-army|1,Captain,대위,mt
+LOCALIZE|milranks-army|2,Major,소령,mt
+LOCALIZE|milranks-army|3,Lt Colonel,중령,mt
+LOCALIZE|milranks-army|4,Colonel,대령,mt
+LOCALIZE|milranks-army|5,Brig Gen,준장,mt
+LOCALIZE|milranks-army|6,Major Gen,소장,mt
+LOCALIZE|milranks-army|7,Lt General,중장,mt
+LOCALIZE|milranks-army|8,General,대장,mt
+LOCALIZE|milranks-army|9,FldMarshall,원수,mt
+LOCALIZE|milranks-navy|0,Lt JrGrade,중위,mt
+LOCALIZE|milranks-navy|1,Lieutenant,대위,mt
+LOCALIZE|milranks-navy|2,Lt Cmdr,소령,mt
+LOCALIZE|milranks-navy|3,Commander,중령,mt
+LOCALIZE|milranks-navy|4,Captain,대령,mt
+LOCALIZE|milranks-navy|5,Commodore,준장,mt
+LOCALIZE|milranks-navy|6,RearAdmiral,소장,mt
+LOCALIZE|milranks-navy|7,ViceAdmiral,중장,mt
+LOCALIZE|milranks-navy|8,Admiral,대장,mt
+LOCALIZE|milranks-navy|9,Flt Admiral,원수,mt
+LOCALIZE|milranks-sub|0,Lt JrGrade,중위,mt
+LOCALIZE|milranks-sub|1,Lieutenant,대위,mt
+LOCALIZE|milranks-sub|2,Lt Cmdr,소령,mt
+LOCALIZE|milranks-sub|3,Commander,중령,mt
+LOCALIZE|milranks-sub|4,Captain,대령,mt
+LOCALIZE|milranks-sub|5,Commodore,준장,mt
+LOCALIZE|milranks-sub|6,RearAdmiral,소장,mt
+LOCALIZE|milranks-sub|7,ViceAdmiral,중장,mt
+LOCALIZE|milranks-sub|8,Admiral,대장,mt
+LOCALIZE|milranks-sub|9,Flt Admiral,원수,mt
+LOCALIZE|milregions|0,Worldwide,전 세계,mt
+LOCALIZE|milregions|1,South Africa,남아프리카공화국,mt
+LOCALIZE|milregions|2,Argentina,아르헨티나,mt
+LOCALIZE|milregions|3,China,중국,mt
+LOCALIZE|milregions|4,Netherlands,네덜란드,mt
+LOCALIZE|milregions|5,Europe,유럽,mt
+LOCALIZE|milregions|6,France,프랑스,mt
+LOCALIZE|milregions|7,Germany,독일,mt
+LOCALIZE|milregions|8,Italy,이탈리아,mt
+LOCALIZE|milregions|9,Israel,이스라엘,mt
+LOCALIZE|milregions|10,Japan,일본,mt
+LOCALIZE|milregions|11,South Korea,한국,mt
+LOCALIZE|milregions|12,North Korea,북한,mt
+LOCALIZE|milregions|13,United Kingdom,영국,mt
+LOCALIZE|milregions|14,Canada,캐나다,mt
+LOCALIZE|milregions|15,Other,기타,mt
+LOCALIZE|milregions|16,Philippines,필리핀,mt
+LOCALIZE|milregions|17,India,인도,mt
+LOCALIZE|milregions|18,Russia,러시아,mt
+LOCALIZE|milregions|19,Sweden,스웨덴,mt
+LOCALIZE|milregions|20,Czech,체코,mt
+LOCALIZE|milregions|21,United States,미국,mt
+LOCALIZE|milregions|22,Taiwan,대만,mt
+LOCALIZE|milregions|23,Worldwide,전 세계,mt
+LOCALIZE|milregions|24,Balkans,발칸,mt
+LOCALIZE|milregions|25,Singapore,싱가포르,mt
+LOCALIZE|milregions|26,Arab,아랍,mt
+LOCALIZE|milregions|32,`,,
+LOCALIZE|milregions|33,Austria,오스트리아,mt
+LOCALIZE|milregions|34,Brazil,브라질,mt
+LOCALIZE|milregions|35,Belgium,벨기에,mt
+LOCALIZE|milregions|36,Denmark,덴마크,mt
+LOCALIZE|milregions|37,Spain,스페인,mt
+LOCALIZE|milregions|38,Finland,핀란드,mt
+LOCALIZE|milregions|39,Greece,그리스,mt
+LOCALIZE|milregions|40,Poland,폴란드,mt
+LOCALIZE|milregions|41,Iran,이란,mt
+LOCALIZE|milregions|42,Romania,루마니아,mt
+LOCALIZE|milregions|43,Norway,노르웨이,mt
+LOCALIZE|milregions|44,Indonesia,인도네시아,mt
+LOCALIZE|milregions|45,Pakistan,파키스탄,mt
+LOCALIZE|milregions|46,Australia,호주,mt
+LOCALIZE|milregions|47,Eastern Europe,동유럽,mt
+LOCALIZE|milregions|48,Portugal,포르투갈,mt
+LOCALIZE|milregions|49,Iraq,이라크,mt
+LOCALIZE|milregions|50,Former Soviet Rep.,구소련 공화국,mt
+LOCALIZE|milregions|51,Switzerland,스위스,mt
+LOCALIZE|milregions|52,Turkey,튀르키예,mt
+LOCALIZE|milregions|53,Ukraine,우크라이나,mt
+LOCALIZE|milregions|54,Pacific islands,태평양 섬,mt
+LOCALIZE|milregions|55,Sub-Saharan,사하라 이남,mt
+LOCALIZE|milregions|56,South East Asian,동남아시아,mt
+LOCALIZE|milregions|57,y,,
+LOCALIZE|milregions|58,New Zealand,뉴질랜드,mt
+LOCALIZE|milregions|64,Multiple,복수,mt
+LOCALIZE|milselect|0,Re-Select All Units in List,목록의 모든 유닛 다시 선택,mt
+LOCALIZE|milselect|1,Remove Highlighted Unit(s),강조된 유닛 제거,mt
+LOCALIZE|milselect|2,Remove Highlighted Type(s),강조된 유형 제거,mt
+LOCALIZE|milselect|3,Remove Highlighted Class(es),강조된 분류 제거,mt
+LOCALIZE|milselect|4,Add Highlighted Type(s),강조된 유형 추가,mt
+LOCALIZE|milselect|5,Add Highlighted Type(s) in View,강조된 유형 추가 (화면 내),mt
+LOCALIZE|milselect|6,Add Highlighted Class(es),강조된 분류 추가,mt
+LOCALIZE|milselect|7,Add Highlighted Class(es) in View,강조된 분류 추가 (화면 내),mt
+LOCALIZE|milselect|8,Add Battlegroup(s) of Highlighted Unit(s),강조된 유닛의 전투단 추가,mt
+LOCALIZE|milspecialty|0,None,없음,mt
+LOCALIZE|milspecialty|1,Tropical,열대,mt
+LOCALIZE|milspecialty|2,Desert,사막,mt
+LOCALIZE|milspecialty|3,Alpine,고산,mt
+LOCALIZE|milspecialty|4,Urban,도시,mt
+LOCALIZE|milspecs|0,Anti Sub Equipped,대잠 장비,mt
+LOCALIZE|milspecs|1,ECM Equipped,ECM 장비,mt
+LOCALIZE|milspecs|2,Unit can be Mid-Air Refueled,공중 급유 가능,mt
+LOCALIZE|milspecs|3,Unit is Fuel Tanker,급유기 유닛,mt
+LOCALIZE|milspecs|4,NBC Protected,NBC 방호,mt
+LOCALIZE|milspecs|5,Demolition,폭파,mt
+LOCALIZE|milspecs|6,Engineer,공병,mt
+LOCALIZE|milspecs|7,Indirect Missile Fire,간접 미사일 사격,mt
+LOCALIZE|milspecs|8,Indirect Ballistic Fire,간접 탄도 사격,mt
+LOCALIZE|milspecs|9,Indirect Air Bombardment,간접 공중 폭격,mt
+LOCALIZE|milspecs|10,Mine Layer,지뢰 부설,mt
+LOCALIZE|milspecs|11,Mine Sweeper,지뢰 제거,mt
+LOCALIZE|milspecs|12,Unit is Air Mission Type,항공 임무형 유닛,mt
+LOCALIZE|milspecs|13,Long Deck Carrier,대형 항공모함,mt
+LOCALIZE|milspecs|14,Short Deck Carrier,소형 항공모함,mt
+LOCALIZE|milspecs|15,Can Fly/Land on Long Deck Carriers,대형 항공모함 이착함 가능,mt
+LOCALIZE|milspecs|16,Can Fly/Land on Any Carriers,모든 항공모함 이착함 가능,mt
+LOCALIZE|milspecs|17,Fording,도하,mt
+LOCALIZE|milspecs|18,Amphibious,상륙,mt
+LOCALIZE|milspecs|19,Air Droppable,공중 투하 가능,mt
+LOCALIZE|milspecs|20,Can Unload Away From Dock,부두 외 지점 하역 가능,mt
+LOCALIZE|milspecs|21,Bridging,가교,mt
+LOCALIZE|milspecs|22,Guided Missile,유도 미사일,mt
+LOCALIZE|milspecs|23,Tactical Nuke,전술핵,mt
+LOCALIZE|milspecs|24,Strategic Nuke,전략핵,mt
+LOCALIZE|milspecs|25,GR25,,
+LOCALIZE|milspecs|26,GR26,,
+LOCALIZE|milspecs|27,GR27,,
+LOCALIZE|milspecs|28,GR28,,
+LOCALIZE|milspecs|29,GR29,,
+LOCALIZE|milspecs|30,GR30,,
+LOCALIZE|milspecs|31,GR31,,
+LOCALIZE|milspecs|32,GR32,,
+LOCALIZE|milspecs|33,GR33,,
+LOCALIZE|milspecs|34,GR34,,
+LOCALIZE|milspecs|35,GR35,,
+LOCALIZE|milspecs|36,GR36,,
+LOCALIZE|milspecs|37,GR37,,
+LOCALIZE|milspecs|38,Capable of Capturing,점령 가능,mt
+LOCALIZE|milspecss|0,Anti Sub,대잠,mt
+LOCALIZE|milspecss|1,ECM,,
+LOCALIZE|milspecss|2,Refuel,급유,mt
+LOCALIZE|milspecss|3,Tanker,급유기,mt
+LOCALIZE|milspecss|4,NBC Prot,NBC 방호,mt
+LOCALIZE|milspecss|5,Demol,폭파,mt
+LOCALIZE|milspecss|6,Engineer,공병,mt
+LOCALIZE|milspecss|7,Ind Miss,간접 미사일,mt
+LOCALIZE|milspecss|8,Ind Fire,간접 사격,mt
+LOCALIZE|milspecss|9,Ind Air,간접 공중,mt
+LOCALIZE|milspecss|10,Mine Lay,기뢰 부설,mt
+LOCALIZE|milspecss|11,Mine Sw,소해,mt
+LOCALIZE|milspecss|12,Mission,임무,mt
+LOCALIZE|milspecss|13,Long Deck,장형 갑판,mt
+LOCALIZE|milspecss|14,Short Deck,단형 갑판,mt
+LOCALIZE|milspecss|15,Long Landing,장활주 착륙,mt
+LOCALIZE|milspecss|16,Short Landing,단활주 착륙,mt
+LOCALIZE|milspecss|17,Fording,도하,mt
+LOCALIZE|milspecss|18,Amphib,상륙,mt
+LOCALIZE|milspecss|19,Air Drop,공중 투하,mt
+LOCALIZE|milspecss|20,No Dock,부두 불필요,mt
+LOCALIZE|milspecss|21,Bridging,가교,mt
+LOCALIZE|milspecss|22,Guid Mis,유도탄,mt
+LOCALIZE|milspecss|23,Tac Nuke,전술핵,mt
+LOCALIZE|milspecss|24,Str Nuke,전략핵,mt
+LOCALIZE|milspecss|25,GR25,,
+LOCALIZE|milspecss|26,GR26,,
+LOCALIZE|milspecss|27,GR27,,
+LOCALIZE|milspecss|28,GR28,,
+LOCALIZE|milspecss|29,GR29,,
+LOCALIZE|milspecss|30,GR30,,
+LOCALIZE|milspecss|31,GR31,,
+LOCALIZE|milspecss|32,GR32,,
+LOCALIZE|milspecss|33,GR33,,
+LOCALIZE|milspecss|34,GR34,,
+LOCALIZE|milspecss|35,GR35,,
+LOCALIZE|milspecss|36,GR36,,
+LOCALIZE|milspecss|37,GR37,,
+LOCALIZE|milspecss|38,Capture,점령,mt
+LOCALIZE|milstats|0,Strength,전력,mt
+LOCALIZE|milstats|1,Fuel,연료,mt
+LOCALIZE|milstats|2,Move Speed,이동 속도,mt
+LOCALIZE|milstats|3,Move Range,이동 거리,mt
+LOCALIZE|milstats|4,Profile,외형,mt
+LOCALIZE|milstats|5,Spotting,탐지,mt
+LOCALIZE|milstats|6,Precision Spotting,정밀 탐지,mt
+LOCALIZE|milstats|7,Supplies,보급품,mt
+LOCALIZE|milstats|8,Soft Attack,연성 공격,mt
+LOCALIZE|milstats|9,Hard Attack,경성 공격,mt
+LOCALIZE|milstats|10,Fortification Attack,요새 공격,mt
+LOCALIZE|milstats|11,Close Air Attack,저공 공격,mt
+LOCALIZE|milstats|12,Mid Air Attack,중공 공격,mt
+LOCALIZE|milstats|13,High Air Attack,고공 공격,mt
+LOCALIZE|milstats|14,Surface Attack,수상 공격,mt
+LOCALIZE|milstats|15,Submerged Attack,수중 공격,mt
+LOCALIZE|milstats|16,Close Attack,근접 공격,mt
+LOCALIZE|milstats|17,Ground Defense,지상 방어,mt
+LOCALIZE|milstats|18,Air Defense,방공,mt
+LOCALIZE|milstats|19,Indirect Defense,간접 방어,mt
+LOCALIZE|milstats|20,Close Defense,근접 방어,mt
+LOCALIZE|milstats|21,Efficiency,효율,mt
+LOCALIZE|milstats|22,Suppression,제압,mt
+LOCALIZE|milstats|23,Entrenchment,참호화,mt
+LOCALIZE|milstats|24,Alert Level,경계 수준,mt
+LOCALIZE|milstats|25,Morale,사기,mt
+LOCALIZE|milstats|26,Combat Time,전투 시간,mt
+LOCALIZE|milstats|27,Entrenchment Bonus,참호 보너스,mt
+LOCALIZE|milstats|28,Missile Capacity,미사일 적재량,mt
+LOCALIZE|milstats|29,Cargo Capacity,화물 적재량,mt
+LOCALIZE|milstats|30,Indirect Fire Defense Bonus,간접 사격 방어 보너스,mt
+LOCALIZE|milstats|31,Long Deck Carrier Capacity,장형 갑판 탑재량,mt
+LOCALIZE|milstats|32,Carrier Capacity,항모 탑재량,mt
+LOCALIZE|milstats|33,Max Missile Size,최대 미사일 크기,mt
+LOCALIZE|milstats|46,Weight/Displacement,중량/배수량,mt
+LOCALIZE|milstats|49,Travel Speed and Range,이동 속도와 항속 거리,mt
+LOCALIZE|milstats|50,Initiative,재량권,mt
+LOCALIZE|milstats|51,Short Deck Carrier Capacity,단형 갑판 탑재량,mt
+LOCALIZE|milstatss|0,Str,전력,mt
+LOCALIZE|milstatss|1,Fuel,연료,mt
+LOCALIZE|milstatss|2,Speed,속도,mt
+LOCALIZE|milstatss|3,Range,사거리,mt
+LOCALIZE|milstatss|4,Profile,외형,mt
+LOCALIZE|milstatss|5,Spotting,탐지,mt
+LOCALIZE|milstatss|6,Spotting,탐지,mt
+LOCALIZE|milstatss|7,Supplies,보급품,mt
+LOCALIZE|milstatss|8,Soft At,연성 공격,mt
+LOCALIZE|milstatss|9,Hard At,경성 공격,mt
+LOCALIZE|milstatss|10,Fort At,요새 공격,mt
+LOCALIZE|milstatss|11,C-Air At,저공 공격,mt
+LOCALIZE|milstatss|12,M-Air At,중공 공격,mt
+LOCALIZE|milstatss|13,H-Air At,고공 공격,mt
+LOCALIZE|milstatss|14,Surf At,수상 공격,mt
+LOCALIZE|milstatss|15,Sub At,수중 공격,mt
+LOCALIZE|milstatss|16,Close At,근접 공격,mt
+LOCALIZE|milstatss|17,Gnd Def,지상 방어,mt
+LOCALIZE|milstatss|18,Air Def,방공,mt
+LOCALIZE|milstatss|19,Ind Def,간접 방어,mt
+LOCALIZE|milstatss|20,CloseDef,근접 방어,mt
+LOCALIZE|milstatss|21,Eff,효율,mt
+LOCALIZE|milstatss|22,Suppr,제압,mt
+LOCALIZE|milstatss|23,Entr,참호,mt
+LOCALIZE|milstatss|24,Alert,경계,mt
+LOCALIZE|milstatss|25,Morale,사기,mt
+LOCALIZE|milstatss|26,Shots,사격 횟수,mt
+LOCALIZE|milstatss|27,Ent Bonus,참호 보너스,mt
+LOCALIZE|milstatss|28,Miss Cap,미사일량,mt
+LOCALIZE|milstatss|29,Cargo,화물,mt
+LOCALIZE|milstatss|30,IndF Bonus,간접 보너스,mt
+LOCALIZE|milstatss|31,L-Carrier,장형 항모,mt
+LOCALIZE|milstatss|32,Carrier,항모,mt
+LOCALIZE|miltype|0,Soft Target,연성 표적,mt
+LOCALIZE|miltype|1,Hard Target,경성 표적,mt
+LOCALIZE|miltype|2,Fortification,요새,mt
+LOCALIZE|miltype|3,Close Air Target,저공 표적,mt
+LOCALIZE|miltype|4,Mid Air Target,중공 표적,mt
+LOCALIZE|miltype|5,High Air Target,고공 표적,mt
+LOCALIZE|miltype|6,Surface Target,수상 표적,mt
+LOCALIZE|miltype|7,Submerged Target,수중 표적,mt
+LOCALIZE|miltype|8,Close Combat,근접전,mt
+LOCALIZE|minimapmenu|0,Supply <S>,보급 <S>,mt
+LOCALIZE|minimapmenu|1,Loyalty,충성도,mt
+LOCALIZE|minimapmenu|2,Diplomacy,외교,mt
+LOCALIZE|minimapmenu|3,Ownership,소유권,mt
+LOCALIZE|minimapmenu|4,High Ground <G>,고지 <G>,mt
+LOCALIZE|minimapmenu|5,Close Combat <V>,근접전 <V>,mt
+LOCALIZE|minimapmenu|6,Defensive Rating <T>,방어 등급 <T>,mt
+LOCALIZE|minimapmenu|7,Line of Sight <L>,시야 <L>,mt
+LOCALIZE|minimapmenu|8,Flashpoints,분쟁 지점,mt
+LOCALIZE|minimapmenu|9,Supply Points,보급 지점,mt
+LOCALIZE|minimapmenu|10,Munitions Loads,탄약 적재,mt
+LOCALIZE|minimapmenu|11,Resources...,자원...,mt
+LOCALIZE|minimapmenu|12,Population Density,인구 밀도,mt
+LOCALIZE|minimapmenu|13,Map Options...,지도 옵션...,mt
+LOCALIZE|minimapmenu|14,Reset Filters,필터 초기화,mt
+LOCALIZE|minimapoptmenu|0,Borders,국경,mt
+LOCALIZE|minimapoptmenu|1,Map Grid <Ctrl+G>,지도 격자 <Ctrl+G>,mt
+LOCALIZE|minimapoptmenu|2,Units,유닛,mt
+LOCALIZE|minimapoptmenu|3,Upgrades,개량,mt
+LOCALIZE|minimapoptmenu|4,City Names,도시 이름,mt
+LOCALIZE|minimapoptmenu|5,Range Circles,사거리 원,mt
+LOCALIZE|minimapoptmenu|6,Path Ranges,경로 범위,mt
+LOCALIZE|minimapoptmenu|7,Map Info,지도 정보,mt
+LOCALIZE|missileattack|0,Anti-Ship Attack,대함 공격,mt
+LOCALIZE|missileattack|1,Ground Target Attack,지상 표적 공격,mt
+LOCALIZE|missileattack|2,Building Attack,건물 공격,mt
+LOCALIZE|missileattack|3,Saturation Attack,포화 공격,mt
+LOCALIZE|missileattack|4,Multipurpose,다목적,mt
+LOCALIZE|missileattack|5,Nuclear,핵,mt
+LOCALIZE|missileattack|6,Chemical,화학,mt
+LOCALIZE|missileattack|7,Reserved,예약,mt
+LOCALIZE|missileicon|0,Missile Capable,미사일 운용 가능,mt
+LOCALIZE|missileicon|1,Missiles Loaded,미사일 적재됨,mt
+LOCALIZE|missileicon|2,Mostly Full of Missiles,미사일 거의 가득 참,mt
+LOCALIZE|missileloadgrid|0,Requires Unit Selected,유닛을 선택해야 합니다,mt
+LOCALIZE|missileloadgrid|1,Unit Selected Must Be Missile Capable,선택한 유닛은 미사일 운용이 가능해야 합니다,mt
+LOCALIZE|missileloadgrid|2,Unit Selected Must Be Deployed,선택한 유닛은 배치된 상태여야 합니다,mt
+LOCALIZE|missileloadgrid|3,Load Missiles,미사일 적재,mt
+LOCALIZE|missiletarget|0,Area Effect Missiles,범위 효과 미사일,mt
+LOCALIZE|missiletarget|1,Direct Attack Missiles,직접 공격 미사일,mt
+LOCALIZE|missiletarget|2,Anti Ship Missiles,대함 미사일,mt
+LOCALIZE|missiletarget|3,Fortification Attack Missiles,요새 공격 미사일,mt
+LOCALIZE|missiletarget|4,Multi Purpose,다목적,mt
+LOCALIZE|missiletravel|0,Ballistic,탄도,mt
+LOCALIZE|missiletravel|1,Smart Bomb,스마트 폭탄,mt
+LOCALIZE|missiletravel|2,Cruise,순항,mt
+LOCALIZE|missiletravel|3,Bomb,폭탄,mt
+LOCALIZE|monthsinyearl|0,January,1월,mt
+LOCALIZE|monthsinyearl|1,February,2월,mt
+LOCALIZE|monthsinyearl|2,March,3월,mt
+LOCALIZE|monthsinyearl|3,April,4월,mt
+LOCALIZE|monthsinyearl|4,May,5월,mt
+LOCALIZE|monthsinyearl|5,June,6월,mt
+LOCALIZE|monthsinyearl|6,July,7월,mt
+LOCALIZE|monthsinyearl|7,August,8월,mt
+LOCALIZE|monthsinyearl|8,September,9월,mt
+LOCALIZE|monthsinyearl|9,October,10월,mt
+LOCALIZE|monthsinyearl|10,November,11월,mt
+LOCALIZE|monthsinyearl|11,December,12월,mt
+LOCALIZE|monthsinyearsh|0,Jan,,
+LOCALIZE|monthsinyearsh|1,Feb,,
+LOCALIZE|monthsinyearsh|2,Mar,,
+LOCALIZE|monthsinyearsh|3,Apr,,
+LOCALIZE|monthsinyearsh|4,May,,
+LOCALIZE|monthsinyearsh|5,Jun,,
+LOCALIZE|monthsinyearsh|6,Jul,,
+LOCALIZE|monthsinyearsh|7,Aug,,
+LOCALIZE|monthsinyearsh|8,Sep,,
+LOCALIZE|monthsinyearsh|9,Oct,,
+LOCALIZE|monthsinyearsh|10,Nov,,
+LOCALIZE|monthsinyearsh|11,Dec,,
+LOCALIZE|mouseclick|0,Slow,느림,mt
+LOCALIZE|mouseclick|1,Fast,빠름,mt
+LOCALIZE|multiplayernotif|0,Player's connection has been interrupted,플레이어의 연결이 끊어졌습니다,mt
+LOCALIZE|multiplayernotif|1,File transfer in progress,파일 전송 중,mt
+LOCALIZE|newsurls|0,https://www.battlegoat.com/uploads/LatestNews.PNG,,
+LOCALIZE|newsurls|1,https://www.battlegoat.com/uploads/LatestNews.id,,
+LOCALIZE|newsurls|2,News.png,,
+LOCALIZE|newsurls|3,steam://url/EventAnnouncementPage/%d/%s,,
+LOCALIZE|newsurls|4,News.txt,,
+LOCALIZE|noitems|0,No Items Offered,제안한 항목 없음,mt
+LOCALIZE|noitems|1,No Items Requested,요청한 항목 없음,mt
+LOCALIZE|numsuffix|1,st,,
+LOCALIZE|numsuffix|2,nd,,
+LOCALIZE|numsuffix|3,rd,,
+LOCALIZE|numsuffix|4,th,,
+LOCALIZE|objstatus|0,Current,진행 중,mt
+LOCALIZE|objstatus|1,Complete,완료,mt
+LOCALIZE|objstatus|2,Failed,실패,mt
+LOCALIZE|objstatus|3,Reserved,예약,mt
+LOCALIZE|objtype|0,unused,,
+LOCALIZE|objtype|1,Tutorial,튜토리얼,mt
+LOCALIZE|objtype|2,Secondary,보조,mt
+LOCALIZE|objtype|3,Primary,주요,mt
+LOCALIZE|objtype|4,Victory,승리,mt
+LOCALIZE|oceancolors|0,Dark Blue,짙은 파랑,mt
+LOCALIZE|oceancolors|1,Blue,파랑,mt
+LOCALIZE|oceancolors|2,Light Blue,연한 파랑,mt
+LOCALIZE|offon|0,OFF,끔,mt
+LOCALIZE|offon|1,ON,켬,mt
+LOCALIZE|omncat|0,Briefings / Tips,브리핑 / 팁,mt
+LOCALIZE|omncat|1,Help / Objectives,도움말 / 목표,mt
+LOCALIZE|omncat|2,State,외교,mt
+LOCALIZE|omncat|3,Espionage,첩보,mt
+LOCALIZE|omncat|4,Defense,국방,mt
+LOCALIZE|omncat|5,Research,연구,mt
+LOCALIZE|omncat|6,Economy,경제,mt
+LOCALIZE|omncat|7,World Events,세계 사건,mt
+LOCALIZE|opsdept|0,Hotspots,핫스팟,mt
+LOCALIZE|opsdept|1,Strategic Targets,전략 표적,mt
+LOCALIZE|opsdept|2,Espionage,첩보,mt
+LOCALIZE|opsdept|3,Satellite Coverage,위성 범위,mt
+LOCALIZE|opssubdept|0,SPENDING,지출,mt
+LOCALIZE|opssubdept|1,HOTSPOTS,핫스팟,mt
+LOCALIZE|opssubdept|2,STRATEGIC TARGETS,전략 표적,mt
+LOCALIZE|opssubdept|3,FACILITIES,시설,mt
+LOCALIZE|opssubdept|4,ESPIONAGE,첩보,mt
+LOCALIZE|opssubdept|5,SATELLITE COVERAGE,위성 범위,mt
+LOCALIZE|opssubdept|6,7,,
+LOCALIZE|opssubdept|7,8,,
+LOCALIZE|opssubdept|8,9,,
+LOCALIZE|opssubdept|9,10,,
+LOCALIZE|ordcontact|0,Mixed,혼합,mt
+LOCALIZE|ordcontact|1,Avoid,회피,mt
+LOCALIZE|ordcontact|2,Engage,교전,mt
+LOCALIZE|ordcontact|3,Pursue,추격,mt
+LOCALIZE|ordformation|0,Mixed,혼합,mt
+LOCALIZE|ordformation|1,LOOSE,산개,mt
+LOCALIZE|ordformation|2,WIDE,확장,mt
+LOCALIZE|ordformation|3,CLOSE,밀집,mt
+LOCALIZE|ordformation|4,WAVE,파상,mt
+LOCALIZE|ordimportance|0,Mixed,혼합,mt
+LOCALIZE|ordimportance|1,LOW,낮음,mt
+LOCALIZE|ordimportance|2,MEDIUM,보통,mt
+LOCALIZE|ordimportance|3,HIGH,높음,mt
+LOCALIZE|ordimportance|4,CRITICAL,중대,mt
+LOCALIZE|ordinitiative|0,Mixed,혼합,mt
+LOCALIZE|ordinitiative|1,None,없음,mt
+LOCALIZE|ordinitiative|2,Low,낮음,mt
+LOCALIZE|ordinitiative|3,Medium,보통,mt
+LOCALIZE|ordinitiative|4,High,높음,mt
+LOCALIZE|ordlosstol|0,Mixed,혼합,mt
+LOCALIZE|ordlosstol|1,None,없음,mt
+LOCALIZE|ordlosstol|2,Low,낮음,mt
+LOCALIZE|ordlosstol|3,Medium,보통,mt
+LOCALIZE|ordlosstol|4,High,높음,mt
+LOCALIZE|ordmistype|0,ATTACK,공격,mt
+LOCALIZE|ordmistype|1,DEFEND,방어,mt
+LOCALIZE|ordobjective|0,HOLD,고수,mt
+LOCALIZE|ordobjective|1,MAKE GAINS,전과 확대,mt
+LOCALIZE|ordobjective|2,HARASS,교란,mt
+LOCALIZE|ordobjective|3,ATTACK,공격,mt
+LOCALIZE|ordobjective|4,PURSUE,추격,mt
+LOCALIZE|ordobjective|5,HIT/HOLD,타격/고수,mt
+LOCALIZE|ordobjective|6,SCORCH,초토화,mt
+LOCALIZE|ordpatrol|0,PATROL,순찰,mt
+LOCALIZE|ordpatrol|2,ENTRENCH,참호 구축,mt
+LOCALIZE|ordpatrol|3,ESCORT,호위,mt
+LOCALIZE|ordpattype|0,PATROL,순찰,mt
+LOCALIZE|ordpattype|1,BORDER,국경,mt
+LOCALIZE|ordroute|0,Mixed,혼합,mt
+LOCALIZE|ordroute|1,Cautious,신중,mt
+LOCALIZE|ordroute|2,Normal,보통,mt
+LOCALIZE|ordroute|3,Direct,직행,mt
+LOCALIZE|ordroute|4,Quickest,최단,mt
+LOCALIZE|ordspeed|0,Mixed,혼합,mt
+LOCALIZE|ordspeed|1,Cautious,신중,mt
+LOCALIZE|ordspeed|2,Normal,보통,mt
+LOCALIZE|ordspeed|3,Fast,빠름,mt
+LOCALIZE|ordspeed|4,Fastest,최고속,mt
+LOCALIZE|ordtarget|0,HEX,헥스,mt
+LOCALIZE|ordtarget|1,UNITS,유닛,mt
+LOCALIZE|ordtarget|2,FACILITIES,시설,mt
+LOCALIZE|paydays|0,Lump Sum,일시불,mt
+LOCALIZE|paydays|1,7 Days,7일,mt
+LOCALIZE|paydays|2,30 Days,30일,mt
+LOCALIZE|paydays|3,60 Days,60일,mt
+LOCALIZE|paydays|4,90 Days,90일,mt
+LOCALIZE|payfrequency|0,Lump Sum,일시불,mt
+LOCALIZE|payfrequency|1,Daily,매일,mt
+LOCALIZE|payfrequency|2,Weekly,매주,mt
+LOCALIZE|payfrequency|3,Monthly,매월,mt
+LOCALIZE|payfrequency|4,Annually,매년,mt
+LOCALIZE|peopleattitude|0,Hostile,적대,mt
+LOCALIZE|peopleattitude|1,Distant,소원,mt
+LOCALIZE|peopleattitude|2,Indifferent,무관심,mt
+LOCALIZE|peopleattitude|3,Pleasant,호의,mt
+LOCALIZE|peopleattitude|4,Friendly,우호,mt
+LOCALIZE|playeragendas|0,Opportunistic,기회주의,mt
+LOCALIZE|playeragendas|1,Vengeance,복수,mt
+LOCALIZE|playeragendas|2,Conquest,정복,mt
+LOCALIZE|playeragendas|3,Intimidation,위협,mt
+LOCALIZE|playeragendas|4,Profit,이윤,mt
+LOCALIZE|playeragendas|5,Status Quo,현상 유지,mt
+LOCALIZE|playeragendas|6,Submission,복종,mt
+LOCALIZE|playeragendas|7,Reunification,재통일,mt
+LOCALIZE|playeragendas|8,Enlightenment,계몽,mt
+LOCALIZE|playeragendas|9,Isolationist,고립주의,mt
+LOCALIZE|playerstatus|0,Not Active,비활성,mt
+LOCALIZE|playerstatus|1,World Market,세계 시장,mt
+LOCALIZE|playerstatus|3,AI,,
+LOCALIZE|playerstatus|4,Surrendered,항복,mt
+LOCALIZE|playerstatus|5,Dead,소멸,mt
+LOCALIZE|politic|0,LIBERAL,진보,mt
+LOCALIZE|politic|1,MODERATE,중도,mt
+LOCALIZE|politic|2,CONSERVATIVE,보수,mt
+LOCALIZE|polpartycenter|0,Moderate Party,온건당,mt
+LOCALIZE|polpartycenter|1,Civil Coalition,시민 연합,mt
+LOCALIZE|polpartycenter|2,Independence Party,독립당,mt
+LOCALIZE|polpartycenter|3,Multi Coalition,다자 연합,mt
+LOCALIZE|polpartycenter|4,Grassroots Alliance,풀뿌리 동맹,mt
+LOCALIZE|polpartycenter|5,Citizens Coalition,시민 연대,mt
+LOCALIZE|polpartyleft|0,Liberal Party,자유당,mt
+LOCALIZE|polpartyleft|1,Socialist Party,사회당,mt
+LOCALIZE|polpartyleft|2,Green Party,녹색당,mt
+LOCALIZE|polpartyleft|3,Democratic Party,민주당,mt
+LOCALIZE|polpartyleft|4,Labor Party,노동당,mt
+LOCALIZE|polpartyleft|5,Social Coalition,사회 연합,mt
+LOCALIZE|polpartyother|0,Other,기타,mt
+LOCALIZE|polpartyright|0,Conservative Party,보수당,mt
+LOCALIZE|polpartyright|1,Republican Party,공화당,mt
+LOCALIZE|polpartyright|2,Reform Party,개혁당,mt
+LOCALIZE|polpartyright|3,Sovereignty Party,주권당,mt
+LOCALIZE|polpartyright|4,Freedom Party,자유수호당,mt
+LOCALIZE|polpartyright|5,Neo-Con Coalition,신보수 연합,mt
+LOCALIZE|prodeptprior|0,udef0,,
+LOCALIZE|prodeptprior|1,udef1,,
+LOCALIZE|prodeptprior|2,udef2,,
+LOCALIZE|prodeptprior|3,udef3,,
+LOCALIZE|prodeptprior|4,udef4,,
+LOCALIZE|prodeptprior|5,udef5,,
+LOCALIZE|prodexport|0,Unfavorable,불리,mt
+LOCALIZE|prodexport|1,Static,유지,mt
+LOCALIZE|prodexport|2,Favorable,유리,mt
+LOCALIZE|prodheader|0,-  INFO,-  정보,mt
+LOCALIZE|prodheader|1,-  DOMESTIC QUOTAS,-  국내 할당량,mt
+LOCALIZE|prodheader|2,-  EXPORTS,-  수출,mt
+LOCALIZE|prodheader|3,-  IMPORTS,-  수입,mt
+LOCALIZE|prodheader|4,-  RESERVED,-  예약,mt
+LOCALIZE|prodheader|5,-  BOYCOTTS,-  보이콧,mt
+LOCALIZE|prodheader|6,-  USAGE,-  사용량,mt
+LOCALIZE|prodimport|0,Poor,나쁨,mt
+LOCALIZE|prodimport|1,Good,좋음,mt
+LOCALIZE|prodimport|2,Excellent,매우 좋음,mt
+LOCALIZE|prodtabs|0,AGRI,농산물,mt
+LOCALIZE|prodtabs|1,RUBBER,고무,mt
+LOCALIZE|prodtabs|2,TIMBER,목재,mt
+LOCALIZE|prodtabs|3,PETROL,석유,mt
+LOCALIZE|prodtabs|4,COAL,석탄,mt
+LOCALIZE|prodtabs|5,ORE,광석,mt
+LOCALIZE|prodtabs|6,URAN,우라늄,mt
+LOCALIZE|prodtabs|7,ELECT,전력,mt
+LOCALIZE|prodtabs|8,C.GDS,소비재,mt
+LOCALIZE|prodtabs|9,I.GDS,산업재,mt
+LOCALIZE|prodtabs|10,M.GDS,군수품,mt
+LOCALIZE|prodtabs|11,RSVD,,
+LOCALIZE|prodtabs|12,FIN,금융,mt
+LOCALIZE|prodtabsl|0,Agri,농산물,mt
+LOCALIZE|prodtabsl|1,Rubber,고무,mt
+LOCALIZE|prodtabsl|2,Timber,목재,mt
+LOCALIZE|prodtabsl|3,Petrol,석유,mt
+LOCALIZE|prodtabsl|4,Coal,석탄,mt
+LOCALIZE|prodtabsl|5,Ore,광석,mt
+LOCALIZE|prodtabsl|6,Uran,우라늄,mt
+LOCALIZE|prodtabsl|7,Elect,전력,mt
+LOCALIZE|prodtabsl|8,C.Gds,소비재,mt
+LOCALIZE|prodtabsl|9,I.Gds,산업재,mt
+LOCALIZE|prodtabsl|10,M.Gds,군수품,mt
+LOCALIZE|prodtabsl|11,Rsvd,,
+LOCALIZE|prodtabsl|12,Fin,금융,mt
+LOCALIZE|production|0,AGRICULTURE,농산물,mt
+LOCALIZE|production|1,RUBBER,고무,mt
+LOCALIZE|production|2,TIMBER,목재,mt
+LOCALIZE|production|3,PETROLEUM,석유,mt
+LOCALIZE|production|4,COAL,석탄,mt
+LOCALIZE|production|5,METAL ORE,금속 광석,mt
+LOCALIZE|production|6,URANIUM,우라늄,mt
+LOCALIZE|production|7,ELECTRIC POWER,전력,mt
+LOCALIZE|productiontype|0,Industrial Production,산업 생산,mt
+LOCALIZE|productiontype|1,Terrain Production,지형 생산,mt
+LOCALIZE|productiontype|2,City Production,도시 생산,mt
+LOCALIZE|products|0,AGRICULTURE,농산물,mt
+LOCALIZE|products|1,RUBBER,고무,mt
+LOCALIZE|products|2,TIMBER,목재,mt
+LOCALIZE|products|3,PETROLEUM,석유,mt
+LOCALIZE|products|4,COAL,석탄,mt
+LOCALIZE|products|5,METAL ORE,금속 광석,mt
+LOCALIZE|products|6,URANIUM,우라늄,mt
+LOCALIZE|products|7,ELECTRIC POWER,전력,mt
+LOCALIZE|products|8,CONSUMER GOODS,소비재,mt
+LOCALIZE|products|9,INDUSTRY GOODS,산업재,mt
+LOCALIZE|products|10,MILITARY GOODS,군수품,mt
+LOCALIZE|products|11,CIVILIAN DEMAND,민간 수요,mt
+LOCALIZE|products|12,FINANCIAL,금융,mt
+LOCALIZE|productsl|0,Agriculture,농산물,mt
+LOCALIZE|productsl|1,Rubber,고무,mt
+LOCALIZE|productsl|2,Timber,목재,mt
+LOCALIZE|productsl|3,Petroleum,석유,mt
+LOCALIZE|productsl|4,Coal,석탄,mt
+LOCALIZE|productsl|5,Metal Ore,금속 광석,mt
+LOCALIZE|productsl|6,Uranium,우라늄,mt
+LOCALIZE|productsl|7,Electric Power,전력,mt
+LOCALIZE|productsl|8,Consumer Goods,소비재,mt
+LOCALIZE|productsl|9,Industry Goods,산업재,mt
+LOCALIZE|productsl|10,Military Goods,군수품,mt
+LOCALIZE|productsl|11,All,전체,mt
+LOCALIZE|productsl|12,Financial,금융,mt
+LOCALIZE|productsl|13,Population,인구,mt
+LOCALIZE|productsl|14,Civilian Demand,민간 수요,mt
+LOCALIZE|productsl|15,Military Demand,군 수요,mt
+LOCALIZE|produnits|0,Tonnes,톤,mt
+LOCALIZE|produnits|1,Tonnes,톤,mt
+LOCALIZE|produnits|2,m3,,
+LOCALIZE|produnits|3,Barrels,배럴,mt
+LOCALIZE|produnits|4,Tonnes,톤,mt
+LOCALIZE|produnits|5,Tonnes,톤,mt
+LOCALIZE|produnits|6,kg,,
+LOCALIZE|produnits|7,MWh,,
+LOCALIZE|produnits|8,Tonnes,톤,mt
+LOCALIZE|produnits|9,Tonnes,톤,mt
+LOCALIZE|produnits|10,Tonnes,톤,mt
+LOCALIZE|produnits|11,Rsvd,,
+LOCALIZE|produnits|12,Dollars,달러,mt
+LOCALIZE|produnitss|0,t,,
+LOCALIZE|produnitss|1,t,,
+LOCALIZE|produnitss|2,m3,,
+LOCALIZE|produnitss|3,bbl,,
+LOCALIZE|produnitss|4,t,,
+LOCALIZE|produnitss|5,t,,
+LOCALIZE|produnitss|6,kg,,
+LOCALIZE|produnitss|7,MWh,,
+LOCALIZE|produnitss|8,t,,
+LOCALIZE|produnitss|9,t,,
+LOCALIZE|produnitss|10,t,,
+LOCALIZE|produnitss|11,Rsvd,,
+LOCALIZE|produnitss|12,$,,
+LOCALIZE|proicons|0,Problem,문제,mt
+LOCALIZE|proicons|1,Small Problem,작은 문제,mt
+LOCALIZE|proicons|3,Opportunity,기회,mt
+LOCALIZE|proicons|4,Large Opportunity,큰 기회,mt
+LOCALIZE|prosubdept|0,PRODUCTION,생산,mt
+LOCALIZE|prosubdept|1,IMPORTS,수입,mt
+LOCALIZE|prosubdept|2,EXPORTS,수출,mt
+LOCALIZE|prosubdept|3,COMMODITY FACILITIES,자원 시설,mt
+LOCALIZE|prosubdept|4,CONSUMPTION AND USAGE,소비 및 사용,mt
+LOCALIZE|prosubdept|5,TRADE PARTNERS,무역 상대국,mt
+LOCALIZE|prosubdept|6,WORLD TRADE,세계 무역,mt
+LOCALIZE|prosubdept|7,WORLD LEADERS,세계 지도자,mt
+LOCALIZE|prosubdept|8,9,,
+LOCALIZE|prosubdept|9,10,,
+LOCALIZE|publicopinion|0,Strongly Opposed,강력 반대,mt
+LOCALIZE|publicopinion|1,Unfavorable,비우호적,mt
+LOCALIZE|publicopinion|2,Indifferent,무관심,mt
+LOCALIZE|publicopinion|3,Supportive,지지,mt
+LOCALIZE|publicopinion|4,Favorable,우호적,mt
+LOCALIZE|racemstone|0,1,,
+LOCALIZE|racemstone|1,2,,
+LOCALIZE|racemstone|2,3,,
+LOCALIZE|racemstone|3,4,,
+LOCALIZE|racemstone|4,5,,
+LOCALIZE|racemstone|5,6,,
+LOCALIZE|regionallocations|0,Nav Point,탐색 지점,mt
+LOCALIZE|regionallocations|1,Civilian,민간,mt
+LOCALIZE|regionallocations|2,Industrial,산업,mt
+LOCALIZE|regionallocations|3,Military,군사,mt
+LOCALIZE|regionover|0,Weak,약함,mt
+LOCALIZE|regionover|1,Average,보통,mt
+LOCALIZE|regionover|2,Strong,강함,mt
+LOCALIZE|regionoverview|0,Weak,약함,mt
+LOCALIZE|regionoverview|1,Average,보통,mt
+LOCALIZE|regionoverview|2,Strong,강함,mt
+LOCALIZE|religions|0,No Religion,무종교,mt
+LOCALIZE|religions|1,Roman Catholic,가톨릭,mt
+LOCALIZE|religions|2,Jewish,유대교,mt
+LOCALIZE|religions|3,Buddhist,불교,mt
+LOCALIZE|religions|4,Protestant,개신교,mt
+LOCALIZE|religions|5,Sunni Muslim,수니파 이슬람,mt
+LOCALIZE|religions|6,Shia Muslim,시아파 이슬람,mt
+LOCALIZE|religions|7,Other Christian,기타 기독교,mt
+LOCALIZE|religions|8,Sikh,시크교,mt
+LOCALIZE|religions|9,Hindu,힌두교,mt
+LOCALIZE|religions|10,Indigenous,토착 신앙,mt
+LOCALIZE|religions|11,Other Religions,기타 종교,mt
+LOCALIZE|resdept|0,Research Queue,연구 대기열,mt
+LOCALIZE|resdept|1,Techs Recommended,추천 기술,mt
+LOCALIZE|resdept|2,Units Recommended,추천 유닛,mt
+LOCALIZE|resdeptprior|0,udef0,,
+LOCALIZE|resdeptprior|1,udef1,,
+LOCALIZE|resdeptprior|2,udef2,,
+LOCALIZE|resdeptprior|3,udef3,,
+LOCALIZE|resdeptprior|4,udef4,,
+LOCALIZE|resdeptprior|5,udef5,,
+LOCALIZE|resinfo|0,Description,설명,mt
+LOCALIZE|resinfo|1,Prerequisite Technologies,선행 기술,mt
+LOCALIZE|resinfo|2,Access to Technologies,해금 기술,mt
+LOCALIZE|resinfo|3,Access to Unit Designs,해금 유닛 설계,mt
+LOCALIZE|resinfounit|0,Description,설명,mt
+LOCALIZE|resinfounit|1,Prerequisite Technologies,선행 기술,mt
+LOCALIZE|resinfounit|2,Replaced Unit Designs,대체되는 유닛 설계,mt
+LOCALIZE|resinfounit|3,Future Designs,후속 설계,mt
+LOCALIZE|resstate|0,Research Progressing,연구 진행 중,mt
+LOCALIZE|resstate|1,Research Paused,연구 일시 정지,mt
+LOCALIZE|resstate|2,Pre-requisite Required,선행 조건 필요,mt
+LOCALIZE|resstate|3,Research Slot Required,연구 슬롯 필요,mt
+LOCALIZE|ressubdept|0,SPENDING,지출,mt
+LOCALIZE|ressubdept|1,AVAILABLE TO RESEARCH,연구 가능,mt
+LOCALIZE|ressubdept|2,MILITARY DESIGNS,군사 설계,mt
+LOCALIZE|ressubdept|3,FACILITIES,시설,mt
+LOCALIZE|ressubdept|4,RESEARCH QUEUE,연구 대기열,mt
+LOCALIZE|ressubdept|5,KNOWN TECHNOLOGIES,보유 기술,mt
+LOCALIZE|ressubdept|6,7,,
+LOCALIZE|ressubdept|7,8,,
+LOCALIZE|ressubdept|8,9,,
+LOCALIZE|ressubdept|9,10,,
+LOCALIZE|revoltname|0,Revolt,반란,mt
+LOCALIZE|revoltname|1,Revolution,혁명,mt
+LOCALIZE|revoltname|2,Rebellion,모반,mt
+LOCALIZE|revoltname|3,Insurgency,반군 활동,mt
+LOCALIZE|revoltname|4,Restoration,복고,mt
+LOCALIZE|revoltname|5,Uprising,봉기,mt
+LOCALIZE|rulesofengagement|0,Global Rules of Engagement,전체 교전 규칙,mt
+LOCALIZE|rulesofengagement|1,Individual Rules of Engagement,개별 교전 규칙,mt
+LOCALIZE|rulesofengagement|2,Close Rules of Engagement,근접 교전 규칙,mt
+LOCALIZE|satgrids|0,Launch Pending,발사 대기 중,mt
+LOCALIZE|satgrids|1,No Satellites Available,사용 가능한 위성 없음,mt
+LOCALIZE|satgrids|2,No Launch Pad Available,사용 가능한 발사대 없음,mt
+LOCALIZE|satres|0,Low,낮음,mt
+LOCALIZE|satres|1,High,높음,mt
+LOCALIZE|sattypes|0,Communications,통신,mt
+LOCALIZE|sattypes|1,Reconnaissance,정찰,mt
+LOCALIZE|sattypes|2,Missile Defense,미사일 방어,mt
+LOCALIZE|sattypesu|0,COMMUNICATIONS,통신,mt
+LOCALIZE|sattypesu|1,RECONNAISSANCE,정찰,mt
+LOCALIZE|sattypesu|2,MISSILE DEFENSE,미사일 방어,mt
+LOCALIZE|savedirnames|0,Game Directory,게임 폴더,mt
+LOCALIZE|savedirnames|1,Windows Profile,Windows 프로필,mt
+LOCALIZE|savedirnames|2,My Documents,내 문서,mt
+LOCALIZE|scorelistsort|1,Country Name,국가 이름,mt
+LOCALIZE|scorelistsort|2,2,,
+LOCALIZE|scorelistsort|3,3,,
+LOCALIZE|scorelistsort|4,4,,
+LOCALIZE|scorelistsort|5,5,,
+LOCALIZE|scorelistsort|6,Enemies,적국,mt
+LOCALIZE|scorelistsort|7,Allies,동맹국,mt
+LOCALIZE|scorelistsort|8,Colonies,식민지,mt
+LOCALIZE|scorelistsort|9,9,,
+LOCALIZE|scorelistsort|10,Importers,수입국,mt
+LOCALIZE|scorelistsort|11,Exporters,수출국,mt
+LOCALIZE|scorelistsort|12,Producers,생산국,mt
+LOCALIZE|scorelistsort|13,Consumers,소비국,mt
+LOCALIZE|scorelistsort|14,14,,
+LOCALIZE|scorelistsort|15,15,,
+LOCALIZE|scorelistsort|16,16,,
+LOCALIZE|scorelistsort|17,17,,
+LOCALIZE|scorelistsort|18,18,,
+LOCALIZE|scorelistsort|19,19,,
+LOCALIZE|scorelistsort|20,Domestic Approval,국내 지지율,mt
+LOCALIZE|scorelistsort|21,Military Approval,군 지지율,mt
+LOCALIZE|scorelistsort|22,Treasury,국고,mt
+LOCALIZE|scorelistsort|23,Debt,부채,mt
+LOCALIZE|scorelistsort|24,GDP/c,1인당 GDP,mt
+LOCALIZE|scorelistsort|25,Population,인구,mt
+LOCALIZE|scorelistsort|26,Tech Level,기술 수준,mt
+LOCALIZE|scorelistsort|27,Preparedness,전쟁 준비도,mt
+LOCALIZE|scorelistsort|28,Unit Kills,유닛 격파,mt
+LOCALIZE|scorelistsort|29,Unit Losses,유닛 손실,mt
+LOCALIZE|scorelistsort|30,Military Casualties,군 사상자,mt
+LOCALIZE|scorelistsort|31,Land Lost,상실 영토,mt
+LOCALIZE|scorelistsort|32,Total Army Staff,총 군 인력,mt
+LOCALIZE|scorelistsort|33,Build Capacities - Land / Air / Naval / Missile,생산 능력 - 육 / 공 / 해 / 미사일,mt
+LOCALIZE|scorelistsort|34,Government Type,정부 형태,mt
+LOCALIZE|scorelistsort|35,Territorial Area,영토 면적,mt
+LOCALIZE|scorelistsort|36,Relations With Region,지역과의 관계,mt
+LOCALIZE|scorelistsort|37,United Nations Member,유엔 회원국,mt
+LOCALIZE|scorelistsort|38,United Nations Opinion,유엔 여론,mt
+LOCALIZE|scorelistsort|39,United Nations Subsidy Rate,유엔 보조금 비율,mt
+LOCALIZE|scorelistsort|40,Latest Poll Results,최신 여론조사 결과,mt
+LOCALIZE|scorelistsort|41,Poll Ranking,여론조사 순위,mt
+LOCALIZE|scorelistsort|42,Supporting Voters,지지 유권자,mt
+LOCALIZE|scorelistsort|43,Political Leaning,정치 성향,mt
+LOCALIZE|scorelistsort|44,44,,
+LOCALIZE|scorelistsort|45,45,,
+LOCALIZE|scorelistsort|46,46,,
+LOCALIZE|scorelistsort|47,47,,
+LOCALIZE|scorelistsort|48,48,,
+LOCALIZE|scorelistsort|49,Victory Points,승점,mt
+LOCALIZE|scorelistsort|50,Total Score,총점,mt
+LOCALIZE|scorelistsort|51,Diplomatic Score,외교 점수,mt
+LOCALIZE|scorelistsort|52,Economic Score,경제 점수,mt
+LOCALIZE|scorelistsort|53,Technology Score,기술 점수,mt
+LOCALIZE|scorelistsort|54,Approval Score,지지율 점수,mt
+LOCALIZE|scorelistsort|55,Military Score,군사 점수,mt
+LOCALIZE|scorelistsort|56,Casus Belli,전쟁 명분,mt
+LOCALIZE|scorelistsort|57,At War,교전 중,mt
+LOCALIZE|scorelistsort|58,Provocation,도발,mt
+LOCALIZE|scorelistsort|59,Allies,동맹국,mt
+LOCALIZE|scorelistsort|60,Enemies,적국,mt
+LOCALIZE|scorelistsort|61,61,,
+LOCALIZE|scorelistsort|62,62,,
+LOCALIZE|scorelistsort|63,63,,
+LOCALIZE|scorelistsort|64,64,,
+LOCALIZE|scorelistsort|65,65,,
+LOCALIZE|scorelistsort|66,66,,
+LOCALIZE|scorelistsort|67,67,,
+LOCALIZE|scorelistsort|68,68,,
+LOCALIZE|scorelistsort|69,69,,
+LOCALIZE|scorelistsort|70,70,,
+LOCALIZE|scorelistsort|71,71,,
+LOCALIZE|scorelistsort|72,72,,
+LOCALIZE|scorelistsort|73,73,,
+LOCALIZE|scorelistsort|74,74,,
+LOCALIZE|scorelistsort|75,75,,
+LOCALIZE|scorelistsort|76,76,,
+LOCALIZE|scorelistsort|77,77,,
+LOCALIZE|scorelistsort|78,78,,
+LOCALIZE|scorelistsort|79,79,,
+LOCALIZE|scorelistsort|80,80,,
+LOCALIZE|scorelistsort|81,81,,
+LOCALIZE|scorelistsort|82,82,,
+LOCALIZE|scorelistsort|83,83,,
+LOCALIZE|scorelistsort|84,84,,
+LOCALIZE|scorelistsort|85,85,,
+LOCALIZE|scorelistsort|86,86,,
+LOCALIZE|scorelistsort|87,87,,
+LOCALIZE|scorelistsort|88,88,,
+LOCALIZE|scorelistsort|89,89,,
+LOCALIZE|scorelistsort|90,90,,
+LOCALIZE|scorelistsort|91,91,,
+LOCALIZE|scorelistsort|92,92,,
+LOCALIZE|scorelistsort|93,93,,
+LOCALIZE|scorelistsort|94,94,,
+LOCALIZE|scorelistsort|95,95,,
+LOCALIZE|scorelistsort|96,96,,
+LOCALIZE|scorelistsort|97,97,,
+LOCALIZE|scorelistsort|98,98,,
+LOCALIZE|scorelistsort|99,99,,
+LOCALIZE|scorelistsort|100,100,,
+LOCALIZE|scorelistsort|101,101,,
+LOCALIZE|scorelistsort|102,102,,
+LOCALIZE|scorelistsort|103,103,,
+LOCALIZE|scorelistsort|104,104,,
+LOCALIZE|scorelistsort|105,Sphere Alignment,세력권 소속,mt
+LOCALIZE|scorelistsort|106,Colonies,식민지,mt
+LOCALIZE|scorelistsort|107,Destabilization Activity,불안정화 공작,mt
+LOCALIZE|scorelistsort|108,108,,
+LOCALIZE|scorelistsort|113,Infection Rate,감염률,mt
+LOCALIZE|scorelistsort|114,Number of Infected,감염자 수,mt
+LOCALIZE|scorelistsort|115,Mortality Rate,치사율,mt
+LOCALIZE|scorelistsort|116,Deaths from Viral Infection Past 24h,최근 24시간 바이러스 사망자,mt
+LOCALIZE|scorelistsort|117,Deaths from Viral Infection Total,바이러스 총 사망자,mt
+LOCALIZE|scorelistsort|118,Infection Deaths as % of Total,전체 대비 감염 사망 비율,mt
+LOCALIZE|scorelistsort|119,Mandate Status,위임 상태,mt
+LOCALIZE|scorelisttitle|0,Players,플레이어,mt
+LOCALIZE|scorelisttitle|1,Local Opponents,지역 상대,mt
+LOCALIZE|scorelisttitle|2,Foreign Opponents,해외 상대,mt
+LOCALIZE|scorelisttitle|3,Fallen Empires,멸망한 제국,mt
+LOCALIZE|scortchtar|0,Agriculture,농산물,mt
+LOCALIZE|scortchtar|1,Metal Ore,금속 광석,mt
+LOCALIZE|scortchtar|2,Petroleum,석유,mt
+LOCALIZE|scortchtar|3,Coal,석탄,mt
+LOCALIZE|scortchtar|4,Uranium,우라늄,mt
+LOCALIZE|scortchtar|5,Timber,목재,mt
+LOCALIZE|scortchtar|6,Fresh Water,담수,mt
+LOCALIZE|scortchtar|7,Electric Power,전력,mt
+LOCALIZE|scortchtar|8,Consumer Goods,소비재,mt
+LOCALIZE|scortchtar|9,Industry Goods,산업재,mt
+LOCALIZE|scortchtar|10,Military Goods,군수품,mt
+LOCALIZE|scortchtar|11,All Land Bases,모든 육군 기지,mt
+LOCALIZE|scortchtar|12,"Air Bases, Air Strips","공군 기지, 활주로",mt
+LOCALIZE|scortchtar|13,"Naval Ports, Piers","항만, 부두",mt
+LOCALIZE|scortchtar|14,Missile Silos,미사일 사일로,mt
+LOCALIZE|scortchtar|15,Research Centers,연구 센터,mt
+LOCALIZE|scortchtar|16,Air Defenses,방공 시설,mt
+LOCALIZE|scortchtar|17,Radar Stations,레이더 기지,mt
+LOCALIZE|scortchtar|18,Launch Pads,발사대,mt
+LOCALIZE|scortchtar|19,Bridges,교량,mt
+LOCALIZE|seainit|0,NONE - All units engaged will fire back and resupply where they are positioned.,없음 - 교전 중인 모든 유닛은 현 위치에서 응사하고 재보급합니다.,mt
+LOCALIZE|seainit|1,"LOW - Units will also go for repair, perform some border recon and defensive pre-positioning.","낮음 - 추가로 수리하러 이동하고, 일부 국경 정찰과 방어 사전 배치를 수행합니다.",mt
+LOCALIZE|seainit|2,"MEDIUM - Units will also retreat, increase border recon and units will react in defensive situations.  Naval patrols begin.","보통 - 추가로 후퇴하고, 국경 정찰을 늘리며, 방어 상황에 대응합니다. 해상 순찰을 시작합니다.",mt
+LOCALIZE|seainit|3,HIGH - Units will also actively attack and defend.  Recapture lost territory and invade regions while at war.  Units will call for resupply.,높음 - 추가로 적극 공격과 방어를 수행합니다. 교전 중에는 잃은 영토를 되찾고 지역을 침공합니다. 재보급을 요청합니다.,mt
+LOCALIZE|seainit|4,FULL - Units will also actively reserve and deploy.,최대 - 추가로 예비 전환과 배치를 적극적으로 수행합니다.,mt
+LOCALIZE|selactions|0,Hold Position,위치 사수,mt
+LOCALIZE|selactions|1,Move to Target - War Declaration,표적으로 이동 - 선전포고 시,mt
+LOCALIZE|selactions|2,Move to Target - Now,표적으로 이동 - 즉시,mt
+LOCALIZE|selairsupport|0,No Air Support,공중 지원 없음,mt
+LOCALIZE|selairsupport|1,Moderate Air Support,보통 공중 지원,mt
+LOCALIZE|selairsupport|2,Heavy Air Support,대규모 공중 지원,mt
+LOCALIZE|selbzth|0,Battle Zone Settings,전투 구역 설정,mt
+LOCALIZE|selbzth|1,Theater Settings,전구 설정,mt
+LOCALIZE|selecttitles|0,SELECT TUTORIAL,튜토리얼 선택,mt
+LOCALIZE|selecttitles|1,SELECT SAVED GAME,저장된 게임 선택,mt
+LOCALIZE|selecttitles|2,SELECT MISSION,임무 선택,mt
+LOCALIZE|selmaxunits|0,Very Small,매우 적음,mt
+LOCALIZE|selmaxunits|1,Small,적음,mt
+LOCALIZE|selmaxunits|2,Moderate,보통,mt
+LOCALIZE|selmaxunits|3,Heavy,많음,mt
+LOCALIZE|selmaxunits|4,Very Heavy,매우 많음,mt
+LOCALIZE|selordercontact|0,Mixed Contact,접촉: 혼합,mt
+LOCALIZE|selordercontact|1,Avoid Contact,접촉: 회피,mt
+LOCALIZE|selordercontact|2,Engage Contact,접촉: 교전,mt
+LOCALIZE|selordercontact|3,Pursue Contact,접촉: 추격,mt
+LOCALIZE|selorderloss|0,Mixed Losses,손실: 혼합,mt
+LOCALIZE|selorderloss|1,No Losses,손실: 없음,mt
+LOCALIZE|selorderloss|2,Low Losses,손실: 낮음,mt
+LOCALIZE|selorderloss|3,Medium Losses,손실: 보통,mt
+LOCALIZE|selorderloss|4,High Losses,손실: 높음,mt
+LOCALIZE|selorderroute|0,Mixed Route,경로: 혼합,mt
+LOCALIZE|selorderroute|1,Cautious Route,경로: 신중,mt
+LOCALIZE|selorderroute|2,Normal Route,경로: 보통,mt
+LOCALIZE|selorderroute|3,Direct Route,경로: 직행,mt
+LOCALIZE|selorderroute|4,Quickest Route,경로: 최단,mt
+LOCALIZE|selorderspeed|0,Mixed Speed,속도: 혼합,mt
+LOCALIZE|selorderspeed|1,Cautious Speed,속도: 신중,mt
+LOCALIZE|selorderspeed|2,Normal Speed,속도: 보통,mt
+LOCALIZE|selorderspeed|3,Fast Speed,속도: 빠름,mt
+LOCALIZE|selorderspeed|4,Fastest Speed,속도: 최고속,mt
+LOCALIZE|selunitinit|0,Mixed Initiative,재량: 혼합,mt
+LOCALIZE|selunitinit|1,No Initiative,재량: 없음,mt
+LOCALIZE|selunitinit|2,Low Initiative,재량: 낮음,mt
+LOCALIZE|selunitinit|3,Medium Initiative,재량: 보통,mt
+LOCALIZE|selunitinit|4,High Initiative,재량: 높음,mt
+LOCALIZE|setadvfogofwar|0,Basic,기본,mt
+LOCALIZE|setadvfogofwar|1,Realistic,사실적,mt
+LOCALIZE|setaistance|0,Default,기본,mt
+LOCALIZE|setaistance|1,Passive,소극적,mt
+LOCALIZE|setaistance|2,Defensive,방어적,mt
+LOCALIZE|setaistance|3,Aggressive,공격적,mt
+LOCALIZE|setaistance|4,Unpredictable,예측 불가,mt
+LOCALIZE|setinitialfunds|0,No New Bonds,신규 채권 없음,mt
+LOCALIZE|setinitialfunds|1,Low,적음,mt
+LOCALIZE|setinitialfunds|2,Default,기본,mt
+LOCALIZE|setinitialfunds|3,High,많음,mt
+LOCALIZE|setreservelimit|0,Default,기본,mt
+LOCALIZE|setreservelimit|1,High,높음,mt
+LOCALIZE|setreservelimit|2,None,없음,mt
+LOCALIZE|setspeedcontrol|0,All,전체,mt
+LOCALIZE|setspeedcontrol|1,Only Host,호스트만,mt
+LOCALIZE|slotinfo|0,Open,열림,mt
+LOCALIZE|slotinfo|1,Closed,닫힘,mt
+LOCALIZE|slotinfo|2,Full,가득 참,mt
+LOCALIZE|slotinfo|3,Computer,컴퓨터,mt
+LOCALIZE|slotinfo|4,Reserved,예약,mt
+LOCALIZE|slotinfo|5,Disabled,사용 안 함,mt
+LOCALIZE|socialdescription|0,Health Care affects birth rates and life expectancy,보건은 출생률과 기대 수명에 영향을 줍니다,mt
+LOCALIZE|socialdescription|1,"Education affects literacy, research efficiency, and GDP/c","교육은 문해율, 연구 효율, 1인당 GDP에 영향을 줍니다",mt
+LOCALIZE|socialdescription|2,Infrastructure affects supply levels and industry output,인프라는 보급 수준과 산업 생산량에 영향을 줍니다,mt
+LOCALIZE|socialdescription|3,Environment affects domestic and international opinions,환경은 국내외 여론에 영향을 줍니다,mt
+LOCALIZE|socialdescription|4,Family Subsidy affects birth rate and employment rates,가족 수당은 출생률과 고용률에 영향을 줍니다,mt
+LOCALIZE|socialdescription|5,Law Enforcement affects espionage and civil unrest,치안은 첩보와 사회 불안에 영향을 줍니다,mt
+LOCALIZE|socialdescription|6,Cultural Spending affects domestic and international opinions,문화 지출은 국내외 여론에 영향을 줍니다,mt
+LOCALIZE|socialdescription|7,Social Assistance affects GDP/c and economic inequity,사회 보장은 1인당 GDP와 경제 불평등에 영향을 줍니다,mt
+LOCALIZE|socialdescription|8,9,,
+LOCALIZE|socials|0,Health Care,보건,mt
+LOCALIZE|socials|1,Education,교육,mt
+LOCALIZE|socials|2,Infrastructure,인프라,mt
+LOCALIZE|socials|3,Environment,환경,mt
+LOCALIZE|socials|4,Family Subsidy,가족 수당,mt
+LOCALIZE|socials|5,Law Enforcement,치안,mt
+LOCALIZE|socials|6,Cultural Subsidy,문화 지원,mt
+LOCALIZE|socials|7,Social Assistance,사회 보장,mt
+LOCALIZE|socialst|0,Health Care,보건,mt
+LOCALIZE|socialst|1,Education,교육,mt
+LOCALIZE|socialst|2,Infrastructure,인프라,mt
+LOCALIZE|socialst|3,Environment,환경,mt
+LOCALIZE|socialst|4,Family Subsidy,가족 수당,mt
+LOCALIZE|socialst|5,Law Enforcement,치안,mt
+LOCALIZE|socialst|6,Cultural Subsidy,문화 지원,mt
+LOCALIZE|socialst|7,Social Assistance,사회 보장,mt
+LOCALIZE|spherecolors|0,Red,빨강,mt
+LOCALIZE|spherecolors|1,Light Red,연한 빨강,mt
+LOCALIZE|spherecolors|2,White,흰색,mt
+LOCALIZE|spherecolors|3,Light Blue,연한 파랑,mt
+LOCALIZE|spherecolors|4,Blue,파랑,mt
+LOCALIZE|spherenames|0,%s Aligned,%s 편,mt
+LOCALIZE|spherenames|1,%s Leaning,%s 편향,mt
+LOCALIZE|spherenames|2,Non-Aligned,비동맹,mt
+LOCALIZE|spherenames|3,%s Leaning,%s 편향,mt
+LOCALIZE|spherenames|4,%s Aligned,%s 편,mt
+LOCALIZE|spystatus|0,Training,훈련 중,mt
+LOCALIZE|spystatus|1,Reserved,예약,mt
+LOCALIZE|spystatus|2,Counter Intel,방첩,mt
+LOCALIZE|spystatus|3,On a Mission,임무 수행 중,mt
+LOCALIZE|stadeptprior|0,udef0,,
+LOCALIZE|stadeptprior|1,udef1,,
+LOCALIZE|stadeptprior|2,udef2,,
+LOCALIZE|stadeptprior|3,udef3,,
+LOCALIZE|stadeptprior|4,udef4,,
+LOCALIZE|stadeptprior|5,udef5,,
+LOCALIZE|stance|0,Ourselves,우리,mt
+LOCALIZE|stance|1,Allied,동맹국,mt
+LOCALIZE|stance|2,Neutral,중립,mt
+LOCALIZE|stance|3,Enemy,적,mt
+LOCALIZE|stance|4,Unknown,미확인,mt
+LOCALIZE|stance|5,Undiscovered,미발견,mt
+LOCALIZE|stance|6,Colony,식민지,mt
+LOCALIZE|stance|7,Subregion,하위 지역,mt
+LOCALIZE|stance|8,Known,확인됨,mt
+LOCALIZE|stance|9,Discovered,발견됨,mt
+LOCALIZE|stance|10,Subregion Of,종속 대상,mt
+LOCALIZE|stance|11,Threats,위협,mt
+LOCALIZE|stance|12,Mutual Defense,상호 방위,mt
+LOCALIZE|stanceaction|0,Ourselves - Click to Centre,우리 - 클릭 시 중앙으로 이동,mt
+LOCALIZE|stanceaction|1,Allied - Click to Break Alliance,동맹국 - 클릭 시 동맹 파기,mt
+LOCALIZE|stanceaction|2,Neutral - Click to Declare War,중립 - 클릭 시 선전포고,mt
+LOCALIZE|stanceaction|3,Enemy - Click to Offer Peace,적 - 클릭 시 평화 제안,mt
+LOCALIZE|stanceaction|4,Unknown,미확인,mt
+LOCALIZE|stanceaction|5,Undiscovered,미발견,mt
+LOCALIZE|stanceaction|6,Colony - Click to Liberate,식민지 - 클릭 시 해방,mt
+LOCALIZE|stanceaction|7,Subregion,하위 지역,mt
+LOCALIZE|stanceplural|0,Ourselves,우리,mt
+LOCALIZE|stanceplural|1,Allies,동맹국,mt
+LOCALIZE|stanceplural|2,Neutrals,중립국,mt
+LOCALIZE|stanceplural|3,Enemies,적국,mt
+LOCALIZE|stanceplural|4,Unknown Regions,미확인 지역,mt
+LOCALIZE|stanceplural|5,Undiscovered Regions,미발견 지역,mt
+LOCALIZE|stanceplural|6,Colonies,식민지,mt
+LOCALIZE|stanceplural|7,Subregions,하위 지역,mt
+LOCALIZE|stanceplural|10,Subregion Of,종속 대상,mt
+LOCALIZE|stanceplural|11,Threats,위협,mt
+LOCALIZE|stanceplural|12,Mutual Defense Partners,상호 방위 상대국,mt
+LOCALIZE|startingforce|0,Standard,표준,mt
+LOCALIZE|startingforce|1,Enhanced,강화,mt
+LOCALIZE|startingforce|2,Augmented,증강,mt
+LOCALIZE|startingforce|3,Extended,확장,mt
+LOCALIZE|startingforce|4,Massive,대규모,mt
+LOCALIZE|startingforce|5,Unlimited,무제한,mt
+LOCALIZE|starttech|0,None,없음,mt
+LOCALIZE|starttech|1,Normal,보통,mt
+LOCALIZE|starttech|2,Advanced,고급,mt
+LOCALIZE|stasubdept|0,REGIONAL SUMMARY,지역 요약,mt
+LOCALIZE|stasubdept|1,REGIONAL NEWS,지역 뉴스,mt
+LOCALIZE|stasubdept|2,CONFLICT & SUPPORT,분쟁 및 지원,mt
+LOCALIZE|stasubdept|3,TRADES,거래,mt
+LOCALIZE|stasubdept|4,UNITED NATIONS MEMBERSHIP,유엔 가입,mt
+LOCALIZE|stasubdept|5,REGIONAL OVERVIEW,지역 개요,mt
+LOCALIZE|stasubdept|6,RELIGION,종교,mt
+LOCALIZE|stasubdept|7,INTENTIONS,의도,mt
+LOCALIZE|stasubdept|8,WAR DECLARATION,선전포고,mt
+LOCALIZE|stasubdept|9,10,,
+LOCALIZE|staterel|0,Hostile,적대,mt
+LOCALIZE|staterel|1,Cold,냉랭,mt
+LOCALIZE|staterel|2,Neutral,중립,mt
+LOCALIZE|staterel|3,Cordial,화목,mt
+LOCALIZE|staterel|4,Friendly,우호,mt
+LOCALIZE|statmsg|0,LAND LOST,상실 영토,mt
+LOCALIZE|statmsg|1,LAND GAINED,획득 영토,mt
+LOCALIZE|statmsg|2,UNITS LOST,유닛 손실,mt
+LOCALIZE|statmsg|3,UNITS KILLED,유닛 격파,mt
+LOCALIZE|stockgraph|0,Month,월,mt
+LOCALIZE|stockgraph|1,Year,연,mt
+LOCALIZE|strattradeval|0,Sell For ~$,판매가 ~$,mt
+LOCALIZE|strattradeval|1,This Unit Cannot Be Sold,이 유닛은 판매할 수 없습니다,mt
+LOCALIZE|strattradeval|2,This Unit Is Pending Sale,이 유닛은 판매 대기 중입니다,mt
+LOCALIZE|supplychaindir|0,In,유입,mt
+LOCALIZE|supplychaindir|1,Out,유출,mt
+LOCALIZE|taxdescription|0,Low Income Tax - Tax on low income earners,저소득세 - 저소득층에 부과하는 세금,mt
+LOCALIZE|taxdescription|1,High Income Tax - Tax on high income earners,고소득세 - 고소득층에 부과하는 세금,mt
+LOCALIZE|taxdescription|2,Corporate Tax - Tax on corporations,법인세 - 기업에 부과하는 세금,mt
+LOCALIZE|taxdescription|3,Small Business Tax - Tax on small businesses,소기업세 - 소기업에 부과하는 세금,mt
+LOCALIZE|taxdescription|4,Sales Tax - Tax on items purchased by consumers,판매세 - 소비자가 구매하는 물품에 부과하는 세금,mt
+LOCALIZE|taxdescription|5,Unemployment Tax - Tax applied to earnings which fund employment supports,실업세 - 고용 지원 재원을 위해 소득에 부과하는 세금,mt
+LOCALIZE|taxdescription|6,"Property Tax - Tax applied to those who own residential, commercial or industrial use land",재산세 - 주거·상업·산업용 토지 소유자에게 부과하는 세금,mt
+LOCALIZE|taxdescription|7,Pension Tax - Tax applied to earning which is repaid with interest to retired workers,연금세 - 소득에 부과하여 이자를 붙여 은퇴 근로자에게 돌려주는 세금,mt
+LOCALIZE|taxes|0,Low Income,저소득,mt
+LOCALIZE|taxes|1,High Income,고소득,mt
+LOCALIZE|taxes|2,Corporate,법인,mt
+LOCALIZE|taxes|3,Small Business,소기업,mt
+LOCALIZE|taxes|4,Sales Tax,판매세,mt
+LOCALIZE|taxes|5,Unemployment,실업,mt
+LOCALIZE|taxes|6,Property Tax,재산세,mt
+LOCALIZE|taxes|7,Pension Tax,연금세,mt
+LOCALIZE|taxest|0,Low Income,저소득,mt
+LOCALIZE|taxest|1,High Income,고소득,mt
+LOCALIZE|taxest|2,Corporate,법인,mt
+LOCALIZE|taxest|3,Small Business,소기업,mt
+LOCALIZE|taxest|4,Sales Tax,판매세,mt
+LOCALIZE|taxest|5,Unemployment,실업,mt
+LOCALIZE|taxest|6,Property Tax,재산세,mt
+LOCALIZE|taxest|7,Pension Tax,연금세,mt
+LOCALIZE|techcategory|0,Reserved,예약,mt
+LOCALIZE|techcategory|1,Warfare,전쟁,mt
+LOCALIZE|techcategory|2,Transportation,수송,mt
+LOCALIZE|techcategory|3,Science,과학,mt
+LOCALIZE|techcategory|4,Technology,기술,mt
+LOCALIZE|techcategory|5,Medical,의료,mt
+LOCALIZE|techcategory|6,Society,사회,mt
+LOCALIZE|techcategoryu|0,RESERVED,예약,mt
+LOCALIZE|techcategoryu|1,WARFARE,전쟁,mt
+LOCALIZE|techcategoryu|2,TRANSPORTATION,수송,mt
+LOCALIZE|techcategoryu|3,SCIENCE,과학,mt
+LOCALIZE|techcategoryu|4,TECHNOLOGY,기술,mt
+LOCALIZE|techcategoryu|5,MEDICAL,의료,mt
+LOCALIZE|techcategoryu|6,SOCIETY,사회,mt
+LOCALIZE|techresearchstatus|0,Missing Prerequisite,선행 조건 부족,mt
+LOCALIZE|techresearchstatus|1,Research not started,연구 미시작,mt
+LOCALIZE|techresearchstatus|2,Research in progress,연구 진행 중,mt
+LOCALIZE|techresearchstatus|3,Available,사용 가능,mt
+LOCALIZE|techstatus|0,Unresearched,미연구,mt
+LOCALIZE|techstatus|1,Queued,대기 중,mt
+LOCALIZE|techstatus|2,Researching,연구 중,mt
+LOCALIZE|techstatus|3,Paused,일시 정지,mt
+LOCALIZE|techstatus|4,Achieved,완료,mt
+LOCALIZE|techstatus|5,Lack of Funding,자금 부족,mt
+LOCALIZE|techstatus|6,Prerequisite Pending,선행 조건 대기,mt
+LOCALIZE|thdipfocus|0,None,없음,mt
+LOCALIZE|thdipfocus|1,Limited Offers,제한적 제안,mt
+LOCALIZE|thdipfocus|2,Balanced,균형,mt
+LOCALIZE|thdipfocus|3,Aggressive Offers,공격적 제안,mt
+LOCALIZE|thespfocus|0,None,없음,mt
+LOCALIZE|thespfocus|1,Cautious,신중,mt
+LOCALIZE|thespfocus|2,Moderate,보통,mt
+LOCALIZE|thespfocus|3,Aggressive,공격적,mt
+LOCALIZE|thfocus|0,None,없음,mt
+LOCALIZE|thfocus|1,Defensive,방어적,mt
+LOCALIZE|thfocus|2,Balanced,균형,mt
+LOCALIZE|thfocus|3,Offensive,공세적,mt
+LOCALIZE|thpriority|0,None,없음,mt
+LOCALIZE|thpriority|1,Low,낮음,mt
+LOCALIZE|thpriority|2,Medium,보통,mt
+LOCALIZE|thpriority|3,High,높음,mt
+LOCALIZE|timeformat|0,12:00am,,
+LOCALIZE|timeformat|1,24:00:00,,
+LOCALIZE|timeparts|0,Hours,시간,mt
+LOCALIZE|timeparts|1,Min,분,mt
+LOCALIZE|tradeaccept|0,Offer Appears Unacceptable,제안이 받아들여지지 않을 듯합니다.,mt
+LOCALIZE|tradeaccept|1,Offer Appears Acceptable,제안이 받아들여질 듯합니다.,mt
+LOCALIZE|tradeaccept|2,Offer Appears Very Acceptable,제안이 확실히 받아들여질 듯합니다.,mt
+LOCALIZE|tradedest|0,To Stock,재고로,mt
+LOCALIZE|tradedest|1,To Production,생산으로,mt
+LOCALIZE|tradedest|2,To Trade,무역으로,mt
+LOCALIZE|tradedest|3,To World Market,세계 시장으로,mt
+LOCALIZE|tradedest|4,To Population,인구로,mt
+LOCALIZE|tradedest|5,To Military,군으로,mt
+LOCALIZE|tradedest|6,To,대상,mt
+LOCALIZE|tradedest|7,To Other,기타로,mt
+LOCALIZE|tradedest|8,To Research,연구로,mt
+LOCALIZE|tradeexportwords|0,Limited Export,제한적 수출,mt
+LOCALIZE|tradeexportwords|1,Export,수출,mt
+LOCALIZE|tradeexportwords|2,Aggressive Export,적극적 수출,mt
+LOCALIZE|tradeexportwords|3,Neutral,중립,mt
+LOCALIZE|tradeitems|0,Existing Agreements,기존 협정,mt
+LOCALIZE|tradeitems|1,Treaty List,조약 목록,mt
+LOCALIZE|tradeitems|2,Diplomatic Actions,외교 행동,mt
+LOCALIZE|tradeitems|3,Resources,자원,mt
+LOCALIZE|tradeitems|4,Technologies,기술,mt
+LOCALIZE|tradeitems|5,Unit & Missile Designs,유닛 및 미사일 설계,mt
+LOCALIZE|tradeitems|6,Military Units & Missiles,군 유닛 및 미사일,mt
+LOCALIZE|tradeitems|8,Trade Land,토지 거래,mt
+LOCALIZE|tradeitems|9,War Declarations,선전포고,mt
+LOCALIZE|tradeitems|10,Colonies,식민지,mt
+LOCALIZE|tradeitems|11,Intelligence,정보,mt
+LOCALIZE|tradeitems|12,Cancel,취소,mt
+LOCALIZE|tradeitems|13,Battlezones,전투 구역,mt
+LOCALIZE|tradepolicy|0,Export,수출,mt
+LOCALIZE|tradepolicy|1,Import,수입,mt
+LOCALIZE|tradepolicy|2,None,없음,mt
+LOCALIZE|tradesource|0,From Stock,재고에서,mt
+LOCALIZE|tradesource|1,From Production,생산에서,mt
+LOCALIZE|tradesource|2,From Trade,무역에서,mt
+LOCALIZE|tradesource|3,From Capture,점령에서,mt
+LOCALIZE|tradesource|4,From World Market,세계 시장에서,mt
+LOCALIZE|tradesource|5,From,출처,mt
+LOCALIZE|tradesource|6,From Other,기타에서,mt
+LOCALIZE|tradetargeteffects|0,"If target is greater than sustainable days, minister will seek to increase stock including solicit import offers from other countries.","목표가 유지 가능 일수보다 크면 장관이 재고를 늘리려 하며, 다른 나라에 수입 제안을 요청하는 것도 포함합니다.",mt
+LOCALIZE|tradetargeteffects|1,Will set the minister priority to export this commodity.,장관의 우선순위를 이 상품 수출로 설정합니다.,mt
+LOCALIZE|tradetargeteffects|2,No current effects.,현재 적용되는 효과가 없습니다.,mt
+LOCALIZE|transport|0,Road,도로,mt
+LOCALIZE|transport|1,Rail,철도,mt
+LOCALIZE|transport|2,Road / Rail,도로 / 철도,mt
+LOCALIZE|treatyrequire|0,Requires Resource Status Treaty,자원 현황 조약 필요,mt
+LOCALIZE|treatyrequire|1,Requires Research Progress Treaty,연구 진행 조약 필요,mt
+LOCALIZE|treatyrequire|2,Requires Military Inventory Treaty,군 보유 현황 조약 필요,mt
+LOCALIZE|tredeptprior|0,udef0,,
+LOCALIZE|tredeptprior|1,udef1,,
+LOCALIZE|tredeptprior|2,udef2,,
+LOCALIZE|tredeptprior|3,udef3,,
+LOCALIZE|tredeptprior|4,udef4,,
+LOCALIZE|tredeptprior|5,udef5,,
+LOCALIZE|tresubdept|0,SOCIAL SPENDING,사회 지출,mt
+LOCALIZE|tresubdept|1,TAXES,세금,mt
+LOCALIZE|tresubdept|2,BONDS AND LOANS,채권 및 대출,mt
+LOCALIZE|tresubdept|3,4,,
+LOCALIZE|tresubdept|4,5,,
+LOCALIZE|tresubdept|5,6,,
+LOCALIZE|tresubdept|6,7,,
+LOCALIZE|tresubdept|7,8,,
+LOCALIZE|tresubdept|8,9,,
+LOCALIZE|tresubdept|9,10,,
+LOCALIZE|tutorialdescriptions|0,Introduction to the User Interface,사용자 인터페이스 소개,mt
+LOCALIZE|tutorialdescriptions|1,Introduction to your system and managing your empire,성계 소개 및 제국 운영,mt
+LOCALIZE|tutorialdescriptions|2,Learn to manager your planet,행성 관리 방법 익히기,mt
+LOCALIZE|tutorialdescriptions|3,Description 4,,
+LOCALIZE|tutorialnames|0,Chapter 1,1장,mt
+LOCALIZE|tutorialnames|1,Chapter 2,2장,mt
+LOCALIZE|tutorialnames|2,Chapter 3,3장,mt
+LOCALIZE|tutorialnames|3,Chapter 4,4장,mt
+LOCALIZE|ugstatshort|0,Active,활성,mt
+LOCALIZE|ugstatshort|1,Inactive,비활성,mt
+LOCALIZE|ugstatshort|2,Destroying,파괴 중,mt
+LOCALIZE|ugstatshort|3,Building,건설 중,mt
+LOCALIZE|ugstatshort|4,Scrapping,폐기 중,mt
+LOCALIZE|ugstatshort|5,No Repair,수리 불가,mt
+LOCALIZE|ugstatshort|6,Paused,일시 정지,mt
+LOCALIZE|ugstatshort|7,No Supply,보급 없음,mt
+LOCALIZE|ugstatus|0,ACTIVE,활성,mt
+LOCALIZE|ugstatus|1,DEACTIVATED,비활성화,mt
+LOCALIZE|ugstatus|2,TO BE DESTROYED,파괴 예정,mt
+LOCALIZE|ugstatus|3,BUILDING,건설 중,mt
+LOCALIZE|ugstatus|4,TO BE SCRAPPED,폐기 예정,mt
+LOCALIZE|ugstatus|5,REPAIR PAUSED,수리 일시 정지,mt
+LOCALIZE|ugstatus|6,CONSTR PAUSED,건설 일시 정지,mt
+LOCALIZE|ugstatus|7,NO SUPPLY,보급 없음,mt
+LOCALIZE|uitext|0,You have been defeated in¶your Regional Election.,지역 선거에서¶패배했습니다.,mt
+LOCALIZE|uitext|1,"Fortunately since our Military¶Approval Rating is reasonably¶high, we could attempt a¶Military Coup to hold power¶if you choose.  Otherwise we¶have no choice but to resign...",다행히 우리 군에 대한¶지지율이 꽤 높으니¶원하신다면 군사 쿠데타로¶권력을 유지할 수 있습니다.¶그렇지 않으면 사임할 수밖에¶없습니다...,mt
+LOCALIZE|uitext|2,The people have spoken...¶¶We have no choice now but¶to submit our resignation.,국민의 뜻이 정해졌습니다...¶¶이제 사임서를¶제출할 수밖에 없습니다.,mt
+LOCALIZE|uitext|3,ARE YOU SURE YOU WISH¶TO DEPLOY THIS UNIT?,이 유닛을¶배치하시겠습니까?,mt
+LOCALIZE|uitext|4,ARE YOU SURE YOU WISH¶TO SCRAP THIS UNIT?,이 유닛을¶폐기하시겠습니까?,mt
+LOCALIZE|uitext|5,UNLOAD UNIT FROM¶TRANSPORT VEHICLE,수송 차량에서¶유닛 하역,mt
+LOCALIZE|uitext|6,PLEASE CONFIRM YOU¶WISH TO UNLOAD THIS¶UNIT FROM ITS¶TRANSPORT VEHICLE.,이 유닛을 수송 차량에서¶하역하려면¶확인해¶주십시오.,mt
+LOCALIZE|uitext|7,PLEASE CONFIRM YOU¶WISH TO DIVIDE¶THIS UNIT IN TWO.,이 유닛을 둘로¶분할하려면¶확인해 주십시오.,mt
+LOCALIZE|uitext|8,¶Below you will find some options to review your Victory or continue your successful leadership.,¶아래 선택지에서 승리를 검토하거나 성공적인 통치를 계속할 수 있습니다.,mt
+LOCALIZE|uitext|9,¶Below you will find some options to review your loss or to re-assert your claim as leader.,¶아래 선택지에서 패배를 검토하거나 지도자 자리를 되찾으려 시도할 수 있습니다.,mt
+LOCALIZE|uitext|12,ARE YOU SURE YOU WANT TO¶QUIT WITHOUT SAVING?,저장하지 않고¶종료하시겠습니까?,mt
+LOCALIZE|uitext|13,ARE YOU SURE YOU WANT TO¶RESTART THIS SCENARIO?,이 시나리오를¶다시 시작하시겠습니까?,mt
+LOCALIZE|uitext|14,"Confirm resetting of ALL options¶to game defaults.  Includes¶PLAYER OPTIONS,¶GRAPHICS OPTIONS,¶and¶SOUND OPTIONS.","모든 옵션을¶게임 기본값으로 초기화합니다.¶플레이어 옵션,¶그래픽 옵션,¶및¶사운드 옵션 포함.",mt
+LOCALIZE|uitext|15,DO YOU WISH TO¶RESUME YOUR GAME?,게임을¶재개하시겠습니까?,mt
+LOCALIZE|undeployed|0,(In Training),(훈련 중),mt
+LOCALIZE|undeployed|1,(Upgrading),(개량 중),mt
+LOCALIZE|undeployed|2,(Repairing),(수리 중),mt
+LOCALIZE|undeployed|3,(Refitting),(개장 중),mt
+LOCALIZE|undeployed|4,(Idle),(대기),mt
+LOCALIZE|undeployed|5,(Reserved),(예약),mt
+LOCALIZE|unidept|0,Selected Units,선택한 유닛,mt
+LOCALIZE|unidept|1,Deployed Units,배치된 유닛,mt
+LOCALIZE|unidept|2,Reserve Units,예비 유닛,mt
+LOCALIZE|unidept|3,Battlegroups,전투단,mt
+LOCALIZE|unisubdept|0,ADVANCED ORDERS,고급 명령,mt
+LOCALIZE|unisubdept|1,MISSILE DEPLOYMENT,미사일 배치,mt
+LOCALIZE|unisubdept|2,TRANSPORTS,수송,mt
+LOCALIZE|unisubdept|3,INDIVIDUAL RULES OF ENGAGEMENT,개별 교전 규칙,mt
+LOCALIZE|unisubdept|4,5,,
+LOCALIZE|unisubdept|5,6,,
+LOCALIZE|unisubdept|6,7,,
+LOCALIZE|unisubdept|7,8,,
+LOCALIZE|unisubdept|8,9,,
+LOCALIZE|unisubdept|9,10,,
+LOCALIZE|unitdetails|0,Statistics,통계,mt
+LOCALIZE|unitdetails|1,Specifications,사양,mt
+LOCALIZE|unitdetails|2,Deployed Specifications,배치 사양,mt
+LOCALIZE|unitdetails|3,Previous Unit,이전 유닛,mt
+LOCALIZE|unitdetails|4,Next Unit,다음 유닛,mt
+LOCALIZE|unitdetails|5,Return,돌아가기,mt
+LOCALIZE|unitdoubleclick|0,Centre Only,중앙 이동만,mt
+LOCALIZE|unitdoubleclick|1,Popup Only,팝업만,mt
+LOCALIZE|unitdoubleclick|2,Centre and Popup,중앙 이동 및 팝업,mt
+LOCALIZE|unitinit|0,None,없음,mt
+LOCALIZE|unitinit|1,Low,낮음,mt
+LOCALIZE|unitinit|2,Medium,보통,mt
+LOCALIZE|unitinit|3,High,높음,mt
+LOCALIZE|unitinit|4,Full,최대,mt
+LOCALIZE|unitorders|0,DESTROYED,파괴됨,mt
+LOCALIZE|unitorders|1,UNDER CONSTRUCTION,건설 중,mt
+LOCALIZE|unitorders|2,(Construction Paused),(건설 일시 정지),mt
+LOCALIZE|unitorders|3,(%s Remaining),(%s 남음),mt
+LOCALIZE|unitorders|4,PENDING DEPLOY,배치 대기,mt
+LOCALIZE|unitorders|5,REPAIRING,수리 중,mt
+LOCALIZE|unitorders|6,IN RESERVE,예비 대기,mt
+LOCALIZE|unitorders|7,RETREATING,후퇴 중,mt
+LOCALIZE|unitorders|8,FULLY SUPPRESSED,완전 제압됨,mt
+LOCALIZE|unitorders|9,HIGHLY SUPPRESSED,크게 제압됨,mt
+LOCALIZE|unitorders|10,PARTIALLY SUPPRESSED,부분 제압됨,mt
+LOCALIZE|unitorders|11,RESUPPLYING,재보급 중,mt
+LOCALIZE|unitorders|12,WAITING FOR SUPPLIES,보급 대기,mt
+LOCALIZE|unitorders|13,WAITING FOR FORMATION,대형 대기,mt
+LOCALIZE|unitorders|14,WAITING FOR SAFE PATH,안전 경로 대기,mt
+LOCALIZE|unitorders|15,Waiting for Sea Transport,해상 수송 대기,mt
+LOCALIZE|unitorders|16,Waiting for Air Transport,공중 수송 대기,mt
+LOCALIZE|unitorders|17,Waiting for Cargo Unit,화물 유닛 대기,mt
+LOCALIZE|unitorders|18,Landed Air Unit,착륙한 항공 유닛,mt
+LOCALIZE|unitorders|19,GARRISONED,주둔 중,mt
+LOCALIZE|unitorders|20,Flying Low Altitude,저고도 비행 중,mt
+LOCALIZE|unitorders|21,Destination: %s,목적지: %s,mt
+LOCALIZE|unitorders|22,Target: %s,표적: %s,mt
+LOCALIZE|unitorders|23,RETREATING,후퇴 중,mt
+LOCALIZE|unitorders|24,WAITING TRANSPORT,수송 대기,mt
+LOCALIZE|unitorders|25,WAITING TRANSPORT,수송 대기,mt
+LOCALIZE|unitorders|26,WAITING FOR UNIT,유닛 대기,mt
+LOCALIZE|unitorders|27,RESUPPLYING,재보급 중,mt
+LOCALIZE|unitorders|28,WAITING SUPPLIES,보급 대기,mt
+LOCALIZE|unitorders|29,WAITING FORMATION,대형 대기,mt
+LOCALIZE|unitorders|30,WAITING PATH,경로 대기,mt
+LOCALIZE|unitorders|31,%s Dest %s,%s 목적지 %s,mt
+LOCALIZE|unitorders|32,REPAIRING,수리 중,mt
+LOCALIZE|unitorders|33,LANDED,착륙,mt
+LOCALIZE|unitorders|34,GARRISONED,주둔 중,mt
+LOCALIZE|unitorders|35,NONE,없음,mt
+LOCALIZE|unitorders|36,Training %s,훈련 중: %s,mt
+LOCALIZE|unitorders|37,(%d Days Remain),(%d일 남음),mt
+LOCALIZE|unitorders|38,reserved,,
+LOCALIZE|unitorders|39,reserved,,
+LOCALIZE|unitorders|40,reserved,,
+LOCALIZE|unitorders|41,STRIKE AT UNIT,유닛 타격,mt
+LOCALIZE|unitorders|42,Combat Air Patrol,전투 공중 초계,mt
+LOCALIZE|unitorders|43,Guarding,경계 중,mt
+LOCALIZE|unitordersdesc|0,IDLE,대기,mt
+LOCALIZE|unitordersdesc|1,MOVE TO¶The unit will path to the destination according to its Rules of Engagement.,이동¶교전 규칙에 따라 목적지까지 경로를 잡아 이동합니다.,mt
+LOCALIZE|unitordersdesc|2,"WAYPOINT¶The unit will move to the target, then continue on to the next destination.",경유지¶표적까지 이동한 뒤 다음 목적지로 계속 이동합니다.,mt
+LOCALIZE|unitordersdesc|3,DEFEND¶The unit will try to prevent the location from being captured.,방어¶해당 위치가 점령당하지 않도록 막습니다.,mt
+LOCALIZE|unitordersdesc|4,TRAINING,훈련,mt
+LOCALIZE|unitordersdesc|5,PATROL¶The unit will move continuously between two set locations.,순찰¶두 지정 지점 사이를 계속 이동합니다.,mt
+LOCALIZE|unitordersdesc|6,LOAD INTO¶Load into the cargo of a unit at the selected location.,탑재¶선택한 위치에 있는 유닛의 화물칸에 탑재합니다.,mt
+LOCALIZE|unitordersdesc|7,CAPTURE UNIT¶Attempt to gain ownership and control of a unit without ammo.,유닛 점령¶탄약이 없는 유닛의 소유권과 통제권을 얻으려 시도합니다.,mt
+LOCALIZE|unitordersdesc|8,CAPTURE FACIL¶Attempt to gain ownership of an Orbital Station.,시설 점령¶궤도 정거장의 소유권을 얻으려 시도합니다.,mt
+LOCALIZE|unitordersdesc|9,ATTACK UNIT¶Focus attacks on a specific unit.,유닛 공격¶특정 유닛에 공격을 집중합니다.,mt
+LOCALIZE|unitordersdesc|10,ATTACK FACILITY¶Focus attacks on a specific facility.,시설 공격¶특정 시설에 공격을 집중합니다.,mt
+LOCALIZE|unitordersdesc|11,ATTACK HEX,헥스 공격,mt
+LOCALIZE|unitordersdesc|12,HARASS,교란,mt
+LOCALIZE|unitordersdesc|13,INTERCEPT,요격,mt
+LOCALIZE|unitordersdesc|14,ESCORT¶Follow the path of the target unit.,호위¶표적 유닛의 경로를 따라갑니다.,mt
+LOCALIZE|unitordersdesc|15,STRIKE AT UNIT¶Fire missiles of suitable type at selected target,유닛 타격¶선택한 표적에 적합한 종류의 미사일을 발사합니다.,mt
+LOCALIZE|unitordersdesc|16,BOMBARD¶Use indirect attacks on the selected location.,포격¶선택한 위치에 간접 공격을 가합니다.,mt
+LOCALIZE|unitordersdesc|17,FIRE MISSILE,미사일 발사,mt
+LOCALIZE|unitordersdesc|18,CONSTRUCTION¶Increase the rate of construction and rate of goods consumption for shorter facility build time.,건설¶시설 건설 시간을 줄이기 위해 건설 속도와 물자 소비 속도를 높입니다.,mt
+LOCALIZE|unitordersdesc|19,BRIDGING¶Create a river crossing point for non-amphibious units.,가교¶비상륙 유닛이 건너갈 수 있는 강 도하 지점을 만듭니다.,mt
+LOCALIZE|unitordersdesc|20,RESUPPLY¶Bring goods to units at the selected location.,재보급¶선택한 위치의 유닛에 물자를 가져다줍니다.,mt
+LOCALIZE|unitordersdesc|21,AIR TRANSP¶Transport by Air between locations.,공중 수송¶위치 간 공중으로 수송합니다.,mt
+LOCALIZE|unitordersdesc|22,SEA TRANSP¶Transport by Sea between locations.,해상 수송¶위치 간 해상으로 수송합니다.,mt
+LOCALIZE|unitordersdesc|23,EMBARK¶Select a transport at target location. The unit will attempt to load into it.,승선¶목표 위치에서 수송 수단을 선택합니다. 유닛이 그곳에 탑재를 시도합니다.,mt
+LOCALIZE|unitordersdesc|24,DEMOLISH,철거,mt
+LOCALIZE|unitordersdesc|25,CONSTRUCT PLATFORM¶Convert Unit into an Oceanic Complex. Establish ownership and supply for further exploitation.,플랫폼 건설¶유닛을 해양 단지로 전환합니다. 소유권과 보급을 확립해 추가 개발에 활용합니다.,mt
+LOCALIZE|unitordersdesc|26,OCEAN BRIDGING¶Consume the engineer to create a bridge at selected location. Must connect to a road or rail on at least one side.,해상 가교¶공병을 소모해 선택한 위치에 교량을 만듭니다. 최소 한쪽은 도로나 철도에 연결되어야 합니다.,mt
+LOCALIZE|unitordersdesc|27,BUILD OUTPOST¶Consume the engineer to create an outpost with spaceport on the target world.,전초기지 건설¶공병을 소모해 대상 행성에 우주공항이 있는 전초기지를 만듭니다.,mt
+LOCALIZE|unitordersdesc|28,MINE SWEEP,소해,mt
+LOCALIZE|unitordersdesc|29,LAY MINES,기뢰 부설,mt
+LOCALIZE|unitordersdesc|30,TRANSFER,이관,mt
+LOCALIZE|unitordersdesc|31,BOMB FACILITY¶Target a facility at the selected location.,시설 폭격¶선택한 위치의 시설을 표적으로 삼습니다.,mt
+LOCALIZE|unitordersdesc|32,BOMB HEX,헥스 폭격,mt
+LOCALIZE|unitordersdesc|33,BOMB UNIT¶Target a specific unit at the selected location.,유닛 폭격¶선택한 위치의 특정 유닛을 표적으로 삼습니다.,mt
+LOCALIZE|unitordersdesc|34,UNLOAD¶Deploy from cargo all carried units.,하역¶화물로 실린 모든 유닛을 내립니다.,mt
+LOCALIZE|unitordersdesc|35,HARVEST¶Deploy worker units to gather Ore resources.,채취¶작업 유닛을 투입해 광석 자원을 채취합니다.,mt
+LOCALIZE|unitordersdesc|36,SUPPLY UNIT¶Will move to the target location and provide supplies to friendly units.,유닛 보급¶표적 위치로 이동해 아군 유닛에 보급품을 제공합니다.,mt
+LOCALIZE|unitordersdesc|37,AIR PATROL¶Fly continuously between to locations.,공중 순찰¶두 지점 사이를 계속 비행합니다.,mt
+LOCALIZE|unitordersdesc|38,LOAD UNIT¶The unit will go to the target location and try to add the target unit into cargo.,유닛 탑재¶표적 위치로 가서 표적 유닛을 화물로 싣습니다.,mt
+LOCALIZE|unitordersdesc|39,"REPAIR¶Return to reserves until fully repaired, then deploy.",수리¶완전히 수리될 때까지 예비로 복귀한 뒤 배치합니다.,mt
+LOCALIZE|unitordersdesc|40,RESERVE¶Return to reserves and remain there.,예비¶예비로 복귀해 그곳에 머뭅니다.,mt
+LOCALIZE|unitordersdesc|41,ENTRENCH¶Remain in place to increase entrenchment defensive bonus.,참호 구축¶제자리에 머물며 참호 방어 보너스를 높입니다.,mt
+LOCALIZE|unitordersdesc|42,STATION¶Remain in place at selected location.,주둔¶선택한 위치에 머뭅니다.,mt
+LOCALIZE|unitordersdesc|43,SPLIT UNIT¶Separate this unit into two units of the same type at half the size.,유닛 분할¶이 유닛을 같은 종류의 절반 크기 유닛 둘로 나눕니다.,mt
+LOCALIZE|unitordersdesc|44,MERGE UNITS¶Combine two units of the same type.,유닛 병합¶같은 종류의 유닛 둘을 합칩니다.,mt
+LOCALIZE|unitordersdesc|45,RETURN TO BASE¶The unit will return to reserves at the near base from the target location.,기지 복귀¶표적 위치에서 가까운 기지의 예비로 복귀합니다.,mt
+LOCALIZE|unitordersdesc|46,SCRAP UNIT¶The unit will return to reserves and be scrapped.,유닛 폐기¶예비로 복귀해 폐기됩니다.,mt
+LOCALIZE|unitordersdesc|47,SELL UNIT¶The unit will be sold to the World Market for income.,유닛 매각¶세계 시장에 매각해 수익을 얻습니다.,mt
+LOCALIZE|unitordersdesc|48,SCRAP UNIT¶Return to reserves and recycle the unit.,유닛 폐기¶예비로 복귀해 유닛을 재활용합니다.,mt
+LOCALIZE|unitordersdesc|49,SELL UNIT¶The unit will be sold to the World Market for income.,유닛 매각¶세계 시장에 매각해 수익을 얻습니다.,mt
+LOCALIZE|unitordersdesc|50,STRATEGIC POOL	,전략 비축,mt
+LOCALIZE|unitordersdesc|51,REFIT¶Switch the loadout of a unit to it's alternate configuration,개장¶유닛의 무장 구성을 대체 구성으로 전환합니다.,mt
+LOCALIZE|unitordersdesc|52,UPGRADE TO¶Pay money and materials to upgrade to the next generation of this unit type.,개량¶비용과 자재를 지불해 이 유닛 종류의 다음 세대로 개량합니다.,mt
+LOCALIZE|unitordersdesc|53,CLEAR¶Will command the unit to halt any action they have previously been commanded to do.,해제¶유닛이 이전에 받은 모든 명령을 중단하게 합니다.,mt
+LOCALIZE|unitordersdesc|54,COLONIZE¶Consume the ship to establish a new city and spaceport at the selected location.,식민¶함선을 소모해 선택한 위치에 새 도시와 우주공항을 건설합니다.,mt
+LOCALIZE|unitordersdesc|55,BUILD ORBITAL STATION¶Consume the engineer to create an Orbital Station.,궤도 정거장 건설¶공병을 소모해 궤도 정거장을 만듭니다.,mt
+LOCALIZE|unitordersdesc|56,LAUNCH¶Return to the System level.,발사¶성계 단계로 복귀합니다.,mt
+LOCALIZE|unitordersdesc|57,SURVEY¶Determine the properties of a planet or moon.,탐사¶행성이나 위성의 특성을 파악합니다.,mt
+LOCALIZE|unitordersdesc|58,MERCHANT TRADE,상인 무역,mt
+LOCALIZE|unitordersdesc|59,DEPLOY BEACON¶Place a beacon to establish the arrival point for incoming FTL ships.,비콘 배치¶FTL 함선이 도착할 지점을 정하는 비콘을 설치합니다.,mt
+LOCALIZE|unitordersdesc|60,SPY IDLE¶Spy is waiting for an order.,첩보원 대기¶첩보원이 명령을 기다립니다.,mt
+LOCALIZE|unitordersdesc|61,RECON¶Provide spotting in a small area,정찰¶좁은 지역의 탐지를 제공합니다.,mt
+LOCALIZE|unitordersdesc|62,ESPIONAGE¶Attempt to steal technologies or unit designs,첩보¶기술이나 유닛 설계를 훔치려 시도합니다.,mt
+LOCALIZE|unitordersdesc|63,COUNTER INTEL¶Attempt to stop spies from operating within our borders.,방첩¶우리 국경 안에서 첩보원이 활동하지 못하게 막으려 시도합니다.,mt
+LOCALIZE|unitordersdesc|64,SABOTAGE¶Attempt to damage facilities,파괴 공작¶시설에 피해를 주려 시도합니다.,mt
+LOCALIZE|unitordersdesc|65,ASSASSINATE¶Target government officials to disrupt target country's activities,암살¶정부 인사를 노려 대상국의 활동을 교란합니다.,mt
+LOCALIZE|unitordersdesc|66,CYBER ATTACK¶Damage a facility and force it offline or cause an increase in time to research an in progress technology,사이버 공격¶시설을 손상시켜 가동을 중단시키거나 진행 중인 기술의 연구 시간을 늘립니다.,mt
+LOCALIZE|unitordersdesc|67,CLEAR¶Will command the unit to halt any action they have previously been commanded to do.,해제¶유닛이 이전에 받은 모든 명령을 중단하게 합니다.,mt
+LOCALIZE|unitrole|0,Engage Ground Targets,지상 표적 교전,mt
+LOCALIZE|unitrole|1,Engage Air Targets,공중 표적 교전,mt
+LOCALIZE|unitrole|2,Engage Naval Targets,해상 표적 교전,mt
+LOCALIZE|unitrole|3,Engage Submerged Targets,수중 표적 교전,mt
+LOCALIZE|unitrole|4,Attack Fortifications,요새 공격,mt
+LOCALIZE|unitrole|5,Allow Nuclear Delivery,핵 투하 허용,mt
+LOCALIZE|unitrole|6,Use Available Transports,가용 수송 수단 사용,mt
+LOCALIZE|unitstateicon|0,Missiles Loaded,미사일 적재됨,mt
+LOCALIZE|unitstateicon|1,Cargo Loaded,화물 적재됨,mt
+LOCALIZE|unitstateicon|2,In Cargo,화물칸 내,mt
+LOCALIZE|unitstateicon|3,Reserved,예약,mt
+LOCALIZE|unitstateicon|4,On Rail,철도 위,mt
+LOCALIZE|wardec|0,Click to declare war on %s,클릭: %s 선전포고,mt
+LOCALIZE|wardec|1,We are already at war,이미 교전 중입니다,mt
+LOCALIZE|wardec|2,Click to offer peace to %s,클릭: %s 평화 제안,mt
+LOCALIZE|wardec|3,Colonies cannot declare war,식민지는 선전포고할 수 없습니다,mt
+LOCALIZE|weapdetail|0,Conventional,재래식,mt
+LOCALIZE|weapdetail|1,Chemical,화학,mt
+LOCALIZE|weapdetail|2,Low Yield Nuclear,저위력 핵,mt
+LOCALIZE|weapdetail|3,High Yield Nuclear,고위력 핵,mt
+LOCALIZE|weaptarget|0,Military,군사,mt
+LOCALIZE|weaptarget|1,Industrial,산업,mt
+LOCALIZE|weaptarget|2,Civilian,민간,mt
+LOCALIZE|weaptarget|3,All,전체,mt
+LOCALIZE|weaptype|0,Nuclear,핵,mt
+LOCALIZE|weaptype|1,Biological,생물,mt
+LOCALIZE|weaptype|2,Chemical,화학,mt
+LOCALIZE|weaptype|3,Conventional,재래식,mt
+LOCALIZE|weather|0,Clear,맑음,mt
+LOCALIZE|weather|1,Overcast,흐림,mt
+LOCALIZE|weather|2,Rain,비,mt
+LOCALIZE|weather|3,Thunderstorms,뇌우,mt
+LOCALIZE|weather|4,High Winds,강풍,mt
+LOCALIZE|weather|5,High Wind/OverC,강풍/흐림,mt
+LOCALIZE|weather|6,Tornado,토네이도,mt
+LOCALIZE|weather|7,Hurric/Typhoon,허리케인/태풍,mt
+LOCALIZE|weather|8,Clear/Cold,맑음/추움,mt
+LOCALIZE|weather|9,Fog,안개,mt
+LOCALIZE|weather|10,Snow - Light,눈 - 약,mt
+LOCALIZE|weather|11,Snow - Heavy,눈 - 강,mt
+LOCALIZE|weather|12,High Winds/Cold,강풍/추움,mt
+LOCALIZE|weather|13,Wind/Cold/OverC,강풍/추움/흐림,mt
+LOCALIZE|weather|14,High Winds/Snow,강풍/눈,mt
+LOCALIZE|weather|15,Blizzard,눈보라,mt
+LOCALIZE|weatherground|0,Dry/Normal,건조/보통,mt
+LOCALIZE|weatherground|1,Mud,진흙,mt
+LOCALIZE|weatherground|2,Frozen/Snow,결빙/눈,mt
+LOCALIZE|weatherground|3,Flooding,침수,mt
+LOCALIZE|weathertemp|0,Normal,보통,mt
+LOCALIZE|weathertemp|1,Very Cold,매우 추움,mt
+LOCALIZE|weathertemp|2,Very Hot,매우 더움,mt
+LOCALIZE|weathertemp|3,Drought,가뭄,mt
+LOCALIZE|welcomescaletext|0,- Scale User Interface to 1.25 Normal¶- Recommended for 4K Monitor Resolutions,- 사용자 인터페이스를 1.25배로 확대¶- 4K 모니터 해상도 권장,mt
+LOCALIZE|welcomescaletext|1,- Scale User Interface to 1.5 Normal¶- Recommended for 4K Monitor Resolutions,- 사용자 인터페이스를 1.5배로 확대¶- 4K 모니터 해상도 권장,mt
+LOCALIZE|welcometext|0,- Left Click to Select/Release¶- Right Click to Issue Orders¶- CTRL+Right Click for Advanced Orders,- 좌클릭: 선택/해제¶- 우클릭: 명령 내리기¶- CTRL+우클릭: 고급 명령,mt
+LOCALIZE|welcometext|1,- Left Click to Select¶- Left Click to Issue Orders¶- Right Click for Advanced Orders,- 좌클릭: 선택¶- 좌클릭: 명령 내리기¶- 우클릭: 고급 명령,mt
+LOCALIZE|welcometext|2,- Store Savegames in Local Directory¶- Games are Saved in My Games Folder,- 저장 파일을 로컬 폴더에 보관¶- My Games 폴더에 저장됩니다,mt
+LOCALIZE|welcometext|3,- Store Savegames in Steam Cloud¶- Games are Accessible on Multiple Computers,- 저장 파일을 Steam 클라우드에 보관¶- 여러 컴퓨터에서 이용할 수 있습니다,mt
+LOCALIZE|welcometext|4,- Show List Only When Clicking Multiple Units,- 여러 유닛을 클릭할 때만 목록 표시,mt
+LOCALIZE|welcometext|5,- Show List When Clicking One Unit or Many Units,- 유닛을 하나만 클릭해도 목록 표시,mt
+LOCALIZE|welcometext|6,"- Game Difficulty Normal¶- Sets Default for Military, Economic and Diplomacy","- 게임 난이도 보통¶- 군사, 경제, 외교의 기본값을 정합니다",mt
+LOCALIZE|welcometext|7,"- Game Difficulty Easy¶- Sets Default for Military, Economic and Diplomacy","- 게임 난이도 쉬움¶- 군사, 경제, 외교의 기본값을 정합니다",mt
+LOCALIZE|welcometext|8,- Use Default Scale for User Interface¶- Aligns With Most Screen Resolutions,- 사용자 인터페이스 기본 배율 사용¶- 대부분의 화면 해상도에 적합,mt
+LOCALIZE|welcometext|9,- reserved for d/a 3250 $welcomescaletext,,
+LOCALIZE|welcometext|10,- unused,,
+LOCALIZE|welcometext|11,- unused,,
+LOCALIZE|winlost|0,Win,승리,mt
+LOCALIZE|winlost|1,Lost,패배,mt
+LOCALIZE|wintext|0,No Victory has been achieved.,승리를 거두지 못했습니다.,mt
+LOCALIZE|wintext|1,Congratulations on your Victory!  You have met your objectives and your opponents have fallen.,승리를 축하합니다!  목표를 달성했고 적들은 무너졌습니다.,mt
+LOCALIZE|wintext|2,Congratulations on your Victory!  You have vanquished your foes and become the true Supreme Ruler!,승리를 축하합니다!  적들을 물리치고 진정한 지고의 통치자가 되셨습니다!,mt
+LOCALIZE|wintext|3,Congratulations on your Victory!  You have reached your objectives and shown your superior leadership!,승리를 축하합니다!  목표를 달성하고 뛰어난 지도력을 보여주셨습니다!,mt
+LOCALIZE|wintext|4,Congratulations on your Victory!  You have shown your superior leadership skills!,승리를 축하합니다!  뛰어난 지도력을 보여주셨습니다!,mt
+LOCALIZE|wintext|5,Congratulations on your Victory!  You have unified your foes and brought peace to your Region.,승리를 축하합니다!  적들을 통합하고 지역에 평화를 가져오셨습니다.,mt
+LOCALIZE|wintext|6,Congratulations on your Victory!  You have shown yourself to be a capable and successful Ruler.,승리를 축하합니다!  유능하고 성공적인 통치자임을 보여주셨습니다.,mt
+LOCALIZE|wintext|7,Congratulations on your Victory!  You have shown yourself to be a capable and successful Ruler.,승리를 축하합니다!  유능하고 성공적인 통치자임을 보여주셨습니다.,mt
+LOCALIZE|wintext|8,Congratulations on your Victory!  You have shown yourself to be a capable and successful Ruler.,승리를 축하합니다!  유능하고 성공적인 통치자임을 보여주셨습니다.,mt
+LOCALIZE|wintext|9,Congratulations on your Victory!  You have shown yourself to be a capable and successful Ruler.,승리를 축하합니다!  유능하고 성공적인 통치자임을 보여주셨습니다.,mt
+LOCALIZE|wintext|10,"Congratulations! Your sphere's collective actions have resulted in the collapse of your opponents Sphere. You and your allies have prevailed, becoming the victor of the Cold War",축하합니다! 귀하 세력권의 집단 행동으로 상대 세력권이 붕괴했습니다. 귀하와 동맹국이 승리하여 냉전의 승자가 되었습니다.,mt
+LOCALIZE|wintext|11,"Congratulations!  You have achieved %s, resulting in a significant Victory!",축하합니다!  %s을(를) 달성하여 대승을 거두었습니다!,mt
+LOCALIZE|wmaid|0,Military Aid,군사 지원,mt
+LOCALIZE|wmaid|1,Economic Aid,경제 지원,mt
+LOCALIZE|wmopinion|0,Outraged,격분,mt
+LOCALIZE|wmopinion|1,Disapproving,못마땅,mt
+LOCALIZE|wmopinion|2,Concerned,우려,mt
+LOCALIZE|wmopinion|3,Indifferent,무관심,mt
+LOCALIZE|wmopinion|4,Satisfied,만족,mt
+LOCALIZE|wmopinion|5,Pleased,흡족,mt
+LOCALIZE|wmopinion|6,Delighted,매우 기쁨,mt
+LOCALIZE|wmstatus|0,Approved,승인됨,mt
+LOCALIZE|wmstatus|1,Denied,거부됨,mt
+LOCALIZE|wmtrend|0,Positive,긍정적,mt
+LOCALIZE|wmtrend|1,Negative,부정적,mt
+LOCALIZE|wmvote|0,Passed,통과,mt
+LOCALIZE|wmvote|1,Defeated,부결,mt
+LOCALIZE|yesnocap|0,YES,예,mt
+LOCALIZE|yesnocap|1,NO,아니오,mt
+LOCALIZE|zoomopt|0,Close,근접,mt
+LOCALIZE|zoomopt|1,Mid,중간,mt
+LOCALIZE|zoomopt|2,Far,원거리,mt
+LOCALIZE|cwalliance|0,Axis,추축국,mt
+LOCALIZE|cwalliance|1,Allies,연합국,mt
+LOCALIZE|cwalliance|2,Warsaw Pact,바르샤바 조약,mt
+LOCALIZE|cwalliance|3,NATO,,
+LOCALIZE|cwalliance|4,Socialist,사회주의,mt
+LOCALIZE|cwalliance|5,Capitalist,자본주의,mt
+LOCALIZE|cwalliance|6,Red,적색,mt
+LOCALIZE|cwalliance|7,Blue,청색,mt
+LOCALIZE|cwalliance|8,(Red),(적색),mt
+LOCALIZE|cwalliance|9,(Blue),(청색),mt
+LOCALIZE|cwalliance|10,Central,중앙,mt
+LOCALIZE|cwalliance|11,Entente,협상국,mt
+LOCALIZE|helplevels|0,None,없음,mt
+LOCALIZE|helplevels|1,Beginner,초급,mt
+LOCALIZE|helplevels|2,Standard,표준,mt
+LOCALIZE|helplevels|3,Advanced,고급,mt
+LOCALIZE|qlineord|0,Clear Orders,명령 해제,mt
+LOCALIZE|qlineord|1,Add to Selected,선택에 추가,mt
+LOCALIZE|qlineord|2,Add to Selected,선택에 추가,mt
+LOCALIZE|qlineord|3,Add to Selected,선택에 추가,mt
+LOCALIZE|qlineord|4,Send for Repairs,수리 보내기,mt
+LOCALIZE|qlineord|5,Send for Repairs,수리 보내기,mt
+LOCALIZE|qlineord|6,Deploy,배치,mt
+LOCALIZE|qlineord|7,Disband BattleGroup,전투단 해산,mt

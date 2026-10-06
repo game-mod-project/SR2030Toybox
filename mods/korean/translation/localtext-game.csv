@@ -1,0 +1,1590 @@
+﻿key,en,ko,status
+ORDERSTEXT|0|0,IDLE,대기,mt
+ORDERSTEXT|1|0,MOVE TO,이동,mt
+ORDERSTEXT|10|0,ATTACK FACIL,시설 공격,mt
+ORDERSTEXT|11|0,ATTACK HEX,헥스 공격,mt
+ORDERSTEXT|12|0,HARASS,교란,mt
+ORDERSTEXT|13|0,INTERCEPT,요격,mt
+ORDERSTEXT|14|0,ESCORT,호위,mt
+ORDERSTEXT|15|0,STRIKE AT UNIT,유닛 타격,mt
+ORDERSTEXT|16|0,BOMBARD,포격,mt
+ORDERSTEXT|17|0,STRIKE AT FACIL,시설 타격,mt
+ORDERSTEXT|18|0,CONSTRUCTION,건설,mt
+ORDERSTEXT|19|0,BRIDGING,가교,mt
+ORDERSTEXT|2|0,WAYPOINT,경유지,mt
+ORDERSTEXT|20|0,RESUPPLY,재보급,mt
+ORDERSTEXT|21|0,AIR TRANSP,공중 수송,mt
+ORDERSTEXT|22|0,SEA TRANSP,해상 수송,mt
+ORDERSTEXT|23|0,EMBARK,승선,mt
+ORDERSTEXT|24|0,DEMOLISH,철거,mt
+ORDERSTEXT|25|0,OCEAN COMPLEX,해양 단지,mt
+ORDERSTEXT|251|0,ADVANCED...,고급...,mt
+ORDERSTEXT|26|0,OCEAN BRIDGING,해상 가교,mt
+ORDERSTEXT|27|0,COUNTER INTEL,방첩,mt
+ORDERSTEXT|28|0,MINE SWEEP,소해,mt
+ORDERSTEXT|29|0,LAY MINES,기뢰 부설,mt
+ORDERSTEXT|3|0,DEFEND,방어,mt
+ORDERSTEXT|30|0,TRANSFER,이관,mt
+ORDERSTEXT|31|0,BOMB FACIL,시설 폭격,mt
+ORDERSTEXT|32|0,BOMB HEX,헥스 폭격,mt
+ORDERSTEXT|33|0,BOMB UNIT,유닛 폭격,mt
+ORDERSTEXT|34|0,UNLOAD,하역,mt
+ORDERSTEXT|36|0,SUPPLY UNIT,유닛 보급,mt
+ORDERSTEXT|37|0,AIR PATROL,공중 순찰,mt
+ORDERSTEXT|38|0,LOAD UNIT,유닛 적재,mt
+ORDERSTEXT|39|0,REPAIR,수리,mt
+ORDERSTEXT|4|0,TRAINING,훈련,mt
+ORDERSTEXT|40|0,RESERVE,예비,mt
+ORDERSTEXT|41|0,ENTRENCH,참호 구축,mt
+ORDERSTEXT|42|0,HOLD POSITION,위치 사수,mt
+ORDERSTEXT|43|0,SPLIT UNIT,유닛 분할,mt
+ORDERSTEXT|44|0,MERGE UNITS,유닛 병합,mt
+ORDERSTEXT|45|0,RETURN BASE,기지 귀환,mt
+ORDERSTEXT|46|0,SCRAP UNIT,유닛 폐기,mt
+ORDERSTEXT|47|0,SELL UNIT,유닛 매각,mt
+ORDERSTEXT|48|0,SCRAP UNIT,유닛 폐기,mt
+ORDERSTEXT|49|0,SELL UNIT,유닛 매각,mt
+ORDERSTEXT|5|0,PATROL,순찰,mt
+ORDERSTEXT|50|0,STRATEGIC POOL,전략 예비,mt
+ORDERSTEXT|51|0,REFIT TO,개장 대상,mt
+ORDERSTEXT|52|0,UPGRADE TO,개량 대상,mt
+ORDERSTEXT|53|0,CLEAR,해제,mt
+ORDERSTEXT|6|0,LOAD INTO,적재 대상,mt
+ORDERSTEXT|60|0,SPY IDLE,첩보원 대기,mt
+ORDERSTEXT|61|0,RECON,정찰,mt
+ORDERSTEXT|62|0,ESPIONAGE,첩보,mt
+ORDERSTEXT|63|0,COUNTER INTEL,방첩,mt
+ORDERSTEXT|64|0,SABOTAGE,파괴 공작,mt
+ORDERSTEXT|65|0,ASSASSINATE,암살,mt
+ORDERSTEXT|66|0,CYBER ATTACK,사이버 공격,mt
+ORDERSTEXT|67|0,INFLUENCE,영향력 행사,mt
+ORDERSTEXT|68|0,DECEPTION,기만,mt
+ORDERSTEXT|7|0,CAPTURE,점령,mt
+ORDERSTEXT|8|0,CAPTURE,점령,mt
+ORDERSTEXT|9|0,ATTACK UNIT,유닛 공격,mt
+CABPRIORITIESTEXT|0|0,Military Materials,군수 물자,mt
+CABPRIORITIESTEXT|0|1,Stockpile all goods needed by Military¶Recommend possible Research,군에 필요한 모든 물자를 비축합니다.¶가능한 연구를 권고합니다.,mt
+CABPRIORITIESTEXT|0|2,Ensures Military adequate stocks of essential materials in case of combat,전투 시 군이 필수 물자를 충분히 확보하도록 보장합니다.,mt
+CABPRIORITIESTEXT|0|3,Stockpiling expensive Military Materials could really hurt our treasury,값비싼 군수 물자를 비축하면 국고에 큰 타격을 줄 수 있습니다.,mt
+CABPRIORITIESTEXT|0#2|0,Consumer Materials,소비 물자,mt
+CABPRIORITIESTEXT|0#2|1,Stockpile all goods needed by Populace¶Recommend possible Research¶Subsidize Domestic Prices,국민에게 필요한 모든 물자를 비축합니다.¶가능한 연구를 권고합니다.¶국내 가격을 보조합니다.,mt
+CABPRIORITIESTEXT|0#2|2,Avoids uninterupted supply of materials that are required by population,국민에게 필요한 물자를 끊김 없이 공급하도록 합니다.,mt
+CABPRIORITIESTEXT|0#2|3,Stockpiling expensive Consumer Materials could hurt our cash flow,값비싼 소비 물자를 비축하면 현금 흐름에 타격을 줄 수 있습니다.,mt
+CABPRIORITIESTEXT|0#3|0,Product Self Sufficiency,생산 자급자족,mt
+CABPRIORITIESTEXT|0#3|1,Increase Production Capabilites to meet demand,수요를 충족하도록 생산 능력을 늘립니다.,mt
+CABPRIORITIESTEXT|0#3|2,Ensures an uninterupted source of all commodities and avoids price fluctuations,모든 물자의 끊김 없는 공급원을 확보하고 가격 변동을 피합니다.,mt
+CABPRIORITIESTEXT|0#3|3,Expansion could economically cripple our region in the short term,확장은 단기적으로 우리 지역 경제를 심각하게 약화시킬 수 있습니다.,mt
+CABPRIORITIESTEXT|0#4|0,Export Opportunities,수출 기회,mt
+CABPRIORITIESTEXT|0#4|1,Target Profitable Commodities¶Produce for Export¶Research Cost Reductions,수익성 높은 물자를 목표로 삼습니다.¶수출용으로 생산합니다.¶비용 절감을 연구합니다.,mt
+CABPRIORITIESTEXT|0#4|2,Added income will support our military and social spending,추가 수익이 군사비와 사회 지출을 뒷받침합니다.,mt
+CABPRIORITIESTEXT|0#4|3,Subject to international price fluctuations - no certainty of profit,국제 가격 변동의 영향을 받으므로 수익을 장담할 수 없습니다.,mt
+CABPRIORITIESTEXT|0#5|0,Sell Excess Military Materials,잉여 군수 물자 매각,mt
+CABPRIORITIESTEXT|0#5|1,"Sell excess Petroleum, Military & Industrial Goods","잉여 석유, 군수품, 산업재를 매각합니다.",mt
+CABPRIORITIESTEXT|0#5|2,This will raise funds by selling excess inventories of Military Goods,잉여 군수품 재고를 팔아 자금을 마련합니다.,mt
+CABPRIORITIESTEXT|0#5|3,May lead to critical shortages in the event of conflict,분쟁 발생 시 심각한 부족을 초래할 수 있습니다.,mt
+CABPRIORITIESTEXT|0#6|0,Sell Excess Consumer Materials,잉여 소비 물자 매각,mt
+CABPRIORITIESTEXT|0#6|1,"Sell excess Agri, Petrol, Timber, Rubber, Consumer Gds","잉여 농산물, 석유, 목재, 고무, 소비재를 매각합니다.",mt
+CABPRIORITIESTEXT|0#6|2,This will raise funds by selling excess inventories of Consumer Goods,잉여 소비재 재고를 팔아 자금을 마련합니다.,mt
+CABPRIORITIESTEXT|0#6|3,We may run short if demand increases in the future,앞으로 수요가 늘면 부족해질 수 있습니다.,mt
+CABPRIORITIESTEXT|0#7|0,Sell Excess Raw Materials,잉여 원자재 매각,mt
+CABPRIORITIESTEXT|0#7|1,"Sell excess Coal, Ore, Uranium, Petroleum","잉여 석탄, 광석, 우라늄, 석유를 매각합니다.",mt
+CABPRIORITIESTEXT|0#7|2,This will raise funds by selling excess inventories of Raw Materials,잉여 원자재 재고를 팔아 자금을 마련합니다.,mt
+CABPRIORITIESTEXT|0#7|3,We may run short if demand increases in the future,앞으로 수요가 늘면 부족해질 수 있습니다.,mt
+CABPRIORITIESTEXT|0#8|0,Increase Domestic Prices,국내 가격 인상,mt
+CABPRIORITIESTEXT|0#8|1,Raise Prices of Consumer Materials,소비 물자 가격을 올립니다.,mt
+CABPRIORITIESTEXT|0#8|2,This will raise funds and control product demand,자금을 마련하고 제품 수요를 억제합니다.,mt
+CABPRIORITIESTEXT|0#8|3,Inflationary action and could hurt Domestic Approval Rating,인플레이션을 유발하며 국내 지지율에 타격을 줄 수 있습니다.,mt
+CABPRIORITIESTEXT|0#9|0,Decrease Domestic Prices,국내 가격 인하,mt
+CABPRIORITIESTEXT|0#9|1,Decrease Prices of Consumer Materials,소비 물자 가격을 내립니다.,mt
+CABPRIORITIESTEXT|0#9|2,This can improve civilian approval and will increase demand,민간 지지율이 오르고 수요가 늘어납니다.,mt
+CABPRIORITIESTEXT|0#9|3,"Demand may increase too much, leading to product shortages",수요가 지나치게 늘어 제품 부족으로 이어질 수 있습니다.,mt
+CABPRIORITIESTEXT|0#10|0,Conservation,절약,mt
+CABPRIORITIESTEXT|0#10|1,Minimize Production to Demand¶Take steps to Lower Demand¶Research Possible Cost Reductions,생산을 수요 수준으로 최소화합니다.¶수요를 낮추는 조치를 취합니다.¶가능한 비용 절감을 연구합니다.,mt
+CABPRIORITIESTEXT|0#10|2,Minimizes use of Electricity by industries and population,산업과 국민의 전력 사용을 최소화합니다.,mt
+CABPRIORITIESTEXT|0#10|3,May lead to product shortages and decrease in Domestic Approval,제품 부족과 국내 지지율 하락으로 이어질 수 있습니다.,mt
+CABPRIORITIESTEXT|0#11|0,Conserve Petroleum,석유 절약,mt
+CABPRIORITIESTEXT|0#11|1,Reduce unit movements / Recommend Techs,유닛 이동을 줄이고 기술을 권고합니다.,mt
+CABPRIORITIESTEXT|0#11|2,Minimizes use of Petroleum by other industries and population,다른 산업과 국민의 석유 사용을 최소화합니다.,mt
+CABPRIORITIESTEXT|0#11|3,May lead to product shortages and decrease in Domestic Approval,제품 부족과 국내 지지율 하락으로 이어질 수 있습니다.,mt
+CABPRIORITIESTEXT|0#12|0,Maximize Profit Opportunities,수익 기회 극대화,mt
+CABPRIORITIESTEXT|0#12|1,Concentrate on Profitable Commodities¶Increase Prices and Reduce Inventories,수익성 높은 물자에 집중합니다.¶가격을 올리고 재고를 줄입니다.,mt
+CABPRIORITIESTEXT|0#12|2,Can benefit treasury significantly,국고에 큰 도움이 될 수 있습니다.,mt
+CABPRIORITIESTEXT|0#12|3,May lead to international repercussions,국제적 반발을 부를 수 있습니다.,mt
+CABPRIORITIESTEXT|0#13|0,Import Opportunities,수입 기회,mt
+CABPRIORITIESTEXT|0#13|1,Buy Commodities if Cheaper¶Reduce Expensive Production¶Research Cost Reductions,더 싸면 물자를 구매합니다.¶비싼 생산을 줄입니다.¶비용 절감을 연구합니다.,mt
+CABPRIORITIESTEXT|0#13|2,"Increase purchases of Petroleum, Military Goods, Industrial Goods, Coal and Ore","석유, 군수품, 산업재, 석탄, 광석의 구매를 늘립니다.",mt
+CABPRIORITIESTEXT|0#13|3,Drain on Treasury,국고 손실,mt
+CABPRIORITIESTEXT|0#14|0,Subsidize Agriculture,농업 보조,mt
+CABPRIORITIESTEXT|0#14|1,Decrease Domestic Price of Food,식량 국내 가격을 낮춥니다.,mt
+CABPRIORITIESTEXT|0#14|2,Improves both Domestic Approval and the general health of our population,국내 지지율과 국민 전반의 건강이 모두 향상됩니다.,mt
+CABPRIORITIESTEXT|0#14|3,May be expensive and lead to a huge demand increase,비용이 많이 들고 수요가 크게 늘 수 있습니다.,mt
+CABPRIORITIESTEXT|0#15|0,Decrease Stocks,재고 감축,mt
+CABPRIORITIESTEXT|0#15|1,Decrease Production to use Inventories,재고를 쓰도록 생산을 줄입니다.,mt
+CABPRIORITIESTEXT|0#15|2,Saves on production costs - providing a short term benefit to Treasury,생산비를 절감해 단기적으로 국고에 도움이 됩니다.,mt
+CABPRIORITIESTEXT|0#15|3,"Reduces stock of goods, may lead to future shortages",물자 재고가 줄어 앞으로 부족해질 수 있습니다.,mt
+CABPRIORITIESTEXT|0#16|0,Agriculture Industry,농업,mt
+CABPRIORITIESTEXT|0#16|1,Increase Production Capabilities for Agri,농산물 생산 능력을 늘립니다.,mt
+CABPRIORITIESTEXT|0#16|2,Take better advantage of our Agricultural Resources,우리의 농업 자원을 더 잘 활용합니다.,mt
+CABPRIORITIESTEXT|0#16|3,Focusing too much on one industry could lead to problems in another,한 산업에 지나치게 집중하면 다른 산업에 문제가 생길 수 있습니다.,mt
+CABPRIORITIESTEXT|0#17|0,Fresh Water Industry,담수 산업,mt
+CABPRIORITIESTEXT|0#17|1,Increase Production Capabilities for Water,담수 생산 능력을 늘립니다.,mt
+CABPRIORITIESTEXT|0#17|2,Take better advantage of our Fresh Water Resources,우리의 담수 자원을 더 잘 활용합니다.,mt
+CABPRIORITIESTEXT|0#17|3,Focusing too much on one industry could lead to problems in another,한 산업에 지나치게 집중하면 다른 산업에 문제가 생길 수 있습니다.,mt
+CABPRIORITIESTEXT|0#18|0,Timber Industry,목재 산업,mt
+CABPRIORITIESTEXT|0#18|1,Increase Production Capabilities for Timber,목재 생산 능력을 늘립니다.,mt
+CABPRIORITIESTEXT|0#18|2,Take better advantage of our Timber Resources,우리의 목재 자원을 더 잘 활용합니다.,mt
+CABPRIORITIESTEXT|0#18|3,Focusing too much on one industry could lead to problems in another,한 산업에 지나치게 집중하면 다른 산업에 문제가 생길 수 있습니다.,mt
+CABPRIORITIESTEXT|0#19|0,Petroleum Industry,석유 산업,mt
+CABPRIORITIESTEXT|0#19|1,Increase Production Capabilities for Petroleum,석유 생산 능력을 늘립니다.,mt
+CABPRIORITIESTEXT|0#19|2,Take better advantage of our Petroleum Resources,우리의 석유 자원을 더 잘 활용합니다.,mt
+CABPRIORITIESTEXT|0#19|3,Focusing too much on one industry could lead to problems in another,한 산업에 지나치게 집중하면 다른 산업에 문제가 생길 수 있습니다.,mt
+CABPRIORITIESTEXT|0#20|0,Coal Industry,석탄 산업,mt
+CABPRIORITIESTEXT|0#20|1,Increase Production Capabilities for Coal,석탄 생산 능력을 늘립니다.,mt
+CABPRIORITIESTEXT|0#20|2,Take better advantage of our Coal Resources,우리의 석탄 자원을 더 잘 활용합니다.,mt
+CABPRIORITIESTEXT|0#20|3,Focusing too much on one industry could lead to problems in another,한 산업에 지나치게 집중하면 다른 산업에 문제가 생길 수 있습니다.,mt
+CABPRIORITIESTEXT|0#21|0,Metal Ore Industry,금속 광석 산업,mt
+CABPRIORITIESTEXT|0#21|1,Increase Production Capabilities for Ore,광석 생산 능력을 늘립니다.,mt
+CABPRIORITIESTEXT|0#21|2,Take better advantage of our Metal Ore Resources,우리의 금속 광석 자원을 더 잘 활용합니다.,mt
+CABPRIORITIESTEXT|0#21|3,Focusing too much on one industry could lead to problems in another,한 산업에 지나치게 집중하면 다른 산업에 문제가 생길 수 있습니다.,mt
+CABPRIORITIESTEXT|0#22|0,Uranium Industry,우라늄 산업,mt
+CABPRIORITIESTEXT|0#22|1,Increase Production Capabilities for Uranium,우라늄 생산 능력을 늘립니다.,mt
+CABPRIORITIESTEXT|0#22|2,Take better advantage of our Uranium Resources,우리의 우라늄 자원을 더 잘 활용합니다.,mt
+CABPRIORITIESTEXT|0#22|3,Focusing too much on one industry could lead to problems in another,한 산업에 지나치게 집중하면 다른 산업에 문제가 생길 수 있습니다.,mt
+CABPRIORITIESTEXT|0#23|0,Electricity Industry,전력 산업,mt
+CABPRIORITIESTEXT|0#23|1,Increase Production Capabilities for Electricity,전력 생산 능력을 늘립니다.,mt
+CABPRIORITIESTEXT|0#23|2,Increase our Electricity production capabilities (best regional opportunity),전력 생산 능력을 늘립니다(지역 내 최적의 기회).,mt
+CABPRIORITIESTEXT|0#23|3,Focusing too much on one industry could lead to problems in another,한 산업에 지나치게 집중하면 다른 산업에 문제가 생길 수 있습니다.,mt
+CABPRIORITIESTEXT|0#24|0,Consumer Goods Industry,소비재 산업,mt
+CABPRIORITIESTEXT|0#24|1,Increase Production Capabilities for Consumer Gds,소비재 생산 능력을 늘립니다.,mt
+CABPRIORITIESTEXT|0#24|2,Increase our production capabilities of Consumer Goods,소비재 생산 능력을 늘립니다.,mt
+CABPRIORITIESTEXT|0#24|3,Focusing too much on one industry could lead to problems in another,한 산업에 지나치게 집중하면 다른 산업에 문제가 생길 수 있습니다.,mt
+CABPRIORITIESTEXT|0#25|0,Industrial Goods Industry,산업재 산업,mt
+CABPRIORITIESTEXT|0#25|1,Increase Production Capabilities for Industrial Gds,산업재 생산 능력을 늘립니다.,mt
+CABPRIORITIESTEXT|0#25|2,Increase our production capabilities of Industrial Goods,산업재 생산 능력을 늘립니다.,mt
+CABPRIORITIESTEXT|0#25|3,Focusing too much on one industry could lead to problems in another,한 산업에 지나치게 집중하면 다른 산업에 문제가 생길 수 있습니다.,mt
+CABPRIORITIESTEXT|0#26|0,Military Goods Industry,군수품 산업,mt
+CABPRIORITIESTEXT|0#26|1,Increase Production Capabilities for Military Gds,군수품 생산 능력을 늘립니다.,mt
+CABPRIORITIESTEXT|0#26|2,Increase our production capabilities of Military Goods,군수품 생산 능력을 늘립니다.,mt
+CABPRIORITIESTEXT|0#26|3,Focusing too much on one industry could lead to problems in another,한 산업에 지나치게 집중하면 다른 산업에 문제가 생길 수 있습니다.,mt
+CABPRIORITIESTEXT|1|0,Decrease Spending,지출 감축,mt
+CABPRIORITIESTEXT|1|1,Reduce Research Spending,연구 지출을 줄입니다.,mt
+CABPRIORITIESTEXT|1|2,Should improve our budget position significantly,예산 상황이 크게 개선될 것입니다.,mt
+CABPRIORITIESTEXT|1|3,Will decrease the progress of research and hurt research efficiency,연구 진척이 늦어지고 연구 효율이 떨어집니다.,mt
+CABPRIORITIESTEXT|1#2|0,Improve Tech Level,기술 수준 향상,mt
+CABPRIORITIESTEXT|1#2|1,Focus Spending on Tech Level,기술 수준에 지출을 집중합니다.,mt
+CABPRIORITIESTEXT|1#2|2,Increases focus of research spending towards Tech Level,연구 지출을 기술 수준 쪽으로 더 집중합니다.,mt
+CABPRIORITIESTEXT|1#2|3,Moves focus away from efficiency and specific project development,효율과 개별 프로젝트 개발에서 초점이 멀어집니다.,mt
+CABPRIORITIESTEXT|1#3|0,Improve Research Efficiency,연구 효율 향상,mt
+CABPRIORITIESTEXT|1#3|1,Focus Spending on Research Efficiency,연구 효율에 지출을 집중합니다.,mt
+CABPRIORITIESTEXT|1#3|2,Increases focus of research spending towards Research Efficiency,연구 지출을 연구 효율 쪽으로 더 집중합니다.,mt
+CABPRIORITIESTEXT|1#3|3,Moves focus away from Tech Level and specific project development,기술 수준과 개별 프로젝트 개발에서 초점이 멀어집니다.,mt
+CABPRIORITIESTEXT|1#4|0,Concentrate on Tech Developments,기술 개발 집중,mt
+CABPRIORITIESTEXT|1#4|1,Focus Spending on Specific Tech Research,특정 기술 연구에 지출을 집중합니다.,mt
+CABPRIORITIESTEXT|1#4|2,Increases focus of research spending towards Specific Project Development,연구 지출을 개별 프로젝트 개발 쪽으로 더 집중합니다.,mt
+CABPRIORITIESTEXT|1#4|3,Moves focus away from Tech Level and research efficiency,기술 수준과 연구 효율에서 초점이 멀어집니다.,mt
+CABPRIORITIESTEXT|1#5|0,Keep Technologies Secret,기술 기밀 유지,mt
+CABPRIORITIESTEXT|1#5|1,Don't make Techs Available for Exchange,기술을 교환 대상으로 내놓지 않습니다.,mt
+CABPRIORITIESTEXT|1#5|2,Retains advantage of technologies that other regions have not yet developed,다른 지역이 아직 개발하지 못한 기술의 우위를 유지합니다.,mt
+CABPRIORITIESTEXT|1#5|3,May harm international reputation and be seen as threatening,국제적 평판을 해치고 위협으로 비칠 수 있습니다.,mt
+CABPRIORITIESTEXT|1#6|0,Trade Technologies,기술 거래,mt
+CABPRIORITIESTEXT|1#6|1,Make Techs Available for Exchange,기술을 교환 대상으로 내놓습니다.,mt
+CABPRIORITIESTEXT|1#6|2,Use technical advances to our benefit in international trade,기술 진보를 국제 무역에서 우리에게 유리하게 활용합니다.,mt
+CABPRIORITIESTEXT|1#6|3,Trading away advantages could haunt us,우위를 넘겨주면 나중에 후회할 수 있습니다.,mt
+CABPRIORITIESTEXT|1#7|0,Research Facilities,연구 시설,mt
+CABPRIORITIESTEXT|1#7|1,Increase Research Facilities,연구 시설을 늘립니다.,mt
+CABPRIORITIESTEXT|1#7|2,Allows us to research projects more quickly (or more at the same time),프로젝트를 더 빠르게(또는 더 많이 동시에) 연구할 수 있습니다.,mt
+CABPRIORITIESTEXT|1#7|3,Very expensive,비용이 매우 많이 듭니다.,mt
+CABPRIORITIESTEXT|1#8|0,Land Units / Warfare,지상 유닛 / 지상전,mt
+CABPRIORITIESTEXT|1#8|1,Concentrate Research on Land Designs¶Research Improvements to Land Units¶Pursue Missile Program for Land Launched,지상 설계 연구에 집중합니다.¶지상 유닛 개선을 연구합니다.¶지상 발사 미사일 계획을 추진합니다.,mt
+CABPRIORITIESTEXT|1#8|2,Ensures that we can manufacture the latest and best offensive land units,최신 최고의 공격용 지상 유닛을 생산할 수 있도록 보장합니다.,mt
+CABPRIORITIESTEXT|1#8|3,Focusing on one type of unit may leave us vulnerable,한 종류의 유닛에 집중하면 취약해질 수 있습니다.,mt
+CABPRIORITIESTEXT|1#9|0,Research Defensive Land Units,방어형 지상 유닛 연구,mt
+CABPRIORITIESTEXT|1#9|1,Research Defensive Land Units,방어형 지상 유닛을 연구합니다.,mt
+CABPRIORITIESTEXT|1#9|2,Ensures that we can manufacture the latest and best defensive land units,최신 최고의 방어용 지상 유닛을 생산할 수 있도록 보장합니다.,mt
+CABPRIORITIESTEXT|1#9|3,Focusing on one type of unit may leave us vulnerable,한 종류의 유닛에 집중하면 취약해질 수 있습니다.,mt
+CABPRIORITIESTEXT|1#10|0,Research Support Land Units,지원형 지상 유닛 연구,mt
+CABPRIORITIESTEXT|1#10|1,Research Support Land Units,지원형 지상 유닛을 연구합니다.,mt
+CABPRIORITIESTEXT|1#10|2,Ensures that we can manufacture the latest and best support land units,최신 최고의 지원용 지상 유닛을 생산할 수 있도록 보장합니다.,mt
+CABPRIORITIESTEXT|1#10|3,Focusing on one type of unit may leave us vulnerable,한 종류의 유닛에 집중하면 취약해질 수 있습니다.,mt
+CABPRIORITIESTEXT|1#11|0,Air Units / Warfare,공중 유닛 / 공중전,mt
+CABPRIORITIESTEXT|1#11|1,Concentrate Research on Air Designs¶Research Improvements to Air Units¶Pursue Missile Program for Air Launched,공중 설계 연구에 집중합니다.¶공중 유닛 개선을 연구합니다.¶공중 발사 미사일 계획을 추진합니다.,mt
+CABPRIORITIESTEXT|1#11|2,Ensures that we can manufacture the latest and best attack aircraft,최신 최고의 공격기를 생산할 수 있도록 보장합니다.,mt
+CABPRIORITIESTEXT|1#11|3,Focusing on one type of unit may leave us vulnerable,한 종류의 유닛에 집중하면 취약해질 수 있습니다.,mt
+CABPRIORITIESTEXT|1#12|0,Research Attack Helicopters,공격 헬리콥터 연구,mt
+CABPRIORITIESTEXT|1#12|1,Research Attack Helicopters,공격 헬리콥터를 연구합니다.,mt
+CABPRIORITIESTEXT|1#12|2,Ensures that we can manufacture the latest and best attack helicopters,최신 최고의 공격 헬리콥터를 생산할 수 있도록 보장합니다.,mt
+CABPRIORITIESTEXT|1#12|3,Focusing on one type of unit may leave us vulnerable,한 종류의 유닛에 집중하면 취약해질 수 있습니다.,mt
+CABPRIORITIESTEXT|1#13|0,Research Support Aircraft,지원 항공기 연구,mt
+CABPRIORITIESTEXT|1#13|1,Research Support Aircraft,지원 항공기를 연구합니다.,mt
+CABPRIORITIESTEXT|1#13|2,Ensures that we can manufacture the latest and best support aircraft,최신 최고의 지원 항공기를 생산할 수 있도록 보장합니다.,mt
+CABPRIORITIESTEXT|1#13|3,Focusing on one type of unit may leave us vulnerable,한 종류의 유닛에 집중하면 취약해질 수 있습니다.,mt
+CABPRIORITIESTEXT|1#14|0,Naval Units / Warfare,해상 유닛 / 해전,mt
+CABPRIORITIESTEXT|1#14|1,Concentrate Research on Naval Designs¶Research Improvements to Naval Units¶Pursue Missile Program for Naval Launched,해상 설계 연구에 집중합니다.¶해상 유닛 개선을 연구합니다.¶해상 발사 미사일 계획을 추진합니다.,mt
+CABPRIORITIESTEXT|1#14|2,Ensures that we can manufacture the latest and best naval combat ships,최신 최고의 전투함을 생산할 수 있도록 보장합니다.,mt
+CABPRIORITIESTEXT|1#14|3,Focusing on one type of unit may leave us vulnerable,한 종류의 유닛에 집중하면 취약해질 수 있습니다.,mt
+CABPRIORITIESTEXT|1#15|0,Research Naval Support Units,해상 지원 유닛 연구,mt
+CABPRIORITIESTEXT|1#15|1,Research Naval Support Units,해상 지원 유닛을 연구합니다.,mt
+CABPRIORITIESTEXT|1#15|2,Ensures that we can manufacture the latest and best naval support ships,최신 최고의 지원함을 생산할 수 있도록 보장합니다.,mt
+CABPRIORITIESTEXT|1#15|3,Focusing on one type of unit may leave us vulnerable,한 종류의 유닛에 집중하면 취약해질 수 있습니다.,mt
+CABPRIORITIESTEXT|1#16|0,Research Attack Submarines,공격 잠수함 연구,mt
+CABPRIORITIESTEXT|1#16|1,Research Attack Submarines,공격 잠수함을 연구합니다.,mt
+CABPRIORITIESTEXT|1#16|2,Ensures that we can manufacture the latest and best attack submarines,최신 최고의 공격 잠수함을 생산할 수 있도록 보장합니다.,mt
+CABPRIORITIESTEXT|1#16|3,Focusing on one type of unit may leave us vulnerable,한 종류의 유닛에 집중하면 취약해질 수 있습니다.,mt
+CABPRIORITIESTEXT|1#17|0,Research Missiles Submarines,미사일 잠수함 연구,mt
+CABPRIORITIESTEXT|1#17|1,Research Missiles Submarines,미사일 잠수함을 연구합니다.,mt
+CABPRIORITIESTEXT|1#17|2,Ensures that we can manufacture the latest and best missile submarines,최신 최고의 미사일 잠수함을 생산할 수 있도록 보장합니다.,mt
+CABPRIORITIESTEXT|1#17|3,Focusing on one type of unit may leave us vulnerable,한 종류의 유닛에 집중하면 취약해질 수 있습니다.,mt
+CABPRIORITIESTEXT|1#18|0,Research Missiles,미사일 연구,mt
+CABPRIORITIESTEXT|1#18|1,Research Missiles,미사일을 연구합니다.,mt
+CABPRIORITIESTEXT|1#18|2,Ensures that we can manufacture the latest and best missile units,최신 최고의 미사일 유닛을 생산할 수 있도록 보장합니다.,mt
+CABPRIORITIESTEXT|1#18|3,Focusing on one type of unit may leave us vulnerable,한 종류의 유닛에 집중하면 취약해질 수 있습니다.,mt
+CABPRIORITIESTEXT|1#19|0,Research Warfare Techs,전쟁 기술 연구,mt
+CABPRIORITIESTEXT|1#19|1,Research Warfare Techs,전쟁 기술을 연구합니다.,mt
+CABPRIORITIESTEXT|1#19|2,Should lead to increased combat effectiveness,전투 효율이 높아질 것입니다.,mt
+CABPRIORITIESTEXT|1#19|3,We may fall behind in other technological areas,다른 기술 분야에서 뒤처질 수 있습니다.,mt
+CABPRIORITIESTEXT|1#20|0,Research Transportation Techs,수송 기술 연구,mt
+CABPRIORITIESTEXT|1#20|1,Research Transportation Techs,수송 기술을 연구합니다.,mt
+CABPRIORITIESTEXT|1#20|2,Should improve the range and speed of our military units,군 유닛의 사거리와 속도가 향상될 것입니다.,mt
+CABPRIORITIESTEXT|1#20|3,We may fall behind in other technological areas,다른 기술 분야에서 뒤처질 수 있습니다.,mt
+CABPRIORITIESTEXT|1#21|0,Pure Science Techs,순수 과학 기술,mt
+CABPRIORITIESTEXT|1#21|1,Concentrate Research on Basic Concepts¶Emphasize Pure Science Techs¶Potential Exists for Major Advance,기초 개념 연구에 집중합니다.¶순수 과학 기술을 중시합니다.¶큰 도약의 가능성이 있습니다.,mt
+CABPRIORITIESTEXT|1#21|2,Theoretical knowledge that could lead to any number of applications,수많은 응용으로 이어질 수 있는 이론적 지식입니다.,mt
+CABPRIORITIESTEXT|1#21|3,We may fall behind in other technological areas,다른 기술 분야에서 뒤처질 수 있습니다.,mt
+CABPRIORITIESTEXT|1#22|0,Research Basic Technologies,기초 기술 연구,mt
+CABPRIORITIESTEXT|1#22|1,Research Basic Technologies,기초 기술을 연구합니다.,mt
+CABPRIORITIESTEXT|1#22|2,Standard tech developments that will lead to specific applications,구체적인 응용으로 이어질 표준 기술 개발입니다.,mt
+CABPRIORITIESTEXT|1#22|3,We may fall behind in other technological areas,다른 기술 분야에서 뒤처질 수 있습니다.,mt
+CABPRIORITIESTEXT|1#23|0,Research Medical Techs,의료 기술 연구,mt
+CABPRIORITIESTEXT|1#23|1,Research Medical Techs,의료 기술을 연구합니다.,mt
+CABPRIORITIESTEXT|1#23|2,Improves the lifespan and quality of life of our populace,국민의 수명과 삶의 질이 향상됩니다.,mt
+CABPRIORITIESTEXT|1#23|3,We may fall behind in other technological areas,다른 기술 분야에서 뒤처질 수 있습니다.,mt
+CABPRIORITIESTEXT|1#24|0,Societal Techs,사회 기술,mt
+CABPRIORITIESTEXT|1#24|1,Concentrate Research on Societal Benefits¶Research Potential Cost Reductions as well,사회적 혜택 연구에 집중합니다.¶가능한 비용 절감도 함께 연구합니다.,mt
+CABPRIORITIESTEXT|1#24|2,Improves our society and the quality of life of our populace,사회와 국민의 삶의 질이 향상됩니다.,mt
+CABPRIORITIESTEXT|1#24|3,We may fall behind in other technological areas,다른 기술 분야에서 뒤처질 수 있습니다.,mt
+CABPRIORITIESTEXT|1#25|0,Research Military Unit Designs,군 유닛 설계 연구,mt
+CABPRIORITIESTEXT|1#25|1,Research Military Unit Designs,군 유닛 설계를 연구합니다.,mt
+CABPRIORITIESTEXT|1#25|2,Concentrates research efforts on developing various unit designs,다양한 유닛 설계 개발에 연구 역량을 집중합니다.,mt
+CABPRIORITIESTEXT|1#25|3,Does not necessarily develop important technological advances,중요한 기술 진보로 이어진다고 보장할 수 없습니다.,mt
+CABPRIORITIESTEXT|1#26|0,Research Various Technologies,다양한 기술 연구,mt
+CABPRIORITIESTEXT|1#26|1,Balanced Research Efforts,균형 잡힌 연구를 합니다.,mt
+CABPRIORITIESTEXT|1#26|2,Concentrates research efforts on various technologies and not unit designs,유닛 설계가 아닌 다양한 기술에 연구 역량을 집중합니다.,mt
+CABPRIORITIESTEXT|1#26|3,May leave us vulnerable if we only have outdated military unit designs,구형 군 유닛 설계만 남으면 취약해질 수 있습니다.,mt
+CABPRIORITIESTEXT|1#27|0,Space Race,우주 경쟁,mt
+CABPRIORITIESTEXT|1#27|1,Concentrate Research on Space Race¶Recommend Espionage,우주 경쟁 연구에 집중합니다.¶첩보를 권고합니다.,mt
+CABPRIORITIESTEXT|2|0,Reduce Overall Tax Rate,전체 세율 인하,mt
+CABPRIORITIESTEXT|2|1,Reduce Tax Rate,세율을 낮춥니다.,mt
+CABPRIORITIESTEXT|2|2,Will definitely please the population,국민이 분명히 기뻐할 것입니다.,mt
+CABPRIORITIESTEXT|2|3,May lead to Treasury Shortfalls,국고 부족으로 이어질 수 있습니다.,mt
+CABPRIORITIESTEXT|2#2|0,Increase Revenues,수입 증대,mt
+CABPRIORITIESTEXT|2#2|1,Increase Tax Rates¶Target Balanced Budget,세율을 올립니다.¶균형 예산을 목표로 합니다.,mt
+CABPRIORITIESTEXT|2#2|2,Improve cash in Treasury,국고 현금이 늘어납니다.,mt
+CABPRIORITIESTEXT|2#2|3,Stress on economy and on Domestic Approval,경제와 국내 지지율에 부담이 됩니다.,mt
+CABPRIORITIESTEXT|2#3|0,Decrease Spending,지출 감축,mt
+CABPRIORITIESTEXT|2#3|1,Decrease Social Spending,사회 지출을 줄입니다.,mt
+CABPRIORITIESTEXT|2#3|2,Improve cash in Treasury and improve budget situation,국고 현금이 늘고 예산 상황이 개선됩니다.,mt
+CABPRIORITIESTEXT|2#3|3,"Pressures all government departments, including the military",군을 포함한 모든 정부 부처가 압박을 받습니다.,mt
+CABPRIORITIESTEXT|2#4|0,Balanced Budget,균형 예산,mt
+CABPRIORITIESTEXT|2#4|1,Reduce Total Government Spending¶Increase Taxes as Needed¶Pursue Trade Balance,정부 총지출을 줄입니다.¶필요에 따라 세금을 올립니다.¶무역 수지 개선을 추진합니다.,mt
+CABPRIORITIESTEXT|2#4|2,Shows fiscal responsibility to both population and international community ,국민과 국제 사회 모두에 재정 책임을 보여 줍니다.,mt
+CABPRIORITIESTEXT|2#4|3,"Pressures all government departments, including the military",군을 포함한 모든 정부 부처가 압박을 받습니다.,mt
+CABPRIORITIESTEXT|2#5|0,Improve GDP,GDP 향상,mt
+CABPRIORITIESTEXT|2#5|1,Lower Taxes / Increase Production & Defense Spending,세금을 낮추고 생산과 국방 지출을 늘립니다.,mt
+CABPRIORITIESTEXT|2#5|2,Higher GDP/c should improve Domestic Approval Rating,1인당 GDP가 오르면 국내 지지율이 향상됩니다.,mt
+CABPRIORITIESTEXT|2#5|3,May lead to significant inflation,심각한 인플레이션으로 이어질 수 있습니다.,mt
+CABPRIORITIESTEXT|2#6|0,Combat Unemployment,실업 대응,mt
+CABPRIORITIESTEXT|2#6|1,Increase Production / Build new Facilities,생산을 늘리고 새 시설을 건설합니다.,mt
+CABPRIORITIESTEXT|2#6|2,Lower Unemployment is a positive influence on Domestic Approval,실업률이 낮아지면 국내 지지율에 긍정적입니다.,mt
+CABPRIORITIESTEXT|2#6|3,Job creation programs may have long term consequences on treasury,일자리 창출 정책은 국고에 장기적인 부담이 될 수 있습니다.,mt
+CABPRIORITIESTEXT|2#7|0,Inflation Control,인플레이션 억제,mt
+CABPRIORITIESTEXT|2#7|1,Lower Domestic Markups,국내 가격 마진을 낮춥니다.,mt
+CABPRIORITIESTEXT|2#7|2,Prevents our economy from getting too hot and drastically increasing costs,경제 과열과 비용 급등을 막습니다.,mt
+CABPRIORITIESTEXT|2#7|3,May decrease GDP/c and hurt Domestic Approval Rating,1인당 GDP가 줄고 국내 지지율에 타격을 줄 수 있습니다.,mt
+CABPRIORITIESTEXT|2#8|0,Increase Treasury,국고 확충,mt
+CABPRIORITIESTEXT|2#8|1,"Raise Taxes, Reduce Spending, Issue Bonds",세금을 올리고 지출을 줄이며 채권을 발행합니다.,mt
+CABPRIORITIESTEXT|2#8|2,Bond issues can quickly increase our treasury to fund immediate needs,채권 발행으로 당장 필요한 자금을 위해 국고를 빠르게 늘릴 수 있습니다.,mt
+CABPRIORITIESTEXT|2#8|3,May increase our debt and lower our credit rating,부채가 늘고 신용 등급이 떨어질 수 있습니다.,mt
+CABPRIORITIESTEXT|2#9|0,Reduce Regional Debt,지역 부채 감축,mt
+CABPRIORITIESTEXT|2#9|1,Increase Taxes / Lower Spending¶Improve Credit Rating,세금을 올리고 지출을 줄입니다.¶신용 등급을 개선합니다.,mt
+CABPRIORITIESTEXT|2#9|2,Will improve our credit rating with the United Nations,유엔에서의 신용 등급이 향상됩니다.,mt
+CABPRIORITIESTEXT|2#9|3,Reduces the money available for government programs and building,정부 사업과 건설에 쓸 자금이 줄어듭니다.,mt
+CABPRIORITIESTEXT|2#10|0,Improve Credit Rating,신용 등급 개선,mt
+CABPRIORITIESTEXT|2#10|1,Reduce Total Government Spending¶Research Cost Savings¶Pursue Trade Balance¶Reduce Debt,정부 총지출을 줄입니다.¶비용 절감을 연구합니다.¶무역 수지 개선을 추진합니다.¶부채를 줄입니다.,mt
+CABPRIORITIESTEXT|2#10|2,Will get us better interest rates on any loans we take out,차입 시 더 좋은 금리를 받을 수 있습니다.,mt
+CABPRIORITIESTEXT|2#10|3,Limits our fiscal options - including spending and raising capital,지출과 자금 조달 등 재정 선택지가 제한됩니다.,mt
+CABPRIORITIESTEXT|2#11|0,Tourism,관광,mt
+CABPRIORITIESTEXT|2#11|1,Increase Appropriate Social Spending,적절한 사회 지출을 늘립니다.,mt
+CABPRIORITIESTEXT|2#11|2,Economic benefits - providing an opportunity to establish Tourist Sectors,경제적 이점이 있으며 관광 부문을 세울 기회가 됩니다.,mt
+CABPRIORITIESTEXT|2#11|3,May be expensive and wasted if international actions eliminate tourism,비용이 많이 들고 국제 정세로 관광이 끊기면 헛수고가 될 수 있습니다.,mt
+CABPRIORITIESTEXT|2#12|0,Business Sectors,비즈니스 부문,mt
+CABPRIORITIESTEXT|2#12|1,Increase Appropriate Social Spending,적절한 사회 지출을 늘립니다.,mt
+CABPRIORITIESTEXT|2#12|2,Economic benefits - providing an opportunity to establish Business Sectors,경제적 이점이 있으며 비즈니스 부문을 세울 기회가 됩니다.,mt
+CABPRIORITIESTEXT|2#12|3,May be expensive and wasted if international actions hurt business climate,비용이 많이 들고 국제 정세로 기업 환경이 나빠지면 헛수고가 될 수 있습니다.,mt
+CABPRIORITIESTEXT|2#13|0,Low Income Tax Relief,저소득층 세금 감면,mt
+CABPRIORITIESTEXT|2#13|1,Reduce Low Income Tax Rate,저소득층 세율을 낮춥니다.,mt
+CABPRIORITIESTEXT|2#13|2,Tax breaks for Low Income earners should improve our Domestic Approval,저소득층 감세는 국내 지지율을 높일 것입니다.,mt
+CABPRIORITIESTEXT|2#13|3,Focus on one income bracket has limited impact on Approval Ratings,한 소득 계층에 집중하면 지지율 효과가 제한적입니다.,mt
+CABPRIORITIESTEXT|2#14|0,High Income Tax Relief,고소득층 세금 감면,mt
+CABPRIORITIESTEXT|2#14|1,Reduce High Income Tax Rate,고소득층 세율을 낮춥니다.,mt
+CABPRIORITIESTEXT|2#14|2,Encourages entrepreneurial spirit and can lead to business growth,기업가 정신을 북돋아 사업 성장으로 이어질 수 있습니다.,mt
+CABPRIORITIESTEXT|2#14|3,Tax breaks for the rich can hurt our Domestic Approval Rating,부유층 감세는 국내 지지율에 타격을 줄 수 있습니다.,mt
+CABPRIORITIESTEXT|2#15|0,Corporate Tax Relief,법인세 감면,mt
+CABPRIORITIESTEXT|2#15|1,Reduce Corporate Tax Rate,법인세율을 낮춥니다.,mt
+CABPRIORITIESTEXT|2#15|2,Encourages growth of the large corporate sector,대기업 부문의 성장을 촉진합니다.,mt
+CABPRIORITIESTEXT|2#15|3,Tax breaks for large corporations can often upset Domestic Approval,대기업 감세는 국내 지지율을 흔들기 쉽습니다.,mt
+CABPRIORITIESTEXT|2#16|0,Small Business Tax Relief,소상공인 세금 감면,mt
+CABPRIORITIESTEXT|2#16|1,Reduce Small Business Tax Rate,소상공인 세율을 낮춥니다.,mt
+CABPRIORITIESTEXT|2#16|2,Helps lower income entrepreneurs increase personal wealth,저소득 기업가의 개인 자산 증식을 돕습니다.,mt
+CABPRIORITIESTEXT|2#16|3,Reduces a very significant source of tax income,매우 중요한 세수원이 줄어듭니다.,mt
+CABPRIORITIESTEXT|2#17|0,Sales Tax Reduction,판매세 인하,mt
+CABPRIORITIESTEXT|2#17|1,Reduce Sales Tax Rate,판매세율을 낮춥니다.,mt
+CABPRIORITIESTEXT|2#17|2,Increases individual spending and helps the Small Business sector grow,개인 소비가 늘고 소상공인 부문의 성장을 돕습니다.,mt
+CABPRIORITIESTEXT|2#17|3,Personal spending increases heighten inflation and personal debt,개인 소비가 늘면 인플레이션과 개인 부채가 커집니다.,mt
+CABPRIORITIESTEXT|2#18|0,Unemployment Insurance Reduction,실업 보험료 인하,mt
+CABPRIORITIESTEXT|2#18|1,Reduce UI Tax Rate,실업 보험세율을 낮춥니다.,mt
+CABPRIORITIESTEXT|2#18|2,Increases individual spending and helps the Small Business sector grow,개인 소비가 늘고 소상공인 부문의 성장을 돕습니다.,mt
+CABPRIORITIESTEXT|2#18|3,Reduces a very significant source of tax income,매우 중요한 세수원이 줄어듭니다.,mt
+CABPRIORITIESTEXT|2#19|0,Property Tax Reduction,재산세 인하,mt
+CABPRIORITIESTEXT|2#19|1,Reduce Property Tax Rate,재산세율을 낮춥니다.,mt
+CABPRIORITIESTEXT|2#19|2,A positive influence on Domestic Approval for entire population,전체 국민의 국내 지지율에 긍정적입니다.,mt
+CABPRIORITIESTEXT|2#19|3,Reduces a very significant source of tax income,매우 중요한 세수원이 줄어듭니다.,mt
+CABPRIORITIESTEXT|2#20|0,Pension Tax Reduction,연금세 인하,mt
+CABPRIORITIESTEXT|2#20|1,Reduce Pension Tax Rate,연금세율을 낮춥니다.,mt
+CABPRIORITIESTEXT|2#20|2,Increases individual spending and helps the Small Business sector grow,개인 소비가 늘고 소상공인 부문의 성장을 돕습니다.,mt
+CABPRIORITIESTEXT|2#20|3,Reduces a significant source of tax income,중요한 세수원이 줄어듭니다.,mt
+CABPRIORITIESTEXT|2#21|0,Domestic Approval,국내 지지율,mt
+CABPRIORITIESTEXT|2#21|1,Increase Social Spending¶Lower Taxes¶Research Social Benefits¶Discourage Military Actions,사회 지출을 늘립니다.¶세금을 낮춥니다.¶사회적 혜택을 연구합니다.¶군사 행동을 자제합니다.,mt
+CABPRIORITIESTEXT|2#21|2,Will help ensure re-election when current term expires,현 임기가 끝날 때 재선에 도움이 됩니다.,mt
+CABPRIORITIESTEXT|2#21|3,Excessive Social Spending can cripple an economy,과도한 사회 지출은 경제를 무너뜨릴 수 있습니다.,mt
+CABPRIORITIESTEXT|2#22|0,Social Spending,사회 지출,mt
+CABPRIORITIESTEXT|2#22|1,Increase Social Spending¶Research Social Improvements¶Acquire Social Techs,사회 지출을 늘립니다.¶사회 개선을 연구합니다.¶사회 기술을 확보합니다.,mt
+CABPRIORITIESTEXT|2#22|2,Benefits both our Domestic Approval and our international reputation,국내 지지율과 국제적 평판 모두에 이롭습니다.,mt
+CABPRIORITIESTEXT|2#22|3,Excessive Social Spending can cripple an economy,과도한 사회 지출은 경제를 무너뜨릴 수 있습니다.,mt
+CABPRIORITIESTEXT|2#23|0,Decrease Social Spending,사회 지출 감축,mt
+CABPRIORITIESTEXT|2#23|1,Decrease Overall Social Spending,사회 지출 전반을 줄입니다.,mt
+CABPRIORITIESTEXT|2#23|2,Improve cash in Treasury and improve budget situation,국고 현금이 늘고 예산 상황이 개선됩니다.,mt
+CABPRIORITIESTEXT|2#23|3,Will definitely hurt our Domestic Approval Rating and re-election chances,국내 지지율과 재선 가능성에 분명히 타격을 줍니다.,mt
+CABPRIORITIESTEXT|2#24|0,Health Care,보건,mt
+CABPRIORITIESTEXT|2#24|1,Increase Health Care Spending,보건 지출을 늘립니다.,mt
+CABPRIORITIESTEXT|2#24|2,Quality Health Care is one of the most important issues to our people,양질의 보건은 국민에게 가장 중요한 현안 중 하나입니다.,mt
+CABPRIORITIESTEXT|2#24|3,Focusing too much on one social program can hurt the others,한 사회 정책에 지나치게 집중하면 다른 정책이 약해질 수 있습니다.,mt
+CABPRIORITIESTEXT|2#25|0,Education,교육,mt
+CABPRIORITIESTEXT|2#25|1,Increase Education Spending,교육 지출을 늘립니다.,mt
+CABPRIORITIESTEXT|2#25|2,Investing in education will benefit both businesses and research,교육 투자는 기업과 연구 모두에 이롭습니다.,mt
+CABPRIORITIESTEXT|2#25|3,Focusing too much on one social program can hurt the others,한 사회 정책에 지나치게 집중하면 다른 정책이 약해질 수 있습니다.,mt
+CABPRIORITIESTEXT|2#26|0,Infrastructure,인프라,mt
+CABPRIORITIESTEXT|2#26|1,Increase Infrastructure Spending (Supply Model)¶Build roads and rails to increase supply range,인프라 지출을 늘립니다(보급 모델).¶도로와 철도를 건설해 보급 범위를 넓힙니다.,mt
+CABPRIORITIESTEXT|2#26|2,Helps support our military as well as better deliver commodities to the market,군을 뒷받침하고 물자를 시장에 더 잘 공급하는 데 도움이 됩니다.,mt
+CABPRIORITIESTEXT|2#26|3,Focusing too much on one social program can hurt the others,한 사회 정책에 지나치게 집중하면 다른 정책이 약해질 수 있습니다.,mt
+CABPRIORITIESTEXT|2#27|0,Environment,환경,mt
+CABPRIORITIESTEXT|2#27|1,Increase Environment Spending,환경 지출을 늘립니다.,mt
+CABPRIORITIESTEXT|2#27|2,Being good environmental citizens will improve our international reputation,환경에 책임 있는 시민이 되면 국제적 평판이 향상됩니다.,mt
+CABPRIORITIESTEXT|2#27|3,Focusing too much on one social program can hurt the others,한 사회 정책에 지나치게 집중하면 다른 정책이 약해질 수 있습니다.,mt
+CABPRIORITIESTEXT|2#28|0,Family Subsidies,가족 수당,mt
+CABPRIORITIESTEXT|2#28|1,Increase Family Subsidy Spending,가족 수당 지출을 늘립니다.,mt
+CABPRIORITIESTEXT|2#28|2,Improves Domestic Approval and helps young families establish themselves,국내 지지율이 오르고 젊은 가정의 정착을 돕습니다.,mt
+CABPRIORITIESTEXT|2#28|3,Focusing too much on one social program can hurt the others,한 사회 정책에 지나치게 집중하면 다른 정책이 약해질 수 있습니다.,mt
+CABPRIORITIESTEXT|2#29|0,Law Enforcement,치안,mt
+CABPRIORITIESTEXT|2#29|1,Increase Law Enforcement Spending,치안 지출을 늘립니다.,mt
+CABPRIORITIESTEXT|2#29|2,Ensures a safe and nurtuiring environment for people and businesses,국민과 기업에 안전하고 살기 좋은 환경을 보장합니다.,mt
+CABPRIORITIESTEXT|2#29|3,Focusing too much on one social program can hurt the others,한 사회 정책에 지나치게 집중하면 다른 정책이 약해질 수 있습니다.,mt
+CABPRIORITIESTEXT|2#30|0,Culture,문화,mt
+CABPRIORITIESTEXT|2#30|1,Increase Culture Spending,문화 지출을 늘립니다.,mt
+CABPRIORITIESTEXT|2#30|2,A good 'Cultural Identity' will improve our regional loyalty,탄탄한 '문화 정체성'은 지역 충성도를 높일 것입니다.,mt
+CABPRIORITIESTEXT|2#30|3,Focusing too much on one social program can hurt the others,한 사회 정책에 지나치게 집중하면 다른 정책이 약해질 수 있습니다.,mt
+CABPRIORITIESTEXT|2#31|0,Social Assistance,사회 보장,mt
+CABPRIORITIESTEXT|2#31|1,Incrase Social Safety Net Spending,사회 안전망 지출을 늘립니다.,mt
+CABPRIORITIESTEXT|2#31|2,Leads to many economic benefits and can boost Domestic Approval,여러 경제적 이점이 있고 국내 지지율을 끌어올릴 수 있습니다.,mt
+CABPRIORITIESTEXT|2#31|3,Focusing too much on one social program can hurt the others,한 사회 정책에 지나치게 집중하면 다른 정책이 약해질 수 있습니다.,mt
+CABPRIORITIESTEXT|3|0,Influence,영향력,mt
+CABPRIORITIESTEXT|3|1,Concentrate on Spreading Influence¶Consider Offering Critical Aid¶Use Espionage to Achieve Influence,영향력 확대에 집중합니다.¶긴급 지원 제안을 고려합니다.¶첩보로 영향력을 확보합니다.,mt
+CABPRIORITIESTEXT|3|2,Will help encourage potential trade partners and foster subsidies,잠재적 무역 상대를 끌어들이고 보조금을 이끌어 냅니다.,mt
+CABPRIORITIESTEXT|3|3,Some UN treaties can put pressure on economy or limit military options,일부 유엔 조약은 경제에 압박을 주거나 군사적 선택지를 제한할 수 있습니다.,mt
+CABPRIORITIESTEXT|3#2|0,Isolationism,고립주의,mt
+CABPRIORITIESTEXT|3#2|1,Suppress Commodity and Unit Offers,물자와 유닛 제안을 억제합니다.,mt
+CABPRIORITIESTEXT|3#2|2,Avoid becoming embroiled in International conflicts,국제 분쟁에 휘말리는 것을 피합니다.,mt
+CABPRIORITIESTEXT|3#2|3,Other regions not likely to come to our assistance if needed,필요할 때 다른 지역이 도와줄 가능성이 낮습니다.,mt
+CABPRIORITIESTEXT|3#3|0,Military Alliances,군사 동맹,mt
+CABPRIORITIESTEXT|3#3|1,Cultivate Military Cooperation¶Concentrate on Same Sphere Partners,군사 협력을 키웁니다.¶같은 권역의 파트너에 집중합니다.,mt
+CABPRIORITIESTEXT|3#3|2,May lead to useful alliances and avoid unnecessary enemies,유용한 동맹을 맺고 불필요한 적을 피할 수 있습니다.,mt
+CABPRIORITIESTEXT|3#3|3,Some alliances could lead to unforeseen consequences,일부 동맹은 예기치 못한 결과를 부를 수 있습니다.,mt
+CABPRIORITIESTEXT|3#4|0,Lobby for Humanitarian Aid,인도적 지원 요청,mt
+CABPRIORITIESTEXT|3#4|1,Ask for Humanitarian Aid,인도적 지원을 요청합니다.,mt
+CABPRIORITIESTEXT|3#4|2,Encourages UN to provide or subsidize Food and Water,유엔이 식량과 물을 제공하거나 보조하도록 유도합니다.,mt
+CABPRIORITIESTEXT|3#4|3,Exposes vulnerability to other regions,다른 지역에 우리의 취약점이 드러납니다.,mt
+CABPRIORITIESTEXT|3#5|0,Sanctions,제재,mt
+CABPRIORITIESTEXT|3#5|1,Sanctions,제재,mt
+CABPRIORITIESTEXT|3#5|2,Sanctions,제재,mt
+CABPRIORITIESTEXT|3#5|3,Sanctions,제재,mt
+CABPRIORITIESTEXT|3#6|0,Lobby for Military Aid,군사 지원 요청,mt
+CABPRIORITIESTEXT|3#6|1,Ask for Military Aid,군사 지원을 요청합니다.,mt
+CABPRIORITIESTEXT|3#6|2,Encourages UN to provide Military Equipment or Advisors,유엔이 군 장비나 고문단을 제공하도록 유도합니다.,mt
+CABPRIORITIESTEXT|3#6|3,Exposes military weakness to other regions,다른 지역에 우리의 군사적 약점이 드러납니다.,mt
+CABPRIORITIESTEXT|3#7|0,Offer Humanitarian Aid,인도적 지원 제안,mt
+CABPRIORITIESTEXT|3#7|1,Offer Food and Water to needy regions,어려운 지역에 식량과 물을 제공합니다.,mt
+CABPRIORITIESTEXT|3#7|2,Improves our international reputation,국제적 평판이 향상됩니다.,mt
+CABPRIORITIESTEXT|3#7|3,No downside - as long as we have excess production,잉여 생산분이 있는 한 단점이 없습니다.,mt
+CABPRIORITIESTEXT|3#8|0,Offer Economic Aid,경제 지원 제안,mt
+CABPRIORITIESTEXT|3#8|1,Offer Money to needy regions,어려운 지역에 자금을 제공합니다.,mt
+CABPRIORITIESTEXT|3#8|2,Improves our international reputation,국제적 평판이 향상됩니다.,mt
+CABPRIORITIESTEXT|3#8|3,Possibly better uses for treasury,국고를 더 잘 쓸 방법이 있을 수 있습니다.,mt
+CABPRIORITIESTEXT|3#9|0,Offer Military Aid,군사 지원 제안,mt
+CABPRIORITIESTEXT|3#9|1,Offer (older) Military Equipment to needy regions,어려운 지역에 (구형) 군 장비를 제공합니다.,mt
+CABPRIORITIESTEXT|3#9|2,Helps other regions survive attacks,다른 지역이 공격에서 살아남도록 돕습니다.,mt
+CABPRIORITIESTEXT|3#9|3,May lead to direct military confrontation,직접적인 군사 충돌로 이어질 수 있습니다.,mt
+CABPRIORITIESTEXT|3#10|0,Support Allies,동맹 지원,mt
+CABPRIORITIESTEXT|3#10|1,Offer to help meet shortages,부족분 해소를 돕겠다고 제안합니다.,mt
+CABPRIORITIESTEXT|3#10|2,Helps fill any needs of our allies,동맹국의 모든 필요를 채우는 데 도움이 됩니다.,mt
+CABPRIORITIESTEXT|3#10|3,May lead to confrontations with other regions,다른 지역과의 충돌로 이어질 수 있습니다.,mt
+CABPRIORITIESTEXT|3#11|0,Undermine Enemies,적 약화,mt
+CABPRIORITIESTEXT|3#11|1,Support their other Enemies,그들의 다른 적을 지원합니다.,mt
+CABPRIORITIESTEXT|3#11|2,Makes it more difficult for their war effort,그들의 전쟁 수행을 더 어렵게 만듭니다.,mt
+CABPRIORITIESTEXT|3#11|3,May lead to confrontations with other regions,다른 지역과의 충돌로 이어질 수 있습니다.,mt
+CABPRIORITIESTEXT|3#12|0,Peace overtures to Enemies,적에게 평화 타진,mt
+CABPRIORITIESTEXT|3#12|1,Cease Fire Offer,휴전을 제안합니다.,mt
+CABPRIORITIESTEXT|3#12|2,Give us time to rebuild our military and our economy,군과 경제를 재건할 시간을 벌 수 있습니다.,mt
+CABPRIORITIESTEXT|3#12|3,May require concessions that leave them stronger,상대가 더 강해지는 양보를 요구받을 수 있습니다.,mt
+CABPRIORITIESTEXT|3#13|0,Acquire Technologies,기술 확보,mt
+CABPRIORITIESTEXT|3#13|1,Concentrate on Acquiring Technologies¶Pursue Espionage Tactics if Required¶Consider Military Unit Licenses,기술 확보에 집중합니다.¶필요하면 첩보 수단을 씁니다.¶군 유닛 라이선스를 고려합니다.,mt
+CABPRIORITIESTEXT|3#13|2,General goal of increasing all technical knowledge,모든 기술 지식을 늘리는 것이 전반적 목표입니다.,mt
+CABPRIORITIESTEXT|3#13|3,Not focused on any one goal,하나의 목표에 집중하지 않습니다.,mt
+CABPRIORITIESTEXT|3#14|0,Trade Focus - Warfare Techs,무역 중점 - 전쟁 기술,mt
+CABPRIORITIESTEXT|3#14|1,Try to acquire Warfare Techs,전쟁 기술을 확보하려 합니다.,mt
+CABPRIORITIESTEXT|3#14|2,Should lead to increased combat effectiveness,전투 효율이 높아질 것입니다.,mt
+CABPRIORITIESTEXT|3#14|3,May be seen as threatening and ignores possibly more useful techs,위협으로 비칠 수 있고 더 유용한 기술을 놓칠 수 있습니다.,mt
+CABPRIORITIESTEXT|3#15|0,Trade Focus - Transportation Techs,무역 중점 - 수송 기술,mt
+CABPRIORITIESTEXT|3#15|1,Try to acquire Transport Techs,수송 기술을 확보하려 합니다.,mt
+CABPRIORITIESTEXT|3#15|2,Should improve the range and speed of our military,군의 사거리와 속도가 향상될 것입니다.,mt
+CABPRIORITIESTEXT|3#15|3,Too focused.  Ignores possibly more useful techs,지나치게 편중됩니다. 더 유용한 기술을 놓칠 수 있습니다.,mt
+CABPRIORITIESTEXT|3#16|0,Trade Focus - Pure Science Techs,무역 중점 - 순수 과학 기술,mt
+CABPRIORITIESTEXT|3#16|1,Try to acquire Science Techs,과학 기술을 확보하려 합니다.,mt
+CABPRIORITIESTEXT|3#16|2,Theoretical knowledge that could lead to any number of applications,수많은 응용으로 이어질 수 있는 이론적 지식입니다.,mt
+CABPRIORITIESTEXT|3#16|3,Too focused.  Ignores possibly more useful techs,지나치게 편중됩니다. 더 유용한 기술을 놓칠 수 있습니다.,mt
+CABPRIORITIESTEXT|3#17|0,Trade Focus - Basic Technologies,무역 중점 - 기초 기술,mt
+CABPRIORITIESTEXT|3#17|1,Try to acquire General Techs,일반 기술을 확보하려 합니다.,mt
+CABPRIORITIESTEXT|3#17|2,Standard tech developments that will lead to specific applications,구체적인 응용으로 이어질 표준 기술 개발입니다.,mt
+CABPRIORITIESTEXT|3#17|3,Too focused.  Ignores possibly more useful techs,지나치게 편중됩니다. 더 유용한 기술을 놓칠 수 있습니다.,mt
+CABPRIORITIESTEXT|3#18|0,Trade Focus - Medical Techs,무역 중점 - 의료 기술,mt
+CABPRIORITIESTEXT|3#18|1,Try to acquire Medical Techs,의료 기술을 확보하려 합니다.,mt
+CABPRIORITIESTEXT|3#18|2,Improves the lifespan and quality of life of our populace,국민의 수명과 삶의 질이 향상됩니다.,mt
+CABPRIORITIESTEXT|3#18|3,Too focused.  Ignores possibly more useful techs,지나치게 편중됩니다. 더 유용한 기술을 놓칠 수 있습니다.,mt
+CABPRIORITIESTEXT|3#19|0,Trade Focus - Societal Techs,무역 중점 - 사회 기술,mt
+CABPRIORITIESTEXT|3#19|1,Try to acquire Social Techs,사회 기술을 확보하려 합니다.,mt
+CABPRIORITIESTEXT|3#19|2,Improves our society and the quality of life of our populace,사회와 국민의 삶의 질이 향상됩니다.,mt
+CABPRIORITIESTEXT|3#19|3,Too focused.  Ignores possibly more useful techs,지나치게 편중됩니다. 더 유용한 기술을 놓칠 수 있습니다.,mt
+CABPRIORITIESTEXT|3#20|0,Trade Focus - Profit,무역 중점 - 수익,mt
+CABPRIORITIESTEXT|3#20|1,"Sell Techs, Commodities and Units for Profit","기술, 물자, 유닛을 팔아 수익을 냅니다.",mt
+CABPRIORITIESTEXT|3#20|2,Treasury benefits from our regional advantages,우리 지역의 강점으로 국고가 늘어납니다.,mt
+CABPRIORITIESTEXT|3#20|3,May be selling a strategic advantage,전략적 우위를 팔아넘기는 것일 수 있습니다.,mt
+CABPRIORITIESTEXT|3#21|0,Trade Focus - Military Units,무역 중점 - 군 유닛,mt
+CABPRIORITIESTEXT|3#21|1,Try to acquire Military Units,군 유닛을 확보하려 합니다.,mt
+CABPRIORITIESTEXT|3#21|2,Saves time in building up our military,군 증강에 드는 시간을 아낄 수 있습니다.,mt
+CABPRIORITIESTEXT|3#21|3,May be seen as threatening and available units likely older designs,위협으로 비칠 수 있으며 구할 수 있는 유닛은 대체로 구형 설계입니다.,mt
+CABPRIORITIESTEXT|3#22|0,Trade Focus - Military Designs,무역 중점 - 군 설계,mt
+CABPRIORITIESTEXT|3#22|1,Try to acquire Military Designs,군 설계를 확보하려 합니다.,mt
+CABPRIORITIESTEXT|3#22|2,Allows us to manufacture ourselves more up-to-date military equipment,더 최신의 군 장비를 직접 생산할 수 있습니다.,mt
+CABPRIORITIESTEXT|3#22|3,May be seen as threatening,위협으로 비칠 수 있습니다.,mt
+CABPRIORITIESTEXT|3#23|0,Trade Relations,무역 관계,mt
+CABPRIORITIESTEXT|3#23|1,Concentrate Diplomacy on Trade¶Source Needed Commodities¶Avoid Political Actions,외교를 무역에 집중합니다.¶필요한 물자의 공급원을 확보합니다.¶정치적 행동을 피합니다.,mt
+CABPRIORITIESTEXT|3#23|2,Establishes a reliable source for needed commodities at a fixed price,필요한 물자를 고정 가격으로 안정적으로 공급받을 수 있습니다.,mt
+CABPRIORITIESTEXT|3#23|3,May increase our dependence on a single other region,특정 지역 하나에 대한 의존도가 높아질 수 있습니다.,mt
+CABPRIORITIESTEXT|3#24|0,Trade Focus - Military Materials,무역 중점 - 군수 물자,mt
+CABPRIORITIESTEXT|3#24|1,Try to acquire Warfare Techs,전쟁 기술을 확보하려 합니다.,mt
+CABPRIORITIESTEXT|3#24|2,"Acquire additional stocks of Petroleum, Military Goods and Industrial Goods","석유, 군수품, 산업재의 재고를 추가로 확보합니다.",mt
+CABPRIORITIESTEXT|3#24|3,May be interpreted as threatening,위협으로 해석될 수 있습니다.,mt
+CABPRIORITIESTEXT|3#25|0,Trade ONLY with Allies,동맹국과만 무역,mt
+CABPRIORITIESTEXT|3#25|1,Don't trade with Neutral or Enemies,중립국이나 적과는 무역하지 않습니다.,mt
+CABPRIORITIESTEXT|3#25|2,Could encourage other regions to consider an alliance,다른 지역이 동맹을 고려하도록 유도할 수 있습니다.,mt
+CABPRIORITIESTEXT|3#25|3,Limits our availability and increases our dependence on allies,선택지가 제한되고 동맹국 의존도가 높아집니다.,mt
+CABPRIORITIESTEXT|3#26|0,Improve Trade Balance,무역 수지 개선,mt
+CABPRIORITIESTEXT|3#26|1,Increase value of exports over imports,수출액이 수입액을 넘도록 늘립니다.,mt
+CABPRIORITIESTEXT|3#26|2,Increase value of exports over imports,수출액이 수입액을 넘도록 늘립니다.,mt
+CABPRIORITIESTEXT|3#26|3,High Trade Surplus can lead to economic and military repercussions,"큰 무역 흑자는 경제적, 군사적 반발로 이어질 수 있습니다.",mt
+CABPRIORITIESTEXT|3#27|0,Land Lease Agreements,토지 임대 협정,mt
+CABPRIORITIESTEXT|3#27|1,Identify Opportunities for Foreign Development¶Also for possible Foreign Bases¶Negotiate Willingness for Leases,해외 개발 기회를 찾습니다.¶해외 기지 가능성도 살핍니다.¶임대 의향을 협상합니다.,mt
+CABPRIORITIESTEXT|3#28|0,Intelligence,정보,mt
+CABPRIORITIESTEXT|3#28|1,Target Espionage Opportunities¶Initiate Low Risk Missions¶Assign Needed Counter-Intel,첩보 기회를 노립니다.¶위험이 낮은 임무를 개시합니다.¶필요한 방첩 인력을 배정합니다.,mt
+CABPRIORITIESTEXT|3#28|2,Spies assigned to Counter Intel will protect our region. Spies sent on espionage may discover private information about commodity stocks or technologies.,방첩에 배정된 첩보원은 우리 지역을 지킵니다. 첩보 임무에 파견된 첩보원은 물자 재고나 기술에 관한 기밀 정보를 알아낼 수 있습니다.,mt
+CABPRIORITIESTEXT|3#28|3,May worsen international relationships,국제 관계가 악화될 수 있습니다.,mt
+CABPRIORITIESTEXT|4|0,Increase Intelligence Community,정보 조직 확대,mt
+CABPRIORITIESTEXT|4|1,Construct Intel Academy,정보 학교를 건설합니다.,mt
+CABPRIORITIESTEXT|4|2,Construct a new Intelligence Academy and maximize agents being trained,새 정보 학교를 건설하고 훈련 중인 요원을 최대로 늘립니다.,mt
+CABPRIORITIESTEXT|4|3,Adds to expenses and can be seen as threatening to others,지출이 늘고 다른 지역에 위협으로 비칠 수 있습니다.,mt
+CABPRIORITIESTEXT|4#3|0,Reduce Intelligence Forces,정보 전력 축소,mt
+CABPRIORITIESTEXT|4#3|1,Scrap Intel Academy,정보 학교를 폐기합니다.,mt
+CABPRIORITIESTEXT|4#3|2,Reduces costs by reducing Intel Academies and Spies,정보 학교와 첩보원을 줄여 비용을 절감합니다.,mt
+CABPRIORITIESTEXT|4#3|3,May leave us shorthanded if needs change,상황이 바뀌면 인력이 부족해질 수 있습니다.,mt
+CABPRIORITIESTEXT|4#4|0,Counter Intel,방첩,mt
+CABPRIORITIESTEXT|4#4|1,"Increases Garrison, Leaves Spies Unassigned",수비대를 늘리고 첩보원은 배정하지 않습니다.,mt
+CABPRIORITIESTEXT|4#4|2,"Balance our Counter Intel agents throughout our Military, Cities, and Industries","군, 도시, 산업 전반에 방첩 요원을 균형 있게 배치합니다.",mt
+CABPRIORITIESTEXT|4#4|3,Will certainly leave gaps that could be exploited if discovered,발각되면 악용될 수 있는 빈틈이 반드시 생깁니다.,mt
+CABPRIORITIESTEXT|4#5|0,Counter Intel - Armed Forces,방첩 - 군,mt
+CABPRIORITIESTEXT|4#5|1,Garrison Military Bases,군 기지에 수비대를 둡니다.,mt
+CABPRIORITIESTEXT|4#5|2,Protect our Armed Forces from infiltration,군이 침투당하지 않도록 보호합니다.,mt
+CABPRIORITIESTEXT|4#5|3,May leave our industries and government vulnerable to espionage,산업과 정부가 첩보에 취약해질 수 있습니다.,mt
+CABPRIORITIESTEXT|4#6|0,Counter Intel - Industries,방첩 - 산업,mt
+CABPRIORITIESTEXT|4#6|1,Garrison Industrial Complexes,산업 단지에 수비대를 둡니다.,mt
+CABPRIORITIESTEXT|4#6|2,Protect our industries from sabotage,산업을 파괴 공작으로부터 보호합니다.,mt
+CABPRIORITIESTEXT|4#6|3,May leave our government and armed forces vulnerable to espionage,정부와 군이 첩보에 취약해질 수 있습니다.,mt
+CABPRIORITIESTEXT|4#7|0,Counter Intel - Government,방첩 - 정부,mt
+CABPRIORITIESTEXT|4#7|1,Garrison Capital,수도에 수비대를 둡니다.,mt
+CABPRIORITIESTEXT|4#7|2,Protect our Government from infiltration,정부가 침투당하지 않도록 보호합니다.,mt
+CABPRIORITIESTEXT|4#7|3,May leave our industries and armed forces vulnerable to espionage,산업과 군이 첩보에 취약해질 수 있습니다.,mt
+CABPRIORITIESTEXT|4#8|0,Counter Intel - Research,방첩 - 연구,mt
+CABPRIORITIESTEXT|4#8|1,Garrsion Research Centers,연구 센터에 수비대를 둡니다.,mt
+CABPRIORITIESTEXT|4#8|2,Protect our technologies from being stolen,기술이 도난당하지 않도록 보호합니다.,mt
+CABPRIORITIESTEXT|4#8|3,Minimal - requires some extra agents,미미합니다. 요원이 조금 더 필요합니다.,mt
+CABPRIORITIESTEXT|4#11|0,Foreign Intel - Reconnaissance,해외 정보 - 정찰,mt
+CABPRIORITIESTEXT|4#11|1,Task Spies to Recon,첩보원을 정찰에 투입합니다.,mt
+CABPRIORITIESTEXT|4#11|2,Assigns available agents to recon missions minimizing risk of surprise invasion,가용 요원을 정찰 임무에 배정해 기습 침공의 위험을 줄입니다.,mt
+CABPRIORITIESTEXT|4#11|3,Risk of capture and lower numbers for counter intel duty,체포될 위험이 있고 방첩 임무에 쓸 인원이 줄어듭니다.,mt
+CABPRIORITIESTEXT|4#12|0,Sabotage Enemy Industries,적 산업 파괴 공작,mt
+CABPRIORITIESTEXT|4#12|1,Task Spies to Sabotage,첩보원을 파괴 공작에 투입합니다.,mt
+CABPRIORITIESTEXT|4#12|2,Harm their war efforts by attacking economy,경제를 공격해 적의 전쟁 수행에 타격을 줍니다.,mt
+CABPRIORITIESTEXT|4#12|3,High risk for agents,요원에게 위험이 큽니다.,mt
+CABPRIORITIESTEXT|4#13|0,Infiltrate Enemy Militaries,적 군 침투,mt
+CABPRIORITIESTEXT|4#13|1,Task Spies to Infiltrate,첩보원을 침투에 투입합니다.,mt
+CABPRIORITIESTEXT|4#13|2,Harm their war efforts by providing information on military activity,군사 활동 정보를 제공해 적의 전쟁 수행에 타격을 줍니다.,mt
+CABPRIORITIESTEXT|4#13|3,High risk for agents,요원에게 위험이 큽니다.,mt
+CABPRIORITIESTEXT|4#14|0,Steal Technologies,기술 탈취,mt
+CABPRIORITIESTEXT|4#14|1,Task Spies to Steal Tech,첩보원을 기술 탈취에 투입합니다.,mt
+CABPRIORITIESTEXT|4#14|2,Increase our technical knowledge,우리의 기술 지식을 늘립니다.,mt
+CABPRIORITIESTEXT|4#14|3,Usually research centers are well protected by counter intel agents,연구 센터는 대개 방첩 요원이 철저히 지킵니다.,mt
+CABPRIORITIESTEXT|4#15|0,False Flag Missions,위장 작전,mt
+CABPRIORITIESTEXT|4#15|1,Prevent Blame,책임 전가를 막습니다.,mt
+CABPRIORITIESTEXT|4#15|2,May cause the blame to fall on another region if our agent is captured,요원이 붙잡히면 책임이 다른 지역으로 돌아갈 수 있습니다.,mt
+CABPRIORITIESTEXT|4#15|3,Increases the cost of each mission and reduces the chance of success,임무당 비용이 늘고 성공 확률이 낮아집니다.,mt
+CABPRIORITIESTEXT|4#16|0,Increase Satellite Coverage,위성 범위 확대,mt
+CABPRIORITIESTEXT|4#16|1,Research & Build Recon Satellites,정찰 위성을 연구하고 건설합니다.,mt
+CABPRIORITIESTEXT|4#16|2,Provides low risk source of intel on foreign military movements,해외 군사 이동에 관한 정보를 위험 부담 없이 얻을 수 있습니다.,mt
+CABPRIORITIESTEXT|4#16|3,Costly,비용이 많이 듭니다.,mt
+CABPRIORITIESTEXT|4#17|0,Develop Satellite Program,위성 계획 개발,mt
+CABPRIORITIESTEXT|4#17|1,Research & Build Communication Satellites,통신 위성을 연구하고 건설합니다.,mt
+CABPRIORITIESTEXT|4#17|2,Develop technologies and facilities for Satellites,위성에 필요한 기술과 시설을 개발합니다.,mt
+CABPRIORITIESTEXT|4#17|3,Costly and often very long-term,비용이 많이 들고 대개 매우 장기적입니다.,mt
+CABPRIORITIESTEXT|4#18|0,Develop Strategic Defense,전략 방어 개발,mt
+CABPRIORITIESTEXT|4#18|1,Research & Build Missile Defense,미사일 방어를 연구하고 건설합니다.,mt
+CABPRIORITIESTEXT|4#18|2,Will protect us from Ballistic Missile attacks,탄도 미사일 공격으로부터 우리를 보호합니다.,mt
+CABPRIORITIESTEXT|4#18|3,Extremely costly and long-term,비용이 매우 많이 들고 장기적입니다.,mt
+CABPRIORITIESTEXT|4#19|0,Strategic Targets - Military,전략 표적 - 군사,mt
+CABPRIORITIESTEXT|4#19|1,Target Enemy Military Facilities,적 군사 시설을 표적으로 삼습니다.,mt
+CABPRIORITIESTEXT|4#19|2,Identify key strategic military targets for enemy regions,적 지역의 핵심 전략 군사 표적을 식별합니다.,mt
+CABPRIORITIESTEXT|4#19|3,None,없음,mt
+CABPRIORITIESTEXT|4#20|0,Strategic Targets - Industrial,전략 표적 - 산업,mt
+CABPRIORITIESTEXT|4#20|1,Target Enemy Industrial Facilities,적 산업 시설을 표적으로 삼습니다.,mt
+CABPRIORITIESTEXT|4#20|2,Identify key strategic industrial targets for enemy regions,적 지역의 핵심 전략 산업 표적을 식별합니다.,mt
+CABPRIORITIESTEXT|4#20|3,Any industrial facilities might eventually be useful to us,어떤 산업 시설이든 결국 우리에게 쓸모가 있을 수 있습니다.,mt
+CABPRIORITIESTEXT|4#21|0,Strategic Targets - Civilian,전략 표적 - 민간,mt
+CABPRIORITIESTEXT|4#21|1,Target Enemy Cities,적 도시를 표적으로 삼습니다.,mt
+CABPRIORITIESTEXT|4#21|2,Identify key strategic civilian targets for enemy regions,적 지역의 핵심 전략 민간 표적을 식별합니다.,mt
+CABPRIORITIESTEXT|4#21|3,Targeting civilians can have international repercussions,민간인을 표적으로 삼으면 국제적 반발을 부를 수 있습니다.,mt
+CABPRIORITIESTEXT|4#22|0,Strategic Targets - Balanced,전략 표적 - 균형,mt
+CABPRIORITIESTEXT|4#22|1,Mix of Target Types,여러 유형의 표적을 혼합합니다.,mt
+CABPRIORITIESTEXT|4#22|2,"Identify a balance of key civilian, industrial, and military targets for enemy regions","적 지역의 핵심 민간, 산업, 군사 표적을 균형 있게 식별합니다.",mt
+CABPRIORITIESTEXT|4#22|3,Including civilian targets could have repercussions,민간 표적을 포함하면 반발을 부를 수 있습니다.,mt
+CABPRIORITIESTEXT|4#23|0,Hot Spots - Defensive ,핫스팟 - 방어,mt
+CABPRIORITIESTEXT|4#23|1,Create Defensive Task Forces,방어 기동부대를 편성합니다.,mt
+CABPRIORITIESTEXT|4#23|2,Will create strongholds against possible invaders,침략 가능성에 대비한 거점을 만듭니다.,mt
+CABPRIORITIESTEXT|4#23|3,Concentrating defensive units could leave gaps along borders,방어 유닛을 집중하면 국경에 빈틈이 생길 수 있습니다.,mt
+CABPRIORITIESTEXT|4#24|0,Hot Spots - Offensive ,핫스팟 - 공격,mt
+CABPRIORITIESTEXT|4#24|1,Create Offensive Task Forces,공격 기동부대를 편성합니다.,mt
+CABPRIORITIESTEXT|4#24|2,Will prepare and organize task forces for attack,공격을 위한 기동부대를 준비하고 편성합니다.,mt
+CABPRIORITIESTEXT|4#24|3,Shows our aggressive intent if discovered,발각되면 우리의 공격 의도가 드러납니다.,mt
+CABPRIORITIESTEXT|5|0,Increase Unit Readiness,유닛 대비 태세 강화,mt
+CABPRIORITIESTEXT|5|1,Raise DEFCON,데프콘을 올립니다.,mt
+CABPRIORITIESTEXT|5|2,Increases readiness of units for combat,유닛의 전투 대비 태세를 높입니다.,mt
+CABPRIORITIESTEXT|5|3,Will be interpreted as aggressive and is costly,공격적으로 해석될 수 있고 비용이 많이 듭니다.,mt
+CABPRIORITIESTEXT|5#2|0,Decrease Unit Readiness,유닛 대비 태세 완화,mt
+CABPRIORITIESTEXT|5#2|1,Lower DEFCON,데프콘을 낮춥니다.,mt
+CABPRIORITIESTEXT|5#2|2,Lowers military costs and potentially improves international relations,군사비를 줄이고 국제 관계가 개선될 수 있습니다.,mt
+CABPRIORITIESTEXT|5#2|3,Increases vulnerability to surprise attack,기습 공격에 취약해집니다.,mt
+CABPRIORITIESTEXT|5#3|0,Increase Readiness,대비 태세 강화,mt
+CABPRIORITIESTEXT|5#3|1,Adjust Unit Deployments¶Identify Threats and Opportunities¶Stockpile Military Materials¶Increase Garrisons and Patrols,유닛 배치를 조정합니다.¶위협과 기회를 식별합니다.¶군수 물자를 비축합니다.¶수비대와 순찰을 늘립니다.,mt
+CABPRIORITIESTEXT|5#3|2,Maximize production and purchase of all unit types - Deploy units,모든 유닛 종류의 생산과 구매를 극대화합니다 - 유닛을 배치합니다.,mt
+CABPRIORITIESTEXT|5#3|3,Will be interpreted as aggressive and is costly,공격적으로 해석될 수 있고 비용이 많이 듭니다.,mt
+CABPRIORITIESTEXT|5#4|0,Military Growth,군 성장,mt
+CABPRIORITIESTEXT|5#4|1,Increase Unit Production Capabilities¶Increase Reserve Personnel¶Build New Units,유닛 생산 능력을 늘립니다.¶예비 인력을 늘립니다.¶새 유닛을 생산합니다.,mt
+CABPRIORITIESTEXT|5#4|2,Maximize production of all unit types - Leave in Reserve,모든 유닛 종류의 생산을 극대화합니다 - 예비로 둡니다.,mt
+CABPRIORITIESTEXT|5#4|3,Costly and will be interpreted as aggressive if discovered,비용이 많이 들고 발각되면 공격적으로 해석됩니다.,mt
+CABPRIORITIESTEXT|5#5|0,Decrease Spending,지출 감축,mt
+CABPRIORITIESTEXT|5#5|1,Reduce Unit Production¶Reduce Reserve Personnel¶Deactivate Unneeded Military Bases¶Build Cheaper Units,유닛 생산을 줄입니다.¶예비 인력을 줄입니다.¶불필요한 군 기지를 비활성화합니다.¶더 저렴한 유닛을 생산합니다.,mt
+CABPRIORITIESTEXT|5#5|2,Should strengthen our economy,경제가 튼튼해질 것입니다.,mt
+CABPRIORITIESTEXT|5#5|3,May weaken our military,군이 약해질 수 있습니다.,mt
+CABPRIORITIESTEXT|5#6|0,Decrease Armed Forces,군 규모 축소,mt
+CABPRIORITIESTEXT|5#6|1,Sell / Scrap Obsolete Units,구형 유닛을 매각하거나 폐기합니다.,mt
+CABPRIORITIESTEXT|5#6|2,Reduces costs and could improve international relations,비용을 줄이고 국제 관계를 개선할 수 있습니다.,mt
+CABPRIORITIESTEXT|5#6|3,Might make us a tempting target for invasion,침공하기 좋은 표적으로 보일 수 있습니다.,mt
+CABPRIORITIESTEXT|5#7|0,Increase Air Forces,공군 증강,mt
+CABPRIORITIESTEXT|5#7|1,Build / Buy Additional Air Units,공중 유닛을 추가로 생산하거나 구매합니다.,mt
+CABPRIORITIESTEXT|5#7|2,Concentrate on building / acquiring Air Units,공중 유닛 생산과 확보에 집중합니다.,mt
+CABPRIORITIESTEXT|5#7|3,Possible international repercussions and shortages of other unit types,국제적 반발과 다른 유닛 종류의 부족이 생길 수 있습니다.,mt
+CABPRIORITIESTEXT|5#8|0,Increase Land Forces,지상군 증강,mt
+CABPRIORITIESTEXT|5#8|1,Build / Buy Additional Land Units,지상 유닛을 추가로 생산하거나 구매합니다.,mt
+CABPRIORITIESTEXT|5#8|2,Concentrate on building / acquiring Land Units,지상 유닛 생산과 확보에 집중합니다.,mt
+CABPRIORITIESTEXT|5#8|3,Possible international repercussions and shortages of other unit types,국제적 반발과 다른 유닛 종류의 부족이 생길 수 있습니다.,mt
+CABPRIORITIESTEXT|5#9|0,Increase Naval Forces,해군 증강,mt
+CABPRIORITIESTEXT|5#9|1,Build / Buy Additional Naval Units,해상 유닛을 추가로 생산하거나 구매합니다.,mt
+CABPRIORITIESTEXT|5#9|2,Concentrate on building / acquiring Naval Units (including submarines),해상 유닛(잠수함 포함) 생산과 확보에 집중합니다.,mt
+CABPRIORITIESTEXT|5#9|3,Possible international repercussions and shortages of other unit types,국제적 반발과 다른 유닛 종류의 부족이 생길 수 있습니다.,mt
+CABPRIORITIESTEXT|5#10|0,Improve Unit Efficiency,유닛 효율 향상,mt
+CABPRIORITIESTEXT|5#10|1,Increase salaries & maintenance / Raise DEFCON,급여와 유지비를 늘리고 데프콘을 올립니다.,mt
+CABPRIORITIESTEXT|5#10|2,Improves combat effectiveness,전투 효율이 향상됩니다.,mt
+CABPRIORITIESTEXT|5#10|3,Increased costs,비용이 늘어납니다.,mt
+CABPRIORITIESTEXT|5#11|0,Escort Naval Transports,해상 수송 호위,mt
+CABPRIORITIESTEXT|5#11|1,Provide protection for all transport ships and a percentage of merchant marine ships while they are transporting units.,모든 수송함과 상선 일부가 유닛을 수송하는 동안 보호합니다.,mt
+CABPRIORITIESTEXT|5#11|2,Ensure safe passage of transports. Monitor key naval transitways.,수송선의 안전한 통과를 보장합니다. 주요 해상 통로를 감시합니다.,mt
+CABPRIORITIESTEXT|5#11|3,Increased fuel costs. Naval may be spread thin. Might not have enough escorts.,연료비가 늘어납니다. 해군이 분산될 수 있습니다. 호위 전력이 부족할 수 있습니다.,mt
+CABPRIORITIESTEXT|5#12|0,Space Escort,우주 호위,mt
+CABPRIORITIESTEXT|5#12|1,Provide protection for Space Engineers and Transports.,우주 공병과 수송선을 보호합니다.,mt
+CABPRIORITIESTEXT|5#12|2,Increases inventory of Air Transport Units,공중 수송 유닛 보유량이 늘어납니다.,mt
+CABPRIORITIESTEXT|5#12|3,Costly and could be interpreted as hostile,비용이 많이 들고 적대적으로 해석될 수 있습니다.,mt
+CABPRIORITIESTEXT|5#13|0,Air Droppable Units,공수 가능 유닛,mt
+CABPRIORITIESTEXT|5#13|1,Build / Buy Air Droppable Land Units,공수 가능한 지상 유닛을 생산하거나 구매합니다.,mt
+CABPRIORITIESTEXT|5#13|2,Increases inventory of Units that can Parachute from Air Transports,공중 수송기에서 낙하할 수 있는 유닛의 보유량이 늘어납니다.,mt
+CABPRIORITIESTEXT|5#13|3,Generally limited to use where Air Superiority exists,대체로 제공권이 있는 곳에서만 쓸 수 있습니다.,mt
+CABPRIORITIESTEXT|5#14|0,Offensive Military,공세형 군,mt
+CABPRIORITIESTEXT|5#14|1,Research Units (Strong and Mobile)¶Deploy Units based on Mobility¶Deploy Supply and Transport Units,강력하고 기동성 좋은 유닛을 연구합니다.¶기동성에 따라 유닛을 배치합니다.¶보급 및 수송 유닛을 배치합니다.,mt
+CABPRIORITIESTEXT|5#14|2,Increases inventory of mobile and strong Land Units,기동성 좋고 강력한 지상 유닛의 보유량이 늘어납니다.,mt
+CABPRIORITIESTEXT|5#14|3,Interpreted as hostile by neighboring regions,인접 지역에 적대적으로 해석됩니다.,mt
+CABPRIORITIESTEXT|5#15|0,Defensive Units,방어 유닛,mt
+CABPRIORITIESTEXT|5#15|1,Build / Buy Strong Defensive Value Units,방어력이 높은 유닛을 생산하거나 구매합니다.,mt
+CABPRIORITIESTEXT|5#15|2,Increases inventory of Land units with good defensive strengths,방어력이 뛰어난 지상 유닛의 보유량이 늘어납니다.,mt
+CABPRIORITIESTEXT|5#15|3,Less mobile and not as useful when initiating an attack,기동성이 낮고 공격을 개시할 때는 덜 유용합니다.,mt
+CABPRIORITIESTEXT|5#16|0,Support Allies,동맹 지원,mt
+CABPRIORITIESTEXT|5#16|1,Deploy troops to Ally War Zones,동맹국 전구에 병력을 배치합니다.,mt
+CABPRIORITIESTEXT|5#16|2,Assigns available units to help defend allies,가용 유닛을 배정해 동맹국 방어를 돕습니다.,mt
+CABPRIORITIESTEXT|5#16|3,May have international repercussions,국제적 반발이 생길 수 있습니다.,mt
+CABPRIORITIESTEXT|5#17|0,Increase Reserve Personnel,예비 인력 증원,mt
+CABPRIORITIESTEXT|5#17|1,Reduce Deployment / Encourage New Recruits,배치를 줄이고 신병 모집을 장려합니다.,mt
+CABPRIORITIESTEXT|5#17|2,Ensures adequate personnel for units and facilities,유닛과 시설에 충분한 인력을 보장합니다.,mt
+CABPRIORITIESTEXT|5#17|3,Increases military cost and can negatively impact civilian economy,군사비가 늘고 민간 경제에 부정적 영향을 줄 수 있습니다.,mt
+CABPRIORITIESTEXT|5#18|0,Minimize Active Units,현역 유닛 최소화,mt
+CABPRIORITIESTEXT|5#18|1,Reduce Deployment,배치를 줄입니다.,mt
+CABPRIORITIESTEXT|5#18|2,Reduces cost of military,군 비용을 줄입니다.,mt
+CABPRIORITIESTEXT|5#18|3,Potential vulnerability to surprise attack,기습 공격에 취약해질 수 있습니다.,mt
+CABPRIORITIESTEXT|5#19|0,Maximize Active Units,현역 유닛 최대화,mt
+CABPRIORITIESTEXT|5#19|1,Increase Deployment,배치를 늘립니다.,mt
+CABPRIORITIESTEXT|5#19|2,Deploys reserve units and positions them as needed,예비 유닛을 배치하고 필요에 따라 위치시킵니다.,mt
+CABPRIORITIESTEXT|5#19|3,May be interpreted as aggressive and is costly,공격적으로 해석될 수 있고 비용이 많이 듭니다.,mt
+CABPRIORITIESTEXT|5#20|0,Increased Unit Training,유닛 훈련 강화,mt
+CABPRIORITIESTEXT|5#20|1,Boosts Unit Efficiency / Increases Maintenance Costs,유닛 효율을 높이고 유지비가 늘어납니다.,mt
+CABPRIORITIESTEXT|5#20|2,Assigns appropriate training to available units,가용 유닛에 적합한 훈련을 배정합니다.,mt
+CABPRIORITIESTEXT|5#20|3,Increased Military Costs,군사비가 늘어납니다.,mt
+CABPRIORITIESTEXT|5#21|0,Defensive Military,방어형 군,mt
+CABPRIORITIESTEXT|5#21|1,Increase Garrison Units¶Deploy Units based on Defense¶Consider Defensive Installations¶Entrench Units in Strong Positions,수비대 유닛을 늘립니다.¶방어력에 따라 유닛을 배치합니다.¶방어 시설을 고려합니다.¶유리한 위치에 유닛이 참호를 구축합니다.,mt
+CABPRIORITIESTEXT|5#21|2,"Increases the defenses at our cities, industrial and military complexes","도시, 산업 단지, 군사 단지의 방어를 강화합니다.",mt
+CABPRIORITIESTEXT|5#21|3,Increased costs and use of reserve personnel,비용과 예비 인력 사용이 늘어납니다.,mt
+CABPRIORITIESTEXT|5#22|0,Minimize Garrisons,수비대 최소화,mt
+CABPRIORITIESTEXT|5#22|1,Reduce Deployed Garrisons,배치된 수비대를 줄입니다.,mt
+CABPRIORITIESTEXT|5#22|2,Reduces costs and use of reserve personnel,비용과 예비 인력 사용을 줄입니다.,mt
+CABPRIORITIESTEXT|5#22|3,Leaves complexes and cities undefended,단지와 도시가 무방비 상태가 됩니다.,mt
+CABPRIORITIESTEXT|5#23|0,Solicit Equipment Offers,장비 제안 유도,mt
+CABPRIORITIESTEXT|5#23|1,Tell State Dept to Encourage Equipment Trades,외교부에 장비 거래를 장려하도록 지시합니다.,mt
+CABPRIORITIESTEXT|5#23|2,Potential to quickly build up military force,군사력을 빠르게 늘릴 수 있습니다.,mt
+CABPRIORITIESTEXT|5#23|3,May be interpreted as aggressive,공격적으로 해석될 수 있습니다.,mt
+CABPRIORITIESTEXT|5#24|0,Discourage Equipment Offers,장비 제안 억제,mt
+CABPRIORITIESTEXT|5#24|1,Tell State Dept to Discourage Equipment Trades,외교부에 장비 거래를 억제하도록 지시합니다.,mt
+CABPRIORITIESTEXT|5#24|2,Avoid wasting time reviewing unnecessary offers,불필요한 제안을 검토하느라 시간을 낭비하지 않습니다.,mt
+CABPRIORITIESTEXT|5#24|3,Unaware of what units are available for purchase,구매 가능한 유닛을 알 수 없게 됩니다.,mt
+CABPRIORITIESTEXT|5#25|0,Centralize Command and Control,지휘 통제 중앙 집중,mt
+CABPRIORITIESTEXT|5#25|1,Reduce Unit Initiative,유닛 재량권을 줄입니다.,mt
+CABPRIORITIESTEXT|5#25|2,Removes chance of Military Leaders making poor decisions,군 지휘관이 잘못된 결정을 내릴 여지를 없앱니다.,mt
+CABPRIORITIESTEXT|5#25|3,Regional Leader required to give all Military Orders,모든 군사 명령을 지역 지도자가 직접 내려야 합니다.,mt
+CABPRIORITIESTEXT|5#26|0,Increase Area Command and Control,구역 지휘 통제 강화,mt
+CABPRIORITIESTEXT|5#26|1,Increase Unit Initiative,유닛 재량권을 늘립니다.,mt
+CABPRIORITIESTEXT|5#26|2,Allows military leaders to quickly make their own military decisions,군 지휘관이 신속하게 자체 군사 결정을 내릴 수 있습니다.,mt
+CABPRIORITIESTEXT|5#26|3,May lead to unwanted decisions by some commanders,일부 지휘관이 원치 않는 결정을 내릴 수 있습니다.,mt
+CABPRIORITIESTEXT|5#27|0,Arms Race,군비 경쟁,mt
+CABPRIORITIESTEXT|5#27|1,Research Newest Warfare Techs¶Modernize Military Units¶Nuclear Weapons Program,최신 전쟁 기술을 연구합니다.¶군 유닛을 현대화합니다.¶핵무기 계획을 추진합니다.,mt
+CABPRIORITIESTEXT|5#27|2,Replace older units with more modern versions,구형 유닛을 더 현대적인 버전으로 교체합니다.,mt
+CABPRIORITIESTEXT|5#27|3,Costly and time consuming,비용이 많이 들고 시간이 걸립니다.,mt
+CABPRIORITIESTEXT|5#28|0,Missile Units,미사일 유닛,mt
+CABPRIORITIESTEXT|5#28|1,Build / Research Missile Units,미사일 유닛을 생산하고 연구합니다.,mt
+CABPRIORITIESTEXT|5#28|2,Maximize production and research of Missile Units to supply Launch Platforms,발사 플랫폼에 공급할 미사일 유닛의 생산과 연구를 극대화합니다.,mt
+CABPRIORITIESTEXT|5#28|3,May be interpreted as aggressive,공격적으로 해석될 수 있습니다.,mt
+CABPRIORITIESTEXT|5#29|0,Border Patrol and Recon,국경 순찰과 정찰,mt
+CABPRIORITIESTEXT|5#29|1,Assign Recon Units to Border Patrols,정찰 유닛을 국경 순찰에 배정합니다.,mt
+CABPRIORITIESTEXT|5#29|2,Will help ensure we are not caught by surprise,기습을 당하지 않도록 돕습니다.,mt
+CABPRIORITIESTEXT|5#29|3,Could be considered threatening to our neighbors,이웃 지역에 위협으로 비칠 수 있습니다.,mt
+RTREATIESTEXT|1|0,Formal Alliance,정식 동맹,mt
+RTREATIESTEXT|1|1,"Offer an Alliance - Includes Travel, Supply, Non-Aggression and Line of Sight agreements","동맹을 제안합니다. 통행, 보급, 불가침, 시야 협정이 포함됩니다.",mt
+RTREATIESTEXT|10|0,Mutual Defense,상호 방위,mt
+RTREATIESTEXT|10|1,Guaranteed Defensive help in Time of War,전시에 방어 지원을 보장합니다.,mt
+RTREATIESTEXT|100|0,Missile Defense,미사일 방어,mt
+RTREATIESTEXT|100|1,Provide ICBM Missile Defense Coverage Where Available,가능한 지역에 ICBM 미사일 방어 범위를 제공합니다.,mt
+RTREATIESTEXT|101|0,International Discovery,국제 탐사,mt
+RTREATIESTEXT|101|1,One-time sharing of discovered country information,탐사한 국가 정보를 1회 공유합니다.,mt
+RTREATIESTEXT|102|0,Global Cooperation,글로벌 협력,mt
+RTREATIESTEXT|102|1,Global Discovery shared at end of each day,글로벌 탐사 정보를 매일 종료 시 공유합니다.,mt
+RTREATIESTEXT|104|0,Reassign Forces,병력 재배정,mt
+RTREATIESTEXT|104|1,Give ownership of units located in the country's territory to that country,그 국가 영토에 있는 유닛의 소유권을 그 국가에 넘깁니다.,mt
+RTREATIESTEXT|11|0,Zombie Defense,좀비 방어,mt
+RTREATIESTEXT|11|1,Defensive help in War vs. Zombies	,좀비와의 전쟁에서 방어 지원을 합니다.,mt
+RTREATIESTEXT|113|0,UN Vote Proxy,유엔 투표 위임,mt
+RTREATIESTEXT|113|1,Grants control of a Region's UN vote for a period of one year,1년간 해당 지역의 유엔 투표권을 넘겨받습니다.,mt
+RTREATIESTEXT|116|0,Research Sharing,연구 공유,mt
+RTREATIESTEXT|116|1,Share all currently known technology projects (one time),현재 알려진 모든 기술 프로젝트를 공유합니다(1회).,mt
+RTREATIESTEXT|117|0,Research Cooperation,연구 협력,mt
+RTREATIESTEXT|117|1,"Share all known technology projects that are tradable (ongoing, end of each day)","거래 가능한 모든 알려진 기술 프로젝트를 공유합니다(지속, 매일 종료 시).",mt
+RTREATIESTEXT|12|0,Full Transit Treaty,완전 통행 조약,mt
+RTREATIESTEXT|12|1,"Free Passage of Land, Sea and Air Units through Region","지상, 해상, 공중 유닛이 지역을 자유롭게 통과합니다.",mt
+RTREATIESTEXT|120|0,Declare War against ...,선전포고 대상...,mt
+RTREATIESTEXT|120|1,Immediately Declare War on the Selected Region,선택한 지역에 즉시 선전포고합니다.,mt
+RTREATIESTEXT|121|0,End Alliance with ...,동맹 종료 대상...,mt
+RTREATIESTEXT|121|1,Immediately Break the existing Alliance with the Selected Region,선택한 지역과의 기존 동맹을 즉시 파기합니다.,mt
+RTREATIESTEXT|125|0,Research Progress,연구 진행 현황,mt
+RTREATIESTEXT|125|1,Makes visible the country's known technology projects list,그 국가의 알려진 기술 프로젝트 목록을 볼 수 있게 합니다.,mt
+RTREATIESTEXT|126|0,Resources Status,자원 현황,mt
+RTREATIESTEXT|126|1,Makes visible the capacity/demand/stock levels in that country,"그 국가의 생산 능력, 수요, 재고 수준을 볼 수 있게 합니다.",mt
+RTREATIESTEXT|127|0,Military Inventory,군 보유 현황,mt
+RTREATIESTEXT|127|1,Makes visible the reserved units inventory in that country,그 국가의 예비 유닛 보유 현황을 볼 수 있게 합니다.,mt
+RTREATIESTEXT|13|0,Land Transit & Supply,지상 통행 및 보급,mt
+RTREATIESTEXT|13|1,Free Passage of Land Units and Supplies Through Region,지상 유닛과 보급품이 지역을 자유롭게 통과합니다.,mt
+RTREATIESTEXT|14|0,Air Transit,공중 통행,mt
+RTREATIESTEXT|14|1,Free Passage of Aircraft over Region,항공기가 지역 상공을 자유롭게 통과합니다.,mt
+RTREATIESTEXT|15|0,Sea Transit & Supply,해상 통행 및 보급,mt
+RTREATIESTEXT|15|1,Free Passage of Ships Through Territorial Waters,선박이 영해를 자유롭게 통과합니다.,mt
+RTREATIESTEXT|2|0,Non Aggression Pact,불가침 조약,mt
+RTREATIESTEXT|2|1,Assurance not to attack Region,해당 지역을 공격하지 않겠다는 보증입니다.,mt
+RTREATIESTEXT|3|0,Ceasefire,휴전,mt
+RTREATIESTEXT|3|1,Cease Hostile Actions but still maintain State of War,적대 행위를 멈추되 전쟁 상태는 유지합니다.,mt
+RTREATIESTEXT|30|0,Line of Sight Treaty,시야 조약,mt
+RTREATIESTEXT|30|1,Provides Full Visibility of Region's Line of Sight,해당 지역의 시야를 완전히 볼 수 있게 합니다.,mt
+RTREATIESTEXT|4|0,Resolve Border On Battle Zones,전투 구역 기준 국경 정리,mt
+RTREATIESTEXT|4|1,Clean up borders along battle zone lines,전투 구역 경계선을 따라 국경을 정리합니다.,mt
+RTREATIESTEXT|5|0,Resolve Border On Loyalty,충성도 기준 국경 정리,mt
+RTREATIESTEXT|5|1,Clean up borders along loyalty lines,충성도 경계선을 따라 국경을 정리합니다.,mt
+RTREATIESTEXT|50|0,Troup Withdrawal Treaty,병력 철수 조약,mt
+RTREATIESTEXT|50|1,Maintains an alliance but prevents Region's troops from Operating in or crossing your Region,동맹은 유지하되 상대 병력이 우리 지역에서 작전하거나 통과하지 못하게 합니다.,mt
+RTREATIESTEXT|6|0,Peace,평화,mt
+RTREATIESTEXT|6|1,End Existing State of War between Regions,지역 간 기존 전쟁 상태를 끝냅니다.,mt
+RTREATIESTEXT|7|0,Intel Cooperation,정보 협력,mt
+RTREATIESTEXT|7|1,Allows player to operate Counter Intel missions freely inside the other Region,상대 지역 안에서 방첩 임무를 자유롭게 수행할 수 있습니다.,mt
+RTREATIESTEXT|78|0,Combat Supplies Treaty,전투 물자 조약,mt
+RTREATIESTEXT|78|1,Encourage trade on Military Goods and Missile Inventories,군수품과 미사일 재고의 거래를 장려합니다.,mt
+RTREATIESTEXT|79|0,Military Unit Supply Treaty,군 유닛 공급 조약,mt
+RTREATIESTEXT|79|1,Encourage trade on Military Units,군 유닛의 거래를 장려합니다.,mt
+RTREATIESTEXT|81|0,Free Flow of Labor Force,노동력 자유 이동,mt
+RTREATIESTEXT|81|1,Allow Workers to Cross Borders; this will help equalize prosperity between regions,노동자의 국경 이동을 허용하며 지역 간 번영의 격차를 줄입니다.,mt
+RTREATIESTEXT|84|0,Free Trade,자유 무역,mt
+RTREATIESTEXT|84|1,"Allow Free Flow of Goods Across Border, and help equalize prosperity between regions",국경을 넘는 물자의 자유로운 흐름을 허용하며 지역 간 번영의 격차를 줄입니다.,mt
+RTREATIESTEXT|87|0,Favored Trading Partner,우대 무역 상대,mt
+RTREATIESTEXT|87|1,Encourage trades of needed commodities whenever possible,가능할 때마다 필요한 물자의 거래를 장려합니다.,mt
+RTREATIESTEXT|88|0,Favored Research Partner,우대 연구 상대,mt
+RTREATIESTEXT|88|1,Encourage trade Technological Advances,기술 진보의 거래를 장려합니다.,mt
+RTREATIESTEXT|90|0,Embassy,대사관,mt
+RTREATIESTEXT|90|1,General Recognition of Other Region's Sovereignty; Aids Communication,상대 지역의 주권을 전반적으로 인정하며 의사소통을 돕습니다.,mt
+RTREATIESTEXT|91|0,Criminal Extradition,범죄인 인도,mt
+RTREATIESTEXT|91|1,Grant Extradition Right of Wanted Criminals,수배 중인 범죄자의 인도 권리를 부여합니다.,mt
+RTREATIESTEXT|94|0,First Contact,첫 접촉,mt
+RTREATIESTEXT|94|1,Establish First Contact With This Country,이 국가와 첫 접촉을 맺습니다.,mt
+TRAININGTEXT|1|0,Tropical Combat,열대전,mt
+TRAININGTEXT|1|1,Increase Combat Effectiveness in Jungle/Swamp Terrain,정글/늪 지형에서 전투 효율을 높입니다.,mt
+TRAININGTEXT|2|0,Desert Combat,사막전,mt
+TRAININGTEXT|2|1,Increase Combat Effectiveness in Desert Terrain,사막 지형에서 전투 효율을 높입니다.,mt
+TRAININGTEXT|3|0,Alpine Combat,산악전,mt
+TRAININGTEXT|3|1,Increase Combat Effectiveness in Mountainous Terrain,산악 지형에서 전투 효율을 높입니다.,mt
+TRAININGTEXT|4|0,Urban Combat,시가전,mt
+TRAININGTEXT|4|1,Increase Combat Effectiveness in Urban Settings,도시 환경에서 전투 효율을 높입니다.,mt
+TRAININGTEXT|5|0,Nuclear,핵,mt
+TRAININGTEXT|5|1,Train and Equip Unit to Survive Through Nuclear Fallout,핵 낙진 속에서 살아남도록 유닛을 훈련하고 장비를 갖춥니다.,mt
+TRAININGTEXT|6|0,Wargames,워게임,mt
+TRAININGTEXT|6|1,Improve the Experience of Both the Unit and Commander,유닛과 지휘관의 경험을 함께 높입니다.,mt
+MENUMAPTEXT|0|0,NONE,,
+MENUMAPTEXT|1|0,TOOLTIPMAP_LBT,,
+MENUMAPTEXT|10|0,Switch To,전환,mt
+MENUMAPTEXT|11|0,Liberate,해방,mt
+MENUMAPTEXT|12|0,Break Treaties,조약 파기,mt
+MENUMAPTEXT|13|0,Battlezone Control,전투 구역 통제,mt
+MENUMAPTEXT|14|0,Theater Control,전구 통제,mt
+MENUMAPTEXT|15|0,Declare War,선전포고,mt
+MENUMAPTEXT|16|0,Offer Peace,평화 제안,mt
+MENUMAPTEXT|17|0,Influence Relations,관계 영향력 행사,mt
+MENUMAPTEXT|18|0,Actions Against,대상 행동,mt
+MENUMAPTEXT|19|0,Hotspots..,핫스팟..,mt
+MENUMAPTEXT|2|0,Rename Hex,헥스 이름 변경,mt
+MENUMAPTEXT|20|0,Battle Support,전투 지원,mt
+MENUMAPTEXT|21|0,Attack,공격,mt
+MENUMAPTEXT|22|0,Sea Attack,해상 공격,mt
+MENUMAPTEXT|23|0,Sea Supply,해상 보급,mt
+MENUMAPTEXT|24|0,Land Transport,지상 수송,mt
+MENUMAPTEXT|25|0,Air Support,공중 지원,mt
+MENUMAPTEXT|26|0,Supplies,보급품,mt
+MENUMAPTEXT|27|0,Assistance,지원,mt
+MENUMAPTEXT|28|0,Defense,방어,mt
+MENUMAPTEXT|29|0,Garrison,수비대,mt
+MENUMAPTEXT|3|0,Build...,건설...,mt
+MENUMAPTEXT|30|0,Clear Hotspot,핫스팟 해제,mt
+MENUMAPTEXT|31|0,Map Ping,지도 신호,mt
+MENUMAPTEXT|32|0,Toggle Nav Point,탐색 지점 전환,mt
+MENUMAPTEXT|33|0,Filters...,필터...,mt
+MENUMAPTEXT|34|0,Combat Overlays...,전투 오버레이...,mt
+MENUMAPTEXT|35|0,Map Overlays...,지도 오버레이...,mt
+MENUMAPTEXT|36|0,Map Elements...,지도 요소...,mt
+MENUMAPTEXT|37|0,Commodiy Overlays...,물자 오버레이...,mt
+MENUMAPTEXT|38|0,High Ground,고지,mt
+MENUMAPTEXT|39|0,Low Visibiliy / Close Combat,저시정 / 근접전,mt
+MENUMAPTEXT|4|0,Build Industrial...,산업 건설...,mt
+MENUMAPTEXT|40|0,Garrisons,수비대,mt
+MENUMAPTEXT|41|0,Coastlines,해안선,mt
+MENUMAPTEXT|42|0,Defensive Terrain,방어 지형,mt
+MENUMAPTEXT|43|0,Line of Sight,시야,mt
+MENUMAPTEXT|44|0,Capital Star Relationships,수도 별 관계,mt
+MENUMAPTEXT|45|0,Units,유닛,mt
+MENUMAPTEXT|46|0,Unit HUDs,유닛 HUD,mt
+MENUMAPTEXT|47|0,Facility HUDs,시설 HUD,mt
+MENUMAPTEXT|48|0,Nav Points,탐색 지점,mt
+MENUMAPTEXT|49|0,Battle Zones,전투 구역,mt
+MENUMAPTEXT|5|0,Build Military...,군사 건설...,mt
+MENUMAPTEXT|50|0,Theaters,전구,mt
+MENUMAPTEXT|51|0,Allies / Enemies,동맹 / 적,mt
+MENUMAPTEXT|52|0,Empire,제국,mt
+MENUMAPTEXT|53|0,Ownership,소유,mt
+MENUMAPTEXT|54|0,Loyalty,충성도,mt
+MENUMAPTEXT|55|0,Loyalty Level,충성도 수준,mt
+MENUMAPTEXT|56|0,Supply Level,보급 수준,mt
+MENUMAPTEXT|57|0,Map Grid,지도 격자,mt
+MENUMAPTEXT|58|0,Agriculture,농산물,mt
+MENUMAPTEXT|59|0,Rubber,고무,mt
+MENUMAPTEXT|6|0,Build Urban...,도시 건설...,mt
+MENUMAPTEXT|60|0,Timber,목재,mt
+MENUMAPTEXT|61|0,Petroleum,석유,mt
+MENUMAPTEXT|62|0,Coal,석탄,mt
+MENUMAPTEXT|63|0,Ore,광석,mt
+MENUMAPTEXT|64|0,Uranium,우라늄,mt
+MENUMAPTEXT|65|0,Electricity,전력,mt
+MENUMAPTEXT|66|0,Population,인구,mt
+MENUMAPTEXT|67|0,Units...,유닛...,mt
+MENUMAPTEXT|68|0,Everyone,모두,mt
+MENUMAPTEXT|69|0,Neutral,중립,mt
+MENUMAPTEXT|7|0,Build Transport...,수송 건설...,mt
+MENUMAPTEXT|70|0,Allies,동맹국,mt
+MENUMAPTEXT|71|0,Enemies,적,mt
+MENUMAPTEXT|72|0,Regions...,지역...,mt
+MENUMAPTEXT|73|0,Espionage...,첩보...,mt
+MENUMAPTEXT|74|0,Sabotage,파괴 공작,mt
+MENUMAPTEXT|75|0,Counter Intel,방첩,mt
+MENUMAPTEXT|76|0,Espionage,첩보,mt
+MENUMAPTEXT|77|0,Recon,정찰,mt
+MENUMAPTEXT|78|0,Avoid This Region,이 지역 회피,mt
+MENUMAPTEXT|79|0,Path Through This Region,이 지역 경유,mt
+MENUMAPTEXT|8|0,Facilities...,시설...,mt
+MENUMAPTEXT|80|0,Manage Colony,식민지 관리,mt
+MENUMAPTEXT|81|0,Manage Empire,제국 관리,mt
+MENUMAPTEXT|82|0,Cyber Attack,사이버 공격,mt
+MENUMAPTEXT|83|0,Assassinate,암살,mt
+MENUMAPTEXT|84|0,Manage Region,지역 관리,mt
+MENUMAPTEXT|85|0,Cancel Espionage Missions,첩보 임무 취소,mt
+MENUMAPTEXT|86|0,Show Reserves...,예비 전력 표시...,mt
+MENUMAPTEXT|87|0,Sanction Region,지역 제재,mt
+MENUMAPTEXT|88|0,Remove Sanctions,제재 해제,mt
+MENUMAPTEXT|9|0,Diplomatic Offer,외교 제안,mt
+TECHEFFECTSTEXT|0|0,No Effect,효과 없음,mt
+TECHEFFECTSTEXT|10|0,Mine Field Damage,지뢰밭 피해,mt
+TECHEFFECTSTEXT|100|0,Health Care Rating,보건 등급,mt
+TECHEFFECTSTEXT|101|0,Education Rating,교육 등급,mt
+TECHEFFECTSTEXT|102|0,Infrastructure Rating,인프라 등급,mt
+TECHEFFECTSTEXT|103|0,Environment Rating,환경 등급,mt
+TECHEFFECTSTEXT|104|0,Family Rating,가족 등급,mt
+TECHEFFECTSTEXT|105|0,Law Enforcement Rating,치안 등급,mt
+TECHEFFECTSTEXT|106|0,Cultural Rating,문화 등급,mt
+TECHEFFECTSTEXT|108|0,Health Care Cost,보건 비용,mt
+TECHEFFECTSTEXT|109|0,Education cost,교육 비용,mt
+TECHEFFECTSTEXT|11|0,Mine Field Lethality,지뢰밭 살상력,mt
+TECHEFFECTSTEXT|110|0,Infrastructure Cost,인프라 비용,mt
+TECHEFFECTSTEXT|111|0,Environment Cost,환경 비용,mt
+TECHEFFECTSTEXT|112|0,Family Subsidy Cost,가족 수당 비용,mt
+TECHEFFECTSTEXT|113|0,Law Enforcement Cost,치안 비용,mt
+TECHEFFECTSTEXT|114|0,Cultural Cost,문화 비용,mt
+TECHEFFECTSTEXT|116|0,Hard Target Defense,경성 표적 방어,mt
+TECHEFFECTSTEXT|117|0,Soft Target Defense,연성 표적 방어,mt
+TECHEFFECTSTEXT|118|0,Ground Attack Values,지상 공격 수치,mt
+TECHEFFECTSTEXT|119|0,Anti-Air Attack Values,대공 공격 수치,mt
+TECHEFFECTSTEXT|12|0,NBC Weapon Effects,NBC 무기 효과,mt
+TECHEFFECTSTEXT|120|0,Anti-Ship Attack Values,대함 공격 수치,mt
+TECHEFFECTSTEXT|121|0,Anti-Sub Atack Values,대잠 공격 수치,mt
+TECHEFFECTSTEXT|122|0,Ballistic Artillery Range,탄도 포병 사거리,mt
+TECHEFFECTSTEXT|123|0,Missile Accuracy,미사일 명중률,mt
+TECHEFFECTSTEXT|124|0,Stealth Strength Values,스텔스 강도 수치,mt
+TECHEFFECTSTEXT|125|0,Spotting Strength Values,탐지 강도 수치,mt
+TECHEFFECTSTEXT|126|0,MLRS Range,MLRS 사거리,mt
+TECHEFFECTSTEXT|127|0,Facility (Fortification) Defense,시설(요새) 방어력,mt
+TECHEFFECTSTEXT|13|0,Vehicle Fuel Consumption,차량 연료 소모,mt
+TECHEFFECTSTEXT|14|0,Cost of Motorized Units,차량화 유닛 비용,mt
+TECHEFFECTSTEXT|15|0,Unit Build Speed,유닛 생산 속도,mt
+TECHEFFECTSTEXT|16|0,Facility Build Speed,시설 건설 속도,mt
+TECHEFFECTSTEXT|17|0,Urban Development,도시 개발,mt
+TECHEFFECTSTEXT|18|0,Finished Goods Facil. Efficiency,완제품 시설 효율,mt
+TECHEFFECTSTEXT|19|0,Finished Goods Costs,완제품 비용,mt
+TECHEFFECTSTEXT|2|0,Finished Goods Facilities Cost,완제품 시설 비용,mt
+TECHEFFECTSTEXT|20|0,Transportation Improvements,교통 개선,mt
+TECHEFFECTSTEXT|201|0,Enables SOSUS Submarine Spotting Line.,SOSUS 잠수함 탐지선을 활성화합니다.,mt
+TECHEFFECTSTEXT|202|0,Enables Nuclear Weapons Production.,핵무기 생산을 활성화합니다.,mt
+TECHEFFECTSTEXT|203|0,Enables Chemical Weapons Production.,화학무기 생산을 활성화합니다.,mt
+TECHEFFECTSTEXT|204|0,Enables Biological Weapons Production.,생물무기 생산을 활성화합니다.,mt
+TECHEFFECTSTEXT|205|0,Enables Communications Satellite Production.,통신 위성 생산을 활성화합니다.,mt
+TECHEFFECTSTEXT|206|0,Enables Recon Satellite Production.,정찰 위성 생산을 활성화합니다.,mt
+TECHEFFECTSTEXT|207|0,Enables MDI Satellite Production.,MDI 위성 생산을 활성화합니다.,mt
+TECHEFFECTSTEXT|21|0,Space Race,우주 경쟁,mt
+TECHEFFECTSTEXT|22|0,Nuclear Plant Maintenance Cost,원자력 발전소 유지비,mt
+TECHEFFECTSTEXT|27|0,Finished Goods Petrol Demand,완제품 석유 수요,mt
+TECHEFFECTSTEXT|28|0,Finished Goods Coal Demand,완제품 석탄 수요,mt
+TECHEFFECTSTEXT|29|0,Finished Goods Ore Demand,완제품 광석 수요,mt
+TECHEFFECTSTEXT|3|0,Facil. Construction Materials Use,시설 건설 자재 사용,mt
+TECHEFFECTSTEXT|31|0,Finished Goods Electrical Demand,완제품 전력 수요,mt
+TECHEFFECTSTEXT|33|0,Finished Goods Industrial Demand,완제품 산업재 수요,mt
+TECHEFFECTSTEXT|36|0,Hydroponic Plant Production,수경 재배 시설 생산,mt
+TECHEFFECTSTEXT|37|0,Composites Plant Production,복합소재 공장 생산,mt
+TECHEFFECTSTEXT|38|0,SynthFuel Plant Production,합성연료 공장 생산,mt
+TECHEFFECTSTEXT|39|0,Power - Coal Production,발전 - 석탄 생산,mt
+TECHEFFECTSTEXT|4|0,Pollution Levels,오염도,mt
+TECHEFFECTSTEXT|40|0,Power - Nuclear Production,발전 - 원자력 생산,mt
+TECHEFFECTSTEXT|41|0,Power - Petrol Production,발전 - 석유 생산,mt
+TECHEFFECTSTEXT|42|0,Power - Other Production,발전 - 기타 생산,mt
+TECHEFFECTSTEXT|43|0,Power - Fusion Production,발전 - 핵융합 생산,mt
+TECHEFFECTSTEXT|44|0,Consumer Goods Plant Production,소비재 공장 생산,mt
+TECHEFFECTSTEXT|45|0,Industrial Goods Plant Production,산업재 공장 생산,mt
+TECHEFFECTSTEXT|46|0,Military Goods Plant production,군수품 공장 생산,mt
+TECHEFFECTSTEXT|47|0,Power - Antimatter Production,발전 - 반물질 생산,mt
+TECHEFFECTSTEXT|48|0,Power - Dark Energy Production,발전 - 암흑 에너지 생산,mt
+TECHEFFECTSTEXT|49|0,N/A,,
+TECHEFFECTSTEXT|5|0,Research Efficiency,연구 효율,mt
+TECHEFFECTSTEXT|50|0,N/A,,
+TECHEFFECTSTEXT|51|0,N/A,,
+TECHEFFECTSTEXT|52|0,N/A,,
+TECHEFFECTSTEXT|53|0,N/A,,
+TECHEFFECTSTEXT|54|0,N/A,,
+TECHEFFECTSTEXT|55|0,Oil Derrick Production,석유 시추기 생산,mt
+TECHEFFECTSTEXT|6|0,Counter Intelligence Efficiency,방첩 효율,mt
+TECHEFFECTSTEXT|60|0,Population Agri Use,인구 농산물 사용,mt
+TECHEFFECTSTEXT|61|0,Population Rubber Use,인구 고무 사용,mt
+TECHEFFECTSTEXT|62|0,Population Timber Use,인구 목재 사용,mt
+TECHEFFECTSTEXT|63|0,Population Petrol Use,인구 석유 사용,mt
+TECHEFFECTSTEXT|64|0,Population Coal Use (Usually 0),인구 석탄 사용(보통 0),mt
+TECHEFFECTSTEXT|65|0,Population Ore Use (Usually 0),인구 광석 사용(보통 0),mt
+TECHEFFECTSTEXT|66|0,Population Uranium Use (Usually 0),인구 우라늄 사용(보통 0),mt
+TECHEFFECTSTEXT|67|0,Population Power Use,인구 전력 사용,mt
+TECHEFFECTSTEXT|68|0,Population Consumer Goods Use,인구 소비재 사용,mt
+TECHEFFECTSTEXT|69|0,Population Ind Goods Use,인구 산업재 사용,mt
+TECHEFFECTSTEXT|7|0,Intelligence Efficiency,정보 효율,mt
+TECHEFFECTSTEXT|70|0,Population Mil Goods Use,인구 군수품 사용,mt
+TECHEFFECTSTEXT|71|0,(Reserved),,
+TECHEFFECTSTEXT|72|0,Output of Agriculture,농산물 산출량,mt
+TECHEFFECTSTEXT|73|0,Output of Rubber,고무 산출량,mt
+TECHEFFECTSTEXT|74|0,Output of Timber,목재 산출량,mt
+TECHEFFECTSTEXT|75|0,Output of Petrol,석유 산출량,mt
+TECHEFFECTSTEXT|76|0,Output of Coal,석탄 산출량,mt
+TECHEFFECTSTEXT|77|0,Output of Ore,광석 산출량,mt
+TECHEFFECTSTEXT|78|0,Output of Uranium,우라늄 산출량,mt
+TECHEFFECTSTEXT|79|0,Output of (All) Power,전력(전체) 산출량,mt
+TECHEFFECTSTEXT|8|0,Military Efficiency,군 효율,mt
+TECHEFFECTSTEXT|80|0,Output of Consumer Goods,소비재 산출량,mt
+TECHEFFECTSTEXT|81|0,Output of Industrial Goods,산업재 산출량,mt
+TECHEFFECTSTEXT|82|0,Output of Military Goods,군수품 산출량,mt
+TECHEFFECTSTEXT|83|0,(Reserved),,
+TECHEFFECTSTEXT|84|0,Efficiency of Agriculture,농산물 효율,mt
+TECHEFFECTSTEXT|85|0,Efficiency of Rubber,고무 효율,mt
+TECHEFFECTSTEXT|86|0,Efficiency of Timber,목재 효율,mt
+TECHEFFECTSTEXT|87|0,Efficiency of Petrol,석유 효율,mt
+TECHEFFECTSTEXT|88|0,Efficiency of Coal,석탄 효율,mt
+TECHEFFECTSTEXT|89|0,Efficiency of Ore,광석 효율,mt
+TECHEFFECTSTEXT|9|0,City Power Generation,도시 발전량,mt
+TECHEFFECTSTEXT|90|0,Efficiency of Uranium,우라늄 효율,mt
+TECHEFFECTSTEXT|91|0,Efficiency of Power,전력 효율,mt
+TECHEFFECTSTEXT|92|0,Efficiency of Consumer Goods,소비재 효율,mt
+TECHEFFECTSTEXT|93|0,Efficiency of Industrial Goods,산업재 효율,mt
+TECHEFFECTSTEXT|94|0,Efficiency of Military Goods,군수품 효율,mt
+TECHEFFECTSTEXT|95|0,(Reserved),,
+TECHEFFECTSTEXT|140|0,Soft Attack,연성 표적 공격,mt
+TECHEFFECTSTEXT|141|0,Hard Attack,경성 표적 공격,mt
+TECHEFFECTSTEXT|142|0,Fort Attack,요새 공격,mt
+TECHEFFECTSTEXT|143|0,Low Air Attack,저고도 대공 공격,mt
+TECHEFFECTSTEXT|144|0,Mid Air Attack,중고도 대공 공격,mt
+TECHEFFECTSTEXT|145|0,High Air Attack,고고도 대공 공격,mt
+TECHEFFECTSTEXT|146|0,Naval Surface,수상 공격,mt
+TECHEFFECTSTEXT|147|0,Naval Submerged,수중 공격,mt
+TECHEFFECTSTEXT|148|0,Close Combat Attack,근접전 공격,mt
+TECHEFFECTSTEXT|149|0,Reserved,,
+TECHEFFECTSTEXT|150|0,Ground Attack Range,지상 공격 사거리,mt
+TECHEFFECTSTEXT|151|0,Air Attack Range,대공 공격 사거리,mt
+TECHEFFECTSTEXT|152|0,Naval Surface Attack Range,수상 공격 사거리,mt
+TECHEFFECTSTEXT|153|0,Naval Sub Attack Range,대잠 공격 사거리,mt
+TECHEFFECTSTEXT|154|0,Ground/Surface Defense,지상/수상 방어,mt
+TECHEFFECTSTEXT|155|0,Tactical Air Defense,전술 방공,mt
+TECHEFFECTSTEXT|156|0,Indirect Defense,간접 방어,mt
+TECHEFFECTSTEXT|157|0,Close Combat Defense,근접전 방어,mt
+TECHEFFECTSTEXT|158|0,Unit Speed,유닛 속도,mt
+TECHEFFECTSTEXT|159|0,Unit Stealth,유닛 스텔스,mt
+TECHEFFECTSTEXT|160|0,Unit Initiative,유닛 재량권,mt
+TECHEFFECTSTEXT|161|0,Unit Combat Time,유닛 전투 지속 시간,mt
+TECHEFFECTSTEXT|162|0,Fuel Use Efficiency,연료 사용 효율,mt
+TECHEFFECTSTEXT|163|0,Unit Missile Capacity,유닛 미사일 탑재량,mt
+TECHEFFECTSTEXT|164|0,Unit Efficiency,유닛 효율,mt
+TECHEFFECTSTEXT|165|0,Unit Ammo Capacity,유닛 탄약 탑재량,mt
+TECHEFFECTSTEXT|166|0,Unit Fuel Capacity,유닛 연료 탑재량,mt
+TECHEFFECTSTEXT|167|0,Spotting Range,탐지 사거리,mt
+TECHEFFECTSTEXT|168|0,Precision Spotting Range,정밀 탐지 사거리,mt
+TECHEFFECTSTEXT|169|0,Spotting Strength,탐지 강도,mt
+TECHEFFECTSTEXT|170|0,Precision Spotting Strength,정밀 탐지 강도,mt
+TECHEFFECTSTEXT|171|0,Pandemic Infection Rate,팬데믹 감염률,mt
+TECHEFFECTSTEXT|172|0,Pandemic Mortality Rate,팬데믹 치사율,mt
+TECHEFFECTSTEXT|173|0,Pandemic Infection due to Trade,무역으로 인한 팬데믹 감염,mt
+TECHEFFECTSTEXT|174|0,Contagion Rate,전염률,mt
+TECHEFFECTSTEXT|175|0,Undefined,,
+TECHEFFECTSTEXT|209|0,Cyber Attack,사이버 공격,mt
+TECHEFFECTSTEXT|210|0,Color Photography,컬러 사진술,mt
+TECHEFFECTSTEXT|57|0,Infection Control,감염 통제,mt
+TECHEFFECTSTEXT|97|0,Locomotive Advancement,기관차 발전,mt
+TECHEFFECTSTEXT|107|0,Social Service Rating,사회 서비스 등급,mt
+TECHEFFECTSTEXT|115|0,Social Services Cost,사회 서비스 비용,mt
+TECHEFFECTSTEXT|23|0,Era Advancement,시대 발전,mt
+TECHEFFECTSTEXT|35|0,Synthetic Rubber Production,합성 고무 생산,mt
+TECHEFFECTSTEXT|56|0,Atomic Bomb,원자폭탄,mt
+TECHEFFECTSTEXT|58|0,High Speed Internet,초고속 인터넷,mt
+TECHEFFECTSTEXT|59|0,Race to Mars,화성 경쟁,mt
+TECHEFFECTSTEXT|96|0,Garrison Infantry Level,수비대 보병 등급,mt
+TERRAINTEXT|0|0,Plains,평원,mt
+TERRAINTEXT|1|0,Rough,험지,mt
+TERRAINTEXT|10|0,Coast,해안,mt
+TERRAINTEXT|11|0,Narrow River,좁은 강,mt
+TERRAINTEXT|12|0,Wide River,넓은 강,mt
+TERRAINTEXT|13|0,Lake,호수,mt
+TERRAINTEXT|14|0,Ocean,대양,mt
+TERRAINTEXT|15|0,Impassible,통행 불가,mt
+TERRAINTEXT|16|0,Hills,구릉,mt
+TERRAINTEXT|17|0,Rough Hills,험한 구릉,mt
+TERRAINTEXT|18|0,Light Forest,옅은 숲,mt
+TERRAINTEXT|19|0,Dense Forest,울창한 숲,mt
+TERRAINTEXT|2|0,Light Forest,옅은 숲,mt
+TERRAINTEXT|20|0,Jungle,정글,mt
+TERRAINTEXT|21|0,Swamp,늪,mt
+TERRAINTEXT|22|0,Semi-Desert,반사막,mt
+TERRAINTEXT|23|0,Rough Desert,험한 사막,mt
+TERRAINTEXT|24|0,Mountain,산악,mt
+TERRAINTEXT|25|0,Tundra,툰드라,mt
+TERRAINTEXT|26|0,Coast,해안,mt
+TERRAINTEXT|27|0,Narrow River,좁은 강,mt
+TERRAINTEXT|28|0,Wide River,넓은 강,mt
+TERRAINTEXT|29|0,Lake,호수,mt
+TERRAINTEXT|3|0,Dense Forest,울창한 숲,mt
+TERRAINTEXT|30|0,Ocean,대양,mt
+TERRAINTEXT|31|0,Impassible,통행 불가,mt
+TERRAINTEXT|4|0,Jungle,정글,mt
+TERRAINTEXT|5|0,Swamp,늪,mt
+TERRAINTEXT|6|0,Semi-Desert,반사막,mt
+TERRAINTEXT|7|0,Rough Desert,험한 사막,mt
+TERRAINTEXT|8|0,Mountain,산악,mt
+TERRAINTEXT|9|0,Tundra,툰드라,mt
+UNITSTEXT|Future Rapid Effects System|0,Future Rapid Effects System,미래 신속 효과 체계,mt
+UNITSTEXT|Engineer|0,Engineer,공병,mt
+UNITSTEXT|Combat Engineer|0,Combat Engineer,전투 공병,mt
+UNITSTEXT|Engineer#2|0,Engineer,공병,mt
+UNITSTEXT|MLRS Wheeled|0,MLRS Wheeled,MLRS 차륜형,mt
+UNITSTEXT|Bridging|0,Bridging,가교,mt
+UNITSTEXT|Bridging#2|0,Bridging,가교,mt
+UNITSTEXT|Rapid Effect Mobile Rockets|0,Rapid Effect Mobile Rockets,신속 효과 기동 로켓,mt
+UNITSTEXT|Elite Forces|0,Elite Forces,정예 부대,mt
+UNITSTEXT|Bridging#3|0,Bridging,가교,mt
+UNITSTEXT|Patton Bridging|0,Patton Bridging,패튼 가교,mt
+UNITSTEXT|Armored Bridging|0,Armored Bridging,장갑 가교,mt
+UNITSTEXT|Bridging Unit|0,Bridging Unit,가교 유닛,mt
+UNITSTEXT|16180|0,Converted VTOL Carrier,개조 VTOL 항모,mt
+UNITSTEXT|16181|0,Converted Large Carrier,개조 대형 항모,mt
+UNITSTEXT|1900|0,Mobile Radar,이동식 레이더,mt
+UNITSTEXT|1920|0,Advanced Mobile Radar,고급 이동식 레이더,mt
+UNITSTEXT|20300|0,Civilian Cargo,민간 화물선,mt
+UNITSTEXT|20301|0,Merchant Marine,상선,mt
+UNITSTEXT|20318|0,Large Civ Cargo,대형 민간 화물선,mt
+UNITSTEXT|20366|0,Basic,기본,mt
+UNITSTEXT|20399|0,Conv Troopship,개조 병력 수송선,mt
+UNITSTEXT|21001|0,Town,마을,mt
+UNITSTEXT|21001|1,Ubran Center,도심,mt
+UNITSTEXT|21002|0,City,도시,mt
+UNITSTEXT|21002|1,Urban Center,도심,mt
+UNITSTEXT|21003|0,Industrial Complex,산업 단지,mt
+UNITSTEXT|21003|1,Provides basic infrastructure on a hex for other industrial facilities to be built.,다른 산업 시설을 지을 수 있도록 헥스에 기본 인프라를 제공합니다.,mt
+UNITSTEXT|21004|0,Oceanic Complex,해양 단지,mt
+UNITSTEXT|21004|1,Provides basic infrastructure on an hex for oceanic facilities to be built.,해양 시설을 지을 수 있도록 헥스에 기본 인프라를 제공합니다.,mt
+UNITSTEXT|21006|0,Military Complex,군사 단지,mt
+UNITSTEXT|21006|1,Provides basic infrastructure on a hex for other military facilities to be built.,다른 군사 시설을 지을 수 있도록 헥스에 기본 인프라를 제공합니다.,mt
+UNITSTEXT|21010|0,Agriculture,농산물,mt
+UNITSTEXT|21010|1,Animal and crop farming facilities produce food products on an industrial scale.,축산 및 작물 재배 시설이 산업 규모로 식량을 생산합니다.,mt
+UNITSTEXT|21011|0,Hydroponics,수경 재배,mt
+UNITSTEXT|21011|1,Indoor irrigation facilities produce a steady supply of food products.,실내 관개 시설이 식량을 꾸준히 공급합니다.,mt
+UNITSTEXT|21013|0,Water Works,상수도 시설,mt
+UNITSTEXT|21014|0,Timber Mill,제재소,mt
+UNITSTEXT|21014|1,Saw mills provide Timber at an industrial scale.,제재소가 산업 규모로 목재를 공급합니다.,mt
+UNITSTEXT|21015|0,Water Reclamation,물 재생 시설,mt
+UNITSTEXT|21017|0,Oil - Gas Field,석유 - 가스전,mt
+UNITSTEXT|21017|1,Various industries that produce oil and natural gas for use by industry and consumers.,산업과 소비자가 쓸 석유와 천연가스를 생산하는 여러 산업입니다.,mt
+UNITSTEXT|21018|0,Oil Derrick,석유 시추기,mt
+UNITSTEXT|21018|1,Oil derricks produce petroleum by pumping it from underground reserves.,석유 시추기는 지하 매장층에서 석유를 퍼 올려 생산합니다.,mt
+UNITSTEXT|21019|0,Oil - Synthetic,석유 - 합성,mt
+UNITSTEXT|21019|1,"Petroleum is synthesized through electrochemical processes,converting electric power to petroleum","전기화학 공정으로 석유를 합성하며, 전력을 석유로 바꿉니다.",mt
+UNITSTEXT|21020|0,Oil - Bio Fuels,석유 - 바이오연료,mt
+UNITSTEXT|21020|1,Converts agricultural produce into usable petroleum.,농산물을 사용 가능한 석유로 전환합니다.,mt
+UNITSTEXT|21021|0,Adv Oil - Coal Synth,고급 석유 - 석탄 합성,mt
+UNITSTEXT|21021|1,Coal is converted to petroleum through a chemical process known as coal liquefaction.,석탄 액화라는 화학 공정으로 석탄을 석유로 전환합니다.,mt
+UNITSTEXT|21025|0,Coal Mine,탄광,mt
+UNITSTEXT|21025|1,Underground mining facilities extract Coal from the earth.,지하 채굴 시설이 땅속에서 석탄을 캐냅니다.,mt
+UNITSTEXT|21028|0,Ore Mine,광산,mt
+UNITSTEXT|21028|1,Underground mining facilities extract Metal Ores from the earth.,지하 채굴 시설이 땅속에서 금속 광석을 캐냅니다.,mt
+UNITSTEXT|21029|0,Composite Ore,합성 광석,mt
+UNITSTEXT|21029|1,Synthesizes Metal Ore through electrochemical processes converting electric power to metal ore,"전기화학 공정으로 금속 광석을 합성하며, 전력을 금속 광석으로 바꿉니다.",mt
+UNITSTEXT|21032|0,Uranium Mine,우라늄 광산,mt
+UNITSTEXT|21032|1,Underground mining facilities extract Uranium Ores from the earth.,지하 채굴 시설이 땅속에서 우라늄 광석을 캐냅니다.,mt
+UNITSTEXT|21035|0,Power - Other Sm,발전 - 기타 소형,mt
+UNITSTEXT|21035|1,"Renewable energy sources including wind, geothermal, and biomass incineration for producing electric power.","풍력, 지열, 바이오매스 소각 등 재생 에너지원으로 전력을 생산합니다.",mt
+UNITSTEXT|21036|0,Power - Other,발전 - 기타,mt
+UNITSTEXT|21036|1,"Renewable energy sources including wind, geothermal, and biomass incineration for producing electric power","풍력, 지열, 바이오매스 소각 등 재생 에너지원으로 전력을 생산합니다.",mt
+UNITSTEXT|21037|0,Power - Hydro Sm,발전 - 수력 소형,mt
+UNITSTEXT|21037|1,Hydroelectric dams produce sustainable Electric Power using water-powered turbines.,수력 발전 댐이 물의 힘으로 터빈을 돌려 지속 가능한 전력을 생산합니다.,mt
+UNITSTEXT|21038|0,Power - Hydro,발전 - 수력,mt
+UNITSTEXT|21038|1,Hydroelectric dams produce sustainable Electric Power using water-powered turbines.,수력 발전 댐이 물의 힘으로 터빈을 돌려 지속 가능한 전력을 생산합니다.,mt
+UNITSTEXT|21039|0,Power - Petrol Sm,발전 - 석유 소형,mt
+UNITSTEXT|21039|1,Petrol-fired power plants generate Electric Power by burning Petroleum.,석유 화력 발전소가 석유를 태워 전력을 생산합니다.,mt
+UNITSTEXT|21040|0,Power - Petrol,발전 - 석유,mt
+UNITSTEXT|21040|1,Petrol-fired power plants generate Electric Power by burning Petroleum.,석유 화력 발전소가 석유를 태워 전력을 생산합니다.,mt
+UNITSTEXT|21041|0,Power - Coal Sm,발전 - 석탄 소형,mt
+UNITSTEXT|21041|1,Coal-fired power plants generate Electric Power by burning Coal.,석탄 화력 발전소가 석탄을 태워 전력을 생산합니다.,mt
+UNITSTEXT|21042|0,Power - Coal,발전 - 석탄,mt
+UNITSTEXT|21042|1,Coal-fired power plants generate Electric Power by burning Coal. ,석탄 화력 발전소가 석탄을 태워 전력을 생산합니다.,mt
+UNITSTEXT|21043|0,Power - Nuclear Sm,발전 - 원자력 소형,mt
+UNITSTEXT|21043|1,Produces electric power using stable nuclear fission.,안정적인 핵분열로 전력을 생산합니다.,mt
+UNITSTEXT|21044|0,Power - Nuclear,발전 - 원자력,mt
+UNITSTEXT|21044|1,Produces electric power using stable nuclear fission.,안정적인 핵분열로 전력을 생산합니다.,mt
+UNITSTEXT|21045|0,Power - Fusion Sm,발전 - 핵융합 소형,mt
+UNITSTEXT|21045|1,Produces electric power using the heat generated from nuclear fusion reactions. ,핵융합 반응에서 나오는 열로 전력을 생산합니다.,mt
+UNITSTEXT|21046|0,Power - Fusion,발전 - 핵융합,mt
+UNITSTEXT|21046|1,Produces electric power using the heat generated from nuclear fusion reactions. ,핵융합 반응에서 나오는 열로 전력을 생산합니다.,mt
+UNITSTEXT|21055|0,Goods - Industrial,산업재 공장,mt
+UNITSTEXT|21055|1,Production of the goods required for industrial production. Consumes other resources during production.,산업 생산에 필요한 물품을 생산합니다. 생산 중에 다른 자원을 소비합니다.,mt
+UNITSTEXT|21056|0,Goods - Ind Mid,산업재 - 중형,mt
+UNITSTEXT|21056|1,Production of the goods required for industrial production. Consumes other resources during production.,산업 생산에 필요한 물품을 생산합니다. 생산 중에 다른 자원을 소비합니다.,mt
+UNITSTEXT|21057|0,Goods - Ind Micro,산업재 - 초소형,mt
+UNITSTEXT|21057|1,Production of the goods required for industrial production. Consumes other resources during production.,산업 생산에 필요한 물품을 생산합니다. 생산 중에 다른 자원을 소비합니다.,mt
+UNITSTEXT|21065|0,Rubber Plantation,고무 농장,mt
+UNITSTEXT|21065|1,Produces natural rubber latex by harvesting the sap from rubber trees.,고무나무의 수액을 채취해 천연 고무 라텍스를 생산합니다.,mt
+UNITSTEXT|21066|0,Rubber - Synth,고무 - 합성,mt
+UNITSTEXT|21066|1,Synthesizes rubber latex from petroleum.,석유에서 고무 라텍스를 합성합니다.,mt
+UNITSTEXT|21070|0,Goods - Military,군수품 공장,mt
+UNITSTEXT|21070|1,"Production of goods required for military unit production, military facility production and ammunition. Cosumnes other resources during production.","군 유닛 생산, 군사 시설 건설, 탄약에 필요한 물품을 생산합니다. 생산 중에 다른 자원을 소비합니다.",mt
+UNITSTEXT|21071|0,Goods - Mil Mid,군수품 - 중형,mt
+UNITSTEXT|21071|1,"Production of goods required for military unit production, military facility production and ammunition. Cosumnes other resources during production.","군 유닛 생산, 군사 시설 건설, 탄약에 필요한 물품을 생산합니다. 생산 중에 다른 자원을 소비합니다.",mt
+UNITSTEXT|21072|0,Goods - Adv Mil Sm,군수품 - 고급 소형,mt
+UNITSTEXT|21072|1,"Production of goods required for military unit production, military facility production and ammunition. Cosumnes other resources during production.","군 유닛 생산, 군사 시설 건설, 탄약에 필요한 물품을 생산합니다. 생산 중에 다른 자원을 소비합니다.",mt
+UNITSTEXT|21073|0,Goods - Adv Military,군수품 - 고급,mt
+UNITSTEXT|21073|1,"Production of goods required for military unit production, military facility production and ammunition. Cosumnes other resources during production.","군 유닛 생산, 군사 시설 건설, 탄약에 필요한 물품을 생산합니다. 생산 중에 다른 자원을 소비합니다.",mt
+UNITSTEXT|21074|0,Goods - Consumer,소비재 공장,mt
+UNITSTEXT|21074|1,Production of the goods required by civilian population. Consumes other resources during production.,민간 인구에게 필요한 물품을 생산합니다. 생산 중에 다른 자원을 소비합니다.,mt
+UNITSTEXT|21075|0,Goods - Cons Mid,소비재 - 중형,mt
+UNITSTEXT|21075|1,Production of the goods required by civilian population. Consumes other resources during production.,민간 인구에게 필요한 물품을 생산합니다. 생산 중에 다른 자원을 소비합니다.,mt
+UNITSTEXT|21076|0,Goods - Cons Micro,소비재 - 초소형,mt
+UNITSTEXT|21076|1,Production of the goods required by civilian population. Consumes other resources during production.,민간 인구에게 필요한 물품을 생산합니다. 생산 중에 다른 자원을 소비합니다.,mt
+UNITSTEXT|21077|0,Goods - Adv Cons Sm,소비재 - 고급 소형,mt
+UNITSTEXT|21077|1,Production of the goods required by civilian population. Consumes other resources during production.,민간 인구에게 필요한 물품을 생산합니다. 생산 중에 다른 자원을 소비합니다.,mt
+UNITSTEXT|21078|0,Goods - Adv Consumer,소비재 - 고급,mt
+UNITSTEXT|21078|1,Production of the goods required by civilian population. Consumes other resources during production.,민간 인구에게 필요한 물품을 생산합니다. 생산 중에 다른 자원을 소비합니다.,mt
+UNITSTEXT|21079|0,Early Oil - Coal Synth,초기 석유 - 석탄 합성,mt
+UNITSTEXT|21079|1,Coal is converted to petroleum through a chemical process known as coal liquefaction.,석탄 액화라는 화학 공정으로 석탄을 석유로 전환합니다.,mt
+UNITSTEXT|21100|0,Research Center,연구 센터,mt
+UNITSTEXT|21100|1,"Each research centre adds a research slot, increasing the host region's capacity for simultaneous research.",연구 센터마다 연구 슬롯이 하나씩 늘어나 해당 지역의 동시 연구 능력이 커집니다.,mt
+UNITSTEXT|21101|0,Intelligence Academy,정보 학교,mt
+UNITSTEXT|21101|1,An agency that provides spies to the host region.,해당 지역에 첩보원을 공급하는 기관입니다.,mt
+UNITSTEXT|21102|0,Business Sector,비즈니스 지구,mt
+UNITSTEXT|21102|1,Provides economic benefits to the host region.,해당 지역에 경제적 이익을 줍니다.,mt
+UNITSTEXT|21103|0,Tourist Attraction,관광 명소,mt
+UNITSTEXT|21103|1,Provides economic benefits to the host region.,해당 지역에 경제적 이익을 줍니다.,mt
+UNITSTEXT|21104|0,Security Bureau,보안국,mt
+UNITSTEXT|21104|1,Increased protection from espionage at the facility's location,시설이 있는 곳의 첩보 활동 방어가 강화됩니다.,mt
+UNITSTEXT|21152|0,Missile Silo,미사일 발사대,mt
+UNITSTEXT|21152|1,Silos allow you to prepare and launch missile strikes on designated targets.,발사대에서 미사일 공격을 준비해 지정한 표적에 발사할 수 있습니다.,mt
+UNITSTEXT|21155|0,Aerospace Engineering,항공우주 공학 센터,mt
+UNITSTEXT|21155|1,Engineering facility required for orbital launch facilities.,궤도 발사 시설에 필요한 공학 시설입니다.,mt
+UNITSTEXT|21156|0,Mission Control,임무 통제 센터,mt
+UNITSTEXT|21156|1,Mission control facility required for orbital launch facilities.,궤도 발사 시설에 필요한 임무 통제 시설입니다.,mt
+UNITSTEXT|21157|0,Orbital Launch Pad,궤도 발사대,mt
+UNITSTEXT|21157|1,Allows the launching of satellites.,위성을 발사할 수 있습니다.,mt
+UNITSTEXT|21158|0,Orbital Telemetry,궤도 원격 측정소,mt
+UNITSTEXT|21158|1,Required for managing control of satellites in orbit.,궤도상의 위성을 관제하는 데 필요합니다.,mt
+UNITSTEXT|21201|0,Barracks,병영,mt
+UNITSTEXT|21201|1,"Barracks allow units to be reserved, reducing their maintenance cost. Required for Land Production facilities.",병영에서는 유닛을 예비로 돌려 유지비를 줄일 수 있습니다. 지상 생산 시설에 필요합니다.,mt
+UNITSTEXT|21202|0,Air Base,공군 기지,mt
+UNITSTEXT|21202|1,"Allows aircraft to land, refuel and rearm. Provides space for air units to go into reserve. Required for Aircraft Production facilities.",항공기가 착륙해 급유와 재무장을 할 수 있습니다. 항공 유닛이 예비로 들어갈 공간을 제공합니다. 항공기 생산 시설에 필요합니다.,mt
+UNITSTEXT|21203|0,Sea Port,항구,mt
+UNITSTEXT|21203|1,Transfer point to load and unload units to sea. Provides space for naval units to go into reserve. Required for Naval Production facilities.,유닛을 바다로 싣고 내리는 환승 지점입니다. 해군 유닛이 예비로 들어갈 공간을 제공합니다. 해군 생산 시설에 필요합니다.,mt
+UNITSTEXT|21204|0,Air Field,비행장,mt
+UNITSTEXT|21204|1,"Allows aircraft to land, refuel and rearm.",항공기가 착륙해 급유와 재무장을 할 수 있습니다.,mt
+UNITSTEXT|21205|0,Sea Pier,부두,mt
+UNITSTEXT|21205|1,Transfer point to load and unload units to sea.,유닛을 바다로 싣고 내리는 환승 지점입니다.,mt
+UNITSTEXT|21206|0,Gun Emplacement,포대,mt
+UNITSTEXT|21206|1,Well-fortified defensive position that is armed and can fire on enemies.,무장을 갖추고 적을 사격할 수 있는 견고한 방어 진지입니다.,mt
+UNITSTEXT|21210|0,Land Production,지상 생산,mt
+UNITSTEXT|21210|1,"Each production facility adds a production slot for this class, increasing the host region's capacity unit production",생산 시설마다 이 계열의 생산 슬롯이 하나씩 늘어나 해당 지역의 유닛 생산 능력이 커집니다.,mt
+UNITSTEXT|21211|0,Aircraft Production,항공기 생산,mt
+UNITSTEXT|21211|1,"Each production facility adds a production slot for this class, increasing the host region's capacity unit production",생산 시설마다 이 계열의 생산 슬롯이 하나씩 늘어나 해당 지역의 유닛 생산 능력이 커집니다.,mt
+UNITSTEXT|21212|0,Naval Production,해군 생산,mt
+UNITSTEXT|21212|1,"Each production facility adds a production slot for this class, increasing the host region's capacity unit production",생산 시설마다 이 계열의 생산 슬롯이 하나씩 늘어나 해당 지역의 유닛 생산 능력이 커집니다.,mt
+UNITSTEXT|21213|0,Missile Production,미사일 생산,mt
+UNITSTEXT|21213|1,"Each production facility adds a production slot for this class, increasing the host region's capacity unit production",생산 시설마다 이 계열의 생산 슬롯이 하나씩 늘어나 해당 지역의 유닛 생산 능력이 커집니다.,mt
+UNITSTEXT|21220|0,Trench,참호,mt
+UNITSTEXT|21220|1,Defensible fortification to allow unit entrenchment.,유닛이 참호를 구축할 수 있는 방어 진지입니다.,mt
+UNITSTEXT|21221|0,Air Defense,방공,mt
+UNITSTEXT|21221|1,Missile-interception system.,미사일 요격 체계입니다.,mt
+UNITSTEXT|21222|0,Radar Station,레이더 기지,mt
+UNITSTEXT|21222|1,"Provide spotting for land, air and sea within its radius of view.","시야 반경 안의 지상, 공중, 해상을 탐지합니다.",mt
+UNITSTEXT|21223|0,Air Defense - Laser,방공 - 레이저,mt
+UNITSTEXT|21223|1,Laser-powered missile-interception system.,레이저 동력의 미사일 요격 체계입니다.,mt
+UNITSTEXT|21224|0,Radar Station - Advanced,레이더 기지 - 고급,mt
+UNITSTEXT|21224|1,"Provide spotting for land, air and sea within its radius of view.","시야 반경 안의 지상, 공중, 해상을 탐지합니다.",mt
+UNITSTEXT|21225|0,Fortification,요새,mt
+UNITSTEXT|21225|1,Defensible fortification around which other military facilities can be constructed.,주변에 다른 군사 시설을 지을 수 있는 견고한 방어 거점입니다.,mt
+UNITSTEXT|21226|0,Emplacement,방어 진지,mt
+UNITSTEXT|21226|1,Well-fortified defensive position providing additional entrenchment to combat units.,전투 유닛에게 추가 참호 효과를 주는 견고한 방어 진지입니다.,mt
+UNITSTEXT|21227|0,Supply Depot,보급 창고,mt
+UNITSTEXT|21227|1,Increases surrounding supply.,주변 보급을 늘립니다.,mt
+UNITSTEXT|21300|0,Matter-Energy Converter,물질-에너지 변환기,mt
+UNITSTEXT|21300|1,Central complex required for use of advanced energy production facilities,첨단 에너지 생산 시설을 쓰는 데 필요한 중앙 단지입니다.,mt
+UNITSTEXT|21301|0,Power - Antimatter Sm,발전 - 반물질 소형,mt
+UNITSTEXT|21301|1,Antimatter reactors generate Electric Power on an unprecedented scale.,반물질 원자로가 전례 없는 규모로 전력을 생산합니다.,mt
+UNITSTEXT|21302|0,Power - Antimatter,발전 - 반물질,mt
+UNITSTEXT|21302|1,Antimatter reactors generate Electric Power on an unprecedented scale.,반물질 원자로가 전례 없는 규모로 전력을 생산합니다.,mt
+UNITSTEXT|21303|0,Power - Dark Energy Sm,발전 - 암흑 에너지 소형,mt
+UNITSTEXT|21303|1,Generates power on a titanic scale through the process of fusing dark energy plasma particles.,암흑 에너지 플라스마 입자를 융합해 거대한 규모의 전력을 생산합니다.,mt
+UNITSTEXT|21304|0,Power - Dark Energy,발전 - 암흑 에너지,mt
+UNITSTEXT|21304|1,Generates power on a titanic scale through the process of fusing dark energy plasma particles.,암흑 에너지 플라스마 입자를 융합해 거대한 규모의 전력을 생산합니다.,mt
+UNITSTEXT|21305|0,Power - Adv Solar Sm,발전 - 고급 태양광 소형,mt
+UNITSTEXT|21305|1,Solar panels are an effective form of renewable power generation.,태양광 패널은 효과적인 재생 발전 방식입니다.,mt
+UNITSTEXT|21306|0,Power - Advanced Solar,발전 - 고급 태양광,mt
+UNITSTEXT|21306|1,Solar panels are an effective form of renewable power generation.,태양광 패널은 효과적인 재생 발전 방식입니다.,mt
+UNITSTEXT|21310|0,Oil - Synth Gas,석유 - 합성 가스,mt
+UNITSTEXT|21310|1,Petroleum is synthesized through electrochecmical processes.,전기화학 공정으로 석유를 합성합니다.,mt
+UNITSTEXT|21320|0,Goods - Adv Ind Sm,산업재 - 고급 소형,mt
+UNITSTEXT|21320|1,Production of the goods required for industrial production. Consumes other resources during production.,산업 생산에 필요한 물품을 생산합니다. 생산 중에 다른 자원을 소비합니다.,mt
+UNITSTEXT|21321|0,Goods - Adv Industrial,산업재 - 고급,mt
+UNITSTEXT|21321|1,Production of the goods required for industrial production. Consumes other resources during production.,산업 생산에 필요한 물품을 생산합니다. 생산 중에 다른 자원을 소비합니다.,mt
+UNITSTEXT|21323|0,Goods - Adv Cons Sm,소비재 - 고급 소형,mt
+UNITSTEXT|21323|1,Production of the goods required by civilian population. Consumes other resources during production.,민간 인구에게 필요한 물품을 생산합니다. 생산 중에 다른 자원을 소비합니다.,mt
+UNITSTEXT|21324|0,Goods - Adv Consumer,소비재 - 고급,mt
+UNITSTEXT|21324|1,Production of the goods required by civilian population. Consumes other resources during production.,민간 인구에게 필요한 물품을 생산합니다. 생산 중에 다른 자원을 소비합니다.,mt
+UNITSTEXT|21326|0,Goods - Adv Mil Sm,군수품 - 고급 소형,mt
+UNITSTEXT|21326|1,"Production of goods required for military unit production, military facility production and ammunition. Cosumnes other resources during production.","군 유닛 생산, 군사 시설 건설, 탄약에 필요한 물품을 생산합니다. 생산 중에 다른 자원을 소비합니다.",mt
+UNITSTEXT|21327|0,Goods - Adv Military,군수품 - 고급,mt
+UNITSTEXT|21327|1,"Production of goods required for military unit production, military facility production and ammunition. Cosumnes other resources during production.","군 유닛 생산, 군사 시설 건설, 탄약에 필요한 물품을 생산합니다. 생산 중에 다른 자원을 소비합니다.",mt
+UNITSTEXT|21350|0,Military Fortress,군사 요새,mt
+UNITSTEXT|21350|1,Provides reinforced infrastructure on a hex for other military facilities to be built.,다른 군사 시설을 지을 수 있도록 헥스에 강화된 인프라를 제공합니다.,mt
+UNITSTEXT|21500|0,Abandoned Town,버려진 마을,mt
+UNITSTEXT|21500|1,Urban Center,도심,mt
+UNITSTEXT|21501|0,Small Village,작은 촌락,mt
+UNITSTEXT|21501|1,Urban Center,도심,mt
+UNITSTEXT|21502|0,Village,촌락,mt
+UNITSTEXT|21502|1,Urban Center,도심,mt
+UNITSTEXT|21503|0,Small Town,작은 마을,mt
+UNITSTEXT|21503|1,Urban Center,도심,mt
+UNITSTEXT|21504|0,Town,마을,mt
+UNITSTEXT|21504|1,Urban Center,도심,mt
+UNITSTEXT|21505|0,City,도시,mt
+UNITSTEXT|21505|1,Urban Center,도심,mt
+UNITSTEXT|21506|0,Large City,대도시,mt
+UNITSTEXT|21506|1,Urban Center,도심,mt
+UNITSTEXT|21507|0,Metropolis,메트로폴리스,mt
+UNITSTEXT|21507|1,Urban Center,도심,mt
+UNITSTEXT|21508|0,MegaCity,거대 도시,mt
+UNITSTEXT|21508|1,Urban Center,도심,mt
+UNITSTEXT|21509|0,Capital City,수도,mt
+UNITSTEXT|21509|1,"The base of our government and an important urban center, protecting this should be a top priority if we wish to keep morale high. ",정부의 본거지이자 중요한 도심입니다. 사기를 높게 유지하려면 이곳을 지키는 것을 최우선으로 삼아야 합니다.,mt
+UNITSTEXT|21510|0,Abandoned Town,버려진 마을,mt
+UNITSTEXT|21510|1,Urban Center,도심,mt
+UNITSTEXT|21511|0,Small Village,작은 촌락,mt
+UNITSTEXT|21511|1,Urban Center,도심,mt
+UNITSTEXT|21512|0,Village,촌락,mt
+UNITSTEXT|21512|1,Urban Center,도심,mt
+UNITSTEXT|21513|0,Small Town,작은 마을,mt
+UNITSTEXT|21513|1,Urban Center,도심,mt
+UNITSTEXT|21514|0,Town,마을,mt
+UNITSTEXT|21514|1,Urban Center,도심,mt
+UNITSTEXT|21515|0,City,도시,mt
+UNITSTEXT|21515|1,Urban Center,도심,mt
+UNITSTEXT|21516|0,Large City,대도시,mt
+UNITSTEXT|21516|1,Urban Center,도심,mt
+UNITSTEXT|21517|0,Metropolis,메트로폴리스,mt
+UNITSTEXT|21517|1,Urban Center,도심,mt
+UNITSTEXT|21518|0,MegaCity,거대 도시,mt
+UNITSTEXT|21518|1,Urban Center,도심,mt
+UNITSTEXT|21519|0,Capital City,수도,mt
+UNITSTEXT|21519|1,"The base of our government and an important urban center, protecting this should be a top priority if we wish to keep morale high. ",정부의 본거지이자 중요한 도심입니다. 사기를 높게 유지하려면 이곳을 지키는 것을 최우선으로 삼아야 합니다.,mt
+UNITSTEXT|21520|0,Abandoned Town,버려진 마을,mt
+UNITSTEXT|21520|1,Urban Center,도심,mt
+UNITSTEXT|21521|0,Small Village,작은 촌락,mt
+UNITSTEXT|21521|1,Urban Center,도심,mt
+UNITSTEXT|21522|0,Village,촌락,mt
+UNITSTEXT|21522|1,Urban Center,도심,mt
+UNITSTEXT|21523|0,Small Town,작은 마을,mt
+UNITSTEXT|21523|1,Urban Center,도심,mt
+UNITSTEXT|21524|0,Town,마을,mt
+UNITSTEXT|21524|1,Urban Center,도심,mt
+UNITSTEXT|21525|0,City,도시,mt
+UNITSTEXT|21525|1,Urban Center,도심,mt
+UNITSTEXT|21526|0,Large City,대도시,mt
+UNITSTEXT|21526|1,Urban Center,도심,mt
+UNITSTEXT|21527|0,Metropolis,메트로폴리스,mt
+UNITSTEXT|21527|1,Urban Center,도심,mt
+UNITSTEXT|21528|0,MegaCity,거대 도시,mt
+UNITSTEXT|21528|1,Urban Center,도심,mt
+UNITSTEXT|21529|0,Capital City,수도,mt
+UNITSTEXT|21529|1,"The base of our government and an important urban center, protecting this should be a top priority if we wish to keep morale high. ",정부의 본거지이자 중요한 도심입니다. 사기를 높게 유지하려면 이곳을 지키는 것을 최우선으로 삼아야 합니다.,mt
+UNITSTEXT|21530|0,Abandoned Town,버려진 마을,mt
+UNITSTEXT|21530|1,Urban Center,도심,mt
+UNITSTEXT|21531|0,Small Village,작은 촌락,mt
+UNITSTEXT|21531|1,Urban Center,도심,mt
+UNITSTEXT|21532|0,Village,촌락,mt
+UNITSTEXT|21532|1,Urban Center,도심,mt
+UNITSTEXT|21533|0,Small Town,작은 마을,mt
+UNITSTEXT|21533|1,Urban Center,도심,mt
+UNITSTEXT|21534|0,Town,마을,mt
+UNITSTEXT|21534|1,Urban Center,도심,mt
+UNITSTEXT|21535|0,City,도시,mt
+UNITSTEXT|21535|1,Urban Center,도심,mt
+UNITSTEXT|21536|0,Large City,대도시,mt
+UNITSTEXT|21536|1,Urban Center,도심,mt
+UNITSTEXT|21537|0,Metropolis,메트로폴리스,mt
+UNITSTEXT|21537|1,Urban Center,도심,mt
+UNITSTEXT|21538|0,MegaCity,거대 도시,mt
+UNITSTEXT|21538|1,Urban Center,도심,mt
+UNITSTEXT|21539|0,Capital City,수도,mt
+UNITSTEXT|21539|1,"The base of our government and an important urban center, protecting this should be a top priority if we wish to keep morale high. ",정부의 본거지이자 중요한 도심입니다. 사기를 높게 유지하려면 이곳을 지키는 것을 최우선으로 삼아야 합니다.,mt
+UNITSTEXT|21540|0,Abandoned Town,버려진 마을,mt
+UNITSTEXT|21540|1,Urban Center,도심,mt
+UNITSTEXT|21541|0,Small Village,작은 촌락,mt
+UNITSTEXT|21541|1,Urban Center,도심,mt
+UNITSTEXT|21542|0,Village,촌락,mt
+UNITSTEXT|21542|1,Urban Center,도심,mt
+UNITSTEXT|21543|0,Small Town,작은 마을,mt
+UNITSTEXT|21543|1,Urban Center,도심,mt
+UNITSTEXT|21544|0,Town,마을,mt
+UNITSTEXT|21544|1,Urban Center,도심,mt
+UNITSTEXT|21545|0,City,도시,mt
+UNITSTEXT|21545|1,Urban Center,도심,mt
+UNITSTEXT|21546|0,Large City,대도시,mt
+UNITSTEXT|21546|1,Urban Center,도심,mt
+UNITSTEXT|21547|0,Metropolis,메트로폴리스,mt
+UNITSTEXT|21547|1,Urban Center,도심,mt
+UNITSTEXT|21548|0,MegaCity,거대 도시,mt
+UNITSTEXT|21548|1,Urban Center,도심,mt
+UNITSTEXT|21549|0,Capital City,수도,mt
+UNITSTEXT|21549|1,"The base of our government and an important urban center, protecting this should be a top priority if we wish to keep morale high. ",정부의 본거지이자 중요한 도심입니다. 사기를 높게 유지하려면 이곳을 지키는 것을 최우선으로 삼아야 합니다.,mt
+UNITSTEXT|21550|0,Abandoned Town,버려진 마을,mt
+UNITSTEXT|21550|1,Urban Center,도심,mt
+UNITSTEXT|21551|0,Small Village,작은 촌락,mt
+UNITSTEXT|21551|1,Urban Center,도심,mt
+UNITSTEXT|21552|0,Village,촌락,mt
+UNITSTEXT|21552|1,Urban Center,도심,mt
+UNITSTEXT|21553|0,Small Town,작은 마을,mt
+UNITSTEXT|21553|1,Urban Center,도심,mt
+UNITSTEXT|21554|0,Town,마을,mt
+UNITSTEXT|21554|1,Urban Center,도심,mt
+UNITSTEXT|21555|0,City,도시,mt
+UNITSTEXT|21555|1,Urban Center,도심,mt
+UNITSTEXT|21556|0,Large City,대도시,mt
+UNITSTEXT|21556|1,Urban Center,도심,mt
+UNITSTEXT|21557|0,Metropolis,메트로폴리스,mt
+UNITSTEXT|21557|1,Urban Center,도심,mt
+UNITSTEXT|21558|0,MegaCity,거대 도시,mt
+UNITSTEXT|21558|1,Urban Center,도심,mt
+UNITSTEXT|21559|0,Capital City,수도,mt
+UNITSTEXT|21559|1,"The base of our government and an important urban center, protecting this should be a top priority if we wish to keep morale high. ",정부의 본거지이자 중요한 도심입니다. 사기를 높게 유지하려면 이곳을 지키는 것을 최우선으로 삼아야 합니다.,mt
+UNITSTEXT|21560|0,Abandoned Town,버려진 마을,mt
+UNITSTEXT|21560|1,Urban Center,도심,mt
+UNITSTEXT|21561|0,Small Village,작은 촌락,mt
+UNITSTEXT|21561|1,Urban Center,도심,mt
+UNITSTEXT|21562|0,Village,촌락,mt
+UNITSTEXT|21562|1,Urban Center,도심,mt
+UNITSTEXT|21563|0,Small Town,작은 마을,mt
+UNITSTEXT|21563|1,Urban Center,도심,mt
+UNITSTEXT|21564|0,Town,마을,mt
+UNITSTEXT|21564|1,Urban Center,도심,mt
+UNITSTEXT|21565|0,City,도시,mt
+UNITSTEXT|21565|1,Urban Center,도심,mt
+UNITSTEXT|21566|0,Large City,대도시,mt
+UNITSTEXT|21566|1,Urban Center,도심,mt
+UNITSTEXT|21567|0,Metropolis,메트로폴리스,mt
+UNITSTEXT|21567|1,Urban Center,도심,mt
+UNITSTEXT|21568|0,MegaCity,거대 도시,mt
+UNITSTEXT|21568|1,Urban Center,도심,mt
+UNITSTEXT|21569|0,Capital City,수도,mt
+UNITSTEXT|21569|1,"The base of our government and an important urban center, protecting this should be a top priority if we wish to keep morale high. ",정부의 본거지이자 중요한 도심입니다. 사기를 높게 유지하려면 이곳을 지키는 것을 최우선으로 삼아야 합니다.,mt
+UNITSTEXT|21570|0,Abandoned Town,버려진 마을,mt
+UNITSTEXT|21570|1,Urban Center,도심,mt
+UNITSTEXT|21571|0,Small Village,작은 촌락,mt
+UNITSTEXT|21571|1,Urban Center,도심,mt
+UNITSTEXT|21572|0,Village,촌락,mt
+UNITSTEXT|21572|1,Urban Center,도심,mt
+UNITSTEXT|21573|0,Small Town,작은 마을,mt
+UNITSTEXT|21573|1,Urban Center,도심,mt
+UNITSTEXT|21574|0,Town,마을,mt
+UNITSTEXT|21574|1,Urban Center,도심,mt
+UNITSTEXT|21575|0,City,도시,mt
+UNITSTEXT|21575|1,Urban Center,도심,mt
+UNITSTEXT|21576|0,Large City,대도시,mt
+UNITSTEXT|21576|1,Urban Center,도심,mt
+UNITSTEXT|21577|0,Metropolis,메트로폴리스,mt
+UNITSTEXT|21577|1,Urban Center,도심,mt
+UNITSTEXT|21578|0,MegaCity,거대 도시,mt
+UNITSTEXT|21578|1,Urban Center,도심,mt
+UNITSTEXT|21579|0,Capital City,수도,mt
+UNITSTEXT|21579|1,"The base of our government and an important urban center, protecting this should be a top priority if we wish to keep morale high. ",정부의 본거지이자 중요한 도심입니다. 사기를 높게 유지하려면 이곳을 지키는 것을 최우선으로 삼아야 합니다.,mt
+UNITSTEXT|21580|0,Abandoned Town,버려진 마을,mt
+UNITSTEXT|21580|1,Urban Center,도심,mt
+UNITSTEXT|21581|0,Small Village,작은 촌락,mt
+UNITSTEXT|21581|1,Urban Center,도심,mt
+UNITSTEXT|21582|0,Village,촌락,mt
+UNITSTEXT|21582|1,Urban Center,도심,mt
+UNITSTEXT|21583|0,Small Town,작은 마을,mt
+UNITSTEXT|21583|1,Urban Center,도심,mt
+UNITSTEXT|21584|0,Town,마을,mt
+UNITSTEXT|21584|1,Urban Center,도심,mt
+UNITSTEXT|21585|0,City,도시,mt
+UNITSTEXT|21585|1,Urban Center,도심,mt
+UNITSTEXT|21586|0,Large City,대도시,mt
+UNITSTEXT|21586|1,Urban Center,도심,mt
+UNITSTEXT|21587|0,Metropolis,메트로폴리스,mt
+UNITSTEXT|21587|1,Urban Center,도심,mt
+UNITSTEXT|21588|0,MegaCity,거대 도시,mt
+UNITSTEXT|21588|1,Urban Center,도심,mt
+UNITSTEXT|21589|0,Capital City,수도,mt
+UNITSTEXT|21589|1,"The base of our government and an important urban center, protecting this should be a top priority if we wish to keep morale high. ",정부의 본거지이자 중요한 도심입니다. 사기를 높게 유지하려면 이곳을 지키는 것을 최우선으로 삼아야 합니다.,mt
+UNITSTEXT|21590|0,Abandoned Town,버려진 마을,mt
+UNITSTEXT|21590|1,Urban Center,도심,mt
+UNITSTEXT|21591|0,Small Village,작은 촌락,mt
+UNITSTEXT|21591|1,Urban Center,도심,mt
+UNITSTEXT|21592|0,Village,촌락,mt
+UNITSTEXT|21592|1,Urban Center,도심,mt
+UNITSTEXT|21593|0,Small Town,작은 마을,mt
+UNITSTEXT|21593|1,Urban Center,도심,mt
+UNITSTEXT|21594|0,Town,마을,mt
+UNITSTEXT|21594|1,Urban Center,도심,mt
+UNITSTEXT|21595|0,City,도시,mt
+UNITSTEXT|21595|1,Urban Center,도심,mt
+UNITSTEXT|21596|0,Large City,대도시,mt
+UNITSTEXT|21596|1,Urban Center,도심,mt
+UNITSTEXT|21597|0,Metropolis,메트로폴리스,mt
+UNITSTEXT|21597|1,Urban Center,도심,mt
+UNITSTEXT|21598|0,MegaCity,거대 도시,mt
+UNITSTEXT|21598|1,Urban Center,도심,mt
+UNITSTEXT|21599|0,Capital City,수도,mt
+UNITSTEXT|21599|1,"The base of our government and an important urban center, protecting this should be a top priority if we wish to keep morale high. ",정부의 본거지이자 중요한 도심입니다. 사기를 높게 유지하려면 이곳을 지키는 것을 최우선으로 삼아야 합니다.,mt
+UNITSTEXT|21600|0,Abandoned Town,버려진 마을,mt
+UNITSTEXT|21600|1,Urban Center,도심,mt
+UNITSTEXT|21601|0,Small Village,작은 촌락,mt
+UNITSTEXT|21601|1,Urban Center,도심,mt
+UNITSTEXT|21602|0,Village,촌락,mt
+UNITSTEXT|21602|1,Urban Center,도심,mt
+UNITSTEXT|21603|0,Small Town,작은 마을,mt
+UNITSTEXT|21603|1,Urban Center,도심,mt
+UNITSTEXT|21604|0,Town,마을,mt
+UNITSTEXT|21604|1,Urban Center,도심,mt
+UNITSTEXT|21605|0,City,도시,mt
+UNITSTEXT|21605|1,Urban Center,도심,mt
+UNITSTEXT|21606|0,Large City,대도시,mt
+UNITSTEXT|21606|1,Urban Center,도심,mt
+UNITSTEXT|21607|0,Metropolis,메트로폴리스,mt
+UNITSTEXT|21607|1,Urban Center,도심,mt
+UNITSTEXT|21608|0,MegaCity,거대 도시,mt
+UNITSTEXT|21608|1,Urban Center,도심,mt
+UNITSTEXT|21609|0,Capital City,수도,mt
+UNITSTEXT|21609|1,"The base of our government and an important urban center, protecting this should be a top priority if we wish to keep morale high. ",정부의 본거지이자 중요한 도심입니다. 사기를 높게 유지하려면 이곳을 지키는 것을 최우선으로 삼아야 합니다.,mt
+UNITSTEXT|21610|0,Abandoned Town,버려진 마을,mt
+UNITSTEXT|21610|1,Urban Center,도심,mt
+UNITSTEXT|21611|0,Small Village,작은 촌락,mt
+UNITSTEXT|21611|1,Urban Center,도심,mt
+UNITSTEXT|21612|0,Village,촌락,mt
+UNITSTEXT|21612|1,Urban Center,도심,mt
+UNITSTEXT|21613|0,Small Town,작은 마을,mt
+UNITSTEXT|21613|1,Urban Center,도심,mt
+UNITSTEXT|21614|0,Town,마을,mt
+UNITSTEXT|21614|1,Urban Center,도심,mt
+UNITSTEXT|21615|0,City,도시,mt
+UNITSTEXT|21615|1,Urban Center,도심,mt
+UNITSTEXT|21616|0,Large City,대도시,mt
+UNITSTEXT|21616|1,Urban Center,도심,mt
+UNITSTEXT|21617|0,Metropolis,메트로폴리스,mt
+UNITSTEXT|21617|1,Urban Center,도심,mt
+UNITSTEXT|21618|0,MegaCity,거대 도시,mt
+UNITSTEXT|21618|1,Urban Center,도심,mt
+UNITSTEXT|21619|0,Capital City,수도,mt
+UNITSTEXT|21619|1,"The base of our government and an important urban center, protecting this should be a top priority if we wish to keep morale high. ",정부의 본거지이자 중요한 도심입니다. 사기를 높게 유지하려면 이곳을 지키는 것을 최우선으로 삼아야 합니다.,mt
+UNITSTEXT|21701|0,Abandoned Town,버려진 마을,mt
+UNITSTEXT|21701|1,Urban Center,도심,mt
+UNITSTEXT|21702|0,Small Village,작은 촌락,mt
+UNITSTEXT|21702|1,Urban Center,도심,mt
+UNITSTEXT|21703|0,Village,촌락,mt
+UNITSTEXT|21703|1,Urban Center,도심,mt
+UNITSTEXT|21704|0,Small Town,작은 마을,mt
+UNITSTEXT|21704|1,Urban Center,도심,mt
+UNITSTEXT|21705|0,Town,마을,mt
+UNITSTEXT|21705|1,Urban Center,도심,mt
+UNITSTEXT|21706|0,City,도시,mt
+UNITSTEXT|21706|1,Urban Center,도심,mt
+UNITSTEXT|21707|0,Large City,대도시,mt
+UNITSTEXT|21707|1,Urban Center,도심,mt
+UNITSTEXT|21708|0,Metropolis,메트로폴리스,mt
+UNITSTEXT|21708|1,Urban Center,도심,mt
+UNITSTEXT|21709|0,MegaCity,거대 도시,mt
+UNITSTEXT|21709|1,Urban Center,도심,mt
+UNITSTEXT|21710|0,Capital City,수도,mt
+UNITSTEXT|21710|1,"The base of our government and an important urban center, protecting this should be a top priority if we wish to keep morale high. ",정부의 본거지이자 중요한 도심입니다. 사기를 높게 유지하려면 이곳을 지키는 것을 최우선으로 삼아야 합니다.,mt
+UNITSTEXT|21801|0,Urban Rubble,도시 잔해,mt
+UNITSTEXT|21802|0,Atomic Rubble,핵 폭격 잔해,mt
+UNITSTEXT|21901|0,Pontoon Bridge,부교,mt
+UNITSTEXT|21902|0,Bridge,교량,mt
+UNITSTEXT|21903|0,Road,도로,mt
+UNITSTEXT|21904|0,Rail,철도,mt
+UNITSTEXT|21998|0,Industrial Rubble,산업 시설 잔해,mt
+UNITSTEXT|21999|0,Transport Rubble,교통 시설 잔해,mt
+UNITSTEXT|3381|0,Tank Destroyer,구축전차,mt
+UNITSTEXT|3437|0,Anti Armor System,대기갑 체계,mt
+UNITSTEXT|349|0,Spy,첩보원,mt
+UNITSTEXT|350|0,Militia II,민병대 II,mt
+UNITSTEXT|351|0,Foreign Legion,외인부대,mt
+UNITSTEXT|352|0,Garrison,수비대,mt
+UNITSTEXT|353|0,Partisans,파르티잔,mt
+UNITSTEXT|354|0,Guerilla,게릴라,mt
+UNITSTEXT|355|0,Marines,해병대,mt
+UNITSTEXT|356|0,Marines,해병대,mt
+UNITSTEXT|357|0,Airborne,공수부대,mt
+UNITSTEXT|359|0,Light Infantry,경보병,mt
+UNITSTEXT|360|0,Light Infantry,경보병,mt
+UNITSTEXT|365|0,Combat Engineer,전투 공병,mt
+UNITSTEXT|435|0,Airborne Elite,정예 공수부대,mt
+UNITSTEXT|436|0,Airborne Elite,정예 공수부대,mt
+UNITSTEXT|465|0,Elite Forces,정예 부대,mt
+UNITSTEXT|491|0,Puma Combat Engineer,푸마 전투 공병,mt
+UNITSTEXT|500|0,Special Forces,특수부대,mt
+UNITSTEXT|53|0,Partisans,파르티잔,mt
+UNITSTEXT|54|0,Partisans,파르티잔,mt
+UNITSTEXT|55|0,Partisans,파르티잔,mt
+UNITSTEXT|56|0,Partisans,파르티잔,mt
+UNITSTEXT|57|0,Partisans,파르티잔,mt
+UNITSTEXT|58|0,Partisans,파르티잔,mt
+UNITSTEXT|6001|0,Command Unit,지휘 유닛,mt
+UNITSTEXT|6007|0,Bridging Tractor,가교 트랙터,mt
+UNITSTEXT|6008|0,Pontoon Bridging,부교 가교,mt
+UNITSTEXT|607|0,Medium Infantry,중보병,mt
+UNITSTEXT|6101|0,Supply Truck,보급 트럭,mt
+UNITSTEXT|6102|0,Heavy Supply Truck,대형 보급 트럭,mt
+UNITSTEXT|630|0,Medium Infantry,중보병,mt
+UNITSTEXT|631|0,Medium Infantry,중보병,mt
+UNITSTEXT|678|0,Conscript II,징집병 II,mt
+UNITSTEXT|688|0,Marines II,해병대 II,mt
+UNITSTEXT|690|0,Airborne II,공수부대 II,mt
+UNITSTEXT|692|0,Ranger II,레인저 II,mt
+UNITSTEXT|752|0,Airborne Elite II,정예 공수부대 II,mt
+UNITSTEXT|754|0,Airborne Elite II,정예 공수부대 II,mt
+UNITSTEXT|762|0,Elite Forces II,정예 부대 II,mt
+UNITSTEXT|764|0,Special Forces II,특수부대 II,mt
+UNITSTEXT|770|0,Warrior Advanced,고급 전사,mt
+UNITSTEXT|776|0,Warrior Elite,정예 전사,mt
+UNITSTEXT|890|0,Light Infantry II,경보병 II,mt
+UNITSTEXT|920|0,Warrior Elite,정예 전사,mt
+UNITSTEXT|922|0,Warrior Adv II,고급 전사 II,mt
+UNITSTEXT|923|0,Warrior Adv III,고급 전사 III,mt

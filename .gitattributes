@@ -1,0 +1,2 @@
+# 작업 트리의 줄 끝을 LF 로 고정한다 (번역 테이블과 도구가 LF 를 전제로 한다. core.autocrlf 설정과 무관하게 적용)
+* text=auto eol=lf

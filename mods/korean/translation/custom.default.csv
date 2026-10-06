@@ -1,0 +1,10 @@
+﻿key,en,ko,status
+SCENNAME|Custom Scenario|0,Custom Scenario,사용자 시나리오,mt
+BRIEF|No Notes Available.|0,No Notes Available.,메모가 없습니다.,mt
+NOTES|No Notes Available.|0,No Notes Available.,메모가 없습니다.,mt
+SCENWIN|Congratulations on your victory!|0,Congratulations on your victory!,승리를 축하합니다!,mt
+SCENLOSE|You have been defeated.|0,You have been defeated.,패배했습니다.,mt
+SCENUNIFYLOSE|You have failed in your efforts to unify your neighbors .  %s has emerged the victor of the unification vote!|0,You have failed in your efforts to unify your neighbors .  %s has emerged the victor of the unification vote!,이웃 나라 통합 시도에 실패했습니다.  통합 투표의 승자는 %s 측입니다!,mt
+MPWIN|Congratulations!  You have emerged the victor against other human challengers.|0,Congratulations!  You have emerged the victor against other human challengers.,축하합니다!  다른 플레이어들을 물리치고 승리했습니다.,mt
+MPLOSE|You have failed in your quest to defeat the other human opponents.  Better luck next time...|0,You have failed in your quest to defeat the other human opponents.  Better luck next time...,다른 플레이어들을 물리치는 데 실패했습니다.  다음에는 더 좋은 결과가 있기를...,mt
+MPUNIFYLOSE|You have failed in your quest to unify your neighbors.  %s (%s) has emerged the victor!  Better luck next time...|0,You have failed in your quest to unify your neighbors.  %s (%s) has emerged the victor!  Better luck next time...,이웃 나라 통합에 실패했습니다.  %s (%s) 측이 승자가 되었습니다!  다음에는 더 좋은 결과가 있기를...,mt
