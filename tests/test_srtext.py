@@ -17,6 +17,17 @@ SAMPLE = (
 GUI = '// header\n&&GUITRANS\n"# Cities", "# Städte", \n"Accept", "Akzeptieren", \n'
 
 
+def test_section_name_reads_every_head_shape():
+    assert srtext.section_name("&&CVP 599") == "CVP"
+    assert srtext.section_name("&&GROUPING\t\t0") == "GROUPING"
+    assert srtext.section_name("&&WMDATA, 0") == "WMDATA"
+    assert srtext.section_name("&&HOTKEYS,,,,,,//,&&HOTKEYSTEXT,,,") == "HOTKEYS"
+    assert srtext.section_name("&&cvp 1") == "CVP"
+    assert srtext.section_name("&&END") == "END"
+    assert srtext.section_name("// &&CVP 1") is None
+    assert srtext.section_name("502,") is None
+
+
 def test_roundtrip_is_lossless():
     assert srtext.parse(SAMPLE).serialize() == SAMPLE
     assert srtext.parse(GUI).serialize() == GUI

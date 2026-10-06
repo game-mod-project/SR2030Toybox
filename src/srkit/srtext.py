@@ -76,6 +76,13 @@ class Document:
         return changed
 
 
+def section_name(head: str) -> str | None:
+    """``&&이름`` 으로 시작하는 줄이면 섹션 이름(대문자)을, 아니면 None 을 돌려준다. 종료 표시는 "END" 다."""
+    if not head.startswith("&&"):
+        return None
+    return re.split(r"[,\s]", head[2:], maxsplit=1)[0].upper()
+
+
 def parse(text: str) -> Document:
     doc = Document()
     section: str | None = None
@@ -83,8 +90,8 @@ def parse(text: str) -> Document:
         parts = raw.split('"')
         head = parts[0].strip()
         line = Line(parts)
-        if head.startswith("&&"):
-            name = re.split(r"[,\s]", head[2:], maxsplit=1)[0].upper()
+        name = section_name(head)
+        if name is not None:
             section = None if name == "END" else name
         elif section and not head.startswith(("//", "#")) and len(parts) >= 3 and len(parts) % 2 == 1:
             # '#include "파일", "경로"' 같은 지시문은 섹션 안에 있어도 번역 단위가 아니다
