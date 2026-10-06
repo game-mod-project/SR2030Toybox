@@ -324,20 +324,28 @@ def held(hwnd: int, mods: list[int]):
         yield
         return
     me, target = kernel32.GetCurrentThreadId(), user32.GetWindowThreadProcessId(hwnd, None)
-    user32.AttachThreadInput(me, target, True)
+    if not user32.AttachThreadInput(me, target, True):
+        # 붙지 못한 채 보내면 이 도구의 상태표만 바뀌고 게임에는 맨 키가 간다(CTRL+SHIFT+S 가 S = 보급 지도가 된다)
+        raise SystemExit(f"게임의 입력 스레드에 붙지 못했습니다 (Windows 오류 {ctypes.get_last_error()}) — "
+                         "수정키 없이 맨 키만 전달되므로 조합키를 보내지 않았습니다")
     try:
         state = (ctypes.c_ubyte * 256)()
         user32.GetKeyboardState(state)
         saved = bytes(state)
-        for vk in mods:
-            state[vk] |= 0x80
-            user32.PostMessageW(hwnd, WM_KEYDOWN, vk, 1)
-        user32.SetKeyboardState(state)
-        yield
-        for vk in reversed(mods):
-            user32.PostMessageW(hwnd, WM_KEYUP, vk, 0xC0000001)
-        time.sleep(0.2)             # 게임이 보낸 메시지를 다 읽을 때까지 눌린 상태를 둔다
-        user32.SetKeyboardState((ctypes.c_ubyte * 256).from_buffer_copy(saved))
+        try:
+            for vk in mods:
+                state[vk] |= 0x80
+                user32.PostMessageW(hwnd, WM_KEYDOWN, vk, 1)
+            user32.SetKeyboardState(state)
+            yield
+        finally:
+            # 본문이 예외로 끝나도(Ctrl+C, 시간 초과) 화면 밖 게임에 수정키가 눌린 채 남지 않게 한다
+            for vk in reversed(mods):
+                user32.PostMessageW(hwnd, WM_KEYUP, vk, 0xC0000001)
+            try:
+                time.sleep(0.2)     # 게임이 보낸 메시지를 다 읽을 때까지 눌린 상태를 둔다
+            finally:
+                user32.SetKeyboardState((ctypes.c_ubyte * 256).from_buffer_copy(saved))
     finally:
         user32.AttachThreadInput(me, target, False)
 
