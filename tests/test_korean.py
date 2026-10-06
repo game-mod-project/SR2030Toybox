@@ -1,6 +1,8 @@
 from dataclasses import replace
 from pathlib import Path
 
+import pytest
+
 from srkit import deploy, korean, srtext, srutf8
 
 
@@ -104,6 +106,9 @@ def test_problem_detects_what_breaks_in_game():
     assert korean.problem("Prince Edward Island", long_name, "localtext-regions.csv|REGIONTEXT|2410|1") is None
     # 시나리오 전용 파일의 같은 키는 소개문이다(이름 칸이 비어 있음)
     assert korean.problem("Briefing", long_name, "scen.x.y.csv|REGIONTEXT|801|0") is None
+    # 인코딩이 담지 못하는 문자(한자 일부)
+    assert "聖" in korean.problem("the holy day", "성일(聖日)")
+    assert korean.problem("the holy day", "성일") is None
 
 
 def test_build_text_applies_translation_in_sr_utf8(cfg, game_dir, tmp_path):
@@ -166,3 +171,27 @@ def test_deploy_and_undeploy_restore_game_folder(cfg, tmp_path):
     assert (game / "INI" / "UISettings.csv").read_text() == "orig"
     assert not (game / "Localize").exists()
     assert sorted(p.name for p in game.iterdir()) == ["INI", deploy.GAME_EXE]
+
+
+def test_deploy_refuses_while_the_game_is_running(cfg, tmp_path, monkeypatch):
+    """실행 중에는 훅 DLL 이 잠겨 있다. 텍스트만 바뀌면 DLL 과 짝이 안 맞아 글자가 깨지므로 아무것도 바꾸지 않는다."""
+    game, root = tmp_path / "game", tmp_path / "proj"
+    (game / "INI").mkdir(parents=True)
+    (game / deploy.GAME_EXE).write_bytes(b"exe")
+    (game / "INI" / "UISettings.csv").write_text("orig")
+    (root / "build" / "korean" / "INI").mkdir(parents=True)
+    (root / "build" / "korean" / "INI" / "UISettings.csv").write_text("patched")
+    fake = replace(cfg, root=root, game_dir=game)
+    assert not deploy.game_running(fake)               # 다른 폴더의 게임이 떠 있어도 이 폴더의 게임은 아니다
+
+    monkeypatch.setattr(deploy, "game_running", lambda _cfg: True)
+    assert deploy.deploy(fake, "korean")[0] == "교체(원본 백업): INI/UISettings.csv"     # 미리보기는 된다
+    with pytest.raises(RuntimeError, match="실행 중"):
+        deploy.deploy(fake, "korean", apply=True)
+    assert (game / "INI" / "UISettings.csv").read_text() == "orig"
+    monkeypatch.setattr(deploy, "game_running", lambda _cfg: False)
+    deploy.deploy(fake, "korean", apply=True)
+    monkeypatch.setattr(deploy, "game_running", lambda _cfg: True)
+    with pytest.raises(RuntimeError, match="실행 중"):
+        deploy.undeploy(fake, "korean", apply=True)
+    assert (game / "INI" / "UISettings.csv").read_text() == "patched"

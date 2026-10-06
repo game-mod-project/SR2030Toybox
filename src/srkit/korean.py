@@ -270,6 +270,8 @@ def problem(en: str, ko: str, key: str = "") -> str | None:
         return "줄바꿈·탭 문자 사용 불가"
     if srtext.tokens(en) != srtext.tokens(ko):
         return f"토큰 불일치: 원문 {srtext.tokens(en)} / 번역 {srtext.tokens(ko)}"
+    if bad := srutf8.unsupported(ko):
+        return f"게임에 넣을 수 없는 문자: {' '.join(bad)} (한자 일부는 쓸 수 없습니다 — 한글로 풀어 쓰세요)"
     for pattern, limit, what in BYTE_LIMITS:
         size = len(srutf8.encode(ko))
         if pattern.search(key) and size > limit:
