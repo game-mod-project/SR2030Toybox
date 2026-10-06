@@ -18,6 +18,9 @@ SCAN_DIRS = ("INI", "Maps", "Sandbox", "Scenario", "Campaign", "Tutorials", "Com
 KEY_RE = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)\s*(?::|,|\s|$)")
 KEYED_SHARE = 0.9       # 행의 이만큼이 소문자 이름으로 시작하면 키 섹션으로 본다
 EXAMPLE_MAX = 60
+STRING_RE = re.compile(rb"[\x20-\x7e]{3,}")
+WORD_RE = re.compile(rb"[A-Za-z_][A-Za-z0-9_]{2,31}:?\Z")
+RUN_GAP = 16            # 실행 파일에서 문자열 사이가 이보다 벌어지면 다른 표로 본다
 
 
 def strip_comment(line: str) -> str:
@@ -96,6 +99,14 @@ class Inventory:
     skipped: list[tuple[str, str]] = field(default_factory=list)   # (파일, 이유)
 
 
+@dataclass(frozen=True)
+class Candidate:
+    string: str
+    near: str        # 같은 표에서 가장 가까운 알려진 이름
+    distance: int    # 그 이름과 몇 칸 떨어져 있는가
+    colon: bool      # 실행 파일에 "이름:" 꼴로 들어 있는가 (GMC 형식 키의 표지)
+
+
 def scan_text(rel: str, text: str, sections: dict[str, Section]) -> None:
     current: Section | None = None
     table = Table()
@@ -159,3 +170,39 @@ def scan(game_dir: Path) -> Inventory:
                 continue
             scan_text(rel, decode_cp1252(data.rstrip(b"\0")), inv.sections)
     return inv
+
+
+def exe_candidates(data: bytes, known: set[str]) -> list[Candidate]:
+    """실행 파일의 이름 표에서, 알려진 이름과 같은 표에 있으면서 어느 파일에도 쓰이지 않은 이름을 찾는다.
+
+    컴파일러는 한 소스의 문자열 상수를 이어서 놓는다. 이름 꼴 문자열이 붙어 있는 구간을 표 하나로 보고,
+    알려진 이름(파일에 쓰인 키·섹션)이 둘 이상 든 표의 나머지를 후보로 낸다. 같은 표에 GUI·글꼴 키도
+    섞여 있으므로 후보는 추정일 뿐이다 — distance 가 작고 colon 이 맞는 것부터 본다.
+    """
+    runs: list[list[str]] = []
+    run: list[str] = []
+    prev_end = -RUN_GAP - 1
+    for m in STRING_RE.finditer(data):
+        if WORD_RE.match(m.group()):
+            if run and m.start() - prev_end > RUN_GAP:
+                runs.append(run)
+                run = []
+            run.append(m.group().decode("ascii"))
+        elif run:
+            runs.append(run)
+            run = []
+        prev_end = m.end()
+    if run:
+        runs.append(run)
+    found: dict[str, Candidate] = {}
+    for run in runs:
+        names = [s.rstrip(":") for s in run]
+        hits = [i for i, name in enumerate(names) if name in known]
+        if len(hits) < 2:
+            continue
+        for i, name in enumerate(names):
+            if name in known or name in found:
+                continue
+            j = min(hits, key=lambda h: abs(h - i))
+            found[name] = Candidate(name, names[j], abs(j - i), run[i].endswith(":"))
+    return list(found.values())

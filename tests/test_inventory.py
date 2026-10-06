@@ -169,3 +169,21 @@ def test_scan_walks_game_folders_and_skips_binary_files(tmp_path):
     assert "OOF" in inv.sections and "GUITRANS" not in inv.sections     # 끝의 NUL 하나는 이진이 아니다
     assert inv.sections["OOF"].tables["Maps/World.OOF"].example[3] == "Café"
     assert inv.sections["CVP"].rows["INI/scen.scenario"] == 8           # CRLF 파일도 같게 읽는다
+
+
+def test_exe_candidates_come_from_tables_that_hold_known_names():
+    table = b"\0".join([b"startymd:", b"hiddenkey:", b"initialfunds:", b"otherkey"])
+    lonely = b"\0" * 64 + b"lonely\0"
+    sentence = b"Some sentence here.\0"
+    unrelated = b"\0" * 64 + b"\0".join([b"alpha", b"beta", b"gamma"])
+    found = inventory.exe_candidates(lonely + sentence + table + unrelated, {"startymd", "initialfunds"})
+    assert found == [inventory.Candidate("hiddenkey", "startymd", 1, True),
+                     inventory.Candidate("otherkey", "initialfunds", 1, False)]
+
+
+def test_exe_candidates_need_two_known_names_and_a_tight_table():
+    one_known = b"\0".join([b"startymd:", b"hiddenkey:"])
+    spread = b"startymd:" + b"\0" * 40 + b"hiddenkey:" + b"\0" * 40 + b"initialfunds:"
+    assert inventory.exe_candidates(one_known, {"startymd", "initialfunds"}) == []
+    assert inventory.exe_candidates(spread, {"startymd", "initialfunds"}) == []
+    assert inventory.exe_candidates(b"", {"startymd"}) == []
