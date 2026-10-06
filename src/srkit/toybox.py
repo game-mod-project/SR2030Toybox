@@ -8,7 +8,8 @@ from . import hook
 from .config import Config
 
 DLL_NAME = "srtoybox.dll"
-SOURCES = ["features.cpp", "command.cpp", "runner.cpp", "settings.cpp", "exports.cpp"]
+SOURCES = ["features.cpp", "command.cpp", "runner.cpp", "settings.cpp", "exports.cpp",
+           "log.cpp", "runner_win.cpp", "ui.cpp", "input.cpp", "prologue.cpp", "overlay.cpp"]
 LIBS = ["kernel32.lib", "user32.lib", "gdi32.lib", "imm32.lib", "dwmapi.lib", "d3d11.lib", "dxgi.lib", "d3dcompiler.lib"]
 FLAGS = "/nologo /c /utf-8 /std:c++17 /O2 /MT /EHsc /DNDEBUG /DNOMINMAX"   # NDEBUG: 게임 안에서 assert 로 죽지 않게. NOMINMAX: windows.h 의 min · max 매크로를 끈다
 IMGUI_DIR = "native/third_party/imgui"
@@ -47,7 +48,8 @@ def build(cfg: Config) -> Path:
         f'call "{hook.vcvars()}" >nul || exit /b 1\r\n'
         f'cl {FLAGS} /W3 {include} /Fo"{obj}\\\\" {_quoted(theirs)} || exit /b 1\r\n'          # 외부 소스: 경고를 오류로 치지 않는다
         f'cl {FLAGS} /W4 /WX {include} /Fo"{obj}\\\\" {_quoted(ours)} || exit /b 1\r\n'
-        f'link /NOLOGO /DLL /OUT:"{out}" /IMPLIB:"{obj / "srtoybox.lib"}" {_quoted(objs)} {" ".join(LIBS)} || exit /b 1\r\n',
+        f'link /NOLOGO /DLL /OUT:"{out}" /IMPLIB:"{obj / "srtoybox.lib"}" /MAP:"{obj / "srtoybox.map"}" '   # map: 충돌 주소 → 함수
+        f'{_quoted(objs)} {" ".join(LIBS)} || exit /b 1\r\n',
         encoding="mbcs")
     result = subprocess.run(["cmd", "/d", "/c", str(script)], cwd=obj, capture_output=True)
     if result.returncode != 0 or not out.is_file():

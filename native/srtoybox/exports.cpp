@@ -1,12 +1,18 @@
-// 테스트(tests/test_toybox.py)가 쓰는 C 인터페이스. 글은 UTF-8, 버퍼가 작거나 대상이 없으면 -1.
+// 테스트(tests/test_toybox.py)와 불러오는 쪽(srhook)이 쓰는 C 인터페이스. 글은 UTF-8, 버퍼가 작거나 대상이 없으면 -1.
+#include <windows.h>
+
 #include <cstring>
 #include <string>
 #include <vector>
 
 #include "command.h"
 #include "features.h"
+#include "log.h"
+#include "overlay.h"
+#include "prologue.h"
 #include "runner.h"
 #include "settings.h"
+#include "ui.h"
 
 #define EXPORT extern "C" __declspec(dllexport)
 
@@ -102,7 +108,21 @@ EXPORT int srtoybox_settings_file(char *out, int size)
     return put(format_settings(load_settings()), out, size);
 }
 
+EXPORT int srtoybox_prologue_length(const unsigned char *code, int size, int want)
+{
+    return prologue_length(code, size, want);
+}
+
 EXPORT int srtoybox_hotkey_name(int vk, int mods, char *out, int size)
 {
     return put(hotkey_name(vk, mods), out, size);
+}
+
+
+// srhook 이 이 DLL 을 불러온 뒤 한 번 부른다(불러온 스레드에서). 게임의 창은 기다리지 않는다 — 첫 Present 에서 얻는다.
+EXPORT void WINAPI srtoybox_start(void)
+{
+    log_line("시작 (프로세스 %lu)", GetCurrentProcessId());
+    ui_init();
+    overlay_install();
 }
