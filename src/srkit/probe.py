@@ -8,6 +8,7 @@ from __future__ import annotations
 import re
 from pathlib import Path, PureWindowsPath
 
+from . import deploy
 from .config import Config
 
 NAME_RE = re.compile(r"[A-Za-z0-9_-]+")
@@ -22,6 +23,11 @@ def make(cfg: Config, name: str, rel: str, old: str, new: str, *, after: str | N
     if path.anchor or ".." in path.parts or not path.parts:
         # 절대 경로를 받으면 읽는 곳과 쓰는 곳이 같은 파일이 되어 게임 파일을 덮어쓴다
         raise RuntimeError(f"게임 폴더 기준 상대 경로여야 합니다(예: Maps/W2030.CVP): {rel}")
+    held = deploy.holders(cfg).get(path.as_posix().casefold())
+    if held:
+        # 설치된 모드가 바꾼 파일은 원본이 아니다. 그것을 읽으면 변경이 겹치고, 겹치는 모드는 설치도 거부된다
+        raise RuntimeError(f"설치된 모드 {', '.join(held)} 가 바꾼 파일입니다(원본이 아니다): {rel}. "
+                           f"먼저 srkit undeploy {held[0]} --apply 로 제거하세요")
     src = cfg.game_dir / path
     if not src.is_file():
         raise RuntimeError(f"게임 폴더에 없는 파일입니다: {rel}")
