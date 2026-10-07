@@ -484,7 +484,7 @@ def test_the_fault_warning_stays_in_sight(dll, cfg, tmp_path):
     assert got["scrolled"] is True and got["scrolled_down"] == FAULT_WARNING
 
 
-@pytest.mark.parametrize("env, in_game", [({}, "일시 정지 중에는 게임 화면의 숫자가 그 패널을 누르거나 다시 열 때 바뀝니다."),
+@pytest.mark.parametrize("env, in_game", [({}, "값은 바로 바뀝니다. 게임 화면의 숫자는 그 패널을 누르거나 다시 열 때 따라옵니다."),
                                           ({"SRTOYBOX_DIRECT": "0"}, "단추를 누르면 게임의 설정 창이 잠깐 열렸다 닫힙니다.")],
                          ids=["direct", "typing"])
 def test_the_hint_is_about_the_game_only_while_in_a_game(dll, cfg, tmp_path, env, in_game):

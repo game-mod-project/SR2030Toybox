@@ -6,7 +6,7 @@ from ctypes import wintypes
 import pytest
 
 import toybox_fake_exe
-from toybox_fake_game import INDEX, MULTIPLAYER, OPTIONS, POINTER, TABLE, FakeGame
+from toybox_fake_game import INDEX, MODE, MULTIPLAYER, OPTIONS, POINTER, PROGRAM, TABLE, FakeGame
 from srkit import toybox
 
 # build 21347933 (게임 12.1.1360, PE TimeDateStamp 0x695377b6) 의 주소. docs/11-game-internals.md 의 표와 같다.
@@ -126,6 +126,15 @@ def test_game_state_outside_a_game(lib):
     """메뉴 · 로비: 플레이어 포인터가 비어 있다. 인덱스에 낡은 값이 남아 있어도 진행 중이 아니다."""
     fake = germany()
     fake.menu()
+    assert state(lib, fake) == {"known": "1", "in_game": "0", "multiplayer": "0", "cheats": "0", "player": "0", "regions": ""}
+
+
+def test_game_state_in_a_lobby_that_already_has_a_player_pointer(lib):
+    """캠페인의 로비에서는 메뉴 상태(프로그램 3 / 모드 1)인데 플레이어 포인터가 이미 차 있다(샌드박스의 로비에서는 비어 있다)
+    [확인: 실행, build 21347933]. 포인터만 보고 "진행 중"이라고 하면 안 된다 — 게임의 함수는 그때 불러도 되는지 검사하지 않는다."""
+    fake = germany()
+    fake.poke(PROGRAM, "<i", 3)
+    fake.poke(MODE, "<i", 1)
     assert state(lib, fake) == {"known": "1", "in_game": "0", "multiplayer": "0", "cheats": "0", "player": "0", "regions": ""}
 
 
