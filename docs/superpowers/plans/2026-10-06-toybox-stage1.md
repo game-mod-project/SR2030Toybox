@@ -68,7 +68,7 @@
 ```bash
 cd /e/SR2030ToyBox
 G="/e/SteamLibrary/steamapps/common/Supreme Ruler 2030"
-S="/c/Users/deepe/AppData/Local/Temp/claude/E--SR2030ToyBox/b1c682f5-b97e-4b98-8900-51969e5deaa7/scratchpad"
+S="$TEMP/claude/E--SR2030ToyBox/<세션>/scratchpad"   # 그 세션의 임시 폴더
 gd()  { uv run python scripts/gamedrive.py "$@"; }
 nap() { uv run python -c "import time; time.sleep($1)"; }
 ```

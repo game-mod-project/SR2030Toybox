@@ -88,7 +88,7 @@ id, "문자열", 1.000    ← 쉼표로 나눈 행. 문자열은 큰따옴표
   값: `Language File`(기본 `LOCALEN`), `Player Name`, `Options File`, `SaveGame Path`, `HAPS Directory` 등.
   게임을 한 번도 실행하지 않은 상태에서는 키가 없다(이 PC 가 그렇다).
 - 사용자 폴더: `문서\My Games\Supreme Ruler 2030\Savegame\` — 저장과 로그(`LOG-*.log`). [확인: 실행 중 메모리의 경로]
-  이 PC 의 문서 폴더는 `C:\Users\deepe\OneDrive\문서` 이고, Windows "제어된 폴더 액세스"가 게임의 쓰기를 막고 있다
+  이 PC 의 문서 폴더는 `%USERPROFILE%\OneDrive\문서` 이고, Windows "제어된 폴더 액세스"가 게임의 쓰기를 막고 있다
   ([04 문서](04-korean-localization.md)).
 - 첫 실행 때 설정 안내 화면이 뜨고(`setupoptionscomplete`), 화면·창 모드 설정도 레지스트리에 저장된다(`UseWindowed`, `Gamerezx/y`).
 - Steam Workshop 사용(`STEAMUGC_INTERFACE_VERSION020`), 메인 메뉴에 Workshop 목록(`[MODS] 제목` / `[MAPS] 제목`).
