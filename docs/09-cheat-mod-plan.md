@@ -325,15 +325,15 @@
 각 단계는 따로 설계 → 계획 → 구현 주기를 돈다.
 
 1. **ToyBox 1단계 (끝).** 게임 안 설정 창 + 플레이어 대상 내장 치트 — [10](10-toybox.md).
-2. **ToyBox 2단계.** 플레이어 국가 식별, 지역을 고르는 치트(지지율 · 관계 · 병합), 명령 처리 함수의 직접 호출, 게임 진행 중인지 감지.
+2. **ToyBox 2단계 (끝).** 게임 상태 읽기, 치트의 직접 실행, 나라를 골라 쓰는 치트 — [10](10-toybox.md), 게임의 안쪽은 [11](11-game-internals.md).
 3. **ToyBox 3단계.** GDP 처럼 내장 치트가 없는 값, 값을 유지하는 토글.
 4. **ToyBox 4단계.** 장비 수치 — 설계가 지역끼리 공유되어 "플레이어만"이 가장 어렵다.
-5. **(업데이트가 오면)** `srkit cheats-check` → 달라진 치트를 게임에서 다시 넣어 보고 [07](07-cheats.md) 갱신 → `srkit inventory` 로 형식 변화 확인 → ToyBox 가 뜨는지 확인.
+5. **(업데이트가 오면)** `srkit cheats-check` → `srkit locate`(ToyBox 가 게임을 아직 읽을 수 있는가) → 달라진 치트를 게임에서 다시 넣어 보고 [07](07-cheats.md) 갱신 → `srkit inventory` 로 형식 변화 확인 → ToyBox 가 뜨는지 확인.
 
 ## 미해결 문제
 
 - **"반응 없음"으로 남은 치트 가운데 관찰이 약했던 것**: `revolt` `reviveall` `dipaccept` `moreoffers` `unitdesign` `selloffunits` `nomove` `007` `maxsat` `satellite` `speedlock` `blueskies` `airequest` `noaiinit` `killeveryone` `done` `discovered` `known`(뒤의 셋은 인자 없이 넣었다). 볼 화면을 찾지 못했거나 조건이 나빴다. 쓸 일이 생기면 다시 본다.
-- **치트가 Steam 업적을 막는가.** 화면에 표시는 없었다.
+- **치트가 Steam 업적을 막는가.** 화면에 표시는 없었다. 실행 파일에서는 치트 허용 비트가 서 있으면 업적을 주는 호출 19곳을 건너뛴다 [확인: 정적 — [11](11-game-internals.md)]. 실제로 막히는지는 여전히 해 보지 않았다.
 - **`onedaybuild` · `allunit` · `breakground` 가 AI 에게도 적용되는가.** 위키는 그렇다고 하나 AI 쪽은 보지 않았다.
 - **`trumpme` 의 방향.** 첫 입력은 빼기였다. 국고의 부호를 따르는지 번갈아 뒤집는지는 가리지 못했다.
 - **실행 파일에만 있는 시나리오 설정 키**(`magicresupply`, `nounits`, `ignorecache` 등 — [06](06-data-reference.md))의 실제 동작. 일부는 로비 옵션으로 드러나 있다(전장의 안개, 유닛 없이 시작).
