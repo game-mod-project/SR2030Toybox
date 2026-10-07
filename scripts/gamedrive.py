@@ -9,7 +9,7 @@
     uv run python scripts/gamedrive.py click X Y              # 클라이언트 좌표(캡처 이미지의 원본 픽셀)
     uv run python scripts/gamedrive.py move X Y               # 누르지 않고 마우스만 올린다(툴팁 확인)
     uv run python scripts/gamedrive.py wheel N [X Y]          # 마우스 휠 N칸(음수 = 아래로). 지도 확대·축소
-    uv run python scripts/gamedrive.py key VK [VK...]         # 가상 키 코드(16진/10진) 또는 이름(ESC, ENTER, SPACE)
+    uv run python scripts/gamedrive.py key VK [VK...]         # 가상 키 코드(16진/10진), 이름(ESC, ENTER, SPACE), 글자(S), 조합(CTRL+SHIFT+S)
     uv run python scripts/gamedrive.py show                  # 화면 밖에 둔 게임 창을 화면으로 가져온다(직접 볼 때)
     uv run python scripts/gamedrive.py stop                   # 이 도구가 띄운 게임만 끝낸다 (--all: 전부)
 
@@ -93,6 +93,22 @@ SM_XVIRTUALSCREEN, SM_CXVIRTUALSCREEN = 76, 78
 WM_MOUSEMOVE, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_KEYDOWN, WM_KEYUP, WM_CHAR = 0x200, 0x201, 0x202, 0x100, 0x101, 0x102
 WM_MOUSEWHEEL = 0x020A
 KEYS = {"ESC": 0x1B, "ENTER": 0x0D, "SPACE": 0x20, "TAB": 0x09, "UP": 0x26, "DOWN": 0x28, "LEFT": 0x25, "RIGHT": 0x27}
+MODS = {"CTRL": 0x11, "SHIFT": 0x10, "ALT": 0x12}
+
+
+def parse_key(name: str) -> tuple[list[int], int]:
+    """ "CTRL+SHIFT+S" → ([0x11, 0x10], 0x53). 마지막이 누를 키, 그 앞은 누른 채로 둘 수정키다."""
+    *mods, last = name.upper().split("+")
+    unknown = [m for m in mods if m not in MODS]
+    if unknown:
+        raise SystemExit(f"모르는 수정키: {', '.join(unknown)} (쓸 수 있는 것: {', '.join(MODS)})")
+    if last in KEYS:
+        vk = KEYS[last]
+    elif len(last) == 1 and last.isalpha():
+        vk = ord(last)
+    else:
+        vk = int(last, 0)
+    return [MODS[m] for m in mods], vk
 
 
 class BITMAPINFOHEADER(ctypes.Structure):
@@ -298,7 +314,46 @@ def need_window(cfg: config.Config) -> tuple[int, str, tuple[int, int]]:
     return win
 
 
+@contextmanager
+def held(hwnd: int, mods: list[int]):
+    """게임 스레드의 키 상태표에 수정키를 눌린 것으로 적어 둔다(GetKeyState 가 읽는 값). 실제 키보드는 건드리지 않는다.
+
+    메시지만 보내면 게임이 Ctrl·Shift 를 눌린 것으로 읽지 않는다. 게임이 GetAsyncKeyState 로 읽는다면 이 방법도 안 된다.
+    """
+    if not mods:
+        yield
+        return
+    me, target = kernel32.GetCurrentThreadId(), user32.GetWindowThreadProcessId(hwnd, None)
+    if not user32.AttachThreadInput(me, target, True):
+        # 붙지 못한 채 보내면 이 도구의 상태표만 바뀌고 게임에는 맨 키가 간다(CTRL+SHIFT+S 가 S = 보급 지도가 된다)
+        raise SystemExit(f"게임의 입력 스레드에 붙지 못했습니다 (Windows 오류 {ctypes.get_last_error()}) — "
+                         "수정키 없이 맨 키만 전달되므로 조합키를 보내지 않았습니다")
+    try:
+        state = (ctypes.c_ubyte * 256)()
+        user32.GetKeyboardState(state)
+        saved = bytes(state)
+        try:
+            for vk in mods:
+                state[vk] |= 0x80
+                user32.PostMessageW(hwnd, WM_KEYDOWN, vk, 1)
+            user32.SetKeyboardState(state)
+            yield
+        finally:
+            # 본문이 예외로 끝나도(Ctrl+C, 시간 초과) 화면 밖 게임에 수정키가 눌린 채 남지 않게 한다
+            for vk in reversed(mods):
+                user32.PostMessageW(hwnd, WM_KEYUP, vk, 0xC0000001)
+            try:
+                time.sleep(0.2)     # 게임이 보낸 메시지를 다 읽을 때까지 눌린 상태를 둔다
+            finally:
+                user32.SetKeyboardState((ctypes.c_ubyte * 256).from_buffer_copy(saved))
+    finally:
+        user32.AttachThreadInput(me, target, False)
+
+
 def main(argv: list[str]) -> int:
+    # 파이프로 받으면 표준 출력이 CP949 가 되어 shot 의 "–" 에서 죽는다. srkit 명령처럼 UTF-8 로 고정한다
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     ctypes.windll.shcore.SetProcessDpiAwareness(2)
     cmd, *args = argv or ["status"]
     cfg = config.load()
@@ -383,11 +438,12 @@ def main(argv: list[str]) -> int:
     elif cmd == "key":
         hwnd, _, _ = need_window(cfg)
         for name in args:
-            vk = KEYS.get(name.upper()) or int(name, 0)
-            user32.PostMessageW(hwnd, WM_KEYDOWN, vk, 1)
-            time.sleep(0.05)
-            user32.PostMessageW(hwnd, WM_KEYUP, vk, 0xC0000001)
-            time.sleep(0.1)
+            mods, vk = parse_key(name)
+            with held(hwnd, mods):
+                user32.PostMessageW(hwnd, WM_KEYDOWN, vk, 1)
+                time.sleep(0.05)
+                user32.PostMessageW(hwnd, WM_KEYUP, vk, 0xC0000001)
+                time.sleep(0.1)
         print(f"키 {' '.join(args)}")
     elif cmd == "type":
         # 게임 입력란은 바이트 단위로 글자를 받는다: 한글은 게임 파일과 같은 SR-UTF8 바이트로 보낸다

@@ -2,6 +2,10 @@
 import ctypes
 import os
 import random
+import shutil
+import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 
@@ -127,3 +131,53 @@ def test_wtsapi_exports_are_forwarded(dll):
     for name in ("WTSRegisterSessionNotification", "WTSUnRegisterSessionNotification", "WTSFreeMemory"):
         proxy_fn = ctypes.cast(getattr(dll, name), ctypes.c_void_p).value
         assert proxy_fn == ctypes.cast(getattr(real, name), ctypes.c_void_p).value, name
+
+
+# 훅을 새 프로세스에 불러 놓고, 옆에 둔 srtoybox.dll 이 그 프로세스에 로드됐는지 본다
+LOADER_PROBE = """
+import ctypes, sys, time
+ctypes.WinDLL(sys.argv[1])
+k32 = ctypes.WinDLL("kernel32")
+k32.GetModuleHandleW.restype = ctypes.c_void_p
+k32.GetModuleHandleW.argtypes = [ctypes.c_wchar_p]
+deadline = time.time() + float(sys.argv[2])
+while time.time() < deadline and not k32.GetModuleHandleW("srtoybox.dll"):
+    time.sleep(0.05)
+print("loaded" if k32.GetModuleHandleW("srtoybox.dll") else "absent")
+"""
+
+
+def _probe_loader(cfg, tmp_path, toybox: bytes | None, *, wait: float, env: dict[str, str] | None = None) -> str:
+    built = hook.output(cfg)
+    if not built.is_file():
+        pytest.skip("훅 DLL 미빌드 (srkit hook-build)")
+    copy = tmp_path / "hookcopy.dll"
+    shutil.copyfile(built, copy)
+    if toybox is not None:
+        (tmp_path / "srtoybox.dll").write_bytes(toybox)
+    run = subprocess.run([sys.executable, "-c", LOADER_PROBE, str(copy), str(wait)], capture_output=True, text=True,
+                         env={**os.environ, **(env or {})}, timeout=30)
+    assert run.returncode == 0, run.stderr
+    return run.stdout.strip()
+
+
+def _any_dll() -> bytes:
+    """불러올 수 있는 아무 DLL. 불러오는지만 보므로 내용은 상관없다(srtoybox_start 가 없으면 부르지 않는다)."""
+    return (Path(os.environ["SystemRoot"]) / "System32" / "version.dll").read_bytes()
+
+
+def test_toybox_next_to_the_hook_is_loaded(cfg, tmp_path):
+    assert _probe_loader(cfg, tmp_path, _any_dll(), wait=3) == "loaded"
+
+
+def test_nothing_is_loaded_when_the_file_is_missing(cfg, tmp_path):
+    assert _probe_loader(cfg, tmp_path, None, wait=1) == "absent"
+
+
+def test_toybox_can_be_switched_off(cfg, tmp_path):
+    assert _probe_loader(cfg, tmp_path, _any_dll(), wait=1, env={"SRTOYBOX": "0"}) == "absent"
+
+
+def test_a_broken_toybox_file_is_ignored(cfg, tmp_path):
+    """깨진 파일이어도 프로세스가 죽지 않는다(오류 창을 막는 것은 SetThreadErrorMode — 창이 떴는지는 여기서 볼 수 없다)."""
+    assert _probe_loader(cfg, tmp_path, b"not a dll", wait=1) == "absent"

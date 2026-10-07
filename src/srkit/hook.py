@@ -50,7 +50,7 @@ def status(cfg: Config) -> str:
     return f"{out} (빌드됨)" if out.is_file() else "빌드 안 됨 — srkit hook-build"
 
 
-def _vcvars() -> Path:
+def vcvars() -> Path:
     if not VSWHERE.is_file():
         raise RuntimeError("Visual Studio(Build Tools) 를 찾을 수 없습니다: vswhere.exe 없음")
     found = subprocess.run(
@@ -76,18 +76,18 @@ def build(cfg: Config, *, trace: bool = False) -> Path:
     script = out.parent / "build.cmd"
     script.write_text(
         "@echo off\r\n"
-        f'call "{_vcvars()}" >nul || exit /b 1\r\n'
+        f'call "{vcvars()}" >nul || exit /b 1\r\n'
         f'cl /nologo /utf-8 /O2 /W4 /WX /MT /LD {"/DSRHOOK_TRACE " if trace else ""}'
         f'"{src / "srhook.c"}" "{src / "srdecode.c"}" "{forwards}" '
         f'/Fe:"{out}" /link /NOLOGO kernel32.lib advapi32.lib user32.lib\r\n',
         encoding="mbcs")
     result = subprocess.run(["cmd", "/d", "/c", str(script)], cwd=out.parent, capture_output=True)
     if result.returncode != 0 or not out.is_file():
-        raise RuntimeError(f"훅 DLL 빌드 실패:\n{_text(result.stdout)}\n{_text(result.stderr)}")
+        raise RuntimeError(f"훅 DLL 빌드 실패:\n{output_text(result.stdout)}\n{output_text(result.stderr)}")
     return out
 
 
-def _text(raw: bytes) -> str:
+def output_text(raw: bytes) -> str:
     try:
         return raw.decode("utf-8")
     except UnicodeDecodeError:

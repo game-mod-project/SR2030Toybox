@@ -72,8 +72,12 @@ id, "문자열", 1.000    ← 쉼표로 나눈 행. 문자열은 큰따옴표
 | `0x04` | 캐시 로드 | `&&SAV savfile "W2030"` → `Cache\W2030.SAV`, 공통 이벤트 |
 | 조건 없음 | 항상 | 시나리오 지역 설정 csv, `LocalText-Regions.csv`(현지화) |
 
-- `Cache\*.SAV` 는 원본 데이터로 미리 만든 결과다. **원본 데이터(`DEFAULT.UNIT` 등)를 고치는 모드는 캐시 재생성이 필요하다.** [추정: 단계 구조상]
-- 현지화 텍스트는 캐시 뒤에 읽으므로 언어 추가는 캐시와 무관하다. [추정: 언어가 6개인데 캐시는 시나리오당 1개]
+- `Cache\*.SAV` 는 원본 데이터로 미리 만든 결과다. **원본 데이터(`DEFAULT.UNIT`, `*.CVP`)를 고치는 모드는 캐시를 다시 만들어야 반영된다.**
+  로비의 "모드용 캐시 재생성" 옵션으로 만들고, 그때 게임이 `Cache\` 의 파일을 고쳐 쓴다. 시나리오 파일의 `&&GMC` 와 파일 끝에 덧붙인
+  `&&CVP` · `&&UNITS` 블록은 캐시와 무관하게 반영된다. [확인: 게임 12.1.1360 / build 21347933 — [06](06-data-reference.md)의 "로딩 단계와 캐시"]
+- 언어 추가는 캐시와 무관하다. [확인: 한글화 모드는 `Cache\` 의 파일을 하나도 건드리지 않고 언어를 더했고(설치 내역에 캐시 파일이 없다),
+  그 상태로 시작한 게임의 문구와 지역 이름이 한글로 나온다 — [04](04-korean-localization.md)] 현지화 텍스트를 캐시 **뒤에** 읽는다는 순서는
+  시나리오 파일의 `#ifset` 구조로 본 것이고 따로 실험하지 않았다. [추정] 캐시에 구워져 언어를 바꿔도 안 바뀌는 글이 있는지도 가리지 않았다.
 - `SAMPLE.scenario` 는 같은 이름의 폴더 `SAMPLE\` 를 먼저 뒤진다(시나리오 전용 덮어쓰기). 예: `Scenario\Arena 6A\Localize\LOCALEN\…`.
 
 ## 실행 옵션·설정 위치 [확인: 실행 파일 문자열·코드]
@@ -84,7 +88,7 @@ id, "문자열", 1.000    ← 쉼표로 나눈 행. 문자열은 큰따옴표
   값: `Language File`(기본 `LOCALEN`), `Player Name`, `Options File`, `SaveGame Path`, `HAPS Directory` 등.
   게임을 한 번도 실행하지 않은 상태에서는 키가 없다(이 PC 가 그렇다).
 - 사용자 폴더: `문서\My Games\Supreme Ruler 2030\Savegame\` — 저장과 로그(`LOG-*.log`). [확인: 실행 중 메모리의 경로]
-  이 PC 의 문서 폴더는 `C:\Users\deepe\OneDrive\문서` 이고, Windows "제어된 폴더 액세스"가 게임의 쓰기를 막고 있다
+  이 PC 의 문서 폴더는 `%USERPROFILE%\OneDrive\문서` 이고, Windows "제어된 폴더 액세스"가 게임의 쓰기를 막고 있다
   ([04 문서](04-korean-localization.md)).
 - 첫 실행 때 설정 안내 화면이 뜨고(`setupoptionscomplete`), 화면·창 모드 설정도 레지스트리에 저장된다(`UseWindowed`, `Gamerezx/y`).
 - Steam Workshop 사용(`STEAMUGC_INTERFACE_VERSION020`), 메인 메뉴에 Workshop 목록(`[MODS] 제목` / `[MAPS] 제목`).

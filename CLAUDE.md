@@ -26,6 +26,12 @@ Supreme Ruler 2030 모드 제작 저장소. 개요는 [README.md](README.md), �
   화면 크기 창으로 뜨고 포커스를 계속 가져가므로 백그라운드로 다룰 수 없다 — 꼭 필요할 때만, 짧게 쓴다.
 - 빠진 GUI 문구 찾기: `gamedrive.py start -window -tcheck` → (메인 메뉴가 뜨면) `uv run srkit tcheck-import` → `gamedrive.py stop`.
   게임은 시작할 때 검사 로그를 쓰고 평소처럼 계속 실행된다.
+- 내장 치트는 게임 안에서 `gamedrive.py key CTRL+SHIFT+S` → `type cheat allowcheats` → `key ENTER` → `type cheat <명령>` → `key ENTER` 로 넣는다
+  ([docs/07](docs/07-cheats.md)). `cheat resettutorial`(Steam 업적을 지운다)과 `cheat depopulate`(인구가 1 이 된다)는 넣지 않는다.
+- **게임이 업데이트된 뒤에는** `uv run srkit cheats-check`(내장 치트가 문서와 같은가) → `uv run srkit inventory`(데이터 형식이 바뀌었는가)부터 돌린다
+  ([docs/09](docs/09-cheat-mod-plan.md)의 "게임 업데이트 대비").
+- 데이터 수정이 게임에 반영되는지는 `uv run srkit probe` 로 값 한 곳만 바꾼 시험 모드를 만들어 `srkit deploy` 로 본다. `DEFAULT.UNIT` · `*.CVP` 를 고친 것은
+  로비의 "모드용 캐시 재생성"을 켜야 반영되고, **그때 게임이 `Cache\*.SAV` 를 고쳐 쓴다** — 먼저 원본을 `build/` 에 떠 두고 실험 뒤 되돌린다([docs/06](docs/06-data-reference.md)).
 
 ## 지켜야 할 것
 

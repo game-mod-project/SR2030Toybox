@@ -5,6 +5,7 @@
  * 게임 실행 파일의 임포트 테이블에서 MultiByteToWideChar 를 SR-UTF8 디코더로 바꿔 끼운다.
  * 실행 파일 자체는 건드리지 않는다. 언어가 SRHOOK_LANG 일 때만 동작한다.
  * 그 밖에 검증 도구(scripts/gamedrive.py)용으로 마우스 위치를 대신 알려 주는 기능이 있다(아래 srhook_get_cursor_pos).
+ * 그리고 옆에 srtoybox.dll(게임 안 모드 설정 창)이 있으면 불러온다(아래 toybox_loader).
  */
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -424,6 +425,35 @@ static void patch_import(HMODULE module, const char *dll, const char *name, void
     }
 }
 
+/* ToyBox(게임 안 모드 설정 창)를 불러온다: 이 DLL 옆에 srtoybox.dll 이 있으면 로드하고 srtoybox_start 를 부른다.
+ * DllMain 안에서는 LoadLibrary 를 부르지 않는다(로더 잠금) — DllMain 은 이 스레드만 만든다.
+ * 파일이 없거나 깨져 있으면 아무 일도 없고 한글 디코딩은 그대로 동작한다. */
+static DWORD WINAPI toybox_loader(LPVOID instance)
+{
+    static const wchar_t name[] = L"srtoybox.dll";
+    wchar_t path[MAX_PATH];
+    DWORD n = GetModuleFileNameW((HMODULE)instance, path, MAX_PATH), old = 0;
+    HMODULE toybox;
+    FARPROC start;
+
+    while (n > 0 && path[n - 1] != L'\\' && path[n - 1] != L'/')
+        n--;
+    if (n == 0 || n + sizeof(name) / sizeof(name[0]) > MAX_PATH)
+        return 0;
+    lstrcpyW(path + n, name);
+    if (GetFileAttributesW(path) == INVALID_FILE_ATTRIBUTES)
+        return 0;
+    SetThreadErrorMode(SEM_FAILCRITICALERRORS, &old); /* 깨진 파일이어도 Windows 의 오류 창을 띄우지 않는다 */
+    toybox = LoadLibraryW(path);
+    SetThreadErrorMode(old, NULL);
+    if (toybox == NULL)
+        return 0;
+    start = GetProcAddress(toybox, "srtoybox_start");
+    if (start != NULL)
+        ((void(WINAPI *)(void))start)();
+    return 0;
+}
+
 BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
 {
     (void)reserved;
@@ -435,6 +465,11 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
         patch_import(GetModuleHandleW(NULL), "KERNEL32.dll", "MultiByteToWideChar", (void *)srhook_mbtowc);
         if (GetEnvironmentVariableA("SRHOOK_CURSOR", env, sizeof(env)) == 1 && env[0] == '1' && cursor_shared() != NULL)
             patch_import(GetModuleHandleW(NULL), "USER32.dll", "GetCursorPos", (void *)srhook_get_cursor_pos);
+        if (!(GetEnvironmentVariableA("SRTOYBOX", env, sizeof(env)) == 1 && env[0] == '0')) {
+            HANDLE thread = CreateThread(NULL, 0, toybox_loader, instance, 0, NULL);
+            if (thread != NULL)
+                CloseHandle(thread);
+        }
 #ifdef SRHOOK_TRACE
         trace_start();
 #endif

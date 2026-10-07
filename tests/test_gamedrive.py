@@ -1,5 +1,6 @@
 """scripts/gamedrive.py 가 자기가 띄운 게임만 다루는지 확인한다(게임은 띄우지 않는다)."""
 import importlib.util
+import io
 import json
 import subprocess
 import sys
@@ -43,3 +44,87 @@ def test_only_games_started_by_the_tool_are_touched(gd, cfg, tmp_path, monkeypat
     finally:
         mine.kill()
         theirs.kill()
+
+
+def test_key_names_with_modifiers(gd):
+    assert gd.parse_key("ENTER") == ([], 0x0D)
+    assert gd.parse_key("0x1B") == ([], 0x1B)
+    assert gd.parse_key("27") == ([], 27)                    # 숫자는 지금처럼 가상 키 코드다
+    assert gd.parse_key("s") == ([], 0x53)
+    assert gd.parse_key("CTRL+SHIFT+S") == ([0x11, 0x10], 0x53)
+    assert gd.parse_key("ctrl+enter") == ([0x11], 0x0D)
+    with pytest.raises(SystemExit, match="모르는 수정키"):
+        gd.parse_key("WIN+S")
+
+
+def test_output_is_utf8_even_when_the_pipe_is_cp949(gd, cfg, monkeypatch):
+    """파이프로 받으면 한국어 Windows 의 표준 출력은 CP949 다. shot 이 찍는 "–"(U+2013)는 CP949 에 없어 거기서 죽었다."""
+    pipe = io.TextIOWrapper(io.BytesIO(), encoding="cp949")
+    monkeypatch.setattr(sys, "stdout", pipe)
+    monkeypatch.setattr(gd.config, "load", lambda: cfg)
+    monkeypatch.setattr(gd, "game_pids", lambda: [])            # 떠 있는 게임이 있어도 건드리지 않는다
+    assert gd.main(["status"]) == 0
+    print("밝기 0–255")                                         # shot 의 출력에 들어가는 글자
+    pipe.flush()
+    out = pipe.buffer.getvalue()
+    assert "프로세스: 없음".encode("utf-8") in out
+    assert "밝기 0–255".encode("utf-8") in out
+
+
+class FakeUser32:
+    """held() 와 key 명령이 부르는 user32 함수의 대역. 게임에 닿는 호출을 부른 순서대로 적어 둔다."""
+
+    def __init__(self, attach_ok: bool = True):
+        self.attach_ok, self.calls = attach_ok, []
+
+    def GetWindowThreadProcessId(self, hwnd, pid):
+        return 77
+
+    def AttachThreadInput(self, me, target, on):
+        self.calls.append(("attach" if on else "detach",))
+        return int(self.attach_ok)
+
+    def GetKeyboardState(self, state):
+        return 1
+
+    def SetKeyboardState(self, state):
+        self.calls.append(("state", tuple(vk for vk in (0x10, 0x11, 0x12) if state[vk] & 0x80)))
+        return 1
+
+    def PostMessageW(self, hwnd, msg, wparam, lparam):
+        self.calls.append(({0x100: "down", 0x101: "up"}[msg], wparam))
+        return 1
+
+
+@pytest.fixture
+def fake_user32(gd, monkeypatch):
+    fake = FakeUser32()
+    monkeypatch.setattr(gd, "user32", fake)
+    monkeypatch.setattr(gd.time, "sleep", lambda seconds: None)
+    return fake
+
+
+def test_combo_key_holds_the_modifiers_around_the_body(gd, fake_user32):
+    with gd.held(1, [0x11, 0x10]):
+        fake_user32.calls.append(("body",))
+    assert fake_user32.calls == [("attach",), ("down", 0x11), ("down", 0x10), ("state", (0x10, 0x11)), ("body",),
+                                 ("up", 0x10), ("up", 0x11), ("state", ()), ("detach",)]
+
+
+def test_combo_key_is_not_sent_when_the_game_thread_cannot_be_attached(gd, cfg, fake_user32, monkeypatch, capsys):
+    """붙지 못하면 수정키 없이 맨 키만 전달된다(CTRL+SHIFT+S 가 S = 보급 지도가 된다). 보내지 않고 실패로 끝낸다."""
+    fake_user32.attach_ok = False
+    monkeypatch.setattr(gd.config, "load", lambda: cfg)
+    monkeypatch.setattr(gd, "need_window", lambda cfg: (1, 0, 0))
+    with pytest.raises(SystemExit, match="붙지 못했습니다"):
+        gd.main(["key", "CTRL+SHIFT+S"])
+    assert [call for call in fake_user32.calls if call[0] in ("down", "up", "state")] == []
+    assert "키 CTRL" not in capsys.readouterr().out             # 성공한 것처럼 찍지 않는다
+
+
+def test_modifiers_are_released_even_when_the_body_fails(gd, fake_user32):
+    """본문에서 예외가 나도(Ctrl+C, 시간 초과) 화면 밖 게임에 수정키가 눌린 채 남지 않는다."""
+    with pytest.raises(KeyboardInterrupt):
+        with gd.held(1, [0x11, 0x10]):
+            raise KeyboardInterrupt
+    assert fake_user32.calls[-4:] == [("up", 0x10), ("up", 0x11), ("state", ()), ("detach",)]
