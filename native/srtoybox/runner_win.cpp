@@ -13,6 +13,7 @@ Runner g_runner;
 BYTE g_before[2];       // 넣기 전의 Ctrl · Shift 상태
 std::string g_notice;   // 실행하지 못한 까닭
 bool g_faulted;         // 직접 실행 중 예외가 났다
+bool g_calling;         // 지금 게임의 명령 처리 함수 안이다(그 함수가 메시지를 돌리면 틱이 그 안에서 다시 온다)
 
 // 탈출구: SRTOYBOX_DIRECT=0 이면 주소를 찾아도 명령은 글쇠 방식으로 넣는다.
 bool direct_wanted()
@@ -64,7 +65,8 @@ struct GameSink : Sink {
 };
 
 // 게임의 명령 처리 함수에 바로 넘긴다. 치트 허용이 꺼져 있으면 먼저 켠다 — 게임의 함수로(비트를 직접 세우지 않는다).
-// g_lock 을 쥔 채로 부른다.
+// g_lock 을 쥐지 않은 채로 부른다: 게임의 함수가 안에서 메시지를 돌리거나 화면을 내보내면 ToyBox 의 타이머 · 입력 · 그리기가
+// 이 스레드에서 다시 불리고, 그것들이 g_lock 을 잡는다. g_calling 이 서 있는 동안 틱은 새 명령을 시작하지 않는다.
 void run_direct(const std::string &command, bool cheats_on)
 {
     unsigned long code = 0;
@@ -73,6 +75,8 @@ void run_direct(const std::string &command, bool cheats_on)
         failed = "cheat allowcheats";
     else if (!game_call(command.c_str(), &code))
         failed = command.c_str();
+    std::lock_guard<std::mutex> lock(g_lock);
+    g_calling = false;
     if (failed == nullptr) {
         log_line("직접 실행: %s", command.c_str());
         return;
@@ -94,24 +98,33 @@ bool runner_enqueue(const std::string &command)
 
 void runner_tick(HWND hwnd)
 {
-    std::lock_guard<std::mutex> lock(g_lock);
-    if (g_faulted)
-        return;
-    if (g_runner.starting()) {
-        const GameState game = game_state();
-        if (game.known && (!game.in_game || game.multiplayer)) {
-            g_runner.clear();   // 누른 뒤 게임에서 나갔다 — 메뉴에 글쇠를 넣지 않고, 게임 밖에서 함수를 부르지 않는다
-            g_notice = "게임이 진행 중이 아니어서 실행하지 않았습니다.";
+    std::string command;
+    bool cheats_on = false;
+    {
+        std::lock_guard<std::mutex> lock(g_lock);
+        if (g_faulted || g_calling)
+            return;             // 게임의 함수 안에서 다시 온 틱이면 기다린다 — 그 함수를 겹쳐 부르지 않는다
+        bool direct = false;
+        if (g_runner.starting()) {
+            const GameState game = game_state();
+            if (game.known && (!game.in_game || game.multiplayer)) {
+                g_runner.clear();   // 누른 뒤 게임에서 나갔다 — 메뉴에 글쇠를 넣지 않고, 게임 밖에서 함수를 부르지 않는다
+                g_notice = "게임이 진행 중이 아니어서 실행하지 않았습니다.";
+                return;
+            }
+            g_notice.clear();
+            direct = game.known && direct_wanted() && game_can_call();
+            cheats_on = game.cheats_on;
+        }
+        if (!direct) {
+            GameSink sink(hwnd);
+            g_runner.tick(sink);
             return;
         }
-        g_notice.clear();
-        if (game.known && direct_wanted() && game_can_call()) {
-            run_direct(g_runner.take(), game.cheats_on);
-            return;
-        }
+        command = g_runner.take();
+        g_calling = true;
     }
-    GameSink sink(hwnd);
-    g_runner.tick(sink);
+    run_direct(command, cheats_on);
 }
 
 bool runner_injecting()

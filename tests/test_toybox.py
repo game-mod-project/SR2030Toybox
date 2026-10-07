@@ -431,6 +431,28 @@ def test_srtoybox_direct_0_keeps_the_typing_route(dll, cfg, tmp_path):
     assert got["lines"] == "" and got["text"] == typed_keys("cheat georgew")
 
 
+@pytest.mark.parametrize("mode", ["reenter_timer", "reenter_keyup", "reenter_present"])
+def test_the_games_handler_may_come_back_into_toybox(dll, cfg, tmp_path, mode):
+    """게임의 명령 처리 함수가 일하는 도중에 메시지를 돌리거나 화면을 내보내면 ToyBox 의 타이머 · 입력 · 그리기로 되돌아온다.
+
+    ToyBox 는 그때 아무 잠금도 쥐고 있지 않아야 하고(쥔 채로 되돌아오면 프로세스가 끝난다), 대기열의 다음 명령을
+    그 안에서 시작해서도 안 된다(게임의 함수가 겹쳐 불린다).
+    """
+    got = _fields(_probe(cfg, tmp_path, mode))
+    assert got["inside"] == "ok" and got["deepest"] == "1", got
+    assert got["lines"].replace("_", " ").split("|") == ["cheat allowcheats"] + ["cheat georgew"] * 3
+    assert got["text"] == ""
+    log = (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8")
+    assert "예외" not in log and log.count("직접 실행: cheat georgew") == 3, log
+
+
+def test_toybox_keeps_drawing_after_an_exception_passes_through_present(dll, cfg, tmp_path):
+    """ToyBox 가 부른 다음 함수 안에서 예외가 나고 그것을 위에서 누가 잡으면(게임의 함수를 직접 부르는 ToyBox 자신이 그렇다),
+    "지금 훅 안이다"라는 표시가 남아 그 뒤로 영영 그리지 않게 되면 안 된다."""
+    got = _fields(_probe(cfg, tmp_path, "present_fault"))
+    assert got == {"caught": "1", "drawn": "1"}
+
+
 def test_prologue_length_knows_only_plain_function_heads(dll):
     """다른 훅이 심은 점프를 건너뛰려면 함수의 원래 첫 명령들을 통째로 옮겨야 한다. 옮겨도 되는 명령만 센다."""
     dll.srtoybox_prologue_length.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int]

@@ -30,6 +30,12 @@ Present 를 부르고 창 메시지를 보낸다. Steam 오버레이 같은 다�
     direct_fault     명령 처리 함수가 잘못된 주소에 쓴다 — ToyBox 가 잡고, 그 뒤로는 아무것도 실행하지 않는다
     direct_off       SRTOYBOX_DIRECT=0 — 명령 처리 함수를 부르지 않고 글쇠를 넣는다
     direct_menu      명령 처리 함수를 부를 수 있지만 게임 밖이다 — 부르지 않는다
+명령 처리 함수가 일하는 도중에 ToyBox 로 되돌아올 때 (출력 "inside=<그 안에서 한 일의 결과> deepest=<명령 처리 함수가 겹쳐 불린 깊이> lines=… text=…"):
+    reenter_timer    그 안에서 ToyBox 의 타이머가 다시 온다(게임이 메시지를 돌린다) — 대기열의 다음 명령을 그 안에서 시작하면 안 된다
+    reenter_keyup    그 안에서 실제 키보드의 뗌이 온다
+    reenter_present  그 안에서 화면을 한 번 내보낸다
+ToyBox 가 부른 함수 안에서 난 예외를 위에서 잡을 때 (출력 "caught=<잡았는가> drawn=<그 뒤에 설정 창을 그렸는가>"):
+    present_fault    진짜 Present 자리의 함수가 한 번 죽는다
 
 장치를 만들 수 없으면 "nodevice", 흉내를 만들 수 없으면 "skip <이유>".
 tests/test_toybox.py 가 부른다(pytest 가 직접 모으는 테스트 파일이 아니다).
@@ -47,9 +53,11 @@ from toybox_fake_game import OPTIONS, FakeGame  # noqa: E402  (이 파일과 같
 SLOT_PRESENT, SLOT_RESIZE, SLOT_PRESENT1 = 8, 13, 22
 LIMIT = 50      # 가짜 훅이 이만큼 불리면 맴도는 것이다. 여기서 끊어 프로세스가 죽지 않게 한다
 WM_KEYDOWN, WM_KEYUP, WM_CHAR, WM_MOUSEMOVE, WM_LBUTTONDOWN, WM_LBUTTONUP = 0x100, 0x101, 0x102, 0x200, 0x201, 0x202
+WM_TIMER, WM_MOUSEWHEEL = 0x113, 0x20A
+TIMER_ID = 0x7B0C0001       # ToyBox 의 실행기가 게임 창에 건 타이머(native/srtoybox/input.cpp)
 REAL_KEY = 0x00140001       # 실제 키보드의 메시지처럼 스캔 코드가 든 lParam (ToyBox 의 실행기가 보내는 것은 스캔 코드가 0 이다)
-# 설정 창의 자리: 처음 뜨는 곳 40,60 · 크기 500x460 · 맑은 고딕 18px 기준 (build/verify/toybox/G1-open.png)
-BUTTON = (90, 208)          # 돈 탭의 둘째 줄 "국고 +$10 B" (cheat georgew). 상태 줄이 생기기 전에는 (90, 186)
+# 설정 창의 자리: 처음 뜨는 곳 40,60 · 크기 500x460 (build/verify/toybox/G1-open.png). 단추의 자리는 창에게 묻는다(Game.spot)
+BUTTON = "run:georgew"      # 돈 탭의 둘째 줄 "국고 +$10 B" (cheat georgew)
 TITLE = (300, 70)           # 제목 줄 — 눌러도 아무 일도 없다
 NO_DIRTY_RECTS = (ctypes.c_byte * 40)()     # 0 으로 채운 DXGI_PRESENT_PARAMETERS (Present1 이 읽는 동안 살아 있어야 한다)
 
@@ -320,6 +328,7 @@ class Game:
         self.got: list[tuple[str, int]] = []
         self.proc = WNDPROC(self.receive)
         self.table = None
+        self.toybox = None
 
     def receive(self, hwnd, message, wparam, lparam):
         name = {WM_KEYDOWN: "down", WM_KEYUP: "up", WM_CHAR: "char", WM_LBUTTONDOWN: "press", WM_LBUTTONUP: "release"}.get(message)
@@ -332,8 +341,33 @@ class Game:
         self.table = vtable(self.swap)
         if not load_toybox(self.hook, self.table):
             return False
+        self.toybox = ctypes.WinDLL(str(Path(self.hook).with_name("srtoybox.dll")))
+        self.toybox.srtoybox_ui_report.argtypes = [ctypes.c_char_p, ctypes.c_int]
         self.present(2)
         return True
+
+    def facts(self) -> dict[str, tuple[int, int, bool, str]]:
+        """설정 창이 방금 그린 것들: 이름 → (가운데 x, 가운데 y, 보이는가, 글). 창이 닫혀 있으면 비어 있다."""
+        buf = ctypes.create_string_buffer(1 << 16)
+        self.toybox.srtoybox_ui_report(buf, len(buf))           # 처음 부를 때부터 모으기 시작한다
+        self.present(2)
+        assert self.toybox.srtoybox_ui_report(buf, len(buf)) >= 0
+        out = {}
+        for line in buf.value.decode("utf-8").splitlines():
+            name, x, y, visible, text = line.split("\t", 4)
+            out[name] = (int(x), int(y), visible == "1", text)
+        return out
+
+    def spot(self, name: str) -> tuple[int, int]:
+        """그 항목의 가운데(누를 자리). 창에 보이고 있어야 한다."""
+        x, y, visible, _ = self.facts()[name]
+        assert visible, f"{name} 이 창에 보이지 않는다"
+        return x, y
+
+    def shown(self, name: str) -> str:
+        """그 항목이 창에 보이면 그 글, 아니면(그리지 않았거나 스크롤 밖) "-"."""
+        _, _, visible, text = self.facts().get(name, (0, 0, False, ""))
+        return text if visible else "-"
 
     def present(self, frames: int = 1) -> None:
         for _ in range(frames):
@@ -357,8 +391,10 @@ class Game:
         end = time.time() + seconds
         self.pump(lambda: time.time() >= end, seconds + 1)
 
-    def click(self, point: tuple[int, int]) -> str:
-        """그 자리를 누른다. 게임(가짜 창 프로시저)까지 간 것을 돌려준다: "press+release", 아무것도 안 갔으면 "none"."""
+    def click(self, point: tuple[int, int] | str) -> str:
+        """그 자리(또는 그 이름의 항목)를 누른다. 게임(가짜 창 프로시저)까지 간 것을 돌려준다: "press+release", 아무것도 안 갔으면 "none"."""
+        if isinstance(point, str):
+            point = self.spot(point)
         seen = len(self.got)
         for message, wparam in ((WM_MOUSEMOVE, 0), (WM_LBUTTONDOWN, 1), (WM_LBUTTONUP, 0)):
             user32.SendMessageW(self.hwnd, message, wparam, (point[1] << 16) | point[0])
@@ -475,6 +511,89 @@ def run_direct(hook: str, mode: str) -> int:
     return 0
 
 
+def run_reenter(hook: str, mode: str) -> int:
+    """게임의 명령 처리 함수가 일하는 도중에 ToyBox 로 되돌아온다(메시지를 돌리거나 화면을 내보내는 게임 코드가 그렇다)."""
+    game = start_game(hook)
+    if game is None:
+        return 0
+    lines: list[str] = []
+    inside: list[str] = []
+    box = {"depth": 0, "deepest": 0, "done": False}
+
+    def body(_context, line):
+        lines.append(line.decode())
+        box["depth"] += 1
+        box["deepest"] = max(box["deepest"], box["depth"])
+        try:
+            if line == b"cheat allowcheats":
+                box["fake"].poke(OPTIONS, "<I", box["fake"].peek(OPTIONS, "<I") | 0x40)
+            elif not box["done"]:
+                box["done"] = True
+                if mode == "reenter_timer":       # ToyBox 의 타이머가 그 안에서 다시 온다
+                    user32.SendMessageW(game.hwnd, WM_TIMER, TIMER_ID, 0)
+                elif mode == "reenter_keyup":     # 실제 키보드의 뗌(스캔 코드가 있다)이 그 안에서 온다
+                    user32.SendMessageW(game.hwnd, WM_KEYUP, 0x41, 0xC01E0001)
+                else:                             # 그 안에서 화면을 한 번 내보낸다
+                    PRESENT(game.table[SLOT_PRESENT])(game.swap, 0, 0)
+                inside.append("ok")
+        except OSError as error:
+            inside.append(f"error:{(error.winerror or 0) & 0xFFFFFFFF:#x}")
+        finally:
+            box["depth"] -= 1
+
+    handler = HANDLER(body)
+    fake = box["fake"] = fake_game(hook, ctypes.cast(handler, ctypes.c_void_p).value)
+    fake.play(176)
+    game.hotkey()
+    game.got.clear()
+    game.click(BUTTON)
+    game.click(BUTTON)                                        # 둘째 명령이 대기열에 있는 채로 첫째가 실행된다
+    game.wait(0.5)
+    game.click(BUTTON)                                        # 그 뒤에도 ToyBox 가 살아 있어야 한다
+    game.wait(0.4)
+    print(f"inside={';'.join(inside) or '-'} deepest={box['deepest']} lines=" + "|".join(line.replace(" ", "_") for line in lines)
+          + " text=" + game.text())
+    return 0
+
+
+def crash_once_stub(flag: int, real: int) -> int:
+    """깃발(flag 의 바이트)이 서 있으면 내리고 0 번지에 쓴다. 아니면 real 로 뛴다 — 한 번만 죽는 "진짜 Present"."""
+    code = kernel32.VirtualAlloc(None, 64, 0x3000, 0x40)
+    body = (bytes([0x48, 0xB8]) + flag.to_bytes(8, "little")                 # mov rax, flag
+            + bytes([0x80, 0x38, 0x00, 0x74, 0x0E])                           # cmp byte ptr [rax], 0 / je +14
+            + bytes([0xC6, 0x00, 0x00])                                       # mov byte ptr [rax], 0
+            + bytes([0xC7, 0x04, 0x25, 0, 0, 0, 0, 1, 0, 0, 0])               # mov dword ptr [0], 1
+            + bytes([0x48, 0xB8]) + real.to_bytes(8, "little") + bytes([0xFF, 0xE0]))   # mov rax, real / jmp rax
+    ctypes.memmove(code, body, len(body))
+    return code
+
+
+def run_present_fault(hook: str) -> int:
+    """ToyBox 가 부른 다음 함수(진짜 Present 나 다른 훅) 안에서 예외가 나고 그것을 위에서 누가 잡는다 — 그 뒤에도 ToyBox 는 그려야 한다."""
+    if not Path(os.environ.get("WINDIR", r"C:\Windows"), "Fonts", "malgun.ttf").is_file():
+        print("skip 맑은 고딕이 없다(설정 창의 단추 자리가 달라진다)")
+        return 0
+    game = Game(hook)
+    if game.swap is None:
+        print("nodevice")
+        return 0
+    table = vtable(game.swap)
+    flag = ctypes.c_ubyte(0)
+    write_slot(table, SLOT_PRESENT, crash_once_stub(ctypes.addressof(flag), table[SLOT_PRESENT]))   # ToyBox 가 끼어들 때 그 칸에 있던 것
+    if not game.start():
+        print("skip ToyBox 가 끼어들지 않았다")
+        return 0
+    flag.value = 1
+    caught = 0
+    try:
+        game.present()
+    except OSError:
+        caught = 1
+    game.hotkey()
+    print(f"caught={caught} drawn={int('status' in game.facts())}")
+    return 0
+
+
 def run_input(hook: str) -> int:
     game = start_game(hook)
     if game is None:
@@ -521,6 +640,10 @@ def main() -> int:
         return run_gate(hook, mode)
     if mode.startswith("direct"):
         return run_direct(hook, mode)
+    if mode.startswith("reenter_"):
+        return run_reenter(hook, mode)
+    if mode == "present_fault":
+        return run_present_fault(hook)
     swap, hwnd = make_swap_chain()
     if swap is None:
         print("nodevice")

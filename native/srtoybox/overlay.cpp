@@ -181,9 +181,15 @@ HRESULT STDMETHODCALLTYPE hooked_present(IDXGISwapChain *swap, UINT sync, UINT f
         log_line("다른 훅과 함께 돕니다 (%s)", nested ? "우리를 되불렀다" : *g_present.entry != g_present.ours ? "표의 칸이 바뀌었다"
                                                                                                           : "우리 함수의 머리에 점프가 심겼다");
     }
-    const HRESULT hr = reinterpret_cast<PresentFn>(target)(swap, sync, flags);
-    if (!nested)
-        t_inside = false;
+    // 다음 함수 안에서 예외가 나고 그것을 위에서 누가 잡아도(게임의 함수를 직접 부르는 실행기가 그렇다) 표시는 내린다.
+    // 남아 있으면 이 스레드에서는 그 뒤로 영영 그리지 않는다
+    HRESULT hr = E_FAIL;
+    __try {
+        hr = reinterpret_cast<PresentFn>(target)(swap, sync, flags);
+    } __finally {
+        if (!nested)
+            t_inside = false;
+    }
     return hr;
 }
 
@@ -195,10 +201,24 @@ HRESULT STDMETHODCALLTYPE hooked_present1(IDXGISwapChain1 *swap, UINT sync, UINT
         if (!(flags & DXGI_PRESENT_TEST))
             draw(swap);
     }
-    const HRESULT hr = reinterpret_cast<Present1Fn>(next(g_present1, nested))(swap, sync, flags, params);
-    if (!nested)
-        t_inside = false;
+    HRESULT hr = E_FAIL;
+    __try {
+        hr = reinterpret_cast<Present1Fn>(next(g_present1, nested))(swap, sync, flags, params);
+    } __finally {
+        if (!nested)
+            t_inside = false;
+    }
     return hr;
+}
+
+// 뒷면을 쥐고 있으면 게임이 크기를 바꾸지 못한다 — 놓는다(다음에 그릴 때 다시 잡는다).
+void release_target(IDXGISwapChain *swap)
+{
+    std::lock_guard<std::recursive_mutex> lock(ui_mutex());
+    if (swap == g_swap && g_target != nullptr) {
+        g_target->Release();
+        g_target = nullptr;
+    }
 }
 
 HRESULT STDMETHODCALLTYPE hooked_resize(IDXGISwapChain *swap, UINT count, UINT width, UINT height, DXGI_FORMAT format, UINT flags)
@@ -206,15 +226,15 @@ HRESULT STDMETHODCALLTYPE hooked_resize(IDXGISwapChain *swap, UINT count, UINT w
     const bool nested = t_resizing;
     if (!nested) {
         t_resizing = true;
-        std::lock_guard<std::recursive_mutex> lock(ui_mutex());
-        if (swap == g_swap && g_target != nullptr) {   // 뒷면을 쥐고 있으면 크기를 바꾸지 못한다
-            g_target->Release();
-            g_target = nullptr;
-        }
+        release_target(swap);
     }
-    const HRESULT hr = reinterpret_cast<ResizeFn>(next(g_resize, nested))(swap, count, width, height, format, flags);
-    if (!nested)
-        t_resizing = false;
+    HRESULT hr = E_FAIL;
+    __try {
+        hr = reinterpret_cast<ResizeFn>(next(g_resize, nested))(swap, count, width, height, format, flags);
+    } __finally {
+        if (!nested)
+            t_resizing = false;
+    }
     return hr;
 }
 

@@ -30,6 +30,18 @@ int g_picked;                 // "외교·영토" 탭에서 고른 나라의 번
 char g_filter[64];            // 나라 검색란
 std::vector<int> g_regions;   // 이번 게임에 있는 지역
 double g_regions_at = -10.0;  // 그것을 읽은 때(ImGui 의 시계, 초)
+bool g_reporting;             // 테스트가 그린 것의 목록을 청했다(ui_report). 그 전에는 모으지 않는다
+std::string g_report, g_drawing;   // 지난 프레임의 목록 / 지금 모으는 것
+
+// 방금 그린 항목을 적는다: "이름\t가운데 x\t가운데 y\t보이는가(0/1)\t글". 테스트가 단추의 자리와 글을 여기서 읽는다.
+void note(const std::string &name, const std::string &text)
+{
+    if (!g_reporting)
+        return;
+    const ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
+    g_drawing += name + '\t' + std::to_string(static_cast<int>((a.x + b.x) / 2)) + '\t' + std::to_string(static_cast<int>((a.y + b.y) / 2))
+        + '\t' + (ImGui::IsItemVisible() ? "1" : "0") + '\t' + text + '\n';
+}
 
 void row(const Feature &f, const GameState &game)
 {
@@ -48,9 +60,11 @@ void row(const Feature &f, const GameState &game)
     const int region = f.target == Target::Player ? game.player : f.target == Target::Picked ? g_picked : 0;
     const bool missing = f.target != Target::None && region <= 0;   // 플레이어를 모르거나 나라를 고르지 않았다
     const bool asking = f.confirm && g_confirm == f.id;
-    const std::string label = std::string(asking ? "한 번 더 누르면 실행합니다" : f.label) + "###run";
+    const std::string label = asking ? "한 번 더 누르면 실행합니다" : f.label;
     ImGui::BeginDisabled(missing);
-    if (ImGui::Button(label.c_str())) {
+    const bool pressed = ImGui::Button((label + "###run").c_str());
+    note(std::string("run:") + f.id, label);
+    if (pressed) {
         if (f.confirm && !asking) {
             g_confirm = f.id;
         } else {
@@ -76,16 +90,22 @@ void picker(const GameState &game)
         g_picked = view.picked;
         g_confirm.clear();
     }
+    const std::string chosen = g_picked != 0 ? "고른 나라: " + region_label(g_picked) + " (" + std::to_string(g_picked) + ")"
+                                             : std::string("고른 나라: 없음 — 아래 목록에서 고르십시오");
     if (g_picked != 0)
-        ImGui::Text("고른 나라: %s (%d)", region_label(g_picked).c_str(), g_picked);
+        ImGui::TextUnformatted(chosen.c_str());
     else
-        ImGui::TextDisabled("고른 나라: 없음 — 아래 목록에서 고르십시오");
+        ImGui::TextDisabled("%s", chosen.c_str());
+    note("picked", chosen);
     ImGui::SetNextItemWidth(220.0f);
     ImGui::InputTextWithHint("##search", "검색 (이름 · 번호)", g_filter, sizeof(g_filter));
+    note("search", g_filter);
     if (ImGui::BeginListBox("##regions", ImVec2(-FLT_MIN, 6.5f * ImGui::GetTextLineHeightWithSpacing()))) {
         for (int number : view.rows) {
             const std::string label = region_label(number) + " (" + std::to_string(number) + ")";
-            if (ImGui::Selectable(label.c_str(), number == g_picked)) {
+            const bool chose = ImGui::Selectable(label.c_str(), number == g_picked);
+            note("row:" + std::to_string(number), label);
+            if (chose) {
                 g_picked = number;
                 g_confirm.clear();   // 한 번 더 누르기를 기다리던 것은 다른 나라에 대한 것이었다
             }
@@ -109,14 +129,15 @@ void settings_tab()
 // 상태 줄: ToyBox 가 게임을 어떻게 보고 있는지 한 줄로.
 void status_line(const GameState &game)
 {
+    const std::string text = !game.known ? "게임 상태를 읽을 수 없습니다 — 글쇠 방식으로 동작합니다"
+        : game.multiplayer ? "멀티플레이에서는 동작하지 않습니다"
+        : !game.in_game ? "게임을 진행 중이 아닙니다 — 단추가 꺼져 있습니다"
+        : "플레이 중: " + region_label(game.player) + " (" + std::to_string(game.player) + ")";
     if (!game.known)
-        ImGui::TextDisabled("게임 상태를 읽을 수 없습니다 — 글쇠 방식으로 동작합니다");
-    else if (game.multiplayer)
-        ImGui::TextUnformatted("멀티플레이에서는 동작하지 않습니다");
-    else if (!game.in_game)
-        ImGui::TextUnformatted("게임을 진행 중이 아닙니다 — 단추가 꺼져 있습니다");
+        ImGui::TextDisabled("%s", text.c_str());
     else
-        ImGui::Text("플레이 중: %s (%d)", region_label(game.player).c_str(), game.player);
+        ImGui::TextUnformatted(text.c_str());
+    note("status", text);
 }
 
 }  // namespace
@@ -139,6 +160,7 @@ void ui_toggle()
     g_visible = !g_visible;
     g_capturing = false;
     g_confirm.clear();
+    g_report.clear();   // 닫힌 창의 목록을 남겨 두지 않는다
 }
 
 bool ui_is_hotkey(int vk, int mods)
@@ -176,6 +198,7 @@ void ui_capture_key(int vk, int mods)
 void ui_draw()
 {
     Lock lock(ui_mutex());
+    g_drawing.clear();
     ImGui::SetNextWindowPos(ImVec2(40.0f, 60.0f), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(500.0f, 460.0f), ImGuiCond_FirstUseEver);
     if (ImGui::Begin("SR2030 ToyBox", nullptr, ImGuiWindowFlags_NoCollapse)) {
@@ -189,7 +212,9 @@ void ui_draw()
                 if (tab != nullptr && strcmp(tab, FEATURES[i].tab) == 0)
                     continue;   // 이 탭은 앞에서 그렸다(같은 탭의 기능은 표에서 이어져 있다)
                 tab = FEATURES[i].tab;
-                if (ImGui::BeginTabItem(tab)) {
+                const bool open = ImGui::BeginTabItem(tab);
+                note(std::string("tab:") + tab, tab);
+                if (open) {
                     const bool diplomacy = strcmp(tab, DIPLOMACY_TAB) == 0;
                     if (diplomacy && !game.known) {
                         ImGui::TextWrapped("게임 상태를 읽을 수 있을 때만 씁니다.");   // 이번 게임의 나라 목록을 모른다
@@ -217,13 +242,17 @@ void ui_draw()
             ImGui::Text("넣는 중: %s (남은 것 %d)", last.c_str(), pending);
         else if (!last.empty())
             ImGui::Text("마지막으로 넣은 것: %s", last.c_str());
-        if (!g_notice.empty())
+        if (!g_notice.empty()) {
             ImGui::TextUnformatted(g_notice.c_str());
+            note("notice", g_notice);
+        }
         const std::string trouble = runner_notice();
         if (faulted)
             ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", trouble.c_str());
         else if (!trouble.empty())
             ImGui::TextUnformatted(trouble.c_str());
+        if (faulted || !trouble.empty())
+            note(faulted ? "fault" : "trouble", trouble);
         if (game.known && runner_direct())   // 직접 실행에서는 게임의 설정 창이 뜨지 않는다. 대신 열려 있던 패널이 스스로 다시 그려지지 않는다 [확인: 게임]
             ImGui::TextWrapped("일시 정지 중에는 게임 화면의 숫자가 그 패널을 누르거나 다시 열 때 바뀝니다.");
         else
@@ -237,4 +266,12 @@ void ui_draw()
     g_rect[2] = pos.x + size.x;
     g_rect[3] = pos.y + size.y;
     ImGui::End();
+    g_report = g_drawing;
+}
+
+std::string ui_report()
+{
+    Lock lock(ui_mutex());
+    g_reporting = true;
+    return g_report;
 }
