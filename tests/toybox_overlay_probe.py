@@ -36,11 +36,16 @@ Present 를 부르고 창 메시지를 보낸다. Steam 오버레이 같은 다�
     reenter_present  그 안에서 화면을 한 번 내보낸다
 ToyBox 가 부른 함수 안에서 난 예외를 위에서 잡을 때 (출력 "caught=<잡았는가> drawn=<그 뒤에 설정 창을 그렸는가>"):
     present_fault    진짜 Present 자리의 함수가 한 번 죽는다
+설정 창에 보이는 글 (출력은 JSON 한 줄. 보이지 않는 글은 "-"):
+    confirm          "외교·영토" 탭에서 폴란드를 고르고 스크롤을 내려 맨 아래의 "이 나라로 플레이"를 두 번 누른다
+    confirm_fault    같은 탭에서 직접 실행이 죽는다 — 경고가 스크롤을 내려도 보인다
+    hints            메뉴에 있을 때와 게임 안에 있을 때의 바닥 안내
 
 장치를 만들 수 없으면 "nodevice", 흉내를 만들 수 없으면 "skip <이유>".
 tests/test_toybox.py 가 부른다(pytest 가 직접 모으는 테스트 파일이 아니다).
 """
 import ctypes
+import json
 import os
 import sys
 import time
@@ -511,6 +516,80 @@ def run_direct(hook: str, mode: str) -> int:
     return 0
 
 
+DIPLOMACY = "tab:외교·영토"
+LAST_BUTTON = "run:becomeregion"   # 그 탭의 맨 아래 단추 "이 나라로 플레이" — 되돌릴 수 없는 것이라 두 번 눌러야 한다
+
+
+def recording_game(hook: str, crash: bool = False):
+    """가짜 게임(폴란드 · 덴마크 · 독일, 메뉴 상태)과 명령 처리 함수가 받은 줄들. crash 면 그 함수가 잘못된 주소에 쓴다."""
+    game = start_game(hook)
+    if game is None:
+        return None
+    lines: list[str] = []
+    box: dict[str, FakeGame] = {}
+
+    def body(_context, line):
+        lines.append(line.decode())
+        if line == b"cheat allowcheats":
+            box["fake"].poke(OPTIONS, "<I", box["fake"].peek(OPTIONS, "<I") | 0x40)
+
+    game.handler = HANDLER(body)                              # 게임이 살아 있는 동안 붙들어 둔다
+    fake = box["fake"] = fake_game(hook, crash_stub() if crash else ctypes.cast(game.handler, ctypes.c_void_p).value)
+    fake.region(150, 1201, alive=3)                           # 덴마크
+    return game, fake, lines
+
+
+def scroll_to(game: Game, name: str) -> bool:
+    """마우스를 설정 창 위에 두고, 그 항목이 보일 때까지 휠을 아래로 굴린다."""
+    for _ in range(12):
+        if game.facts()[name][2]:
+            return True
+        user32.SendMessageW(game.hwnd, WM_MOUSEMOVE, 0, (400 << 16) | 400)
+        user32.SendMessageW(game.hwnd, WM_MOUSEWHEEL, (-120 & 0xFFFF) << 16, 0)
+        game.present(2)
+    return game.facts()[name][2]
+
+
+def run_window(hook: str, mode: str) -> int:
+    """설정 창에 보이는 글과 그 전이. 출력은 JSON 한 줄."""
+    made = recording_game(hook, crash=mode == "confirm_fault")
+    if made is None:
+        return 0
+    game, fake, lines = made
+    out: dict[str, object] = {}
+    if mode == "hints":
+        game.hotkey()
+        out["menu"] = game.shown("hint")
+        fake.play(176)
+        out["game"] = game.shown("hint")
+        print(json.dumps(out, ensure_ascii=False))
+        return 0
+    fake.play(176)
+    game.hotkey()
+    game.click(DIPLOMACY)
+    game.wait(1.2)                                            # 나라 목록은 1초마다 읽는다
+    game.click("row:1106")
+    if mode == "confirm":
+        out["hidden"] = game.shown(LAST_BUTTON)               # 맨 아래 단추는 처음에는 가려 있다
+        out["scrolled"] = scroll_to(game, LAST_BUTTON)
+        game.click(LAST_BUTTON)                               # 처음 누르면 묻기만 한다
+        game.wait(0.3)
+        out["after_first"] = list(lines)
+        out["armed"] = game.shown(LAST_BUTTON)
+        out["status"], out["picked"] = game.shown("status"), game.shown("picked")   # 스크롤을 내린 채로도 보이는가
+        game.click(LAST_BUTTON)
+        game.wait(0.4)
+    elif mode == "confirm_fault":
+        game.click("run:love")
+        game.wait(0.4)
+        out["at_top"] = game.shown("fault")
+        out["scrolled"] = scroll_to(game, LAST_BUTTON)
+        out["scrolled_down"] = game.shown("fault")
+    out["lines"] = lines
+    print(json.dumps(out, ensure_ascii=False))
+    return 0
+
+
 def run_reenter(hook: str, mode: str) -> int:
     """게임의 명령 처리 함수가 일하는 도중에 ToyBox 로 되돌아온다(메시지를 돌리거나 화면을 내보내는 게임 코드가 그렇다)."""
     game = start_game(hook)
@@ -642,6 +721,8 @@ def main() -> int:
         return run_direct(hook, mode)
     if mode.startswith("reenter_"):
         return run_reenter(hook, mode)
+    if mode in ("confirm", "confirm_fault", "hints"):
+        return run_window(hook, mode)
     if mode == "present_fault":
         return run_present_fault(hook)
     swap, hwnd = make_swap_chain()

@@ -1,5 +1,6 @@
 """ToyBox DLL(native/srtoybox)을 직접 불러 화면 없는 부분을 확인한다(게임은 띄우지 않는다)."""
 import ctypes
+import json
 import os
 import re
 import shutil
@@ -451,6 +452,36 @@ def test_toybox_keeps_drawing_after_an_exception_passes_through_present(dll, cfg
     "지금 훅 안이다"라는 표시가 남아 그 뒤로 영영 그리지 않게 되면 안 된다."""
     got = _fields(_probe(cfg, tmp_path, "present_fault"))
     assert got == {"caught": "1", "drawn": "1"}
+
+
+FAULT_WARNING = "직접 실행 중 오류가 났습니다. 저장하지 말고 게임을 다시 시작하십시오."
+
+
+def test_an_irreversible_button_says_what_and_to_whom_before_the_second_press(dll, cfg, tmp_path):
+    """되돌릴 수 없는 단추는 두 번 눌러야 실행된다. 둘째 누름을 기다리는 단추에는 무엇을 어느 나라에 하는지가 적혀 있고,
+    지금 플레이하는 나라와 고른 나라는 탭의 내용을 아래로 내려도 창에 남아 있다."""
+    got = json.loads(_probe(cfg, tmp_path, "confirm"))
+    assert got["hidden"] == "-" and got["scrolled"] is True     # 그 단추는 탭의 내용을 아래로 내려야 보인다
+    assert got["after_first"] == []                             # 처음 누름은 묻기만 한다
+    assert got["armed"] == "이 나라로 플레이: 폴란드 (1106) — 한 번 더 누르면 실행합니다"
+    assert got["status"] == "플레이 중: 독일 (1499)" and got["picked"] == "고른 나라: 폴란드 (1106)"
+    assert got["lines"] == ["cheat allowcheats", "cheat becomeregion 1106"]
+
+
+def test_the_fault_warning_stays_in_sight(dll, cfg, tmp_path):
+    """직접 실행이 죽은 뒤의 경고("저장하지 말고…")는 어느 탭의 어디를 보고 있어도 보여야 한다."""
+    got = json.loads(_probe(cfg, tmp_path, "confirm_fault"))
+    assert got["at_top"] == FAULT_WARNING
+    assert got["scrolled"] is True and got["scrolled_down"] == FAULT_WARNING
+
+
+@pytest.mark.parametrize("env, in_game", [({}, "일시 정지 중에는 게임 화면의 숫자가 그 패널을 누르거나 다시 열 때 바뀝니다."),
+                                          ({"SRTOYBOX_DIRECT": "0"}, "단추를 누르면 게임의 설정 창이 잠깐 열렸다 닫힙니다.")],
+                         ids=["direct", "typing"])
+def test_the_hint_is_about_the_game_only_while_in_a_game(dll, cfg, tmp_path, env, in_game):
+    """바닥의 안내는 게임 화면에 무슨 일이 생기는지를 말한다. 메뉴에서는 단추가 꺼져 있으므로 띄우지 않는다."""
+    got = json.loads(_probe(cfg, tmp_path, "hints", env=env))
+    assert got == {"menu": "-", "game": in_game}
 
 
 def test_prologue_length_knows_only_plain_function_heads(dll):
