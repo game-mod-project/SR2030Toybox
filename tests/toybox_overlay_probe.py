@@ -191,10 +191,13 @@ def load_toybox(hook: str, table, slot: int = SLOT_PRESENT) -> bool:
 
 
 def set_mods(on: bool) -> None:
+    """이 스레드의 키 상태표에 Ctrl · Shift 를 눌린 것(또는 뗀 것)으로 적는다. Alt 는 늘 뗀 것으로 적는다 —
+    테스트가 도는 동안 사용자가 실제 키보드의 Alt 를 누르고 있으면 상태표에 그것이 남아, 단축키가 Ctrl+Shift+Alt+T 로 읽힌다."""
     state = (ctypes.c_ubyte * 256)()
     user32.GetKeyboardState(state)
     for vk in (0x11, 0x10):
         state[vk] = (state[vk] & 0x7F) | (0x80 if on else 0)
+    state[0x12] &= 0x7F
     user32.SetKeyboardState(state)
 
 
