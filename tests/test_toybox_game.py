@@ -1,6 +1,7 @@
 """ToyBox 2단계: 주소 찾기 · 게임 상태 읽기 · 나라 이름표 (native/srtoybox 의 locate · game · regions)."""
 import ctypes
 import struct
+from ctypes import wintypes
 
 import pytest
 
@@ -60,6 +61,29 @@ def test_locate_refuses_an_image_that_does_not_add_up(lib, flaw, reason):
 def test_locate_survives_garbage(lib, image):
     found, why = find(lib, image)
     assert found is None and why
+
+
+def test_locate_survives_an_image_with_a_page_it_cannot_read(lib):
+    """올라와 있는 실행 파일에 읽을 수 없는 쪽이 있어도(보호된 구역) 죽지 않고 "못 찾았다"로 친다.
+
+    ToyBox 는 게임이 뜰 때 이 함수를 한 번 부른다 — 여기서 예외가 새면 게임이 뜨다가 죽는다.
+    """
+    image = toybox_fake_exe.build()
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.VirtualAlloc.restype = ctypes.c_void_p
+    kernel32.VirtualAlloc.argtypes = [ctypes.c_void_p, ctypes.c_size_t, wintypes.DWORD, wintypes.DWORD]
+    kernel32.VirtualProtect.argtypes = [ctypes.c_void_p, ctypes.c_size_t, wintypes.DWORD, ctypes.POINTER(wintypes.DWORD)]
+    kernel32.VirtualFree.argtypes = [ctypes.c_void_p, ctypes.c_size_t, wintypes.DWORD]
+    memory = kernel32.VirtualAlloc(None, len(image), 0x3000, 0x04)            # 예약+확정, 읽기 · 쓰기
+    ctypes.memmove(memory, image, len(image))
+    old = wintypes.DWORD()
+    assert kernel32.VirtualProtect(memory + toybox_fake_exe.TEXT, 0x1000, 0x01, ctypes.byref(old))   # 코드의 첫 쪽: PAGE_NOACCESS
+    found, error = toybox.GameAddresses(), ctypes.create_string_buffer(256)
+    try:
+        result = lib.srtoybox_locate(ctypes.c_char_p(memory), len(image), ctypes.byref(found), error, len(error))
+    finally:
+        kernel32.VirtualFree(memory, 0, 0x8000)
+    assert result == -1 and "읽을 수 없는 곳" in error.value.decode("utf-8")
 
 
 def test_locate_on_the_installed_game(lib, cfg, game_dir):
