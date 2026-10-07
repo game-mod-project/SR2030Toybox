@@ -1,11 +1,12 @@
 """ToyBox 2단계: 주소 찾기 · 게임 상태 읽기 · 나라 이름표 (native/srtoybox 의 locate · game · regions)."""
 import ctypes
 import struct
+from ctypes import wintypes
 
 import pytest
 
 import toybox_fake_exe
-from toybox_fake_game import INDEX, MULTIPLAYER, OPTIONS, POINTER, TABLE, FakeGame
+from toybox_fake_game import INDEX, MODE, MULTIPLAYER, OPTIONS, POINTER, PROGRAM, TABLE, FakeGame
 from srkit import toybox
 
 # build 21347933 (게임 12.1.1360, PE TimeDateStamp 0x695377b6) 의 주소. docs/11-game-internals.md 의 표와 같다.
@@ -62,6 +63,29 @@ def test_locate_survives_garbage(lib, image):
     assert found is None and why
 
 
+def test_locate_survives_an_image_with_a_page_it_cannot_read(lib):
+    """올라와 있는 실행 파일에 읽을 수 없는 쪽이 있어도(보호된 구역) 죽지 않고 "못 찾았다"로 친다.
+
+    ToyBox 는 게임이 뜰 때 이 함수를 한 번 부른다 — 여기서 예외가 새면 게임이 뜨다가 죽는다.
+    """
+    image = toybox_fake_exe.build()
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.VirtualAlloc.restype = ctypes.c_void_p
+    kernel32.VirtualAlloc.argtypes = [ctypes.c_void_p, ctypes.c_size_t, wintypes.DWORD, wintypes.DWORD]
+    kernel32.VirtualProtect.argtypes = [ctypes.c_void_p, ctypes.c_size_t, wintypes.DWORD, ctypes.POINTER(wintypes.DWORD)]
+    kernel32.VirtualFree.argtypes = [ctypes.c_void_p, ctypes.c_size_t, wintypes.DWORD]
+    memory = kernel32.VirtualAlloc(None, len(image), 0x3000, 0x04)            # 예약+확정, 읽기 · 쓰기
+    ctypes.memmove(memory, image, len(image))
+    old = wintypes.DWORD()
+    assert kernel32.VirtualProtect(memory + toybox_fake_exe.TEXT, 0x1000, 0x01, ctypes.byref(old))   # 코드의 첫 쪽: PAGE_NOACCESS
+    found, error = toybox.GameAddresses(), ctypes.create_string_buffer(256)
+    try:
+        result = lib.srtoybox_locate(ctypes.c_char_p(memory), len(image), ctypes.byref(found), error, len(error))
+    finally:
+        kernel32.VirtualFree(memory, 0, 0x8000)
+    assert result == -1 and "읽을 수 없는 곳" in error.value.decode("utf-8")
+
+
 def test_locate_on_the_installed_game(lib, cfg, game_dir):
     """설치된 게임의 실행 파일에서. 아는 빌드(21347933)면 주소까지 대조하고, 다른 빌드면 찾았는지 못 찾았는지만 적는다."""
     exe = (game_dir / "SupremeRuler2030.exe").read_bytes()
@@ -102,6 +126,15 @@ def test_game_state_outside_a_game(lib):
     """메뉴 · 로비: 플레이어 포인터가 비어 있다. 인덱스에 낡은 값이 남아 있어도 진행 중이 아니다."""
     fake = germany()
     fake.menu()
+    assert state(lib, fake) == {"known": "1", "in_game": "0", "multiplayer": "0", "cheats": "0", "player": "0", "regions": ""}
+
+
+def test_game_state_in_a_lobby_that_already_has_a_player_pointer(lib):
+    """캠페인의 로비에서는 메뉴 상태(프로그램 3 / 모드 1)인데 플레이어 포인터가 이미 차 있다(샌드박스의 로비에서는 비어 있다)
+    [확인: 실행, build 21347933]. 포인터만 보고 "진행 중"이라고 하면 안 된다 — 게임의 함수는 그때 불러도 되는지 검사하지 않는다."""
+    fake = germany()
+    fake.poke(PROGRAM, "<i", 3)
+    fake.poke(MODE, "<i", 1)
     assert state(lib, fake) == {"known": "1", "in_game": "0", "multiplayer": "0", "cheats": "0", "player": "0", "regions": ""}
 
 

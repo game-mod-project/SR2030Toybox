@@ -174,6 +174,12 @@ EXPORT unsigned srtoybox_dbcs(unsigned char lead, unsigned char trail, unsigned 
     return dbcs_combine(lead, trail, codepage);
 }
 
+// 테스트: 설정 창이 지난 프레임에 그린 것들(ui.h 의 ui_report).
+EXPORT int srtoybox_ui_report(char *out, int size)
+{
+    return put(ui_report(), out, size);
+}
+
 EXPORT int srtoybox_hotkey_name(int vk, int mods, char *out, int size)
 {
     return put(hotkey_name(vk, mods), out, size);

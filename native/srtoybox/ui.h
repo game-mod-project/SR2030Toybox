@@ -1,6 +1,8 @@
 // 모드 설정 창의 상태와 내용. 그리기(ui_draw)는 ImGui 프레임 안에서, 나머지는 어느 스레드에서 불러도 된다.
 #pragma once
 
+#include <string>
+
 void ui_init();                           // 설정을 읽는다
 bool ui_visible();
 void ui_toggle();
@@ -9,3 +11,6 @@ bool ui_hit(int x, int y);                // 이 점(그리는 좌표 — overla
 bool ui_capturing_hotkey();               // "단축키 바꾸기"를 누르고 새 조합을 기다리는 중인가
 void ui_capture_key(int vk, int mods);    // 그때 눌린 키. 수정키만이면 더 기다리고, ESC 만이면 취소한다
 void ui_draw();
+// 테스트: 지난 프레임에 그린 것들. 한 줄에 "이름\t가운데 x\t가운데 y\t보이는가(0/1)\t글" (좌표는 그리는 좌표).
+// 처음 부를 때부터 모으기 시작한다 — 그 뒤에 그린 프레임부터 채워진다.
+std::string ui_report();

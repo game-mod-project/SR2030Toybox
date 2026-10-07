@@ -22,6 +22,17 @@ void *g_context;    // 그 첫 인자(게임이 넘기는 것과 같은 전역 �
 
 typedef void (*Handler)(void *context, const char *line);
 
+// 탈출구: SRTOYBOX_READ=0 이면 게임을 읽지 않는다 — 1단계처럼 단추가 늘 켜져 있고 글쇠 방식으로 동작한다.
+// ToyBox 가 게임 안인데도 "게임 밖"으로 잘못 알아(다른 빌드, 보지 못한 화면) 단추가 꺼진 채 풀리지 않을 때 쓴다.
+bool reading_wanted()
+{
+    static const bool wanted = [] {
+        char value[8];
+        return !(GetEnvironmentVariableA("SRTOYBOX_READ", value, sizeof(value)) == 1 && value[0] == '0');
+    }();
+    return wanted;
+}
+
 // 구조적 예외(잘못된 주소 접근 등)를 잡는다. __try 가 든 함수에는 소멸자가 있는 지역 변수를 둘 수 없어 따로 뗐다.
 bool guarded_call(Handler handler, void *context, const char *line, unsigned long *code)
 {
@@ -87,7 +98,7 @@ bool located(const uint8_t **base, GameAddresses *at)
     std::lock_guard<std::mutex> lock(g_lock);
     *base = g_base;
     *at = g_at;
-    return g_located;
+    return g_located && reading_wanted();
 }
 
 }  // namespace
@@ -143,6 +154,10 @@ std::vector<int> read_regions(const uint8_t *base, const GameAddresses &at)
 
 void game_init()
 {
+    if (!reading_wanted()) {
+        log_line("게임 상태를 읽지 않습니다 (SRTOYBOX_READ=0) — 글쇠 방식");
+        return;
+    }
     const uint8_t *base = reinterpret_cast<const uint8_t *>(GetModuleHandleW(nullptr));
     const IMAGE_DOS_HEADER *dos = reinterpret_cast<const IMAGE_DOS_HEADER *>(base);
     const IMAGE_NT_HEADERS64 *nt = reinterpret_cast<const IMAGE_NT_HEADERS64 *>(base + dos->e_lfanew);
@@ -201,7 +216,7 @@ void game_set_for_test(const uint8_t *base, const GameAddresses *at, void *handl
 bool game_can_call()
 {
     std::lock_guard<std::mutex> lock(g_lock);
-    return g_located && g_handler != nullptr;
+    return g_located && g_handler != nullptr && reading_wanted();
 }
 
 bool game_call(const char *line, unsigned long *code)

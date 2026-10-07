@@ -30,26 +30,47 @@ Present 를 부르고 창 메시지를 보낸다. Steam 오버레이 같은 다�
     direct_fault     명령 처리 함수가 잘못된 주소에 쓴다 — ToyBox 가 잡고, 그 뒤로는 아무것도 실행하지 않는다
     direct_off       SRTOYBOX_DIRECT=0 — 명령 처리 함수를 부르지 않고 글쇠를 넣는다
     direct_menu      명령 처리 함수를 부를 수 있지만 게임 밖이다 — 부르지 않는다
+    direct_read_off  같은 상황에서 SRTOYBOX_READ=0 — ToyBox 가 게임을 읽지 않는다: 단추가 켜져 있고 글쇠를 넣는다(1단계처럼)
+명령 처리 함수가 일하는 도중에 ToyBox 로 되돌아올 때 (출력 "inside=<그 안에서 한 일의 결과> deepest=<명령 처리 함수가 겹쳐 불린 깊이> lines=… text=…"):
+    reenter_timer    그 안에서 ToyBox 의 타이머가 다시 온다(게임이 메시지를 돌린다) — 대기열의 다음 명령을 그 안에서 시작하면 안 된다
+    reenter_keyup    그 안에서 실제 키보드의 뗌이 온다
+    reenter_present  그 안에서 화면을 한 번 내보낸다
+ToyBox 가 부른 함수 안에서 난 예외를 위에서 잡을 때 (출력 "caught=<잡았는가> drawn=<그 뒤에 설정 창을 그렸는가>"):
+    present_fault    진짜 Present 자리의 함수가 한 번 죽는다
+설정 창에 보이는 글 (출력은 JSON 한 줄. 보이지 않는 글은 "-"):
+    confirm          "외교·영토" 탭에서 폴란드를 고르고 스크롤을 내려 맨 아래의 "이 나라로 플레이"를 두 번 누른다
+    confirm_fault    같은 탭에서 직접 실행이 죽는다 — 경고가 스크롤을 내려도 보인다
+    hints            메뉴에 있을 때와 게임 안에 있을 때의 바닥 안내
+    leave            직접 실행: 단추를 누른 뒤 실행되기 전에 게임에서 나간다 — 부르지 않고, 돌아오면 다시 된다
+    multiplayer      직접 실행: 단추를 누른 뒤 실행되기 전에 멀티플레이 표시가 선다
+    pick_gone        폴란드를 고른 뒤 폴란드가 이번 판에서 없어진다 — 고른 것이 풀린다
+    pick_become      폴란드를 고른 뒤 플레이하는 나라가 폴란드가 된다 — 고른 것이 풀린다
+    pick_again       폴란드에 대해 "한 번 더"를 기다리는 중에 덴마크를 고른다 — 처음부터 다시 묻는다
+    ansi_search      게임 창이 ANSI 창일 때 검색란에 한글 한 글자(두 바이트)를 넣는다
 
 장치를 만들 수 없으면 "nodevice", 흉내를 만들 수 없으면 "skip <이유>".
 tests/test_toybox.py 가 부른다(pytest 가 직접 모으는 테스트 파일이 아니다).
 """
 import ctypes
+import json
 import os
+import struct
 import sys
 import time
 from ctypes import wintypes
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
-from toybox_fake_game import OPTIONS, FakeGame  # noqa: E402  (이 파일과 같은 폴더)
+from toybox_fake_game import MULTIPLAYER, OPTIONS, FakeGame  # noqa: E402  (이 파일과 같은 폴더)
 
 SLOT_PRESENT, SLOT_RESIZE, SLOT_PRESENT1 = 8, 13, 22
 LIMIT = 50      # 가짜 훅이 이만큼 불리면 맴도는 것이다. 여기서 끊어 프로세스가 죽지 않게 한다
 WM_KEYDOWN, WM_KEYUP, WM_CHAR, WM_MOUSEMOVE, WM_LBUTTONDOWN, WM_LBUTTONUP = 0x100, 0x101, 0x102, 0x200, 0x201, 0x202
+WM_TIMER, WM_MOUSEWHEEL = 0x113, 0x20A
+TIMER_ID = 0x7B0C0001       # ToyBox 의 실행기가 게임 창에 건 타이머(native/srtoybox/input.cpp)
 REAL_KEY = 0x00140001       # 실제 키보드의 메시지처럼 스캔 코드가 든 lParam (ToyBox 의 실행기가 보내는 것은 스캔 코드가 0 이다)
-# 설정 창의 자리: 처음 뜨는 곳 40,60 · 크기 500x460 · 맑은 고딕 18px 기준 (build/verify/toybox/G1-open.png)
-BUTTON = (90, 208)          # 돈 탭의 둘째 줄 "국고 +$10 B" (cheat georgew). 상태 줄이 생기기 전에는 (90, 186)
+# 설정 창의 자리: 처음 뜨는 곳 40,60 · 크기 500x460 (build/verify/toybox/G1-open.png). 단추의 자리는 창에게 묻는다(Game.spot)
+BUTTON = "run:georgew"      # 돈 탭의 둘째 줄 "국고 +$10 B" (cheat georgew)
 TITLE = (300, 70)           # 제목 줄 — 눌러도 아무 일도 없다
 NO_DIRTY_RECTS = (ctypes.c_byte * 40)()     # 0 으로 채운 DXGI_PRESENT_PARAMETERS (Present1 이 읽는 동안 살아 있어야 한다)
 
@@ -91,6 +112,11 @@ user32.SendMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, w
 user32.PostMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
 user32.SetWindowLongPtrW.restype = ctypes.c_void_p
 user32.SetWindowLongPtrW.argtypes = [wintypes.HWND, ctypes.c_int, ctypes.c_void_p]
+user32.SetWindowLongPtrA.restype = ctypes.c_void_p
+user32.SetWindowLongPtrA.argtypes = [wintypes.HWND, ctypes.c_int, ctypes.c_void_p]
+user32.SendMessageA.restype = LRESULT
+user32.SendMessageA.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+user32.IsWindowUnicode.argtypes = [wintypes.HWND]
 user32.PeekMessageW.argtypes = [ctypes.POINTER(wintypes.MSG), wintypes.HWND, wintypes.UINT, wintypes.UINT, wintypes.UINT]
 kernel32.VirtualProtect.argtypes = [ctypes.c_void_p, ctypes.c_size_t, wintypes.DWORD, ctypes.POINTER(wintypes.DWORD)]
 kernel32.VirtualAlloc.restype = ctypes.c_void_p
@@ -314,12 +340,14 @@ def run_draw_resize(hook: str, swap, hwnd, table) -> int:
 class Game:
     """가짜 게임: 창 프로시저가 받은 글쇠 · 누름을 적고, 화면을 내보내며 메시지를 돌린다."""
 
-    def __init__(self, hook: str, buffer: tuple[int, int] | None = None):
+    def __init__(self, hook: str, buffer: tuple[int, int] | None = None, ansi: bool = False):
         self.hook = hook
+        self.ansi = ansi        # 창 프로시저를 ANSI 방식으로 건다 — 글자 메시지가 코드 페이지의 바이트로 온다
         self.swap, self.hwnd = make_swap_chain(buffer)
         self.got: list[tuple[str, int]] = []
         self.proc = WNDPROC(self.receive)
         self.table = None
+        self.toybox = None
 
     def receive(self, hwnd, message, wparam, lparam):
         name = {WM_KEYDOWN: "down", WM_KEYUP: "up", WM_CHAR: "char", WM_LBUTTONDOWN: "press", WM_LBUTTONUP: "release"}.get(message)
@@ -328,12 +356,38 @@ class Game:
         return user32.DefWindowProcW(hwnd, message, wparam, lparam)
 
     def start(self) -> bool:
-        user32.SetWindowLongPtrW(self.hwnd, -4, ctypes.cast(self.proc, ctypes.c_void_p))   # ToyBox 가 이 프로시저를 감싼다
+        subclass = user32.SetWindowLongPtrA if self.ansi else user32.SetWindowLongPtrW
+        subclass(self.hwnd, -4, ctypes.cast(self.proc, ctypes.c_void_p))                   # ToyBox 가 이 프로시저를 감싼다
         self.table = vtable(self.swap)
         if not load_toybox(self.hook, self.table):
             return False
+        self.toybox = ctypes.WinDLL(str(Path(self.hook).with_name("srtoybox.dll")))
+        self.toybox.srtoybox_ui_report.argtypes = [ctypes.c_char_p, ctypes.c_int]
         self.present(2)
         return True
+
+    def facts(self) -> dict[str, tuple[int, int, bool, str]]:
+        """설정 창이 방금 그린 것들: 이름 → (가운데 x, 가운데 y, 보이는가, 글). 창이 닫혀 있으면 비어 있다."""
+        buf = ctypes.create_string_buffer(1 << 16)
+        self.toybox.srtoybox_ui_report(buf, len(buf))           # 처음 부를 때부터 모으기 시작한다
+        self.present(2)
+        assert self.toybox.srtoybox_ui_report(buf, len(buf)) >= 0
+        out = {}
+        for line in buf.value.decode("utf-8").splitlines():
+            name, x, y, visible, text = line.split("\t", 4)
+            out[name] = (int(x), int(y), visible == "1", text)
+        return out
+
+    def spot(self, name: str) -> tuple[int, int]:
+        """그 항목의 가운데(누를 자리). 창에 보이고 있어야 한다."""
+        x, y, visible, _ = self.facts()[name]
+        assert visible, f"{name} 이 창에 보이지 않는다"
+        return x, y
+
+    def shown(self, name: str) -> str:
+        """그 항목이 창에 보이면 그 글, 아니면(그리지 않았거나 스크롤 밖) "-"."""
+        _, _, visible, text = self.facts().get(name, (0, 0, False, ""))
+        return text if visible else "-"
 
     def present(self, frames: int = 1) -> None:
         for _ in range(frames):
@@ -357,8 +411,10 @@ class Game:
         end = time.time() + seconds
         self.pump(lambda: time.time() >= end, seconds + 1)
 
-    def click(self, point: tuple[int, int]) -> str:
-        """그 자리를 누른다. 게임(가짜 창 프로시저)까지 간 것을 돌려준다: "press+release", 아무것도 안 갔으면 "none"."""
+    def click(self, point: tuple[int, int] | str) -> str:
+        """그 자리(또는 그 이름의 항목)를 누른다. 게임(가짜 창 프로시저)까지 간 것을 돌려준다: "press+release", 아무것도 안 갔으면 "none"."""
+        if isinstance(point, str):
+            point = self.spot(point)
         seen = len(self.got)
         for message, wparam in ((WM_MOUSEMOVE, 0), (WM_LBUTTONDOWN, 1), (WM_LBUTTONUP, 0)):
             user32.SendMessageW(self.hwnd, message, wparam, (point[1] << 16) | point[0])
@@ -387,11 +443,11 @@ class Game:
         return out
 
 
-def start_game(hook: str, buffer: tuple[int, int] | None = None) -> Game | None:
+def start_game(hook: str, buffer: tuple[int, int] | None = None, ansi: bool = False) -> Game | None:
     if not Path(os.environ.get("WINDIR", r"C:\Windows"), "Fonts", "malgun.ttf").is_file():
         print("skip 맑은 고딕이 없다(설정 창의 단추 자리가 달라진다)")
         return None
-    game = Game(hook, buffer)
+    game = Game(hook, buffer, ansi)
     if game.swap is None:
         print("nodevice")
         return None
@@ -454,13 +510,13 @@ def run_direct(hook: str, mode: str) -> int:
 
     handler = HANDLER(body)
     fake = box["fake"] = fake_game(hook, crash_stub() if mode == "direct_fault" else ctypes.cast(handler, ctypes.c_void_p).value)
-    if mode != "direct_menu":
+    if mode not in ("direct_menu", "direct_read_off"):
         fake.play(176)
     game.hotkey()
     game.got.clear()
-    if mode == "direct_off":
+    if mode in ("direct_off", "direct_read_off"):
         game.click(BUTTON)
-        game.pump(lambda: game.has("up", 0x1B), 20)
+        game.pump(lambda: game.has("up", 0x1B), 20 if mode == "direct_off" or os.environ.get("SRTOYBOX_READ") == "0" else 2)
         game.wait(0.4)
     elif mode == "direct_menu":
         game.click(BUTTON)
@@ -472,6 +528,227 @@ def run_direct(hook: str, mode: str) -> int:
             game.click(BUTTON)
             game.wait(0.4)
     print("lines=" + "|".join(line.replace(" ", "_") for line in lines) + " text=" + game.text())
+    return 0
+
+
+DIPLOMACY = "tab:외교·영토"
+LAST_BUTTON = "run:becomeregion"   # 그 탭의 맨 아래 단추 "이 나라로 플레이" — 되돌릴 수 없는 것이라 두 번 눌러야 한다
+
+
+def recording_game(hook: str, crash: bool = False, ansi: bool = False):
+    """가짜 게임(폴란드 · 덴마크 · 독일, 메뉴 상태)과 명령 처리 함수가 받은 줄들. crash 면 그 함수가 잘못된 주소에 쓴다."""
+    game = start_game(hook, ansi=ansi)
+    if game is None:
+        return None
+    lines: list[str] = []
+    box: dict[str, FakeGame] = {}
+
+    def body(_context, line):
+        lines.append(line.decode())
+        if line == b"cheat allowcheats":
+            box["fake"].poke(OPTIONS, "<I", box["fake"].peek(OPTIONS, "<I") | 0x40)
+
+    game.handler = HANDLER(body)                              # 게임이 살아 있는 동안 붙들어 둔다
+    fake = box["fake"] = fake_game(hook, crash_stub() if crash else ctypes.cast(game.handler, ctypes.c_void_p).value)
+    fake.region(150, 1201, alive=3)                           # 덴마크
+    return game, fake, lines
+
+
+def scroll_to(game: Game, name: str, up: bool = False) -> bool:
+    """마우스를 설정 창 위에 두고, 그 항목이 보일 때까지 휠을 아래로(up 이면 위로) 굴린다."""
+    for _ in range(12):
+        if game.facts()[name][2]:
+            return True
+        user32.SendMessageW(game.hwnd, WM_MOUSEMOVE, 0, (400 << 16) | 400)
+        user32.SendMessageW(game.hwnd, WM_MOUSEWHEEL, ((120 if up else -120) & 0xFFFF) << 16, 0)
+        game.present(2)
+    return game.facts()[name][2]
+
+
+def run_window(hook: str, mode: str) -> int:
+    """설정 창에 보이는 글과 그 전이. 출력은 JSON 한 줄."""
+    if mode == "ansi_search" and kernel32.GetACP() != 949:
+        print("skip 시스템 코드 페이지가 949(한국어)가 아니다")
+        return 0
+    made = recording_game(hook, crash=mode == "confirm_fault", ansi=mode == "ansi_search")
+    if made is None:
+        return 0
+    game, fake, lines = made
+    out: dict[str, object] = {}
+    if mode in ("leave", "multiplayer"):
+        fake.play(176)
+        game.hotkey()
+        game.click(BUTTON)                                    # 눌렀다. 실행은 다음 타이머에서다(메시지를 돌릴 때 온다)
+        if mode == "leave":
+            fake.menu()                                       # 그 전에 게임에서 나갔다
+        else:
+            fake.poke(MULTIPLAYER, "<B", 1)                   # 그 전에 멀티플레이 표시가 섰다
+        game.wait(0.5)
+        out["dropped"] = list(lines)
+        out["trouble"], out["status"] = game.shown("trouble"), game.shown("status")
+        game.click(BUTTON)                                    # 단추가 꺼져 있다
+        game.wait(0.4)
+        out["while_off"] = list(lines)
+        if mode == "leave":
+            fake.play(176)
+        else:
+            fake.poke(MULTIPLAYER, "<B", 0)
+        game.click(BUTTON)                                    # 돌아오면 다시 된다
+        game.wait(0.4)
+        out["lines"] = lines
+        print(json.dumps(out, ensure_ascii=False))
+        return 0
+    if mode == "hints":
+        game.hotkey()
+        out["menu"] = game.shown("hint")
+        fake.play(176)
+        out["game"] = game.shown("hint")
+        print(json.dumps(out, ensure_ascii=False))
+        return 0
+    fake.play(176)
+    game.hotkey()
+    game.click(DIPLOMACY)
+    game.wait(1.2)                                            # 나라 목록은 1초마다 읽는다
+    game.click("row:1106")
+    if mode == "confirm":
+        out["hidden"] = game.shown(LAST_BUTTON)               # 맨 아래 단추는 처음에는 가려 있다
+        out["scrolled"] = scroll_to(game, LAST_BUTTON)
+        game.click(LAST_BUTTON)                               # 처음 누르면 묻기만 한다
+        game.wait(0.3)
+        out["after_first"] = list(lines)
+        out["armed"] = game.shown(LAST_BUTTON)
+        out["status"], out["picked"] = game.shown("status"), game.shown("picked")   # 스크롤을 내린 채로도 보이는가
+        game.click(LAST_BUTTON)
+        game.wait(0.4)
+    elif mode == "confirm_fault":
+        game.click("run:love")
+        game.wait(0.4)
+        out["at_top"] = game.shown("fault")
+        out["scrolled"] = scroll_to(game, LAST_BUTTON)
+        out["scrolled_down"] = game.shown("fault")
+    elif mode in ("pick_gone", "pick_become"):
+        game.click("run:love")
+        game.wait(0.3)
+        out["first"] = list(lines)
+        if mode == "pick_gone":
+            struct.pack_into("<I", fake.objects[141], 0, 5)   # 폴란드가 이번 판에 없는 지역이 됐다(다른 판을 불러온 것처럼)
+            game.wait(1.5)                                    # 나라 목록은 1초마다 읽는다
+        else:
+            fake.play(141)                                    # 플레이하는 나라가 폴란드로 바뀌었다(cheat becomeregion)
+            game.wait(0.3)
+        out["status"], out["picked"], out["row"] = game.shown("status"), game.shown("picked"), game.shown("row:1106")
+        game.click("run:love")                                # 고른 나라가 없다 — 단추가 꺼져 있다
+        game.wait(0.3)
+    elif mode == "pick_again":
+        scroll_to(game, LAST_BUTTON)
+        game.click(LAST_BUTTON)                               # 폴란드에 대해 묻는 중이다
+        out["asked"] = game.shown(LAST_BUTTON)
+        scroll_to(game, "search", up=True)                    # 목록은 탭 내용의 맨 위에 있다
+        game.click("row:1201")                                # 그 사이에 덴마크로 바꿔 골랐다
+        scroll_to(game, LAST_BUTTON)
+        out["after_repick"] = game.shown(LAST_BUTTON)         # 묻던 것은 폴란드에 대한 것이었다 — 처음부터 다시
+        game.click(LAST_BUTTON)
+        game.wait(0.3)
+        out["after_one_press"] = list(lines)
+        out["asked_again"] = game.shown(LAST_BUTTON)
+        game.click(LAST_BUTTON)
+        game.wait(0.4)
+    elif mode == "ansi_search":
+        game.click("search")
+        game.present(3)                                       # 검색란이 글을 받는다
+        for byte in "폴".encode("cp949"):                      # ANSI 창에는 한글 한 글자가 WM_CHAR 두 번(앞 · 뒤 바이트)으로 온다
+            user32.SendMessageA(game.hwnd, WM_CHAR, byte, 1)
+            game.present()
+        game.present(3)
+        facts = game.facts()
+        out["ansi"] = int(not user32.IsWindowUnicode(game.hwnd))
+        out["search"] = game.shown("search")
+        out["rows"] = sorted(name for name in facts if name.startswith("row:"))
+    out["lines"] = lines
+    print(json.dumps(out, ensure_ascii=False))
+    return 0
+
+
+def run_reenter(hook: str, mode: str) -> int:
+    """게임의 명령 처리 함수가 일하는 도중에 ToyBox 로 되돌아온다(메시지를 돌리거나 화면을 내보내는 게임 코드가 그렇다)."""
+    game = start_game(hook)
+    if game is None:
+        return 0
+    lines: list[str] = []
+    inside: list[str] = []
+    box = {"depth": 0, "deepest": 0, "done": False}
+
+    def body(_context, line):
+        lines.append(line.decode())
+        box["depth"] += 1
+        box["deepest"] = max(box["deepest"], box["depth"])
+        try:
+            if line == b"cheat allowcheats":
+                box["fake"].poke(OPTIONS, "<I", box["fake"].peek(OPTIONS, "<I") | 0x40)
+            elif not box["done"]:
+                box["done"] = True
+                if mode == "reenter_timer":       # ToyBox 의 타이머가 그 안에서 다시 온다
+                    user32.SendMessageW(game.hwnd, WM_TIMER, TIMER_ID, 0)
+                elif mode == "reenter_keyup":     # 실제 키보드의 뗌(스캔 코드가 있다)이 그 안에서 온다
+                    user32.SendMessageW(game.hwnd, WM_KEYUP, 0x41, 0xC01E0001)
+                else:                             # 그 안에서 화면을 한 번 내보낸다
+                    PRESENT(game.table[SLOT_PRESENT])(game.swap, 0, 0)
+                inside.append("ok")
+        except OSError as error:
+            inside.append(f"error:{(error.winerror or 0) & 0xFFFFFFFF:#x}")
+        finally:
+            box["depth"] -= 1
+
+    handler = HANDLER(body)
+    fake = box["fake"] = fake_game(hook, ctypes.cast(handler, ctypes.c_void_p).value)
+    fake.play(176)
+    game.hotkey()
+    game.got.clear()
+    game.click(BUTTON)
+    game.click(BUTTON)                                        # 둘째 명령이 대기열에 있는 채로 첫째가 실행된다
+    game.wait(0.5)
+    game.click(BUTTON)                                        # 그 뒤에도 ToyBox 가 살아 있어야 한다
+    game.wait(0.4)
+    print(f"inside={';'.join(inside) or '-'} deepest={box['deepest']} lines=" + "|".join(line.replace(" ", "_") for line in lines)
+          + " text=" + game.text())
+    return 0
+
+
+def crash_once_stub(flag: int, real: int) -> int:
+    """깃발(flag 의 바이트)이 서 있으면 내리고 0 번지에 쓴다. 아니면 real 로 뛴다 — 한 번만 죽는 "진짜 Present"."""
+    code = kernel32.VirtualAlloc(None, 64, 0x3000, 0x40)
+    body = (bytes([0x48, 0xB8]) + flag.to_bytes(8, "little")                 # mov rax, flag
+            + bytes([0x80, 0x38, 0x00, 0x74, 0x0E])                           # cmp byte ptr [rax], 0 / je +14
+            + bytes([0xC6, 0x00, 0x00])                                       # mov byte ptr [rax], 0
+            + bytes([0xC7, 0x04, 0x25, 0, 0, 0, 0, 1, 0, 0, 0])               # mov dword ptr [0], 1
+            + bytes([0x48, 0xB8]) + real.to_bytes(8, "little") + bytes([0xFF, 0xE0]))   # mov rax, real / jmp rax
+    ctypes.memmove(code, body, len(body))
+    return code
+
+
+def run_present_fault(hook: str) -> int:
+    """ToyBox 가 부른 다음 함수(진짜 Present 나 다른 훅) 안에서 예외가 나고 그것을 위에서 누가 잡는다 — 그 뒤에도 ToyBox 는 그려야 한다."""
+    if not Path(os.environ.get("WINDIR", r"C:\Windows"), "Fonts", "malgun.ttf").is_file():
+        print("skip 맑은 고딕이 없다(설정 창의 단추 자리가 달라진다)")
+        return 0
+    game = Game(hook)
+    if game.swap is None:
+        print("nodevice")
+        return 0
+    table = vtable(game.swap)
+    flag = ctypes.c_ubyte(0)
+    write_slot(table, SLOT_PRESENT, crash_once_stub(ctypes.addressof(flag), table[SLOT_PRESENT]))   # ToyBox 가 끼어들 때 그 칸에 있던 것
+    if not game.start():
+        print("skip ToyBox 가 끼어들지 않았다")
+        return 0
+    flag.value = 1
+    caught = 0
+    try:
+        game.present()
+    except OSError:
+        caught = 1
+    game.hotkey()
+    print(f"caught={caught} drawn={int('status' in game.facts())}")
     return 0
 
 
@@ -521,6 +798,12 @@ def main() -> int:
         return run_gate(hook, mode)
     if mode.startswith("direct"):
         return run_direct(hook, mode)
+    if mode.startswith("reenter_"):
+        return run_reenter(hook, mode)
+    if mode in ("confirm", "confirm_fault", "hints", "leave", "multiplayer", "pick_gone", "pick_become", "pick_again", "ansi_search"):
+        return run_window(hook, mode)
+    if mode == "present_fault":
+        return run_present_fault(hook)
     swap, hwnd = make_swap_chain()
     if swap is None:
         print("nodevice")

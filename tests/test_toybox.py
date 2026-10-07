@@ -1,5 +1,6 @@
 """ToyBox DLL(native/srtoybox)을 직접 불러 화면 없는 부분을 확인한다(게임은 띄우지 않는다)."""
 import ctypes
+import json
 import os
 import re
 import shutil
@@ -429,6 +430,106 @@ def test_srtoybox_direct_0_keeps_the_typing_route(dll, cfg, tmp_path):
     """탈출구: SRTOYBOX_DIRECT=0 이면 명령 처리 함수를 부를 수 있어도 글쇠를 넣는다."""
     got = _fields(_probe(cfg, tmp_path, "direct_off", env={"SRTOYBOX_DIRECT": "0"}))
     assert got["lines"] == "" and got["text"] == typed_keys("cheat georgew")
+
+
+@pytest.mark.parametrize("mode", ["reenter_timer", "reenter_keyup", "reenter_present"])
+def test_the_games_handler_may_come_back_into_toybox(dll, cfg, tmp_path, mode):
+    """게임의 명령 처리 함수가 일하는 도중에 메시지를 돌리거나 화면을 내보내면 ToyBox 의 타이머 · 입력 · 그리기로 되돌아온다.
+
+    ToyBox 는 그때 아무 잠금도 쥐고 있지 않아야 하고(쥔 채로 되돌아오면 프로세스가 끝난다), 대기열의 다음 명령을
+    그 안에서 시작해서도 안 된다(게임의 함수가 겹쳐 불린다).
+    """
+    got = _fields(_probe(cfg, tmp_path, mode))
+    assert got["inside"] == "ok" and got["deepest"] == "1", got
+    assert got["lines"].replace("_", " ").split("|") == ["cheat allowcheats"] + ["cheat georgew"] * 3
+    assert got["text"] == ""
+    log = (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8")
+    assert "예외" not in log and log.count("직접 실행: cheat georgew") == 3, log
+
+
+def test_toybox_keeps_drawing_after_an_exception_passes_through_present(dll, cfg, tmp_path):
+    """ToyBox 가 부른 다음 함수 안에서 예외가 나고 그것을 위에서 누가 잡으면(게임의 함수를 직접 부르는 ToyBox 자신이 그렇다),
+    "지금 훅 안이다"라는 표시가 남아 그 뒤로 영영 그리지 않게 되면 안 된다."""
+    got = _fields(_probe(cfg, tmp_path, "present_fault"))
+    assert got == {"caught": "1", "drawn": "1"}
+
+
+def test_srtoybox_read_0_turns_the_game_reading_off(dll, cfg, tmp_path):
+    """탈출구: ToyBox 가 게임 안인데도 "게임 밖"으로 잘못 알면(다른 빌드, 보지 못한 화면) 모든 단추가 꺼진 채 풀 길이 없다.
+    SRTOYBOX_READ=0 이면 게임을 읽지 않는다 — 1단계처럼 단추가 늘 켜져 있고 글쇠를 넣는다."""
+    got = _fields(_probe(cfg, tmp_path, "direct_read_off", env={"SRTOYBOX_READ": "0"}))
+    assert got["lines"] == "" and got["text"] == typed_keys("cheat georgew")
+    log = (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8")
+    assert "게임 상태를 읽지 않습니다 (SRTOYBOX_READ=0)" in log, log
+
+
+FAULT_WARNING = "직접 실행 중 오류가 났습니다. 저장하지 말고 게임을 다시 시작하십시오."
+
+
+def test_an_irreversible_button_says_what_and_to_whom_before_the_second_press(dll, cfg, tmp_path):
+    """되돌릴 수 없는 단추는 두 번 눌러야 실행된다. 둘째 누름을 기다리는 단추에는 무엇을 어느 나라에 하는지가 적혀 있고,
+    지금 플레이하는 나라와 고른 나라는 탭의 내용을 아래로 내려도 창에 남아 있다."""
+    got = json.loads(_probe(cfg, tmp_path, "confirm"))
+    assert got["hidden"] == "-" and got["scrolled"] is True     # 그 단추는 탭의 내용을 아래로 내려야 보인다
+    assert got["after_first"] == []                             # 처음 누름은 묻기만 한다
+    assert got["armed"] == "이 나라로 플레이: 폴란드 (1106) — 한 번 더 누르면 실행합니다"
+    assert got["status"] == "플레이 중: 독일 (1499)" and got["picked"] == "고른 나라: 폴란드 (1106)"
+    assert got["lines"] == ["cheat allowcheats", "cheat becomeregion 1106"]
+
+
+def test_the_fault_warning_stays_in_sight(dll, cfg, tmp_path):
+    """직접 실행이 죽은 뒤의 경고("저장하지 말고…")는 어느 탭의 어디를 보고 있어도 보여야 한다."""
+    got = json.loads(_probe(cfg, tmp_path, "confirm_fault"))
+    assert got["at_top"] == FAULT_WARNING
+    assert got["scrolled"] is True and got["scrolled_down"] == FAULT_WARNING
+
+
+@pytest.mark.parametrize("env, in_game", [({}, "값은 바로 바뀝니다. 게임 화면의 숫자는 그 패널을 누르거나 다시 열 때 따라옵니다."),
+                                          ({"SRTOYBOX_DIRECT": "0"}, "단추를 누르면 게임의 설정 창이 잠깐 열렸다 닫힙니다.")],
+                         ids=["direct", "typing"])
+def test_the_hint_is_about_the_game_only_while_in_a_game(dll, cfg, tmp_path, env, in_game):
+    """바닥의 안내는 게임 화면에 무슨 일이 생기는지를 말한다. 메뉴에서는 단추가 꺼져 있으므로 띄우지 않는다."""
+    got = json.loads(_probe(cfg, tmp_path, "hints", env=env))
+    assert got == {"menu": "-", "game": in_game}
+
+
+@pytest.mark.parametrize("mode, status", [("leave", "게임을 진행 중이 아닙니다 — 단추가 꺼져 있습니다"),
+                                          ("multiplayer", "멀티플레이에서는 동작하지 않습니다")], ids=["leave", "multiplayer"])
+def test_direct_run_is_dropped_when_the_game_stops_being_playable_first(dll, cfg, tmp_path, mode, status):
+    """직접 실행의 길에서도: 단추를 누른 뒤 실행되기 전에 게임에서 나가거나 멀티플레이가 되면 게임의 함수를 부르지 않는다
+    (그 함수는 게임이 진행 중인지 검사하지 않는다). 그동안 단추는 꺼져 있고, 돌아오면 다시 된다."""
+    got = json.loads(_probe(cfg, tmp_path, mode))
+    assert got["dropped"] == [] and got["trouble"] == "게임이 진행 중이 아니어서 실행하지 않았습니다."
+    assert got["status"] == status and got["while_off"] == []
+    assert got["lines"] == ["cheat allowcheats", "cheat georgew"]
+
+
+@pytest.mark.parametrize("mode, status", [("pick_gone", "플레이 중: 독일 (1499)"), ("pick_become", "플레이 중: 폴란드 (1106)")],
+                         ids=["gone", "become"])
+def test_the_pick_is_dropped_when_that_country_can_no_longer_be_a_target(dll, cfg, tmp_path, mode, status):
+    """고른 나라가 이번 판에서 없어지거나(다른 판을 불러왔다) 플레이하는 나라가 그 나라가 되면, 고른 것이 풀리고
+    나라를 고르는 단추는 다시 고를 때까지 꺼진다."""
+    got = json.loads(_probe(cfg, tmp_path, mode))
+    assert got["first"] == ["cheat allowcheats", "cheat love 1106"]
+    assert got["status"] == status and got["row"] == "-"
+    assert got["picked"] == "고른 나라: 없음 — 아래 목록에서 고르십시오"
+    assert got["lines"] == got["first"]                         # 풀린 뒤의 누름은 아무것도 실행하지 않는다
+
+
+def test_picking_another_country_starts_the_confirmation_over(dll, cfg, tmp_path):
+    """"한 번 더 누르면 실행합니다"를 기다리는 중에 다른 나라를 고르면, 다음 누름이 새 나라에 곧바로 실행되면 안 된다."""
+    got = json.loads(_probe(cfg, tmp_path, "pick_again"))
+    assert got["asked"] == "이 나라로 플레이: 폴란드 (1106) — 한 번 더 누르면 실행합니다"
+    assert got["after_repick"] == "이 나라로 플레이" and got["after_one_press"] == []
+    assert got["asked_again"] == "이 나라로 플레이: 덴마크 (1201) — 한 번 더 누르면 실행합니다"
+    assert got["lines"] == ["cheat allowcheats", "cheat becomeregion 1201"]
+
+
+def test_hangul_typed_into_an_ansi_game_window_reaches_the_search_box_whole(dll, cfg, tmp_path):
+    """ANSI 창에는 한글 한 글자가 글자 메시지 두 번(코드 페이지의 앞 · 뒤 바이트)으로 온다. 설정 창이 둘을 합쳐 받아야 한다."""
+    got = json.loads(_probe(cfg, tmp_path, "ansi_search"))
+    assert got["ansi"] == 1
+    assert got["search"] == "폴" and got["rows"] == ["row:1106"]   # 폴란드만 남는다
 
 
 def test_prologue_length_knows_only_plain_function_heads(dll):

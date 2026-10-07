@@ -1,5 +1,7 @@
 #include "locate.h"
 
+#include <excpt.h>
+
 #include <cstring>
 
 namespace {
@@ -225,9 +227,7 @@ uint32_t find_in_cheat(const Image &im, const char *text, uint32_t span, const P
     return 0;
 }
 
-}  // namespace
-
-const char *locate_game(const uint8_t *image, size_t size, GameAddresses *out)
+const char *search(const uint8_t *image, size_t size, GameAddresses *out)
 {
     Image im = {};
     im.p = image;
@@ -310,4 +310,17 @@ const char *locate_game(const uint8_t *image, size_t size, GameAddresses *out)
         return "찾은 주소가 실행 파일 밖입니다";
     *out = a;
     return nullptr;
+}
+
+}  // namespace
+
+// 올라와 있는 실행 파일에는 읽을 수 없는 쪽이 있을 수 있다(보호된 구역). 그때도 죽지 않는다 — 여기서 예외가 새면 게임이 뜨다가 죽는다.
+// __try 가 든 함수에는 소멸자가 있는 지역 변수를 둘 수 없어 찾는 일(search)과 따로 뗐다.
+const char *locate_game(const uint8_t *image, size_t size, GameAddresses *out)
+{
+    __try {
+        return search(image, size, out);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return "실행 파일에 읽을 수 없는 곳이 있습니다";
+    }
 }
