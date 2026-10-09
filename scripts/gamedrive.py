@@ -11,7 +11,8 @@
     uv run python scripts/gamedrive.py wheel N [X Y]          # 마우스 휠 N칸(음수 = 아래로). 지도 확대·축소
     uv run python scripts/gamedrive.py key VK [VK...]         # 가상 키 코드(16진/10진), 이름(ESC, ENTER, SPACE), 글자(S), 조합(CTRL+SHIFT+S)
     uv run python scripts/gamedrive.py show                  # 화면 밖에 둔 게임 창을 화면으로 가져온다(직접 볼 때)
-    uv run python scripts/gamedrive.py peek                   # 이 도구가 띄운 게임의 메모리에서 ToyBox 가 보는 값을 읽는다(읽기만, JSON)
+    uv run python scripts/gamedrive.py peek [지역 번호]       # 이 도구가 띄운 게임의 메모리에서 ToyBox 가 보는 값을 읽는다(읽기만, JSON).
+                                                              # 번호를 주면 플레이어 대신 그 지역의 국고 · 재고를 읽는다
     uv run python scripts/gamedrive.py stop                   # 이 도구가 띄운 게임만 끝낸다 (--all: 전부)
 
 이 도구는 **자기가 띄운 게임만** 다룬다(build/gamedrive-pids.json 에 기록). 사용자가 직접 켠 게임에는 캡처·입력·종료를 하지 않는다.
@@ -316,10 +317,12 @@ def need_window(cfg: config.Config) -> tuple[int, str, tuple[int, int]]:
     return win
 
 
-def peek_game(cfg: config.Config) -> dict:
+def peek_game(cfg: config.Config, number: int | None = None) -> dict:
     """이 도구가 띄운 게임의 메모리에서 ToyBox 가 보는 것을 읽는다(읽기만). 주소는 srkit locate 와 같은 방법(서명)으로 찾는다.
 
     ToyBox 의 창에 보이는 값이 아니라 게임의 메모리 그 자체다 — ToyBox 가 쓴 값과 치트 허용 비트를 따로 확인하는 데 쓴다.
+    number 를 주면 국고 · 재고를 플레이어 대신 그 번호의 지역 객체에서 읽는다(지역 표에서 찾는다. 결과의 region 이 그 번호다) —
+    플레이하는 나라를 바꾼 뒤 앞 나라의 값이 그대로인지 볼 때 쓴다.
     """
     import struct
 
@@ -357,8 +360,16 @@ def peek_game(cfg: config.Config) -> dict:
         if out["in_game"]:
             world = read(base + values["world_pointer"], "<Q")
             out["player"] = read(player + 8, "<H")
-            out["treasury"] = read(player + values["treasury"], "<d")
-            out["stock"] = [read(player + values["stock_first"] + values["stock_step"] * i, "<f") for i in range(toybox.STOCK_SLOTS)]
+            who = player
+            if number is not None:                                      # 지역 표(인덱스 1 … 지역 수)에서 그 번호의 객체를 찾는다
+                count = min(read(base + state["region_count"], "<i") or 0, 1023)
+                table = (read(base + state["region_table"] + 8 * index, "<Q") for index in range(1, count + 1))
+                who = next((pointer for pointer in table if pointer and read(pointer + 8, "<H") == number), None)
+                if who is None:
+                    raise SystemExit(f"그 번호의 지역이 지역 표에 없습니다: {number}")
+                out["region"] = number
+            out["treasury"] = read(who + values["treasury"], "<d")
+            out["stock"] = [read(who + values["stock_first"] + values["stock_step"] * i, "<f") for i in range(toybox.STOCK_SLOTS)]
             out["used"] = [bool((read(world + values["used_first"] + values["used_step"] * i, "<f") or 0) > 0)
                            for i in range(toybox.STOCK_SLOTS)] if world else None
         return out
@@ -506,7 +517,7 @@ def main(argv: list[str]) -> int:
             time.sleep(0.03)
         print(f"입력 {' '.join(args)!r}")
     elif cmd == "peek":
-        print(json.dumps(peek_game(cfg), ensure_ascii=False))
+        print(json.dumps(peek_game(cfg, int(args[0]) if args else None), ensure_ascii=False))
     elif cmd == "stop":
         # 이 도구가 띄운 게임만 끝낸다. 사용자가 켠 게임까지 끝내려면 --all 을 분명히 준다
         mine, everything = owned_pids(cfg), set(game_pids())
