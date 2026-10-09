@@ -744,6 +744,30 @@ def test_keep_does_not_write_while_the_games_handler_is_running(dll, cfg, tmp_pa
     assert got["after"] == 20e9                                  # 함수가 끝난 뒤에 올린다
 
 
+def test_the_status_line_does_not_promise_a_keep_that_cannot_run(dll, cfg, tmp_path):
+    """값 쓰기가 꺼져 있으면(SRTOYBOX_WRITE=0, 값의 자리를 못 찾았다, 쓰기가 실패했다) 유지는 게임에 들어가도 돌지 않는다.
+    메뉴의 상태 줄이 "게임에 들어가면 적용"이라고 하면 안 된다 — 유지 검사(keeper)와 같은 순서로 까닭을 고른다."""
+    got = json.loads(_probe(cfg, tmp_path, "keep_write_off", env={"SRTOYBOX_WRITE": "0"}))
+    resting = " · 유지 2개 켜짐(값을 쓸 수 없어 쉽니다)"
+    assert got["status_menu"] == "게임을 진행 중이 아닙니다 — 단추가 꺼져 있습니다" + resting
+    assert got["status_game"] == "플레이 중: 독일 (1499)" + resting
+    assert got["rested"] == [14.43e9, 2.5e6, 0.0]                # 게임에 들어가도 쓰지 않는다
+
+
+def test_every_product_row_shows_in_a_window_opened_for_the_first_time(dll, cfg, tmp_path):
+    """처음 여는 창에서 "모든 물자"와 물자 열하나의 줄이 굴리지 않아도 모두 보인다 — 바닥에 "마지막으로 쓴 값" 줄이 있어도."""
+    got = json.loads(_probe(cfg, tmp_path, "layout_full"))
+    assert got["wrote"] == "농산물 1.0 K -> 1.0 M" and got["rows"] == 12
+    assert got["hidden"] == []
+
+
+def test_the_keep_help_stays_inside_a_narrow_window(dll, cfg, tmp_path):
+    """이미 써 본 사용자의 창은 저장된 크기(500x460) 그대로다. 최소 유지의 긴 안내 글이 창 밖으로 잘리지 않는다(줄을 바꾼다)."""
+    got = json.loads(_probe(cfg, tmp_path, "layout_saved"))
+    assert got["money_help_right"] != "-" and int(got["money_help_right"]) <= 540      # 창은 x = 40 … 540
+    assert got["help_right"] != "-" and int(got["help_right"]) <= 540
+
+
 def test_a_typed_keep_amount_takes_effect_when_the_typing_is_done(dll, cfg, tmp_path):
     """수량을 치는 동안의 값(7, 70, 700 …)은 쓰이지 않는다. Enter 를 누르거나 다른 곳을 누르면 쓰이고, 치던 채로 창을 닫으면 버려진다."""
     got = json.loads(_probe(cfg, tmp_path, "keep_type"))

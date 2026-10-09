@@ -59,6 +59,10 @@ ToyBox 가 부른 함수 안에서 난 예외를 위에서 잡을 때 (출력 "c
     keep_menu        같은 설정으로 메뉴에 있다 — 쉬고, 상태 줄에 켜진 수가 보이고, 거기서 끌 수 있다
     keep_type        석유의 유지를 켠 채 수량을 새로 친다 — 입력을 마쳐야(Enter, 다른 곳을 누름) 쓰인다. 치던 채로 창을 닫으면 버려진다
     keep_reenter     국고의 유지를 켠 채, 옮기지 않은 기능의 직접 실행이 게임의 함수 안에 있는 동안 타이머가 다시 온다 — 그 안에서는 올리지 않는다
+    keep_write_off   유지를 켜 둔 설정인데 값 쓰기가 꺼져 있다(SRTOYBOX_WRITE=0) — 메뉴에서도 게임 안에서도 상태 줄이 "쓸 수 없어 쉰다"고 한다
+물자 탭이 창 안에 들어오는가 (출력은 JSON 한 줄):
+    layout_full      처음 여는 창에서, 물자 열하나를 쓰는 판 — 바닥에 "마지막으로 쓴 값" 줄이 생긴 뒤에도 모든 줄이 보인다
+    layout_saved     이미 써 본 사용자의 창(저장된 크기 500x460) — 최소 유지의 긴 안내 글이 창 밖으로 나가지 않는다
 설정 창에 보이는 글 (출력은 JSON 한 줄. 보이지 않는 글은 "-"):
     confirm          "외교·영토" 탭에서 폴란드를 고르고 스크롤을 내려 맨 아래의 "이 나라로 플레이"를 두 번 누른다
     confirm_fault    같은 탭에서 직접 실행이 죽는다 — 경고가 스크롤을 내려도 보인다
@@ -986,6 +990,12 @@ def run_keep(hook: str, mode: str) -> int:
         fake.play(176)
         game.wait(0.8)
         out["entered"] = seen()
+    elif mode == "keep_write_off":                            # 값 쓰기가 꺼져 있다 — 유지는 게임에 들어가도 돌지 않는다
+        game.hotkey()
+        out["status_menu"] = game.shown("status")
+        fake.play(176)
+        game.wait(0.8)
+        out["status_game"], out["rested"] = game.shown("status"), seen()
     elif mode == "keep_reenter":
         fake.play(176)
         game.wait(0.8)
@@ -1069,6 +1079,35 @@ def run_stock(hook: str, mode: str) -> int:
     return 0
 
 
+def run_layout(hook: str, mode: str) -> int:
+    """물자 탭이 창 안에 들어오는가. 독일은 물자 열하나를 모두 쓴다. 출력은 JSON 한 줄(보이지 않는 글은 "-").
+
+    안내 글의 오른쪽 끝은 창이 스스로 적어 둔다(항목 help:money · help:stock 의 글이 그 x 좌표다).
+    """
+    home = os.environ.get("SRTOYBOX_HOME")
+    if mode == "layout_saved" and home:                       # ImGui 가 저장해 둔 창의 자리와 크기(이미 써 본 사용자)
+        Path(home, "imgui.ini").write_text("[Window][SR2030 ToyBox]\nPos=40,60\nSize=500,460\nCollapsed=0\n", encoding="utf-8")
+    game = start_game(hook)
+    if game is None:
+        return 0
+    fake = fake_game(hook, None)
+    for slot in range(11):
+        fake.use(slot)
+        fake.set_stock(176, slot, 1000.0 * (slot + 1))
+    fake.play(176)
+    game.hotkey()
+    out: dict[str, object] = {"money_help_right": game.shown("help:money")}
+    game.click(STOCK)
+    game.click("stock:0:+1m")                                 # 바닥에 "마지막으로 쓴 값" 줄이 생긴다
+    game.wait(0.3)
+    facts = game.facts()
+    out["rows"] = len(stock_rows(facts))
+    out["hidden"] = [name for name in stock_rows(facts) if not facts[name][2]]
+    out["help_right"], out["wrote"] = game.shown("help:stock"), game.shown("wrote")
+    print(json.dumps(out, ensure_ascii=False))
+    return 0
+
+
 def crash_once_stub(flag: int, real: int) -> int:
     """깃발(flag 의 바이트)이 서 있으면 내리고 0 번지에 쓴다. 아니면 real 로 뛴다 — 한 번만 죽는 "진짜 Present"."""
     code = kernel32.VirtualAlloc(None, 64, 0x3000, 0x40)
@@ -1113,7 +1152,7 @@ def run_input(hook: str) -> int:
         return 0
     out = {"hotkey": game.open()}
     out["button"] = game.click(BUTTON)                        # 설정 창의 단추 — 게임에 가면 안 된다. 명령이 대기열에 든다
-    out["outside"] = game.click((900, 100))                   # 설정 창 밖(창은 40..760 x 60..580 이다) — 게임이 받아야 한다
+    out["outside"] = game.click((900, 100))                   # 설정 창 밖(창은 40..760 x 60..660 이다) — 게임이 받아야 한다
     game.got.clear()
     out["typing"] = int(game.pump(lambda: game.has("char", ord("c")), 10))   # 실행기가 치트를 적기 시작했다
     # 그동안 사용자가 실제 키보드로 9 를 치고(게임에 가면 치트를 받아 적는 줄에 섞인다) 단축키를 누른다(평소처럼 창이 닫혀야 한다)
@@ -1153,7 +1192,7 @@ def run_scale(hook: str) -> int:
     if game is None:
         return 0
     game.hotkey()
-    # 설정 창은 그리는 좌표로 40..760 x 60..580 에 있고, 화면(창의 좌표)에는 80..1520 x 120..1160 으로 보인다
+    # 설정 창은 그리는 좌표로 40..760 x 60..660 에 있고, 화면(창의 좌표)에는 80..1520 x 120..1320 으로 보인다
     title = game.click((TITLE[0] * 2, TITLE[1] * 2))          # 보이는 창의 제목 줄 — 게임에 가면 안 된다
     beside = game.click((60, 80))                             # 보이는 창의 왼쪽 위 바깥(그리는 좌표로 30,40) — 게임이 받아야 한다
     print(f"title={title} beside={beside}")
@@ -1180,6 +1219,8 @@ def main() -> int:
         return run_stock(hook, mode)
     if mode.startswith("keep"):
         return run_keep(hook, mode)
+    if mode.startswith("layout"):
+        return run_layout(hook, mode)
     if mode in ("confirm", "confirm_fault", "hints", "leave", "multiplayer", "pick_gone", "pick_become", "pick_again", "ansi_search"):
         return run_window(hook, mode)
     if mode == "present_fault":

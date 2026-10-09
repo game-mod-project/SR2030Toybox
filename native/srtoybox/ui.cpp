@@ -51,6 +51,16 @@ void note(const std::string &name, const std::string &text)
         + (seen ? "1" : "0") + '\t' + text + '\n';
 }
 
+// 긴 안내 글(흐린 글씨). 창이 좁으면 줄을 바꾼다 — 그냥 두면 창 밖으로 잘린다(이미 써 본 사용자의 창은 저장된 크기 그대로다).
+// name 으로 그 글의 오른쪽 끝(x)을 적는다 — 창 안에 드는지 테스트가 본다.
+void help(const char *name, const char *text)
+{
+    ImGui::PushTextWrapPos(0.0f);
+    ImGui::TextDisabled("%s", text);
+    ImGui::PopTextWrapPos();
+    note(name, std::to_string(static_cast<int>(ImGui::GetItemRectMax().x)));
+}
+
 // 되돌릴 수 없는 단추가 둘째 누름을 기다릴 때의 글: 무엇을 어느 나라에 하는지를 그 단추에 적는다.
 std::string asking_label(const Feature &f, int region)
 {
@@ -188,18 +198,19 @@ void keep_input(const char *id, long long *value, long long high, float width)
 }
 
 // 상태 줄의 뒤에 붙는 글: 최소 유지가 지금 무엇을 하고 있는가. 켜진 것이 없으면 빈 글.
+// 까닭을 고르는 순서는 유지 검사(keeper_tick)가 쉬는 순서와 같다 — 값을 쓸 수 없으면 게임 밖에서도 "게임에 들어가면 적용"이라고 하지 않는다.
 std::string keep_text(const GameState &game)
 {
     if (keep_count(g_keep_sent) == 0)
         return std::string();
     if (!game.known)
         return keep_resting_text(g_keep_sent, "게임을 읽을 수 없어 쉽니다");
+    if (!game_values_off().empty())
+        return keep_resting_text(g_keep_sent, "값을 쓸 수 없어 쉽니다");
     if (game.multiplayer)
         return keep_resting_text(g_keep_sent, "멀티플레이에서는 쉽니다");
     if (!game.in_game)
         return keep_resting_text(g_keep_sent, "게임에 들어가면 적용");
-    if (!game_values_off().empty())
-        return keep_resting_text(g_keep_sent, "값을 쓸 수 없어 쉽니다");
     const GameValues now = game_values();
     return now.ok ? keep_active_text(g_keep_sent, now.used) : keep_resting_text(g_keep_sent, "값을 읽을 수 없어 쉽니다");
 }
@@ -282,7 +293,7 @@ bool money_tab(const GameState &game, bool blocked)
     note("money:keepvalue", std::to_string(g_settings.keep_treasury_value));
     ImGui::SameLine();
     ImGui::TextUnformatted("백만 달러");
-    ImGui::TextDisabled("켜 두면 국고가 이 금액보다 적어질 때 이 금액으로 올린다(0.5초마다). 창을 닫아도, 새 판에서도 계속된다");
+    help("help:money", "켜 두면 국고가 이 금액보다 적어질 때 이 금액으로 올린다(0.5초마다). 창을 닫아도, 새 판에서도 계속된다");
     return true;
 }
 
@@ -351,7 +362,7 @@ bool stock_tab(const GameState &game, bool blocked)
     if (!values_ready(game, "stock:off", &now))
         return false;
     ImGui::TextDisabled("재고는 0 아래로 내려가지 않는다. 다른 나라의 재고는 건드리지 않는다");
-    ImGui::TextDisabled("최소 유지를 켜 두면 재고가 그 수량보다 적어질 때 그 수량으로 올린다(0.5초마다). 창을 닫아도, 새 판에서도 계속된다");
+    help("help:stock", "최소 유지를 켜 두면 재고가 그 수량보다 적어질 때 그 수량으로 올린다(0.5초마다). 창을 닫아도, 새 판에서도 계속된다");
     const ImGuiTableFlags flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV
         | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY;   // 창이 좁으면 표가 가로로 구른다
     if (!ImGui::BeginTable("stock", 4, flags))
@@ -457,7 +468,8 @@ void ui_draw()
     Lock lock(ui_mutex());
     g_drawing.clear();
     ImGui::SetNextWindowPos(ImVec2(40.0f, 60.0f), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(720.0f, 520.0f), ImGuiCond_FirstUseEver);   // 물자 탭의 표가 한눈에 들어오는 크기
+    // 물자 탭의 표(물자 열하나 + "모든 물자")가 굴리지 않아도 다 보이는 크기. 이미 써 본 사용자의 창은 저장된 크기 그대로다
+    ImGui::SetNextWindowSize(ImVec2(720.0f, 600.0f), ImGuiCond_FirstUseEver);
     // 창은 구르지 않는다. 구르는 것은 탭의 내용(body)뿐이다 — 맨 위의 상태 줄 · 고른 나라와 바닥의 알림은 늘 보인다
     if (ImGui::Begin("SR2030 ToyBox", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
         const GameState game = game_state();
