@@ -6,6 +6,8 @@ import ctypes
 import re
 import struct
 import subprocess
+import time
+from dataclasses import dataclass
 from pathlib import Path
 
 from . import hook
@@ -32,6 +34,31 @@ ADDRESS_NAMES = {"handler": "명령 처리 함수", "context": "그 함수의 �
                  "mode_state": "모드 상태(dword)", "player_index": "플레이어 지역의 인덱스(dword)",
                  "player_pointer": "플레이어 지역 객체의 포인터(qword)", "region_table": "지역 포인터 표(qword × 1024)",
                  "region_count": "지역 수(dword)"}
+# 새 찾기(서명)가 채우는 일곱 — native/srtoybox/locate.cpp 의 표 STATE 와 같은 순서다
+STATE_FIELDS = ["multiplayer", "program_state", "mode_state", "player_index", "player_pointer", "region_table", "region_count"]
+# 옛 찾기(치트 닻)가 채우는 셋 — 아직 내장 치트로 도는 기능이 쓴다(전환 기간에만)
+LEGACY_FIELDS = ["handler", "context", "options"]
+
+
+@dataclass
+class SigRow:
+    """서명 하나의 결과."""
+    name: str       # 찾을 것(GameAddresses 의 필드 이름)
+    text: str       # 서명 글
+    count: int      # 실행 구역에서 맞은 횟수(2 에서 멈춘다)
+    at: int         # 처음 맞은 자리
+    value: int      # 거기서 읽어 낸 주소
+
+
+@dataclass
+class Located:
+    """설치된 게임의 실행 파일에서 찾은 것."""
+    state: dict[str, int] | None     # 새 찾기(서명): 상태 전역 일곱. 못 찾았으면 None
+    state_why: str
+    rows: list[SigRow]               # 서명마다의 결과
+    ms: float                        # 새 찾기에 걸린 시간
+    legacy: dict[str, int] | None    # 옛 찾기(치트 닻): 명령 처리 함수 · this · 옵션 묶음. 못 찾았으면 None
+    legacy_why: str
 
 
 class GameAddresses(ctypes.Structure):
@@ -103,7 +130,12 @@ def build(cfg: Config) -> Path:
 def library(cfg: Config) -> ctypes.CDLL:
     """빌드한 DLL 을 불러 주소 찾기 함수의 인자 형을 적어 둔다(srkit locate 와 테스트가 쓴다)."""
     lib = ctypes.CDLL(str(output(cfg)))
-    lib.srtoybox_locate.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong, ctypes.POINTER(GameAddresses), ctypes.c_char_p, ctypes.c_int]
+    lib.srtoybox_locate_legacy.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong, ctypes.POINTER(GameAddresses), ctypes.c_char_p,
+                                           ctypes.c_int]
+    lib.srtoybox_locate_state.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong, ctypes.POINTER(GameAddresses), ctypes.c_char_p,
+                                          ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
+    lib.srtoybox_function_root.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong, ctypes.c_uint]
+    lib.srtoybox_function_root.restype = ctypes.c_uint
     return lib
 
 
@@ -121,15 +153,32 @@ def image_of(exe: bytes) -> bytes:
     return bytes(image)
 
 
-def locate(cfg: Config) -> tuple[dict[str, int] | None, str]:
-    """설치된 게임의 실행 파일에서 ToyBox 가 쓰는 주소를 찾는다: (이름 → RVA, "") 또는 (None, 까닭).
+def state_of(lib: ctypes.CDLL, image: bytes) -> tuple[dict[str, int] | None, str, list[SigRow]]:
+    """새 찾기(상태 묶음)를 그 이미지에 돌린다: (이름 → RVA 또는 None, 까닭, 서명마다의 결과)."""
+    found, error, rows = GameAddresses(), ctypes.create_string_buffer(256), ctypes.create_string_buffer(8192)
+    ok = lib.srtoybox_locate_state(image, len(image), ctypes.byref(found), error, len(error), rows, len(rows)) == 0
+    table = [SigRow(name, text, int(count, 16), int(at, 16), int(value, 16))
+             for name, text, count, at, value in (line.split("\t") for line in rows.value.decode("utf-8").splitlines())]
+    return ({name: getattr(found, name) for name in STATE_FIELDS} if ok else None), error.value.decode("utf-8"), table
 
-    게임 안에서 ToyBox 가 도는 것과 같은 코드(DLL 의 locate)를 쓴다. 파일을 읽기만 한다.
-    """
-    if not output(cfg).is_file():
-        return None, "ToyBox DLL 이 없습니다 — srkit toybox-build"
-    image = image_of((cfg.game_dir / EXE_NAME).read_bytes())
+
+def legacy_of(lib: ctypes.CDLL, image: bytes) -> tuple[dict[str, int] | None, str]:
+    """옛 찾기(치트 닻)를 그 이미지에 돌린다: (이름 → RVA, "") 또는 (None, 까닭)."""
     found, error = GameAddresses(), ctypes.create_string_buffer(256)
-    if library(cfg).srtoybox_locate(image, len(image), ctypes.byref(found), error, len(error)) != 0:
+    if lib.srtoybox_locate_legacy(image, len(image), ctypes.byref(found), error, len(error)) != 0:
         return None, error.value.decode("utf-8")
-    return {name: getattr(found, name) for name in ADDRESS_FIELDS}, ""
+    return {name: getattr(found, name) for name in LEGACY_FIELDS}, ""
+
+
+def locate(cfg: Config) -> Located:
+    """설치된 게임의 실행 파일에서 ToyBox 가 쓰는 주소를 찾는다. 게임 안에서 도는 것과 같은 코드(DLL)를 쓴다. 파일을 읽기만 한다.
+
+    DLL 이 빌드되어 있어야 한다(srkit toybox-build).
+    """
+    lib = library(cfg)
+    image = image_of((cfg.game_dir / EXE_NAME).read_bytes())
+    started = time.perf_counter()
+    state, state_why, rows = state_of(lib, image)
+    ms = (time.perf_counter() - started) * 1000
+    legacy, legacy_why = legacy_of(lib, image)
+    return Located(state, state_why, rows, ms, legacy, legacy_why)

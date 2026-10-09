@@ -166,11 +166,11 @@ EXPORT int srtoybox_sig_find(const unsigned char *image, unsigned long long size
     return put(text + line, out, out_size);
 }
 
-// 실행 파일의 이미지(RVA 대로 펼친 것)에서 주소를 찾는다. 0 이면 out 을 채웠다. -1 이면 error 에 까닭.
-EXPORT int srtoybox_locate(const unsigned char *image, unsigned long long size, GameAddresses *out, char *error, int error_size)
+// 옛 찾기(전환 기간에만): 명령 처리 함수 · this · 옵션 묶음을 치트 닻으로. 0 이면 out 의 그 셋을 채웠다. -1 이면 error 에 까닭.
+EXPORT int srtoybox_locate_legacy(const unsigned char *image, unsigned long long size, GameAddresses *out, char *error, int error_size)
 {
     GameAddresses found = {};
-    const char *why = locate_game(image, static_cast<size_t>(size), &found);
+    const char *why = locate_legacy(image, static_cast<size_t>(size), &found);
     if (why != nullptr) {
         put(why, error, error_size);
         return -1;
@@ -178,6 +178,38 @@ EXPORT int srtoybox_locate(const unsigned char *image, unsigned long long size, 
     if (out != nullptr)
         *out = found;
     return 0;
+}
+
+// 새 찾기(상태 묶음, 서명으로). 0 이면 out 의 일곱 필드를 채웠다. -1 이면 error 에 까닭.
+// rows 에는 서명마다 한 줄 "<찾을 것>\t<서명 글>\t<맞은 횟수>\t<처음 맞은 자리>\t<읽어 낸 주소>"(뒤의 셋은 16진수). 필요 없으면 nullptr.
+EXPORT int srtoybox_locate_state(const unsigned char *image, unsigned long long size, GameAddresses *out, char *error, int error_size,
+                                 char *rows, int rows_size)
+{
+    GameAddresses found = {};
+    SigRow table[STATE_WANTED * STATE_SIGS];
+    char why[160] = "";
+    const bool ok = locate_state(image, static_cast<size_t>(size), &found, table, why, sizeof(why));
+    if (rows != nullptr) {
+        std::string text;
+        char numbers[64];
+        for (const SigRow &row : table) {
+            snprintf(numbers, sizeof(numbers), "\t%x\t%x\t%x\n", static_cast<unsigned>(row.count), row.at, row.value);
+            text += std::string(row.name) + '\t' + row.text + numbers;
+        }
+        put(text, rows, rows_size);
+    }
+    if (!ok) {
+        put(why, error, error_size);
+        return -1;
+    }
+    if (out != nullptr)
+        *out = found;
+    return 0;
+}
+
+EXPORT unsigned srtoybox_function_root(const unsigned char *image, unsigned long long size, unsigned rva)
+{
+    return locate_function_root(image, static_cast<size_t>(size), rva);
 }
 
 // 테스트: 가짜 메모리에서 상태를 읽는다. "known=1 in_game=1 multiplayer=0 cheats=0 player=1499 regions=1106,1499"

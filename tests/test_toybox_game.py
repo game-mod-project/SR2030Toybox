@@ -1,4 +1,4 @@
-"""ToyBox 2단계: 주소 찾기 · 게임 상태 읽기 · 나라 이름표 (native/srtoybox 의 locate · game · regions)."""
+"""ToyBox: 주소 찾기(새 찾기 = 서명, 옛 찾기 = 치트 닻) · 게임 상태 읽기 · 나라 이름표 (native/srtoybox 의 locate · game · regions)."""
 import ctypes
 import struct
 from ctypes import wintypes
@@ -14,6 +14,10 @@ BUILD_21347933 = {"handler": 0x522330, "context": 0x1764310, "multiplayer": 0xF1
                   "program_state": 0x1EED11C, "mode_state": 0xE7BE30, "player_index": 0x18294E0, "player_pointer": 0x18295F8,
                   "region_table": 0x1AF78C0, "region_count": 0x18294D8}
 BUILD_21347933_STAMP = 0x695377B6
+BUILD_STATE = {name: BUILD_21347933[name] for name in toybox.STATE_FIELDS}
+BUILD_LEGACY = {name: BUILD_21347933[name] for name in toybox.LEGACY_FIELDS}
+GARBAGE = [b"", b"MZ", bytes(0x1000), b"MZ" + bytes(0x3A) + struct.pack("<I", 0x7FFFFFF0) + bytes(0x100)]
+GARBAGE_IDS = ["empty", "two-bytes", "zeros", "header-far-outside"]
 
 
 @pytest.fixture(scope="module")
@@ -30,44 +34,164 @@ def lib(cfg):
     return lib
 
 
-def find(lib, image: bytes) -> tuple[dict[str, int] | None, str]:
+@pytest.fixture(scope="module")
+def sigs(lib):
+    """DLL 에 든 서명 표: [(찾을 것, 서명 글)] — 찾을 것마다 셋, 표의 순서대로."""
+    return [(row.name, row.text) for row in toybox.state_of(lib, b"")[2]]
+
+
+def installed_image(game_dir) -> bytes:
+    """설치된 게임의 실행 파일을 펼친 것. 아는 빌드(21347933)가 아니면 건너뛴다."""
+    exe = (game_dir / "SupremeRuler2030.exe").read_bytes()
+    stamp = struct.unpack_from("<I", exe, struct.unpack_from("<I", exe, 0x3C)[0] + 8)[0]
+    if stamp != BUILD_21347933_STAMP:
+        pytest.skip(f"다른 빌드(TimeDateStamp {stamp:#x})")
+    return toybox.image_of(exe)
+
+
+def test_the_signature_table_has_three_signatures_per_address(sigs):
+    assert [name for name, _ in sigs] == [name for name in toybox.STATE_FIELDS for _ in range(3)]
+    assert len({text for _, text in sigs}) == 21
+
+
+def test_state_is_found_in_an_image_without_any_cheat_string(lib, sigs):
+    """새 찾기는 치트 문자열에 기대지 않는다 — 게임이 치트를 없애도 상태를 읽는다."""
+    image = toybox_fake_exe.state_image(sigs)
+    assert b"cheat" not in image
+    found, why, rows = toybox.state_of(lib, image)
+    assert found == toybox_fake_exe.STATE, why
+    assert [row.count for row in rows] == [1] * 21
+
+
+@pytest.mark.parametrize("which", range(7))
+def test_state_survives_one_broken_signature_per_address(lib, sigs, which):
+    """업데이트로 서명 하나가 깨져도 나머지 둘이 같은 주소를 내면 찾은 것이다."""
+    found, why, rows = toybox.state_of(lib, toybox_fake_exe.state_image(sigs, broken={3 * which}))
+    assert found == toybox_fake_exe.STATE, why
+    assert rows[3 * which].count == 0
+
+
+def test_state_is_not_found_when_two_signatures_of_one_address_break(lib, sigs):
+    found, why, _ = toybox.state_of(lib, toybox_fake_exe.state_image(sigs, broken={0, 1}))
+    assert found is None and "멀티플레이 표시" in why and "3개 가운데 1개" in why
+
+
+def test_a_signature_that_matches_twice_does_not_count(lib, sigs):
+    found, why, rows = toybox.state_of(lib, toybox_fake_exe.state_image(sigs, twice={0}))
+    assert found == toybox_fake_exe.STATE and rows[0].count == 2, why        # 나머지 둘로 찾는다
+    found, why, _ = toybox.state_of(lib, toybox_fake_exe.state_image(sigs, twice={0}, broken={1}))
+    assert found is None and "3개 가운데 1개" in why                          # 두 번 맞은 것은 표가 아니다
+
+
+def test_signatures_that_disagree_are_refused(lib, sigs):
+    """셋이 모두 맞았는데 하나가 다른 주소를 낸다 — 다수결로 고르지 않고 못 찾은 것으로 친다."""
+    found, why, _ = toybox.state_of(lib, toybox_fake_exe.state_image(sigs, stray={12}))
+    assert found is None and "플레이어 포인터" in why and "서로 다른 주소" in why
+
+
+def test_a_state_address_outside_the_image_is_refused(lib, sigs):
+    targets = {"region_table": toybox_fake_exe.SIZE - 0x100}      # 지역 표(8바이트 × 1024칸)가 이미지의 끝을 넘는다
+    found, why, _ = toybox.state_of(lib, toybox_fake_exe.state_image(sigs, targets=targets))
+    assert found is None and "지역 표" in why and "실행 파일 밖" in why
+
+
+@pytest.mark.parametrize("image", GARBAGE, ids=GARBAGE_IDS)
+def test_state_survives_garbage(lib, image):
+    found, why, _ = toybox.state_of(lib, image)
+    assert found is None and why
+
+
+def test_state_survives_an_image_with_a_page_it_cannot_read(lib, sigs):
+    """올라와 있는 실행 파일에 읽을 수 없는 쪽이 있어도(보호된 구역) 죽지 않고 "못 찾았다"로 친다."""
+    image = toybox_fake_exe.state_image(sigs)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.VirtualAlloc.restype = ctypes.c_void_p
+    kernel32.VirtualAlloc.argtypes = [ctypes.c_void_p, ctypes.c_size_t, wintypes.DWORD, wintypes.DWORD]
+    kernel32.VirtualProtect.argtypes = [ctypes.c_void_p, ctypes.c_size_t, wintypes.DWORD, ctypes.POINTER(wintypes.DWORD)]
+    kernel32.VirtualFree.argtypes = [ctypes.c_void_p, ctypes.c_size_t, wintypes.DWORD]
+    memory = kernel32.VirtualAlloc(None, len(image), 0x3000, 0x04)            # 예약+확정, 읽기 · 쓰기
+    ctypes.memmove(memory, image, len(image))
+    old = wintypes.DWORD()
+    assert kernel32.VirtualProtect(memory + toybox_fake_exe.PLANT, 0x1000, 0x01, ctypes.byref(old))   # 서명이 든 쪽: PAGE_NOACCESS
     found, error = toybox.GameAddresses(), ctypes.create_string_buffer(256)
-    if lib.srtoybox_locate(image, len(image), ctypes.byref(found), error, len(error)) != 0:
-        return None, error.value.decode("utf-8")
-    return {name: getattr(found, name) for name in toybox.ADDRESS_FIELDS}, ""
+    try:
+        result = lib.srtoybox_locate_state(ctypes.c_char_p(memory), len(image), ctypes.byref(found), error, len(error), None, 0)
+    finally:
+        kernel32.VirtualFree(memory, 0, 0x8000)
+    assert result == -1 and "읽을 수 없는 곳" in error.value.decode("utf-8")
 
 
-def test_locate_finds_every_address_from_the_anchor_string(lib):
-    found, why = find(lib, toybox_fake_exe.build())
-    assert found == toybox_fake_exe.EXPECTED, why
+def test_state_on_the_installed_game(lib, game_dir):
+    """build 21347933: 서명 21개가 저마다 실행 구역에 정확히 한 번 맞고, 읽어 낸 주소가 docs/11 의 표와 같다."""
+    found, why, rows = toybox.state_of(lib, installed_image(game_dir))
+    assert found == BUILD_STATE, why
+    assert [row.count for row in rows] == [1] * 21
+    assert all(row.value == BUILD_STATE[row.name] for row in rows)
+
+
+def test_state_signatures_lie_outside_the_cheat_handler(lib, game_dir):
+    """요구 3: 서명은 치트 명령 처리 함수의 코드에서 뽑지 않는다."""
+    oracle = pytest.importorskip("toybox_cheat_oracle", reason="capstone 이 없다 (uv sync)")
+    image = installed_image(game_dir)
+    begin, end = oracle.handler(image)
+    for row in toybox.state_of(lib, image)[2]:
+        assert not begin <= row.at < end, row
+        assert lib.srtoybox_function_root(image, len(image), row.at) != begin, row
+
+
+def test_each_address_takes_its_signatures_from_different_functions(lib, game_dir):
+    image = installed_image(game_dir)
+    rows = toybox.state_of(lib, image)[2]
+    for i in range(0, 21, 3):
+        roots = {lib.srtoybox_function_root(image, len(image), row.at) or -row.at for row in rows[i:i + 3]}   # 함수 표에 없으면 0
+        assert len(roots) == 3, rows[i].name
+
+
+def test_state_agrees_with_what_the_cheat_code_says(lib, game_dir):
+    """치트 코드가 남아 있는 빌드에서의 대조: 새 찾기(서명)의 값 == 2단계의 방식(치트 닻)으로 읽은 값."""
+    oracle = pytest.importorskip("toybox_cheat_oracle", reason="capstone 이 없다 (uv sync)")
+    image = installed_image(game_dir)
+    assert toybox.state_of(lib, image)[0] == oracle.state(image)
+
+
+def test_legacy_finds_the_handler_from_the_cheat_anchor(lib, sigs):
+    """옛 찾기(전환 기간): 아직 내장 치트로 도는 기능이 쓰는 셋만 치트 문자열을 닻으로 찾는다."""
+    assert toybox.legacy_of(lib, toybox_fake_exe.build(sigs)) == (toybox_fake_exe.LEGACY, "")
 
 
 @pytest.mark.parametrize("flaw, reason", [
     ("extra_anchor", "닻 문자열"),                   # 같은 문자열이 둘이면 어느 것이 진짜인지 모른다
     ("second_call", "부르는 곳"),                    # 부르는 곳이 둘이면 this 를 어디서 얻을지 모른다
-    ("no_head_check", "멀티플레이"),                 # 함수 머리의 모양이 다르다 = 다른 함수이거나 바뀐 빌드
-    ("other_pointer", "georgeww"),                   # 두 치트가 서로 다른 플레이어 포인터를 쓴다
-    ("other_table", "지역 표"),                      # 지역 표의 주소가 두 곳에서 다르다
+    ("no_options", "치트 허용 비트"),                # 함수 머리의 모양이 다르다 = 다른 함수이거나 바뀐 빌드
     ("outside", "실행 파일 밖"),                     # 찾은 주소가 이미지 밖이다
 ])
-def test_locate_refuses_an_image_that_does_not_add_up(lib, flaw, reason):
-    """대조가 하나라도 어긋나면 "못 찾았다"다 — 그때 ToyBox 는 1단계의 글쇠 방식으로 동작한다."""
-    found, why = find(lib, toybox_fake_exe.build(**{flaw: True}))
+def test_legacy_refuses_an_image_that_does_not_add_up(lib, flaw, reason):
+    found, why = toybox.legacy_of(lib, toybox_fake_exe.build(**{flaw: True}))
     assert found is None and reason in why, why
 
 
-@pytest.mark.parametrize("image", [b"", b"MZ", bytes(0x1000), b"MZ" + bytes(0x3A) + struct.pack("<I", 0x7FFFFFF0) + bytes(0x100)],
-                         ids=["empty", "two-bytes", "zeros", "header-far-outside"])
-def test_locate_survives_garbage(lib, image):
-    found, why = find(lib, image)
+def test_an_image_without_cheats_gives_the_state_but_not_the_handler(lib, sigs):
+    """게임이 치트를 없앤 빌드: 상태는 읽고(새 찾기) 명령 처리 함수는 못 찾는다(옛 찾기) — 옮기지 않은 기능만 글쇠 방식이 된다."""
+    image = toybox_fake_exe.state_image(sigs)
+    assert toybox.state_of(lib, image)[0] == toybox_fake_exe.STATE
+    found, why = toybox.legacy_of(lib, image)
+    assert found is None and "닻 문자열" in why
+
+
+def test_an_image_with_both_gives_both(lib, sigs):
+    """치트의 닻과 서명이 함께 든 이미지(지금의 게임): 두 찾기가 서로를 방해하지 않는다."""
+    image = toybox_fake_exe.build(sigs)
+    assert toybox.state_of(lib, image)[0] == toybox_fake_exe.STATE
+    assert toybox.legacy_of(lib, image)[0] == toybox_fake_exe.LEGACY
+
+
+@pytest.mark.parametrize("image", GARBAGE, ids=GARBAGE_IDS)
+def test_legacy_survives_garbage(lib, image):
+    found, why = toybox.legacy_of(lib, image)
     assert found is None and why
 
 
-def test_locate_survives_an_image_with_a_page_it_cannot_read(lib):
-    """올라와 있는 실행 파일에 읽을 수 없는 쪽이 있어도(보호된 구역) 죽지 않고 "못 찾았다"로 친다.
-
-    ToyBox 는 게임이 뜰 때 이 함수를 한 번 부른다 — 여기서 예외가 새면 게임이 뜨다가 죽는다.
-    """
+def test_legacy_survives_an_image_with_a_page_it_cannot_read(lib):
     image = toybox_fake_exe.build()
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
     kernel32.VirtualAlloc.restype = ctypes.c_void_p
@@ -80,25 +204,21 @@ def test_locate_survives_an_image_with_a_page_it_cannot_read(lib):
     assert kernel32.VirtualProtect(memory + toybox_fake_exe.TEXT, 0x1000, 0x01, ctypes.byref(old))   # 코드의 첫 쪽: PAGE_NOACCESS
     found, error = toybox.GameAddresses(), ctypes.create_string_buffer(256)
     try:
-        result = lib.srtoybox_locate(ctypes.c_char_p(memory), len(image), ctypes.byref(found), error, len(error))
+        result = lib.srtoybox_locate_legacy(ctypes.c_char_p(memory), len(image), ctypes.byref(found), error, len(error))
     finally:
         kernel32.VirtualFree(memory, 0, 0x8000)
     assert result == -1 and "읽을 수 없는 곳" in error.value.decode("utf-8")
 
 
-def test_locate_on_the_installed_game(lib, cfg, game_dir):
-    """설치된 게임의 실행 파일에서. 아는 빌드(21347933)면 주소까지 대조하고, 다른 빌드면 찾았는지 못 찾았는지만 적는다."""
-    exe = (game_dir / "SupremeRuler2030.exe").read_bytes()
-    stamp = struct.unpack_from("<I", exe, struct.unpack_from("<I", exe, 0x3C)[0] + 8)[0]
-    found, why = find(lib, toybox.image_of(exe))
-    if stamp != BUILD_21347933_STAMP:
-        pytest.skip(f"다른 빌드(TimeDateStamp {stamp:#x}): " + ("주소를 찾았다" if found else f"못 찾았다 — {why}"))
-    assert found == BUILD_21347933, why
+def test_legacy_on_the_installed_game(lib, game_dir):
+    assert toybox.legacy_of(lib, installed_image(game_dir)) == (BUILD_LEGACY, "")
 
 
-def test_srkit_locate_reports_the_addresses(lib, cfg, game_dir):
-    found, why = toybox.locate(cfg)
-    assert why == "" and found is not None and set(found) == set(toybox.ADDRESS_FIELDS)
+def test_srkit_locate_reports_both_searches(lib, cfg, game_dir):
+    located = toybox.locate(cfg)
+    assert located.state is not None and set(located.state) == set(toybox.STATE_FIELDS), located.state_why
+    assert len(located.rows) == 21 and located.ms >= 0
+    assert located.legacy is not None and set(located.legacy) == set(toybox.LEGACY_FIELDS), located.legacy_why
 
 
 def state(lib, fake: FakeGame) -> dict[str, str]:
@@ -146,6 +266,17 @@ def test_game_state_reads_the_cheat_bit_and_the_multiplayer_flag(lib):
     assert got["cheats"] == "1" and got["multiplayer"] == "1"
     fake.poke(OPTIONS, "<I", 0x6072B081)            # 비트 0x40 만 꺼진 값(다른 비트는 다른 옵션이다)
     assert state(lib, fake)["cheats"] == "0"
+
+
+def test_game_state_without_the_legacy_addresses(lib):
+    """옛 찾기가 실패하면(치트가 없는 빌드) 옵션 묶음의 주소가 없다(0). 그래도 상태는 읽는다 — 치트 허용만 모르고, 꺼진 것으로 친다."""
+    fake = germany()
+    fake.at.options = 0
+    fake.at.handler = 0
+    fake.at.context = 0
+    fake.poke(OPTIONS, "<I", 0x40)
+    assert state(lib, fake) == {"known": "1", "in_game": "1", "multiplayer": "0", "cheats": "0", "player": "1499",
+                                "regions": "1106,1201,1499"}
 
 
 def test_game_state_survives_a_pointer_it_cannot_read(lib):

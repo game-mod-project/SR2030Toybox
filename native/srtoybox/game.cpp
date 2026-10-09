@@ -6,6 +6,7 @@
 #include <cstring>
 #include <mutex>
 
+#include "features.h"
 #include "log.h"
 
 namespace {
@@ -110,7 +111,8 @@ GameState read_game(const uint8_t *base, const GameAddresses &at)
     uint32_t options = 0;
     int32_t program = 0, mode = 0, index = 0, count = 0;
     uint64_t pointer = 0, slot = 0;
-    if (base == nullptr || !peek_at(base, at.multiplayer, &multiplayer) || !peek_at(base, at.options, &options)
+    if (base == nullptr || !peek_at(base, at.multiplayer, &multiplayer)
+        || (at.options != 0 && !peek_at(base, at.options, &options))
         || !peek_at(base, at.program_state, &program) || !peek_at(base, at.mode_state, &mode)
         || !peek_at(base, at.player_index, &index) || !peek_at(base, at.player_pointer, &pointer)
         || !peek_at(base, at.region_count, &count))
@@ -161,21 +163,40 @@ void game_init()
     const uint8_t *base = reinterpret_cast<const uint8_t *>(GetModuleHandleW(nullptr));
     const IMAGE_DOS_HEADER *dos = reinterpret_cast<const IMAGE_DOS_HEADER *>(base);
     const IMAGE_NT_HEADERS64 *nt = reinterpret_cast<const IMAGE_NT_HEADERS64 *>(base + dos->e_lfanew);
+    const size_t size = nt->OptionalHeader.SizeOfImage;
+
+    // 새 찾기: 게임 상태를 읽는 전역 일곱 — 내장 치트와 무관한 서명으로
     GameAddresses at = {};
-    const char *why = locate_game(base, nt->OptionalHeader.SizeOfImage, &at);
+    SigRow rows[STATE_WANTED * STATE_SIGS];
+    char why[160] = "";
+    const ULONGLONG started = GetTickCount64();
+    const bool state = locate_state(base, size, &at, rows, why, sizeof(why));
+    const unsigned long long took = GetTickCount64() - started;
+    int matched = 0;
+    for (const SigRow &row : rows)
+        matched += row.count == 1 ? 1 : 0;
+
+    // 옛 찾기(전환 기간에만): 아직 내장 치트로 도는 기능의 직접 실행이 쓴다. 상태를 읽지 못하면 그 기능들도 글쇠 방식이라 찾지 않는다
+    const char *legacy = state ? locate_legacy(base, size, &at) : "게임 상태를 읽지 못했습니다";
+    const bool can_call = state && legacy == nullptr;
     {
         std::lock_guard<std::mutex> lock(g_lock);
         g_base = base;
         g_at = at;
-        g_located = why == nullptr;
+        g_located = state;
         g_told = false;
-        g_handler = why == nullptr ? const_cast<uint8_t *>(base) + at.handler : nullptr;
-        g_context = why == nullptr ? const_cast<uint8_t *>(base) + at.context : nullptr;
+        g_handler = can_call ? const_cast<uint8_t *>(base) + at.handler : nullptr;
+        g_context = can_call ? const_cast<uint8_t *>(base) + at.context : nullptr;
     }
-    if (why == nullptr)
-        log_line("게임 상태를 읽습니다 (명령 처리 함수 +0x%X)", at.handler);
-    else
+    if (!state) {
         log_line("게임 상태를 읽을 수 없습니다 (%s) — 글쇠 방식", why);
+        return;
+    }
+    log_line("게임 상태를 읽습니다 (서명 %d개 가운데 %d개, %llu ms)", STATE_WANTED * STATE_SIGS, matched, took);
+    if (can_call)
+        log_line("옛 방식(내장 치트)으로 도는 기능이 %d개 남아 있습니다 (명령 처리 함수 +0x%X)", FEATURE_COUNT, at.handler);
+    else
+        log_line("명령 처리 함수를 찾지 못했습니다 (%s) — 내장 치트로 도는 기능은 글쇠 방식", legacy);
 }
 
 GameState game_state()

@@ -159,15 +159,30 @@ def cmd_locate(cfg, _args) -> int:
     data = exe.read_bytes()
     stamp = int.from_bytes(data[int.from_bytes(data[0x3C:0x40], "little") + 8:][:4], "little")
     print(f"{exe.name}: {len(data):,} 바이트, PE TimeDateStamp {stamp:#x}")
-    found, why = toybox.locate(cfg)
-    if found is None:
-        print(f"주소를 찾지 못했습니다: {why}")
-        print("ToyBox 는 이 빌드에서 글쇠 방식으로만 동작합니다(docs/10).")
+    if not toybox.output(cfg).is_file():
+        print("ToyBox DLL 이 없습니다 — srkit toybox-build")
         return 1
-    for name in toybox.ADDRESS_FIELDS:
-        print(f"  {found[name]:#010x}  {toybox.ADDRESS_NAMES[name]}")
-    print("주소를 모두 찾았습니다(대조 통과). docs/11 의 표와 다르면 게임이 바뀐 것입니다.")
-    return 0
+    found = toybox.locate(cfg)
+    print(f"새 찾기 — 게임 상태를 읽는 주소(서명. 내장 치트와 무관하다): {found.ms:.0f} ms")
+    for row in found.rows:
+        mark = "한 번" if row.count == 1 else "안 맞음" if row.count == 0 else "여러 번"
+        print(f"  {row.name:<15} {mark:<5} 자리 {row.at:#010x} → {row.value:#010x}  {row.text}")
+    if found.state is None:
+        print(f"찾지 못했습니다: {found.state_why}")
+        print("ToyBox 는 이 빌드에서 게임을 읽지 못합니다. uv run srkit sig-mine <RVA> 로 서명을 다시 뽑습니다(docs/11).")
+    else:
+        for name in toybox.STATE_FIELDS:
+            print(f"  {found.state[name]:#010x}  {toybox.ADDRESS_NAMES[name]}")
+    print("옛 찾기 — 아직 내장 치트로 도는 기능이 쓰는 주소(치트 문자열이 닻이다. 전환 기간에만):")
+    if found.legacy is None:
+        print(f"  찾지 못했습니다: {found.legacy_why}")
+        print("  내장 치트로 도는 기능은 글쇠 방식으로 동작합니다(docs/10).")
+    else:
+        for name in toybox.LEGACY_FIELDS:
+            print(f"  {found.legacy[name]:#010x}  {toybox.ADDRESS_NAMES[name]}")
+    if found.state is not None and found.legacy is not None:
+        print("모두 찾았습니다. docs/11 의 표와 다르면 게임이 바뀐 것입니다.")
+    return 0 if found.state is not None else 1
 
 
 def cmd_sig_mine(cfg, args) -> int:

@@ -116,6 +116,13 @@ def test_the_vote_needs_two_signatures_that_agree(lib):
     assert find(lib, image, [A, OTHER, NOWHERE])[1][:2] == (False, 2)
 
 
+@pytest.mark.parametrize("need", [0, -1])
+def test_the_vote_finds_nothing_when_no_signature_matched_whatever_need_says(lib, need):
+    """정확히 한 번 맞은 서명이 하나도 없으면 찾은 것이 없다. need 가 0 이하여도 없는 서명의 값을 읽지 않는다."""
+    rows, vote = find(lib, bytes(0x400), [A], need=need)
+    assert rows == [(0, 0, 0, 0)] and vote == (False, 0, 0, 0)
+
+
 def test_a_signature_that_matches_twice_has_no_vote(lib):
     """두 번 맞는 서명은 어느 자리가 진짜인지 모른다 — 처음 맞은 자리의 값을 표로 치지 않는다."""
     image = image_with(*[(at, bytes([0x48, 0x8B, 0x05]) + struct.pack("<i", 0x300 - (at + 7))) for at in (0x40, 0x80)],
