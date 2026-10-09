@@ -337,8 +337,10 @@ srtoybox.dll
 
 2번의 첫 일은 V3(전제 확인)이고 3번의 첫 일은 V5 · V6 이다. 전제가 틀리면 멈추고 사용자에게 알린다.
 
-**지금의 테스트 상태**: `uv run pytest` 가 184개 가운데 1개 실패한다(`tests/test_korean.py::test_build_text_applies_translation_in_sr_utf8`).
-DLC 가 `LOCALEN\Scenario\LocalText-Regions.csv` 를 더해서이고 이 작업과 무관하다. PR 본문에는 그 1개를 따로 적는다.
+**지금의 테스트 상태**: DLC 가 `LOCALEN\Scenario\LocalText-Regions.csv` 를 더해 한글화 테스트 1개가 실패하던 것은 PR #29
+(`fix/korean-extra-regions-root-only`)에서 고쳤다 — 그 브랜치에서 `uv run pytest` 186개 통과. 작업 브랜치는 그 PR 이 들어간 `develop` 에서 나눈다.
+`tests/test_toybox.py::test_toybox_keeps_drawing_after_an_exception_passes_through_present` 가 전체 실행 네 번 가운데 한 번 실패했다
+(단독으로는 세 번 모두 통과. 원인은 보지 않았다) — 이 작업에서 화면 끼어들기 테스트가 실패하면 먼저 다시 돌려 본다.
 
 ## 위험
 
@@ -354,7 +356,7 @@ DLC 가 `LOCALEN\Scenario\LocalText-Regions.csv` 를 더해서이고 이 작업�
 
 ## 완료 기준
 
-1. 자동 테스트가 통과한다(2단계까지의 것 포함. 위의 무관한 1개는 따로 적는다).
+1. 자동 테스트가 통과한다(2단계까지의 것 포함).
 2. V1 ~ V14 를 보고 결과를 `docs/10` 의 "확인한 것"에 [확인] / 보지 못한 것으로 나눠 적는다.
 3. 게임 폴더에는 최종 빌드의 `srtoybox.dll` 이 설치되어 있고, 그 밖의 게임 파일은 그대로다.
 4. `uv run srkit locate` 가 이 빌드에서 위 표의 자리를 보고한다.
