@@ -36,6 +36,7 @@ uv run srkit mt-export <테이블>      # 기계 번역용 청크 내보내기 �
 uv run srkit hook-build              # 디코딩 훅 DLL 빌드
 uv run srkit toybox-build            # ToyBox DLL(게임 안 모드 설정 창) 빌드 → build/toybox/
 uv run srkit locate                  # 설치된 게임에서 ToyBox 가 쓰는 주소를 찾아 보고(게임 업데이트 뒤 점검)
+uv run srkit sig-mine <RVA>          # (개발용) ToyBox 가 주소를 찾는 서명의 후보 뽑기 — 치트 함수 밖의 코드에서
 uv run srkit build                   # build/korean/ 에 한글화 모드 생성
 uv run srkit deploy korean           # 설치 미리보기 (--apply 로 실제 설치)
 uv run srkit undeploy korean         # 제거 미리보기 (--apply 로 실제 제거·복원)
@@ -79,6 +80,7 @@ src/srkit/       도구
   probe.py       값 한 곳만 바꾼 시험 모드 만들기 (데이터 수정이 게임에 반영되는지 확인용)
   cheats.py      내장 치트 목록을 문서와 대조 (게임 업데이트로 치트가 사라졌는지 감지)
   toybox.py      ToyBox DLL 빌드
+  sigmine.py     ToyBox 의 서명 후보 뽑기 (개발용. 디스어셈블러 capstone)
 native/srhook/   디코딩 훅 DLL 소스
 native/srtoybox/ ToyBox DLL 소스 (C++)
 native/third_party/imgui/  Dear ImGui (MIT)

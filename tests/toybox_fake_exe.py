@@ -16,6 +16,39 @@ STRINGS = {"cheat allowcheats": RDATA, "cheat georgew": RDATA + 0x20, "cheat geo
            "cheat populate": RDATA + 0x60, "cheat becomeregion": RDATA + 0x80}
 
 
+def shell(functions: list[tuple[int, int]], size: int = SIZE) -> bytearray:
+    """머리말 · 구역 표 · 함수 표만 있는 빈 이미지. functions: 함수 표에 넣을 [시작, 끝) 들(시작순)."""
+    image = bytearray(size)
+    image[0:2] = b"MZ"
+    struct.pack_into("<I", image, 0x3C, 0x80)
+    image[0x80:0x98] = b"PE\0\0" + struct.pack("<HHIIIHH", 0x8664, 4, 0, 0, 0, 0xF0, 0x22)
+    optional = 0x98
+    struct.pack_into("<H", image, optional, 0x20B)
+    struct.pack_into("<II", image, optional + 56, size, 0x400)                 # SizeOfImage, SizeOfHeaders
+    struct.pack_into("<I", image, optional + 108, 16)                          # NumberOfRvaAndSizes
+    struct.pack_into("<II", image, optional + 112 + 3 * 8, PDATA, 12 * len(functions))
+    for i, (name, rva, flags) in enumerate([(b".text", TEXT, 0x60000020), (b".rdata", RDATA, 0x40000040),
+                                            (b".pdata", PDATA, 0x40000040), (b".data", DATA, 0xC0000040)]):
+        struct.pack_into("<8sIIIIIIHHI", image, optional + 0xF0 + 40 * i, name, 0x2000 if rva == TEXT else 0x1000, rva,
+                         0, 0, 0, 0, 0, 0, flags)
+    unwind = RDATA + 0x800
+    image[unwind:unwind + 4] = bytes([1, 0, 0, 0])                             # 풀기 정보: 뿌리(플래그 없음)
+    for i, (begin, end) in enumerate(functions):
+        struct.pack_into("<III", image, PDATA + 12 * i, begin, end, unwind)
+    return image
+
+
+def put(image: bytearray, rva: int, data: bytes) -> int:
+    image[rva:rva + len(data)] = data
+    return rva + len(data)
+
+
+def rip(image: bytearray, rva: int, opcode: bytes, target: int, tail: bytes = b"") -> int:
+    """RIP 상대 변위가 든 명령 하나: opcode + 변위(4) + tail. 변위는 명령의 끝을 기준으로 한다."""
+    length = len(opcode) + 4 + len(tail)
+    return put(image, rva, opcode + struct.pack("<i", target - (rva + length)) + tail)
+
+
 def build(extra_anchor: bool = False, second_call: bool = False, no_head_check: bool = False, other_pointer: bool = False,
           outside: bool = False, other_table: bool = False) -> bytes:
     """가짜 이미지. 인자는 주소 찾기가 거부해야 하는 흠을 하나씩 낸다."""
