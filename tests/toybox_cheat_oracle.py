@@ -1,4 +1,4 @@
-"""자동 테스트의 대조용: 2단계가 쓰던 방식(치트 문자열을 닻으로)으로 실행 파일의 이미지에서 상태 전역의 주소를 읽는다.
+"""자동 테스트의 대조용: 2단계가 쓰던 방식(치트 문자열을 닻으로)으로 실행 파일의 이미지에서 상태 전역의 주소와 값의 자리를 읽는다.
 
 게임 안에서 도는 DLL 은 이 방식을 쓰지 않는다(docs/superpowers/specs/2026-10-09-toybox-stage3-1-design.md 의 요구 3).
 치트 코드가 남아 있는 빌드에서 "새 찾기(서명)가 낸 값이 치트 코드에서 읽은 값과 같은가"를 보는 데만 쓴다.
@@ -69,4 +69,28 @@ def state(image_bytes: bytes) -> dict[str, int]:
              for m in re.finditer(rb"\xc7\x05....\x02\x00\x00\x00\xc7\x05....\x01\x00\x00\x00", data[lo:hi], re.S)]
     assert len(enter) == 1                                                                      # mov [모드 상태],2 / mov [프로그램 상태],1
     out["mode_state"] = _target(data, enter[0], 2, 10)
+    return out
+
+
+def values(image_bytes: bytes) -> dict[str, int]:
+    """값 묶음(세계 자료 포인터, 국고 칸, 재고와 "쓰는 물자"의 첫 칸 · 간격)과 재고의 칸 수(slots) — 치트 treasury · products 의 본문에서 읽은 것."""
+    image = sigmine.Image(image_bytes)
+    data = image.data
+    out = {}
+    at = _after(image, "cheat treasury", 0x80, rb"\xf2\x0f\x58\x80....\xf2\x0f\x11\x80")        # addsd xmm0,[rax+국고] / movsd [rax+국고],xmm0
+    out["treasury"] = struct.unpack_from("<I", data, at + 4)[0]
+    use = _uses(image, "cheat products")[0]
+    skip = re.search(rb"\x0f\x84(....)", data[use:use + 0x20], re.S)                             # je <다음 치트> — 거기까지가 본문이다
+    body = data[use:use + skip.start() + 6 + struct.unpack("<i", skip.group(1))[0]]
+    first = re.search(rb"\x48\x8b\x05....\x4c\x8d\x3d....\xf3\x0f\x10\x40(.)", body, re.S)       # mov rax,[세계 자료] / lea r15,[월드] / movss xmm0,[rax+첫 칸]
+    out["world_pointer"] = _target(data, use + first.start(), 3, 7)
+    used = [first.group(1)[0]] + [struct.unpack("<I", d)[0] for d in re.findall(rb"\xf3\x0f\x10\x80(....)\x0f\x2f\xc2", body, re.S)]
+    stock = [struct.unpack("<I", d)[0]                                                           # addss xmm,[rcx+칸] / movss [rcx+칸],xmm
+             for d in re.findall(rb"\xf3\x0f\x58[\x81\x89](....)\xf3\x0f\x11[\x81\x89]", body, re.S)]
+    out["used_first"], out["used_step"] = used[0], used[1] - used[0]
+    out["stock_first"], out["stock_step"] = stock[0], stock[1] - stock[0]
+    assert used == [out["used_first"] + out["used_step"] * i for i in range(len(used))], used    # 물자마다 펼쳐 놓았다 — 간격이 고르다
+    assert stock == [out["stock_first"] + out["stock_step"] * i for i in range(len(stock))], stock
+    assert len(used) == len(stock), (len(used), len(stock))
+    out["slots"] = len(stock)
     return out

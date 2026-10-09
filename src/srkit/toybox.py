@@ -38,6 +38,12 @@ ADDRESS_NAMES = {"handler": "명령 처리 함수", "context": "그 함수의 �
 STATE_FIELDS = ["multiplayer", "program_state", "mode_state", "player_index", "player_pointer", "region_table", "region_count"]
 # 옛 찾기(치트 닻)가 채우는 셋 — 아직 내장 치트로 도는 기능이 쓴다(전환 기간에만)
 LEGACY_FIELDS = ["handler", "context", "options"]
+# 새 찾기(서명)가 채우는 값 묶음 — native/srtoybox/locate.h 의 ValueLayout 과 같은 순서다
+VALUE_FIELDS = ["world_pointer", "treasury", "stock_first", "stock_step", "used_first", "used_step"]
+VALUE_NAMES = {"world_pointer": "세계 자료 객체의 포인터(qword. 이것만 RVA 다)", "treasury": "국고 칸 — 지역 객체 안의 자리(double, 달러)",
+               "stock_first": "재고의 첫 칸 — 지역 객체 안의 자리(float)", "stock_step": "재고 칸의 간격",
+               "used_first": "\"쓰는 물자\" 표의 첫 칸 — 세계 자료 객체 안의 자리(float. 0 보다 크면 쓴다)", "used_step": "그 표의 간격"}
+STOCK_SLOTS = 12        # 재고의 칸 수(native/srtoybox/locate.h 의 STOCK_SLOTS)
 
 
 @dataclass
@@ -47,7 +53,8 @@ class SigRow:
     text: str       # 서명 글
     count: int      # 실행 구역에서 맞은 횟수(2 에서 멈춘다)
     at: int         # 처음 맞은 자리
-    value: int      # 거기서 읽어 낸 주소
+    value: int      # 거기서 읽어 낸 주소나 상수(둘을 읽는 서명이면 간격)
+    value2: int = 0  # 둘째로 읽어 낸 상수(재고 · "쓰는 물자" 표의 첫 칸). 없으면 0
 
 
 @dataclass
@@ -57,12 +64,19 @@ class Located:
     state_why: str
     rows: list[SigRow]               # 서명마다의 결과
     ms: float                        # 새 찾기에 걸린 시간
+    values: dict[str, int] | None    # 새 찾기(서명): 값 묶음. 못 찾았으면 None
+    values_why: str
+    value_rows: list[SigRow]
     legacy: dict[str, int] | None    # 옛 찾기(치트 닻): 명령 처리 함수 · this · 옵션 묶음. 못 찾았으면 None
     legacy_why: str
 
 
 class GameAddresses(ctypes.Structure):
     _fields_ = [(name, ctypes.c_uint32) for name in ADDRESS_FIELDS]
+
+
+class ValueLayout(ctypes.Structure):
+    _fields_ = [(name, ctypes.c_uint32) for name in VALUE_FIELDS]
 
 
 def output(cfg: Config) -> Path:
@@ -134,6 +148,8 @@ def library(cfg: Config) -> ctypes.CDLL:
                                            ctypes.c_int]
     lib.srtoybox_locate_state.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong, ctypes.POINTER(GameAddresses), ctypes.c_char_p,
                                           ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
+    lib.srtoybox_locate_values.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong, ctypes.POINTER(ValueLayout), ctypes.c_char_p,
+                                           ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
     lib.srtoybox_function_root.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong, ctypes.c_uint]
     lib.srtoybox_function_root.restype = ctypes.c_uint
     return lib
@@ -153,13 +169,24 @@ def image_of(exe: bytes) -> bytes:
     return bytes(image)
 
 
+def _sig_rows(text: bytes) -> list[SigRow]:
+    """DLL 이 내는 서명마다의 결과(한 줄에 "이름\\t서명\\t횟수\\t자리\\t값\\t둘째 값", 뒤의 넷은 16진수)."""
+    return [SigRow(name, sig, int(count, 16), int(at, 16), int(value, 16), int(value2, 16))
+            for name, sig, count, at, value, value2 in (line.split("\t") for line in text.decode("utf-8").splitlines())]
+
+
 def state_of(lib: ctypes.CDLL, image: bytes) -> tuple[dict[str, int] | None, str, list[SigRow]]:
     """새 찾기(상태 묶음)를 그 이미지에 돌린다: (이름 → RVA 또는 None, 까닭, 서명마다의 결과)."""
     found, error, rows = GameAddresses(), ctypes.create_string_buffer(256), ctypes.create_string_buffer(8192)
     ok = lib.srtoybox_locate_state(image, len(image), ctypes.byref(found), error, len(error), rows, len(rows)) == 0
-    table = [SigRow(name, text, int(count, 16), int(at, 16), int(value, 16))
-             for name, text, count, at, value in (line.split("\t") for line in rows.value.decode("utf-8").splitlines())]
-    return ({name: getattr(found, name) for name in STATE_FIELDS} if ok else None), error.value.decode("utf-8"), table
+    return ({name: getattr(found, name) for name in STATE_FIELDS} if ok else None), error.value.decode("utf-8"), _sig_rows(rows.value)
+
+
+def values_of(lib: ctypes.CDLL, image: bytes) -> tuple[dict[str, int] | None, str, list[SigRow]]:
+    """새 찾기(값 묶음)를 그 이미지에 돌린다: (이름 → 값 또는 None, 까닭, 서명마다의 결과)."""
+    found, error, rows = ValueLayout(), ctypes.create_string_buffer(256), ctypes.create_string_buffer(8192)
+    ok = lib.srtoybox_locate_values(image, len(image), ctypes.byref(found), error, len(error), rows, len(rows)) == 0
+    return ({name: getattr(found, name) for name in VALUE_FIELDS} if ok else None), error.value.decode("utf-8"), _sig_rows(rows.value)
 
 
 def legacy_of(lib: ctypes.CDLL, image: bytes) -> tuple[dict[str, int] | None, str]:
@@ -180,5 +207,6 @@ def locate(cfg: Config) -> Located:
     started = time.perf_counter()
     state, state_why, rows = state_of(lib, image)
     ms = (time.perf_counter() - started) * 1000
+    values, values_why, value_rows = values_of(lib, image)
     legacy, legacy_why = legacy_of(lib, image)
-    return Located(state, state_why, rows, ms, legacy, legacy_why)
+    return Located(state, state_why, rows, ms, values, values_why, value_rows, legacy, legacy_why)

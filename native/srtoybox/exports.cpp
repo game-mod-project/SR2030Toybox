@@ -32,6 +32,19 @@ int put(const std::string &text, char *out, int size)
     return static_cast<int>(text.size());
 }
 
+// 서명마다의 결과를 글로: 한 줄에 "<찾을 것>\t<서명 글>\t<맞은 횟수>\t<처음 맞은 자리>\t<읽어 낸 값>\t<둘째 값>"(뒤의 넷은 16진수).
+std::string rows_text(const SigRow *rows, int n)
+{
+    std::string text;
+    char numbers[80];
+    for (int i = 0; i < n; i++) {
+        snprintf(numbers, sizeof(numbers), "\t%x\t%x\t%x\t%x\n", static_cast<unsigned>(rows[i].count), rows[i].at, rows[i].value,
+                 rows[i].value2);
+        text += std::string(rows[i].name) + '\t' + rows[i].text + numbers;
+    }
+    return text;
+}
+
 // 보내는 대신 적어 두는 Sink. 시계는 부르는 쪽이 돌린다.
 struct RecordingSink : Sink {
     unsigned long long now = 0;
@@ -181,7 +194,7 @@ EXPORT int srtoybox_locate_legacy(const unsigned char *image, unsigned long long
 }
 
 // 새 찾기(상태 묶음, 서명으로). 0 이면 out 의 일곱 필드를 채웠다. -1 이면 error 에 까닭.
-// rows 에는 서명마다 한 줄 "<찾을 것>\t<서명 글>\t<맞은 횟수>\t<처음 맞은 자리>\t<읽어 낸 주소>"(뒤의 셋은 16진수). 필요 없으면 nullptr.
+// rows 에는 서명마다 한 줄(rows_text). 필요 없으면 nullptr.
 EXPORT int srtoybox_locate_state(const unsigned char *image, unsigned long long size, GameAddresses *out, char *error, int error_size,
                                  char *rows, int rows_size)
 {
@@ -189,15 +202,8 @@ EXPORT int srtoybox_locate_state(const unsigned char *image, unsigned long long 
     SigRow table[STATE_WANTED * STATE_SIGS];
     char why[160] = "";
     const bool ok = locate_state(image, static_cast<size_t>(size), &found, table, why, sizeof(why));
-    if (rows != nullptr) {
-        std::string text;
-        char numbers[64];
-        for (const SigRow &row : table) {
-            snprintf(numbers, sizeof(numbers), "\t%x\t%x\t%x\n", static_cast<unsigned>(row.count), row.at, row.value);
-            text += std::string(row.name) + '\t' + row.text + numbers;
-        }
-        put(text, rows, rows_size);
-    }
+    if (rows != nullptr)
+        put(rows_text(table, STATE_WANTED * STATE_SIGS), rows, rows_size);
     if (!ok) {
         put(why, error, error_size);
         return -1;
@@ -205,6 +211,30 @@ EXPORT int srtoybox_locate_state(const unsigned char *image, unsigned long long 
     if (out != nullptr)
         *out = found;
     return 0;
+}
+
+// 새 찾기(값 묶음, 서명으로). 0 이면 out 을 채웠다. -1 이면 error 에 까닭. rows 는 srtoybox_locate_state 와 같다.
+EXPORT int srtoybox_locate_values(const unsigned char *image, unsigned long long size, ValueLayout *out, char *error, int error_size,
+                                  char *rows, int rows_size)
+{
+    ValueLayout found = {};
+    SigRow table[VALUE_WANTED * STATE_SIGS];
+    char why[160] = "";
+    const bool ok = locate_values(image, static_cast<size_t>(size), &found, table, why, sizeof(why));
+    if (rows != nullptr)
+        put(rows_text(table, VALUE_WANTED * STATE_SIGS), rows, rows_size);
+    if (!ok) {
+        put(why, error, error_size);
+        return -1;
+    }
+    if (out != nullptr)
+        *out = found;
+    return 0;
+}
+
+EXPORT int srtoybox_stock_slots(void)
+{
+    return STOCK_SLOTS;
 }
 
 EXPORT unsigned srtoybox_function_root(const unsigned char *image, unsigned long long size, unsigned rva)

@@ -13,6 +13,7 @@ struct Section {
     uint32_t rva, size;
     bool code;        // 실행 구역
     bool constant;    // 읽기 전용 자료(문자열이 여기 있다. 쓸 수 있는 구역에는 사용자가 친 글이 남을 수 있어 닻을 찾지 않는다)
+    bool writable;    // 쓸 수 있는 자료(전역 변수가 여기 있다)
 };
 
 struct Image {
@@ -53,6 +54,7 @@ bool parse(Image &im)
         s.rva = im.u32(h + 12);
         s.code = (flags & 0x20000000) != 0;                             // IMAGE_SCN_MEM_EXECUTE
         s.constant = !s.code && (flags & 0x80000000) == 0;              // IMAGE_SCN_MEM_WRITE 가 아니다
+        s.writable = !s.code && (flags & 0x80000000) != 0;
         if (s.size == 0)
             continue;
         if (!im.has(s.rva, s.size))
@@ -232,14 +234,14 @@ const char *search_legacy(const uint8_t *image, size_t size, GameAddresses *out)
     return nullptr;
 }
 
-// 게임 상태를 읽는 데 쓰는 전역 일곱. 서명은 모두 치트 명령 처리 함수 밖의 코드에서 뽑았다(uv run srkit sig-mine <RVA>):
+// 게임 상태를 읽는 데 쓰는 전역 일곱. 서명은 모두 치트 코드 밖에서 뽑았다(uv run srkit sig-mine <RVA>):
 // build 21347933 에서 저마다 실행 구역에 한 번만 맞고, 찾을 것마다 세 서명이 서로 다른 함수에 있다(docs/11-game-internals.md).
 // 프로그램 상태와 모드 상태의 셋째 서명은 같은 자리(게임 진입의 mov [모드 상태],2 / mov [프로그램 상태],1)를 읽는다.
 const struct Wanted {
     const char *name;                       // GameAddresses 의 필드 이름(srkit locate 와 테스트가 본다)
     const char *label;                      // 로그에 나오는 이름
     uint32_t GameAddresses::*field;
-    uint32_t bytes;                         // 그 주소에서 이만큼은 실행 파일 안이어야 한다
+    uint32_t bytes;                         // 그 주소에서 이만큼은 쓸 수 있는 자료 구역 안이어야 한다
     const char *sigs[STATE_SIGS];
 } STATE[STATE_WANTED] = {
     {"multiplayer", "멀티플레이 표시", &GameAddresses::multiplayer, 1,
@@ -260,16 +262,51 @@ const struct Wanted {
      {"44 8B 35 [rip] 44 8B DF 8B D6", "44 8B 0D [rip] 8B D7 45 85 C9", "44 8B 15 [rip] 43 8D 04 0C 99"}},
 };
 
-bool search_state(const uint8_t *image, size_t size, GameAddresses *out, SigRow *rows, char *why, size_t why_size)
+// 값을 읽고 쓰는 자리 넷. 같은 규칙으로 뽑았다(uv run srkit sig-mine <RVA> / --offset <간격> <첫 칸>). 둘을 읽는 서명은
+// 간격이 먼저, 첫 칸이 나중이다. "쓰는 물자" 표의 셋째 서명은 가운데 명령(imul r,r,재고 간격)의 상수를 구멍으로 뒀다.
+const struct ValueWanted {
+    const char *name;                       // srkit locate 와 테스트가 본다
+    const char *label;                      // 로그와 창에 나오는 이름
+    const char *sigs[STATE_SIGS];
+} VALUES[VALUE_WANTED] = {
+    {"world_pointer", "세계 자료 포인터",
+     {"4C 8B 2D [rip] 41 8B F9 B3 01", "48 8B 0D [rip] 99 45 0F BF 45 48", "4C 8B 0D [rip] 66 0F 6E E7 0F 5B E4"}},
+    {"treasury", "국고 칸",
+     {"F2 0F 10 87 [u32] 66 0F 2F C1 76 5B", "F2 0F 11 89 [u32] 33 C9 89 4C 24 60", "F2 0F 11 9B [u32] 76 18 0F 28 C1"}},
+    {"stock", "재고 칸",
+     {"48 69 C8 [u32] 42 0F 2F 84 21 [u32] 76 40", "48 69 C7 [u32] 48 03 C3 F3 0F 10 80 [u32]",
+      "49 69 C0 [u32] 0F 2F 94 08 [u32] 76 0E"}},
+    {"used", "쓰는 물자 표",
+     {"49 69 CE [u32] F3 0F 10 44 01 [u8] 0F 2F C6", "48 69 D0 [u32] F3 42 0F 10 44 02 [u8] 41 0F 2F C5",
+      "4C 69 C2 [u32] 48 69 CA ? ? ? ? 0F 28 C2 F3 41 0F 59 44 01 [u8]"}},
+};
+
+const int MAX_TABLE = STATE_WANTED * STATE_SIGS;    // 한 표의 서명 수의 상한(상태 21개, 값 12개)
+
+// 전역 변수가 있을 수 있는 곳인가: 쓸 수 있는 자료 구역 안.
+bool in_data(const Image &im, uint64_t rva, uint64_t bytes)
 {
-    const int total = STATE_WANTED * STATE_SIGS;
-    Image im = {};
-    im.p = image;
-    im.size = size;
-    if (image == nullptr || !parse(im)) {
-        snprintf(why, why_size, "실행 파일의 머리말을 읽을 수 없습니다");
-        return false;
+    for (int s = 0; s < im.count; s++) {
+        const Section &sec = im.sections[s];
+        if (sec.writable && rva >= sec.rva && rva + bytes <= static_cast<uint64_t>(sec.rva) + sec.size)
+            return true;
     }
+    return false;
+}
+
+// 객체 안의 자리로 말이 되는가.
+bool offset_ok(uint64_t offset)
+{
+    return offset > 0 && offset < 0x100000;
+}
+
+// 서명 표 하나(찾을 것 n 개 × 서명 STATE_SIGS 개)를 실행 구역에 한 번 훑어 맞추고, 찾을 것마다 투표한다.
+// values: n 줄 × SIG_CAPTURES 칸(0 으로 채워서 준다). 못 찾으면 false 와 why. what 은 서명이 읽어 내는 것("주소를" · "값을").
+template <class Row>
+bool vote_table(const Image &im, const Row *table, int n, const char *what, SigRow *rows, uint64_t (*values)[SIG_CAPTURES],
+                char *why, size_t why_size)
+{
+    const int total = n * STATE_SIGS;
     SigRange ranges[32];
     int range_count = 0;
     for (int s = 0; s < im.count; s++)
@@ -278,46 +315,138 @@ bool search_state(const uint8_t *image, size_t size, GameAddresses *out, SigRow 
             ranges[range_count].end = im.sections[s].rva + im.sections[s].size;
             range_count++;
         }
-    Sig sigs[STATE_WANTED * STATE_SIGS];
-    SigHit hits[STATE_WANTED * STATE_SIGS];
+    Sig sigs[MAX_TABLE];
+    SigHit hits[MAX_TABLE];
     for (int i = 0; i < total; i++)
-        if (!sig_parse(STATE[i / STATE_SIGS].sigs[i % STATE_SIGS], &sigs[i])) {
-            snprintf(why, why_size, "서명 표가 틀렸습니다 (%s)", STATE[i / STATE_SIGS].name);
+        if (!sig_parse(table[i / STATE_SIGS].sigs[i % STATE_SIGS], &sigs[i])) {
+            snprintf(why, why_size, "서명 표가 틀렸습니다 (%s)", table[i / STATE_SIGS].name);
             return false;
         }
-    sig_scan(image, size, ranges, range_count, sigs, total, hits);
+    sig_scan(im.p, im.size, ranges, range_count, sigs, total, hits);
     if (rows != nullptr)
         for (int i = 0; i < total; i++) {
             rows[i].count = hits[i].count;
             rows[i].at = hits[i].at;
             rows[i].value = static_cast<uint32_t>(hits[i].value[0]);
+            rows[i].value2 = static_cast<uint32_t>(hits[i].value[1]);
         }
-    GameAddresses found = *out;
-    for (int w = 0; w < STATE_WANTED; w++) {
-        uint64_t value[SIG_CAPTURES] = {};
+    for (int w = 0; w < n; w++) {
         int matched = 0;
-        if (!sig_vote(sigs + w * STATE_SIGS, hits + w * STATE_SIGS, STATE_SIGS, STATE_NEED, value, &matched)) {
+        if (!sig_vote(sigs + w * STATE_SIGS, hits + w * STATE_SIGS, STATE_SIGS, STATE_NEED, values[w], &matched)) {
             if (matched >= STATE_NEED)
-                snprintf(why, why_size, "%s: 서명들이 서로 다른 주소를 냅니다", STATE[w].label);
+                snprintf(why, why_size, "%s: 서명들이 서로 다른 %s 냅니다", table[w].label, what);
             else
-                snprintf(why, why_size, "%s: 서명 %d개 가운데 %d개", STATE[w].label, STATE_SIGS, matched);
+                snprintf(why, why_size, "%s: 서명 %d개 가운데 %d개", table[w].label, STATE_SIGS, matched);
             return false;
         }
-        if (value[0] == 0 || value[0] >= size || !im.has(value[0], STATE[w].bytes)) {
+    }
+    return true;
+}
+
+bool search_state(const uint8_t *image, size_t size, GameAddresses *out, SigRow *rows, char *why, size_t why_size)
+{
+    Image im = {};
+    im.p = image;
+    im.size = size;
+    if (image == nullptr || !parse(im)) {
+        snprintf(why, why_size, "실행 파일의 머리말을 읽을 수 없습니다");
+        return false;
+    }
+    uint64_t values[STATE_WANTED][SIG_CAPTURES] = {};
+    if (!vote_table(im, STATE, STATE_WANTED, "주소를", rows, values, why, why_size))
+        return false;
+    GameAddresses found = *out;
+    for (int w = 0; w < STATE_WANTED; w++) {
+        const uint64_t rva = values[w][0];
+        if (rva == 0 || rva >= size || !im.has(rva, STATE[w].bytes)) {
             snprintf(why, why_size, "%s: 찾은 주소가 실행 파일 밖입니다", STATE[w].label);
             return false;
         }
-        found.*(STATE[w].field) = static_cast<uint32_t>(value[0]);
+        if (!in_data(im, rva, STATE[w].bytes)) {
+            snprintf(why, why_size, "%s: 찾은 주소가 쓸 수 있는 자료 구역이 아닙니다", STATE[w].label);
+            return false;
+        }
+        for (int v = 0; v < w; v++)
+            if (rva < values[v][0] + STATE[v].bytes && values[v][0] < rva + STATE[w].bytes) {
+                snprintf(why, why_size, "%s: 찾은 주소가 %s 의 자리와 겹칩니다", STATE[w].label, STATE[v].label);
+                return false;
+            }
+        found.*(STATE[w].field) = static_cast<uint32_t>(rva);
     }
     *out = found;
     snprintf(why, why_size, "%s", "");
     return true;
 }
 
+bool search_values(const uint8_t *image, size_t size, ValueLayout *out, SigRow *rows, char *why, size_t why_size)
+{
+    Image im = {};
+    im.p = image;
+    im.size = size;
+    if (image == nullptr || !parse(im)) {
+        snprintf(why, why_size, "실행 파일의 머리말을 읽을 수 없습니다");
+        return false;
+    }
+    uint64_t v[VALUE_WANTED][SIG_CAPTURES] = {};
+    if (!vote_table(im, VALUES, VALUE_WANTED, "값을", rows, v, why, why_size))
+        return false;
+    const uint64_t world = v[0][0], treasury = v[1][0];
+    if (world == 0 || world >= size || !im.has(world, 8)) {
+        snprintf(why, why_size, "%s: 찾은 주소가 실행 파일 밖입니다", VALUES[0].label);
+        return false;
+    }
+    if (!in_data(im, world, 8)) {
+        snprintf(why, why_size, "%s: 찾은 주소가 쓸 수 있는 자료 구역이 아닙니다", VALUES[0].label);
+        return false;
+    }
+    if (!offset_ok(treasury)) {
+        snprintf(why, why_size, "%s: 찾은 자리가 범위 밖입니다", VALUES[1].label);
+        return false;
+    }
+    for (int w = 2; w < VALUE_WANTED; w++) {    // 표 둘: (간격, 첫 칸). 칸이 float 라 간격은 4 의 배수다
+        const uint64_t step = v[w][0], first = v[w][1];
+        if (!offset_ok(first) || step == 0 || step % 4 != 0 || !offset_ok(first + step * (STOCK_SLOTS - 1) + 4)) {
+            snprintf(why, why_size, "%s: 찾은 자리나 간격이 범위 밖입니다", VALUES[w].label);
+            return false;
+        }
+    }
+    for (int i = 0; i < STOCK_SLOTS; i++) {
+        const uint64_t slot = v[2][1] + v[2][0] * static_cast<uint64_t>(i);
+        if (slot < treasury + 8 && treasury < slot + 4) {
+            snprintf(why, why_size, "국고 칸과 재고 칸이 겹칩니다");
+            return false;
+        }
+    }
+    out->world_pointer = static_cast<uint32_t>(world);
+    out->treasury = static_cast<uint32_t>(treasury);
+    out->stock_step = static_cast<uint32_t>(v[2][0]);
+    out->stock_first = static_cast<uint32_t>(v[2][1]);
+    out->used_step = static_cast<uint32_t>(v[3][0]);
+    out->used_first = static_cast<uint32_t>(v[3][1]);
+    snprintf(why, why_size, "%s", "");
+    return true;
+}
+
+// 서명마다의 결과 칸에 이름과 글을 채운다 — 찾기 전에. 머리말조차 못 읽은 이미지에서도 서명 표를 볼 수 있다(테스트와 srkit locate 가 쓴다).
+template <class Row>
+void name_rows(const Row *table, int n, SigRow *rows)
+{
+    if (rows == nullptr)
+        return;
+    for (int i = 0; i < n * STATE_SIGS; i++) {
+        rows[i].name = table[i / STATE_SIGS].name;
+        rows[i].text = table[i / STATE_SIGS].sigs[i % STATE_SIGS];
+        rows[i].count = 0;
+        rows[i].at = 0;
+        rows[i].value = 0;
+        rows[i].value2 = 0;
+    }
+}
+
 }  // namespace
 
 // 올라와 있는 실행 파일에는 읽을 수 없는 쪽이 있을 수 있다(보호된 구역). 그때도 죽지 않는다 — 여기서 예외가 새면 게임이 뜨다가 죽는다.
-// __try 가 든 함수에는 소멸자가 있는 지역 변수를 둘 수 없어 찾는 일(search_legacy · search_state)과 따로 뗐다.
+// __try 가 든 함수에는 소멸자가 있는 지역 변수를 둘 수 없어 찾는 일(search_legacy · search_state · search_values)과 따로 뗐다.
 const char *locate_legacy(const uint8_t *image, size_t size, GameAddresses *out)
 {
     __try {
@@ -327,20 +456,22 @@ const char *locate_legacy(const uint8_t *image, size_t size, GameAddresses *out)
     }
 }
 
-// 서명을 맞추다 읽을 수 없는 쪽을 만나도 죽지 않는다(locate_legacy 와 같은 까닭). rows 의 이름과 글은 찾기 전에 채운다 —
-// 머리말조차 못 읽은 이미지에서도 서명 표를 볼 수 있다(테스트와 srkit locate 가 쓴다).
 bool locate_state(const uint8_t *image, size_t size, GameAddresses *out, SigRow *rows, char *why, size_t why_size)
 {
-    if (rows != nullptr)
-        for (int i = 0; i < STATE_WANTED * STATE_SIGS; i++) {
-            rows[i].name = STATE[i / STATE_SIGS].name;
-            rows[i].text = STATE[i / STATE_SIGS].sigs[i % STATE_SIGS];
-            rows[i].count = 0;
-            rows[i].at = 0;
-            rows[i].value = 0;
-        }
+    name_rows(STATE, STATE_WANTED, rows);
     __try {
         return search_state(image, size, out, rows, why, why_size);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        snprintf(why, why_size, "실행 파일에 읽을 수 없는 곳이 있습니다");
+        return false;
+    }
+}
+
+bool locate_values(const uint8_t *image, size_t size, ValueLayout *out, SigRow *rows, char *why, size_t why_size)
+{
+    name_rows(VALUES, VALUE_WANTED, rows);
+    __try {
+        return search_values(image, size, out, rows, why, why_size);
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         snprintf(why, why_size, "실행 파일에 읽을 수 없는 곳이 있습니다");
         return false;

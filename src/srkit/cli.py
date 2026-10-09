@@ -154,6 +154,13 @@ def cmd_toybox_build(cfg, _args) -> int:
     return 0
 
 
+def _print_sig_rows(rows) -> None:
+    for row in rows:
+        mark = "한 번" if row.count == 1 else "안 맞음" if row.count == 0 else "여러 번"
+        value = f"{row.value:#x}" + (f" · {row.value2:#x}" if row.value2 else "")
+        print(f"  {row.name:<15} {mark:<5} 자리 {row.at:#010x} → {value:<16} {row.text}")
+
+
 def cmd_locate(cfg, _args) -> int:
     exe = cfg.game_dir / toybox.EXE_NAME
     data = exe.read_bytes()
@@ -164,15 +171,21 @@ def cmd_locate(cfg, _args) -> int:
         return 1
     found = toybox.locate(cfg)
     print(f"새 찾기 — 게임 상태를 읽는 주소(서명. 내장 치트와 무관하다): {found.ms:.0f} ms")
-    for row in found.rows:
-        mark = "한 번" if row.count == 1 else "안 맞음" if row.count == 0 else "여러 번"
-        print(f"  {row.name:<15} {mark:<5} 자리 {row.at:#010x} → {row.value:#010x}  {row.text}")
+    _print_sig_rows(found.rows)
     if found.state is None:
         print(f"찾지 못했습니다: {found.state_why}")
         print("ToyBox 는 이 빌드에서 게임을 읽지 못합니다. uv run srkit sig-mine <RVA> 로 서명을 다시 뽑습니다(docs/11).")
     else:
         for name in toybox.STATE_FIELDS:
             print(f"  {found.state[name]:#010x}  {toybox.ADDRESS_NAMES[name]}")
+    print("새 찾기 — 값을 읽고 쓰는 자리(서명. 내장 치트와 무관하다. 둘을 읽는 서명은 간격 · 첫 칸):")
+    _print_sig_rows(found.value_rows)
+    if found.values is None:
+        print(f"찾지 못했습니다: {found.values_why}")
+        print("ToyBox 의 돈 탭이 이 빌드에서 꺼집니다. uv run srkit sig-mine [--offset] 으로 서명을 다시 뽑습니다(docs/11).")
+    else:
+        for name in toybox.VALUE_FIELDS:
+            print(f"  {found.values[name]:#010x}  {toybox.VALUE_NAMES[name]}")
     print("옛 찾기 — 아직 내장 치트로 도는 기능이 쓰는 주소(치트 문자열이 닻이다. 전환 기간에만):")
     if found.legacy is None:
         print(f"  찾지 못했습니다: {found.legacy_why}")
@@ -180,9 +193,9 @@ def cmd_locate(cfg, _args) -> int:
     else:
         for name in toybox.LEGACY_FIELDS:
             print(f"  {found.legacy[name]:#010x}  {toybox.ADDRESS_NAMES[name]}")
-    if found.state is not None and found.legacy is not None:
+    if found.state is not None and found.values is not None and found.legacy is not None:
         print("모두 찾았습니다. docs/11 의 표와 다르면 게임이 바뀐 것입니다.")
-    return 0 if found.state is not None else 1
+    return 0 if found.state is not None and found.values is not None else 1
 
 
 def cmd_sig_mine(cfg, args) -> int:
