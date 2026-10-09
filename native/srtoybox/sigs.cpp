@@ -132,8 +132,8 @@ bool sig_vote(const Sig *sigs, const SigHit *hits, int n, int need, uint64_t *va
     }
     if (matched != nullptr)
         *matched = once;
-    if (once < need || !same)
-        return false;
+    if (first < 0 || once < need || !same)
+        return false;       // 맞은 서명이 하나도 없으면 need 가 0 이하여도 찾은 것이 없다(없는 서명의 값을 읽지 않는다)
     for (int c = 0; c < sigs[first].captures; c++)
         value[c] = hits[first].value[c];
     return true;
