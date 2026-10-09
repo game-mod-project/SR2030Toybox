@@ -170,6 +170,23 @@ def cmd_locate(cfg, _args) -> int:
     return 0
 
 
+def cmd_sig_mine(cfg, args) -> int:
+    from . import sigmine      # capstone 은 개발 의존성이다 — 이 명령에서만 불러온다
+
+    exe = cfg.game_dir / toybox.EXE_NAME
+    image = sigmine.Image(toybox.image_of(exe.read_bytes()))
+    target = int(args.address, 16)
+    handler = sigmine.handler_range(image)
+    picks = sigmine.best_per_function(sigmine.mine_address(image, target, exclude=handler, sites=args.sites))
+    left_out = f"치트 명령 처리 함수 {handler[0]:#x} – {handler[1]:#x} 는 뺐다" if handler else "치트 명령 처리 함수가 없는 빌드다"
+    print(f"{exe.name}: {target:#x} 를 가리키는 코드에서 ({left_out})")
+    for c in picks[:args.limit]:
+        function = f"{c.function:#x}" if c.function is not None else "표에 없음"
+        print(f"  자리 {c.at:#010x}  함수 {function:>10}  {c.length:>2}바이트  {c.text}")
+    print(f"서로 다른 함수 {len(picks)}개에서 후보가 나왔습니다. 서명 표에는 서로 다른 함수의 것 셋을 골라 옮깁니다.")
+    return 0 if len(picks) >= 3 else 1
+
+
 def cmd_inventory(cfg, _args) -> int:
     r = inventory.run(cfg)
     print(f"산출물         : {r['out']}")
@@ -259,6 +276,11 @@ def main(argv: list[str] | None = None) -> int:
         .set_defaults(fn=cmd_toybox_build)
     sub.add_parser("locate", help="설치된 게임에서 ToyBox 가 쓰는 주소를 찾아 보고(게임 업데이트 뒤 cheats-check 다음에)") \
         .set_defaults(fn=cmd_locate)
+    m = sub.add_parser("sig-mine", help="(개발용) 설치된 게임에서 그 주소를 읽어 낼 서명 후보 뽑기 — 치트 함수 밖의 코드에서")
+    m.add_argument("address", help="주소(RVA, 16진수. 예: 18295f8)")
+    m.add_argument("--limit", type=int, default=12, help="보여 줄 후보의 수")
+    m.add_argument("--sites", type=int, default=400, help="살펴볼 자리의 수(많으면 오래 걸린다)")
+    m.set_defaults(fn=cmd_sig_mine)
     sub.add_parser("inventory", help="게임 데이터의 섹션·키·열 목록을 build/inventory 에 CSV 로").set_defaults(fn=cmd_inventory)
     sub.add_parser("cheats-check", help="게임의 내장 치트가 docs/07 과 같은지 대조(게임 업데이트 감지)") \
         .set_defaults(fn=cmd_cheats_check)
