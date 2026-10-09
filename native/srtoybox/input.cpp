@@ -130,6 +130,9 @@ void input_install(HWND game)
         g_original = reinterpret_cast<WNDPROC>(GetWindowLongPtrA(game, GWLP_WNDPROC));
         SetWindowLongPtrA(game, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(wrapped));
     }
+    // 타이머는 창 스레드에서 걸어야 해서 감싼 프로시저가 처음 불릴 때 건다. 그때까지 기다리지 않게 빈 메시지로 한 번 깨운다 —
+    // 최소 유지는 사용자가 아무것도 누르지 않아도 돌아야 한다.
+    PostMessageW(game, WM_NULL, 0, 0);
 }
 
 unsigned dbcs_combine(unsigned char lead, unsigned char trail, unsigned codepage)
