@@ -7,10 +7,10 @@
 #include "locate.h"
 
 struct GameState {
-    bool known = false;         // 주소를 찾았고, 읽은 값이 서로 맞는다. 거짓이면 ToyBox 는 1단계처럼(글쇠 방식으로) 동작한다
+    bool known = false;         // 주소를 찾았고(새 찾기 — 서명), 읽은 값이 서로 맞는다. 거짓이면 내장 치트로 도는 기능은 글쇠 방식으로 동작한다
     bool in_game = false;       // 게임을 진행 중이다
     bool multiplayer = false;
-    bool cheats_on = false;     // 치트 허용 비트
+    bool cheats_on = false;     // 치트 허용 비트. 옛 찾기가 옵션 묶음을 찾았을 때만 읽는다(못 찾았으면 늘 false)
     int player = 0;             // 플레이어 지역의 번호(in_game 일 때만)
 };
 

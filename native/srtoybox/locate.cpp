@@ -107,21 +107,6 @@ uint32_t find(const Image &im, uint32_t from, uint32_t to, const Pattern &pt)
     return 0;
 }
 
-// 실행 구역 전체에서 맞는 자리의 수. first 에 가장 앞의 것.
-int count_in_code(const Image &im, const Pattern &pt, uint32_t *first)
-{
-    int n = 0;
-    for (int s = 0; s < im.count; s++) {
-        const Section &sec = im.sections[s];
-        if (!sec.code || sec.size < pt.length)
-            continue;
-        for (uint32_t rva = sec.rva; rva <= sec.rva + sec.size - pt.length; rva++)
-            if (im.p[rva] == pt.bytes[0] && matches(im, rva, pt) && n++ == 0)
-                *first = rva;
-    }
-    return n;
-}
-
 // RIP 상대 주소가 든 명령이 가리키는 곳. at: 명령의 시작, disp: 변위의 자리, length: 명령의 길이.
 uint32_t target(const Image &im, uint32_t at, uint32_t disp, uint32_t length)
 {
@@ -208,39 +193,18 @@ uint32_t function_root(const Image &im, uint32_t rva)
     return 0;
 }
 
-// 그 치트 문자열을 쓰는 자리(lea) 뒤 span 바이트 안에서 서명이 맞는 곳. 쓰는 자리가 여럿이면 앞에서부터 본다.
-// 문자열이 하나가 아니거나 어디에도 맞지 않으면 0.
-uint32_t find_in_cheat(const Image &im, const char *text, uint32_t span, const Pattern &pt)
-{
-    uint32_t string = 0;
-    if (count_string(im, text, &string) != 1)
-        return 0;
-    for (int s = 0; s < im.count; s++) {
-        const Section &sec = im.sections[s];
-        if (!sec.code || sec.size < 7)
-            continue;
-        for (uint32_t rva = sec.rva; rva <= sec.rva + sec.size - 7; rva++)
-            if ((im.p[rva] == 0x48 || im.p[rva] == 0x4C) && im.p[rva + 1] == 0x8D && (im.p[rva + 2] & 0xC7) == 0x05
-                && target(im, rva, 3, 7) == string) {
-                const uint32_t hit = find(im, rva, rva + span, pt);
-                if (hit != 0)
-                    return hit;
-            }
-    }
-    return 0;
-}
-
-const char *search(const uint8_t *image, size_t size, GameAddresses *out)
+// 옛 찾기: 닻 문자열 → 그것을 쓰는 자리 → 그 자리가 든 함수(명령 처리 함수) → 머리의 옵션 묶음, 부르는 곳의 this.
+// 상태 전역(멀티플레이 표시 · 플레이어 · 지역 표 …)은 여기서 읽지 않는다 — 새 찾기(search_state)의 일이다.
+const char *search_legacy(const uint8_t *image, size_t size, GameAddresses *out)
 {
     Image im = {};
     im.p = image;
     im.size = size;
-    GameAddresses a = {};
+    GameAddresses a = *out;
     uint32_t anchor = 0, use = 0, call = 0, at = 0;
     if (image == nullptr || !parse(im))
         return "실행 파일의 머리말을 읽을 수 없습니다";
 
-    // 1. 닻 문자열 → 그것을 쓰는 자리 → 그 자리가 든 함수
     if (count_string(im, "cheat allowcheats", &anchor) != 1)
         return "닻 문자열(cheat allowcheats)이 하나가 아닙니다";
     if (count_lea_to(im, anchor, &use) != 1)
@@ -248,69 +212,22 @@ const char *search(const uint8_t *image, size_t size, GameAddresses *out)
     if ((a.handler = function_root(im, use)) == 0)
         return "명령 처리 함수의 시작을 찾지 못했습니다";
 
-    // 2. 함수 머리: cmp byte ptr [멀티플레이],0 과 or dword ptr [옵션],40h
-    if ((at = find(im, a.handler, a.handler + 0x60, pattern("80 3D ? ? ? ? 00"))) == 0)
-        return "함수 머리에 멀티플레이 검사가 없습니다";
-    a.multiplayer = target(im, at, 2, 7);
+    // 함수 머리: or dword ptr [옵션],40h
     if ((at = find(im, a.handler, a.handler + 0x60, pattern("83 0D ? ? ? ? 40"))) == 0)
         return "함수 머리에 치트 허용 비트를 세우는 명령이 없습니다";
     a.options = target(im, at, 2, 7);
 
-    // 3. 부르는 곳은 하나이고, 바로 앞에서 lea rcx,[this]
+    // 부르는 곳은 하나이고, 바로 앞에서 lea rcx,[this]
     if (count_calls_to(im, a.handler, &call) != 1)
         return "명령 처리 함수를 부르는 곳이 하나가 아닙니다";
     if (call < 7 || !matches(im, call - 7, pattern("48 8D 0D ? ? ? ?")))
         return "부르는 곳 바로 앞에 this 를 채우는 명령이 없습니다";
     a.context = target(im, call - 7, 3, 7);
 
-    // 4. 부르는 함수의 머리: cmp dword ptr [프로그램 상태],6
-    const uint32_t caller = function_root(im, call);
-    if (caller == 0 || (at = find(im, caller, caller + 0x40, pattern("83 3D ? ? ? ? 06"))) == 0)
-        return "부르는 함수의 머리에 프로그램 상태 검사가 없습니다";
-    a.program_state = target(im, at, 2, 7);
-
-    // 5. georgew · georgeww: mov rax,[플레이어 포인터] / movsd xmm0,[rax+…] — 둘이 같은 포인터를 써야 한다
-    const Pattern read_pointer = pattern("48 8B 05 ? ? ? ? F2 0F 10 80");
-    if ((at = find_in_cheat(im, "cheat georgew", 0x40, read_pointer)) == 0)
-        return "cheat georgew 에서 플레이어 포인터를 읽는 명령을 찾지 못했습니다";
-    a.player_pointer = target(im, at, 3, 7);
-    if ((at = find_in_cheat(im, "cheat georgeww", 0x40, read_pointer)) == 0 || target(im, at, 3, 7) != a.player_pointer)
-        return "georgew 와 georgeww 가 같은 플레이어 포인터를 쓰지 않습니다";
-
-    // 6. populate: movsxd rax,[인덱스] / lea r15,[월드] / mov rcx,[r15+rax*8+지역 표]
-    if ((at = find_in_cheat(im, "cheat populate", 0x40, pattern("48 63 05 ? ? ? ? 4C 8D 3D ? ? ? ?"))) == 0)
-        return "cheat populate 에서 플레이어 인덱스를 읽는 명령을 찾지 못했습니다";
-    a.player_index = target(im, at, 3, 7);
-    const uint32_t world = target(im, at + 7, 3, 7);
-    if ((at = find(im, at, at + 0x40, pattern("49 8B 8C C7 ? ? ? ?"))) == 0)
-        return "cheat populate 에서 지역 표를 읽는 명령을 찾지 못했습니다";
-    a.region_table = world + im.u32(at + 4);
-
-    // 7. becomeregion: 인덱스를 쓰는 곳이 populate 가 읽는 곳과 같아야 하고, 그 뒤의 훑기에서 지역 수와 지역 표
-    if ((at = find_in_cheat(im, "cheat becomeregion", 0x100, pattern("0F B7 4A 04 33 D2 89 0D ? ? ? ? 89 0D ? ? ? ? 48 63 C1"))) == 0)
-        return "cheat becomeregion 에서 플레이어 인덱스를 쓰는 명령을 찾지 못했습니다";
-    if (target(im, at + 6, 2, 6) != a.player_index)
-        return "becomeregion 이 쓰는 곳과 populate 가 읽는 곳이 다릅니다";
-    if ((at = find(im, at, at + 0x90, pattern("44 8B 0D ? ? ? ? 45 33 F6 45 85 C9 0F 88 ? ? ? ? 48 8D 0D ? ? ? ?"))) == 0)
-        return "지역 수를 읽는 명령을 찾지 못했습니다";
-    a.region_count = target(im, at, 3, 7);
-    if (target(im, at + 19, 3, 7) != a.region_table)
-        return "지역 표의 주소가 두 곳에서 다릅니다";
-
-    // 8. 게임 진입: mov [모드 상태],2 / mov [프로그램 상태],1 — 둘째 주소가 4 에서 얻은 것과 같아야 한다
-    if (count_in_code(im, pattern("C7 05 ? ? ? ? 02 00 00 00 C7 05 ? ? ? ? 01 00 00 00"), &at) != 1)
-        return "게임 진입에서 상태를 쓰는 자리가 하나가 아닙니다";
-    a.mode_state = target(im, at, 2, 10);
-    if (target(im, at + 10, 2, 10) != a.program_state)
-        return "프로그램 상태의 주소가 두 곳에서 다릅니다";
-
-    const uint32_t all[] = {a.handler, a.context, a.multiplayer, a.options, a.program_state, a.mode_state, a.player_index,
-                            a.player_pointer, a.region_table, a.region_count};
+    const uint32_t all[] = {a.handler, a.context, a.options};
     for (uint32_t rva : all)
         if (rva == 0 || !im.has(rva, 8))
             return "찾은 주소가 실행 파일 밖입니다";
-    if (!im.has(static_cast<uint64_t>(a.region_table), 8 * 1024))
-        return "찾은 주소가 실행 파일 밖입니다";
     *out = a;
     return nullptr;
 }
@@ -400,17 +317,17 @@ bool search_state(const uint8_t *image, size_t size, GameAddresses *out, SigRow 
 }  // namespace
 
 // 올라와 있는 실행 파일에는 읽을 수 없는 쪽이 있을 수 있다(보호된 구역). 그때도 죽지 않는다 — 여기서 예외가 새면 게임이 뜨다가 죽는다.
-// __try 가 든 함수에는 소멸자가 있는 지역 변수를 둘 수 없어 찾는 일(search)과 따로 뗐다.
-const char *locate_game(const uint8_t *image, size_t size, GameAddresses *out)
+// __try 가 든 함수에는 소멸자가 있는 지역 변수를 둘 수 없어 찾는 일(search_legacy · search_state)과 따로 뗐다.
+const char *locate_legacy(const uint8_t *image, size_t size, GameAddresses *out)
 {
     __try {
-        return search(image, size, out);
+        return search_legacy(image, size, out);
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         return "실행 파일에 읽을 수 없는 곳이 있습니다";
     }
 }
 
-// 서명을 맞추다 읽을 수 없는 쪽을 만나도 죽지 않는다(locate_game 과 같은 까닭). rows 의 이름과 글은 찾기 전에 채운다 —
+// 서명을 맞추다 읽을 수 없는 쪽을 만나도 죽지 않는다(locate_legacy 와 같은 까닭). rows 의 이름과 글은 찾기 전에 채운다 —
 // 머리말조차 못 읽은 이미지에서도 서명 표를 볼 수 있다(테스트와 srkit locate 가 쓴다).
 bool locate_state(const uint8_t *image, size_t size, GameAddresses *out, SigRow *rows, char *why, size_t why_size)
 {

@@ -166,11 +166,11 @@ EXPORT int srtoybox_sig_find(const unsigned char *image, unsigned long long size
     return put(text + line, out, out_size);
 }
 
-// 실행 파일의 이미지(RVA 대로 펼친 것)에서 주소를 찾는다. 0 이면 out 을 채웠다. -1 이면 error 에 까닭.
-EXPORT int srtoybox_locate(const unsigned char *image, unsigned long long size, GameAddresses *out, char *error, int error_size)
+// 옛 찾기(전환 기간에만): 명령 처리 함수 · this · 옵션 묶음을 치트 닻으로. 0 이면 out 의 그 셋을 채웠다. -1 이면 error 에 까닭.
+EXPORT int srtoybox_locate_legacy(const unsigned char *image, unsigned long long size, GameAddresses *out, char *error, int error_size)
 {
     GameAddresses found = {};
-    const char *why = locate_game(image, static_cast<size_t>(size), &found);
+    const char *why = locate_legacy(image, static_cast<size_t>(size), &found);
     if (why != nullptr) {
         put(why, error, error_size);
         return -1;
