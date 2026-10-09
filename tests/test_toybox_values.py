@@ -27,6 +27,7 @@ def lib(cfg):
     lib = toybox.library(cfg)
     lib.srtoybox_value.argtypes = [ctypes.c_int, ctypes.c_double, ctypes.c_int, ctypes.c_double, ctypes.POINTER(ctypes.c_double)]
     lib.srtoybox_short_number.argtypes = [ctypes.c_double, ctypes.c_char_p, ctypes.c_int]
+    lib.srtoybox_short_amount.argtypes = [ctypes.c_double, ctypes.c_char_p, ctypes.c_int]
     pointer = ctypes.POINTER
     lib.srtoybox_values_read.argtypes = [ctypes.c_void_p, pointer(toybox.GameAddresses), pointer(toybox.ValueLayout), ctypes.c_char_p,
                                          ctypes.c_int]
@@ -67,6 +68,20 @@ def test_treasury_values(lib):
     assert value(lib, False, 5e15, FLOOR, 1e9) == (NOTHING, None)                 # 바닥은 값을 내리지 않는다 — 한도 밖의 값이어도
 
 
+def test_a_value_already_beyond_the_limit_is_not_pulled_back(lib):
+    """한도는 "여기까지만 민다"는 뜻이다. 게임이 한도 밖으로 만든 값을 더하기 · 바닥이 한도 쪽으로 끌어오면, 올리라는 요청이 값을 내린다."""
+    assert value(lib, False, 1.5e15, FLOOR, 2e15) == (NOTHING, None)              # 바닥이 한도 위여도 내리지 않는다
+    assert value(lib, False, 1.5e15, ADD, 1.0) == (NOTHING, None)                 # 더 밀지 않을 뿐이다
+    assert value(lib, False, 1.5e15, ADD, -1e14) == (WRITE, 1.4e15)               # 한도 쪽으로는 청한 만큼만 간다
+    assert value(lib, False, -1.5e15, ADD, -1.0) == (NOTHING, None)
+    assert value(lib, False, -1.5e15, ADD, 1e14) == (WRITE, -1.4e15)
+    assert value(lib, False, 1.5e15, SET, 2e15) == (WRITE, 1e15)                  # "이 값으로"만 한도 안으로 자른다
+    assert value(lib, True, 2e9, FLOOR, 3e9) == (NOTHING, None)
+    assert value(lib, True, 2e9, ADD, 1e6) == (NOTHING, None)
+    assert value(lib, True, 2e9, ADD, -1e9) == (WRITE, 1e9)
+    assert value(lib, True, 2e9, SET, 3e9) == (WRITE, 1e9)
+
+
 def test_stock_values(lib):
     assert value(lib, True, 1000.0, ADD, 1e6) == (WRITE, 1001000.0)
     assert value(lib, True, 1000.0, ADD, -1e8) == (WRITE, 0.0)                    # 0 아래로 내려가지 않는다
@@ -92,6 +107,15 @@ def test_short_numbers_look_like_the_games(lib):
     short = lambda v: text(lib.srtoybox_short_number, v)
     assert [short(v) for v in (0, 7, 999.4, 1000, 50000, 14.43e9, 1.1e6, 999999, 1e12, -1e12, -24.5e9, 0.3, -0.3)] == \
         ["0", "7", "999", "1.00 K", "50.00 K", "14.43 B", "1.10 M", "1.00 M", "1.00 T", "-1.00 T", "-24.50 B", "0", "0"]
+    assert short(NAN) == "?" and short(INF) == "?"
+
+
+def test_short_amounts_look_like_the_resource_bar(lib):
+    """물자의 수량은 게임의 위쪽 자원 표시줄처럼: 100 아래는 소수 첫째 자리까지(1.8 M · 23.7 M), 그 위는 정수(129 K · 779 M)."""
+    short = lambda v: text(lib.srtoybox_short_amount, v)
+    assert [short(v) for v in (0, 7, 999.4, 1000, 2500, 129000, 1.8e6, 23.7e6, 779e6, 1e9, -5, 0.3, -0.3)] == \
+        ["0", "7", "999", "1.0 K", "2.5 K", "129 K", "1.8 M", "23.7 M", "779 M", "1.0 B", "-5", "0", "0"]
+    assert [short(v) for v in (99.94e3, 99.96e3, 999.4e3, 999.6e3, 5e15)] == ["99.9 K", "100 K", "999 K", "1.0 M", "5000 T"]
     assert short(NAN) == "?" and short(INF) == "?"
 
 

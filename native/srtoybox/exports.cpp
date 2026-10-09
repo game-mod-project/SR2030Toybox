@@ -14,6 +14,7 @@
 #include "locate.h"
 #include "log.h"
 #include "overlay.h"
+#include "products.h"
 #include "prologue.h"
 #include "regions.h"
 #include "runner.h"
@@ -339,6 +340,18 @@ EXPORT void srtoybox_keeper_reset(void)
     keeper_reset_for_test();
 }
 
+EXPORT int srtoybox_product_label(int slot, char *out, int size)
+{
+    return put(product_label(slot), out, size);
+}
+
+// 물자 이름표의 한 줄: "<한글 이름>\t<영문 이름>". 표에 없는 칸이면 -1.
+EXPORT int srtoybox_product_names(int slot, char *out, int size)
+{
+    const ProductName *name = find_product(slot);
+    return name == nullptr ? -1 : put(std::string(name->ko) + '\t' + name->en, out, size);
+}
+
 EXPORT int srtoybox_region_label(int number, char *out, int size)
 {
     return put(region_label(number), out, size);
@@ -389,6 +402,11 @@ EXPORT int srtoybox_value(int stock, double now, int change, double amount, doub
 EXPORT int srtoybox_short_number(double value, char *out, int size)
 {
     return put(short_number(value), out, size);
+}
+
+EXPORT int srtoybox_short_amount(double value, char *out, int size)
+{
+    return put(short_amount(value), out, size);
 }
 
 

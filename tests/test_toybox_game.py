@@ -427,6 +427,29 @@ def test_region_names(lib):
     assert label(lib, 12345) == "#12345" and label(lib, -7) == "#-7"
 
 
+def product(lib, slot: int) -> str:
+    out = ctypes.create_string_buffer(256)
+    assert lib.srtoybox_product_label(slot, out, len(out)) >= 0
+    return out.value.decode("utf-8")
+
+
+def test_product_names(lib):
+    """물자 이름표도 저장소의 번역 테이블에서 온다(재고 칸의 순서 = 게임의 물자 목록의 순서). 표에 없는 칸은 "물자 #칸" 으로 보인다."""
+    assert [product(lib, slot) for slot in range(11)] == ["농산물", "고무", "목재", "석유", "석탄", "금속 광석", "우라늄", "전력", "소비재",
+                                                           "산업재", "군수품"]
+    assert product(lib, 11) == "물자 #11" and product(lib, 12) == "물자 #12" and product(lib, -1) == "물자 #-1"   # 열두째 칸에는 이름이 없다
+    out = ctypes.create_string_buffer(256)
+    assert lib.srtoybox_product_names(3, out, len(out)) > 0 and out.value.decode("utf-8") == "석유\tPetroleum"
+    assert lib.srtoybox_product_names(11, out, len(out)) == -1
+
+
+def test_product_rows_come_from_the_translation_table(cfg):
+    rows = toybox.product_rows(cfg)
+    assert [slot for slot, _, _ in rows] == list(range(11))                  # 같은 목록의 11(전체) · 12(금융) · 13(인구) … 는 물자가 아니다
+    assert rows[3] == (3, "석유", "Petroleum") and rows[10] == (10, "군수품", "Military Goods")
+    assert toybox.products_inc(rows[:1]) == '{0, "농산물", "Agriculture"},\n'
+
+
 def test_region_rows_come_from_the_translation_table(cfg):
     rows = toybox.region_rows(cfg)
     assert [n for n, _, _ in rows] == sorted({n for n, _, _ in rows}) and len(rows) > 300
