@@ -5,6 +5,7 @@ Supreme Ruler 2030 모드 제작 저장소. 개요는 [README.md](README.md), �
 ## 명령
 
 - 테스트: `uv run pytest` — 코드를 고치면 항상 실행한다. 게임 설치본이 없으면 일부가 건너뛰어진다.
+  화면 검사 테스트 하나(`real_key`)는 시스템에 실제 키 입력을 넣는다(오른쪽 Ctrl 을 눌렀다 뗌. 혼자서는 아무 일도 하지 않는 입력이다).
 - 한글화 빌드: `uv run srkit build` (글꼴 포함 약 14초). 훅 DLL 을 고쳤으면 `uv run srkit hook-build` 먼저.
 - Python 은 시스템에 설치되어 있지 않다. 항상 `uv run` 으로 실행한다.
 - 게임 안 확인: `uv run python scripts/gamedrive.py start` → `shot <png>` → `click X Y` → `stop`.
@@ -17,6 +18,9 @@ Supreme Ruler 2030 모드 제작 저장소. 개요는 [README.md](README.md), �
 - `gamedrive.py` 는 **자기가 띄운 게임만** 다룬다. 사용자가 직접 켠 게임이 떠 있으면 캡처·입력·종료를 거부한다 — 그럴 때는
   게임을 건드리지 말고(창이 화면 밖으로 옮겨지거나 게임이 꺼진다) 사용자가 끌 때까지 기다린다. `srkit deploy --apply` 도
   게임이 실행 중이면 거부한다(텍스트 파일과 훅 DLL 은 함께 바뀌어야 한다).
+- `gamedrive.py peek` 은 자기가 띄운 게임의 메모리에서 ToyBox 가 보는 값(진행 중인가, 플레이어, 국고, 물자 재고, 치트 허용 비트)을 JSON 으로 읽는다(읽기만).
+  ToyBox 가 쓴 값을 확인할 때는 ToyBox 창의 숫자가 아니라 이것으로 본다. 화면 밖 게임에 보낸 조합키(`key CTRL+SHIFT+T`)가 듣지 않으면 한 번 더 보낸다 —
+  사용자가 다른 창에서 수정키를 쓰는 동안에는 맨 글쇠로 전달될 수 있다 [추정 — [docs/10](docs/10-toybox.md)의 "확인한 것"].
 - 화면 검증에는 **지도 축소·확대**를 포함한다(`gamedrive.py wheel -8`). 지도 라벨은 다른 경로(바이트 단위 대문자화)를 거친다.
 - 툴팁은 `gamedrive.py move X Y` 로 본다(게임에만 마우스 위치를 알려 준다. 실제 마우스는 그대로). 큰 창으로 보려면 게임 옵션에서
   해상도를 고른 뒤 `start --`(인자 없음)로 띄운다 — `-window` 는 1024x768 로 되돌린다.
@@ -29,7 +33,7 @@ Supreme Ruler 2030 모드 제작 저장소. 개요는 [README.md](README.md), �
 - 내장 치트는 게임 안에서 `gamedrive.py key CTRL+SHIFT+S` → `type cheat allowcheats` → `key ENTER` → `type cheat <명령>` → `key ENTER` 로 넣는다
   ([docs/07](docs/07-cheats.md)). `cheat resettutorial`(Steam 업적을 지운다)과 `cheat depopulate`(인구가 1 이 된다)는 넣지 않는다.
 - **게임이 업데이트된 뒤에는** `uv run srkit cheats-check`(내장 치트가 문서와 같은가) → `uv run srkit locate`(ToyBox 의 서명이 아직 맞는가) →
-  `uv run srkit inventory`(데이터 형식이 바뀌었는가)부터 돌린다. 서명이 깨졌으면 `uv run srkit sig-mine <RVA>` 로 다시 뽑는다
+  `uv run srkit inventory`(데이터 형식이 바뀌었는가)부터 돌린다. 서명이 깨졌으면 `uv run srkit sig-mine <RVA>`(구조체 안의 자리 · 간격은 `--offset <상수> [<둘째 상수>]`)로 다시 뽑는다
   ([docs/09](docs/09-cheat-mod-plan.md)의 "게임 업데이트 대비", [docs/11](docs/11-game-internals.md)의 "주소를 찾는 법").
 - 데이터 수정이 게임에 반영되는지는 `uv run srkit probe` 로 값 한 곳만 바꾼 시험 모드를 만들어 `srkit deploy` 로 본다. `DEFAULT.UNIT` · `*.CVP` 를 고친 것은
   로비의 "모드용 캐시 재생성"을 켜야 반영되고, **그때 게임이 `Cache\*.SAV` 를 고쳐 쓴다** — 먼저 원본을 `build/` 에 떠 두고 실험 뒤 되돌린다([docs/06](docs/06-data-reference.md)).
@@ -46,6 +50,8 @@ Supreme Ruler 2030 모드 제작 저장소. 개요는 [README.md](README.md), �
 - **ToyBox 의 기능은 게임의 내장 치트와 별도로 동작해야 한다**(사용자의 요구, 2026-10-09). 새 기능과 옮긴 기능은 치트 명령 처리 함수를 부르지 않고,
   치트 문자열 · 치트 함수의 코드를 주소 찾기의 닻으로 쓰지 않으며, 못 찾았을 때 내장 치트로 되돌아가지 않는다. 치트 코드를 보는 것은 개발 중의 분석과
   자동 테스트의 대조뿐이다([설계](docs/superpowers/specs/2026-10-09-toybox-stage3-1-design.md)).
+- **ToyBox 가 게임의 메모리에 쓰는 곳은 플레이어 지역 객체의 국고 1칸과 물자 재고 12칸뿐이다**(`native/srtoybox/game.h`). 쓰는 곳을 늘릴 때는
+  설계서에서 정하고 그 머리말을 함께 고친다.
 
 ## Git 브랜치 전략
 
