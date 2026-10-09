@@ -12,6 +12,7 @@ import bisect
 import re
 import struct
 from dataclasses import dataclass
+from typing import Sequence
 
 import capstone
 import numpy as np
@@ -154,15 +155,15 @@ def _words(ins, first: bool) -> list[str] | None:
     return out
 
 
-def mine_address(image: Image, target: int, *, exclude: tuple[int, int] | None = None, fewest: int = 3, most: int = 8,
+def mine_address(image: Image, target: int, *, exclude: Sequence[tuple[int, int]] = (), fewest: int = 3, most: int = 8,
                  fixed: int = 8, longest: int = 60, sites: int = 400) -> list[Candidate]:
     """target 을 가리키는 명령에서 시작해 실행 구역 전체에서 한 번만 맞는 가장 짧은 서명을, 쓰는 자리마다 하나씩.
 
-    exclude 안의 자리는 보지 않는다(치트 명령 처리 함수). 명령 fewest 개 · 정해진 바이트 fixed 개 이상이어야 서명으로 친다.
-    쓰는 자리가 sites 보다 많으면 고르게 골라 그만큼만 본다.
+    exclude 의 범위들 안의 자리는 보지 않는다(치트 코드 — cheat_ranges). 명령 fewest 개 · 정해진 바이트 fixed 개 이상이어야
+    서명으로 친다. 쓰는 자리가 sites 보다 많으면 고르게 골라 그만큼만 본다.
     """
     found: list[Candidate] = []
-    places = [p for p in image.refs(target) if not (exclude and exclude[0] <= p < exclude[1])]
+    places = [p for p in image.refs(target) if not any(a <= p < z for a, z in exclude)]
     for pos in places[::max(1, len(places) // sites)]:
         first = _first_instruction(image, pos, target)
         if first is None:
@@ -193,3 +194,148 @@ def best_per_function(candidates: list[Candidate]) -> list[Candidate]:
         if key not in best or (c.length, c.at) < (best[key].length, best[key].at):
             best[key] = c
     return sorted(best.values(), key=lambda c: (c.length, c.at))
+
+
+_lite = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64)     # 명령의 경계만 본다(자세히 풀지 않는다 — 빠르다)
+
+
+def cheat_ranges(image: Image) -> list[tuple[int, int]]:
+    """치트 코드의 [시작, 끝) 들: 명령 처리 함수(맨 앞)와, 치트 코드에서만 불리는 함수들. 치트가 없는 빌드면 빈 목록.
+
+    서명은 이 범위 밖의 코드에서만 뽑는다. 치트 문자열은 있는데 그것을 쓰는 함수를 못 찾으면 LookupError —
+    치트 코드를 가리지 못한 채 서명을 뽑게 두지 않는다.
+    """
+    if image.data.find(b"\0" + ANCHOR) < 0:
+        return []
+    handler = handler_range(image)
+    if handler is None:
+        raise LookupError("치트 문자열은 있는데 그것을 쓰는 함수를 찾지 못했습니다 — 치트 코드를 가리지 못한 채 서명을 뽑지 않습니다")
+    starts = set(image._starts)
+    callers: dict[int, list[int]] = {}                 # 함수의 시작 → 그것을 부르는 call rel32 의 자리들
+    for lo, hi in image.code:
+        b = np.frombuffer(image.data, dtype=np.uint8)[lo:hi]
+        calls = np.nonzero(b[:-4] == 0xE8)[0]
+        disp = (b[calls + 1].astype(np.uint32) | (b[calls + 2].astype(np.uint32) << 8) | (b[calls + 3].astype(np.uint32) << 16)
+                | (b[calls + 4].astype(np.uint32) << 24)).astype(np.int32).astype(np.int64)
+        for site, target in zip((lo + calls).tolist(), (lo + calls + 5 + disp).tolist()):
+            if target in starts:
+                callers.setdefault(target, []).append(site)
+    ranges = [handler]
+    grew = True
+    while grew:                                        # 치트에서만 불리는 함수가 부르는 함수까지
+        grew = False
+        for target, sites in callers.items():
+            if all(any(a <= s < z for a, z in ranges) for s in sites) and not any(a <= target < z for a, z in ranges) \
+                    and image.root(target) == target:
+                ranges.append(image.extent(target))
+                grew = True
+    return [handler] + sorted(ranges[1:])
+
+
+def _boundary(image: Image, pos: int) -> int | None:
+    """pos 를 품은 명령의 시작. 앞쪽 여러 자리에서 풀어 내려와 가장 많이 닿는 경계다(x86 의 풀이는 몇 명령 안에 제 경계로 모인다)."""
+    votes: dict[int, int] = {}
+    for start in range(max(0, pos - 40), pos - 15):
+        for address, size, _mnemonic, _operands in _lite.disasm_lite(image.data[start:pos + 16], start):
+            if address + size > pos:
+                if address <= pos:
+                    votes[address] = votes.get(address, 0) + 1
+                break
+    return max(votes, key=lambda a: (votes[a], -a)) if votes else None
+
+
+def _holds(ins, value: int) -> tuple[int, int] | None:
+    """명령이 value 를 상수(imm)나 메모리 자리(disp. rip 상대는 아니다)로 들고 있으면 (명령 안의 자리, 크기 1 또는 4)."""
+    rip = any(op.type == X.X86_OP_MEM and op.mem.base == X.X86_REG_RIP for op in ins.operands)
+    for offset, size in ((ins.imm_offset, ins.imm_size), (ins.disp_offset, 0 if rip else ins.disp_size)):
+        if size in (1, 4) and offset and (size == 4 or value < 0x80) \
+                and int.from_bytes(bytes(ins.bytes[offset:offset + size]), "little") == value:
+            return offset, size
+    return None
+
+
+def _constant_words(ins, held: tuple[int, int] | None) -> list[str]:
+    """명령 하나의 서명 글. 든 상수는 읽어 낼 자리, rip 상대 거리와 call · jmp 의 4바이트 목표는 구멍."""
+    out = [f"{b:02X}" for b in ins.bytes]
+    spans: list[tuple[int, int, list[str]]] = []
+    if held:
+        spans.append((held[0], held[1], ["[u32]" if held[1] == 4 else "[u8]"]))
+    if ins.disp_size == 4 and any(op.type == X.X86_OP_MEM and op.mem.base == X.X86_REG_RIP for op in ins.operands):
+        spans.append((ins.disp_offset, 4, ["?"] * 4))
+    elif (ins.id == X.X86_INS_CALL or ins.group(X.X86_GRP_JUMP)) and ins.size >= 5 and ins.operands \
+            and ins.operands[0].type == X.X86_OP_IMM:
+        spans.append((ins.size - 4, 4, ["?"] * 4))
+    for offset, size, words in sorted(spans, reverse=True):      # 뒤에서부터 바꿔야 앞의 자리가 밀리지 않는다
+        out[offset:offset + size] = words
+    return out
+
+
+def _grow(image: Image, start: int, constants: list[int], *, fewest: int, most: int, fixed: int, longest: int, within: int,
+          unique: bool) -> str | None:
+    """start 의 명령부터 constants 를 차례로 든 명령들을 지나, (unique 면) 실행 구역에서 한 번만 맞을 때까지 늘린 서명 글."""
+    words: list[str] = []
+    length, wanted, since = 0, 0, 0
+    for n, ins in enumerate(_md.disasm(image.data[start:start + 200], start), start=1):
+        held = _holds(ins, constants[wanted]) if wanted < len(constants) else None
+        if n == 1 and (held is None or held[1] != 4):
+            return None                        # 첫 명령이 첫 상수를 4바이트로 들고 있어야 한다
+        if wanted < len(constants) and held is None:
+            since += 1
+            if since > within:
+                return None                    # 다음 상수가 가까이에 없다
+        if length + ins.size > longest:
+            return None
+        words += _constant_words(ins, held)
+        length += ins.size
+        if held:
+            wanted, since = wanted + 1, 0
+        if wanted == len(constants):
+            text = " ".join(words)
+            if not unique:
+                return text
+            if n >= fewest and sum(len(w) == 2 for w in words) >= fixed and count(image, text, exact=False) == 1 \
+                    and count(image, text) == 1:
+                return text
+        if n >= most or ins.id in (X.X86_INS_RET, X.X86_INS_INT3, X.X86_INS_JMP):
+            return None
+    return None
+
+
+def mine_constants(image: Image, constants: list[int], *, exclude: Sequence[tuple[int, int]] = (), fewest: int = 3, most: int = 9,
+                   fixed: int = 8, longest: int = 60, within: int = 4, sites: int = 400) -> list[Candidate]:
+    """constants(하나 또는 둘 — 구조체 안의 자리 · 간격)를 차례로 든 명령들에서 시작해, 한 번만 맞는 가장 짧은 서명을 자리마다.
+
+    첫 상수는 4바이트로 든 것만 찾는다(imul r,r,간격 · [r+자리]). 다음 상수는 그 뒤 명령 within 개 안에 있어야 한다.
+    상수의 자리는 읽어 낼 자리([u32] · [u8])가 된다. 뜻이 같은 코드인지는 사람이 본다(srkit sig-mine 이 명령을 함께 보인다) —
+    값만 우연히 같은 코드도 후보로 나온다.
+    """
+    options = dict(fewest=fewest, most=most, fixed=fixed, longest=longest, within=within)
+    needle = struct.pack("<I", constants[0])
+    starts: list[int] = []
+    seen: set[int] = set()
+    for lo, hi in image.code:
+        for m in re.finditer(re.escape(needle), image.data[lo:hi]):
+            pos = lo + m.start()
+            if any(a <= pos < z for a, z in exclude):
+                continue
+            start = _boundary(image, pos)
+            if start is None or start in seen:
+                continue
+            seen.add(start)
+            first = next(_md.disasm(image.data[start:start + 16], start), None)
+            held = _holds(first, constants[0]) if first is not None else None
+            if held == (pos - start, 4) and _grow(image, start, constants, unique=False, **options):
+                starts.append(start)                   # 상수를 모두 든 자리만 남긴다 — 고르게 고르는 것은 그 뒤다
+    found: list[Candidate] = []
+    for start in starts[::max(1, len(starts) // sites)]:
+        text = _grow(image, start, constants, unique=True, **options)
+        if text:
+            length = sum(4 if w.startswith("[rip") or w == "[u32]" else 1 for w in text.split())
+            found.append(Candidate(image.root(start), start, length, text))
+    return found
+
+
+def listing(image: Image, candidate: Candidate) -> str:
+    """후보가 덮는 명령들을 한 줄로(사람이 뜻을 보고 고른다). 저장소에는 넣지 않는다."""
+    return "; ".join(f"{ins.mnemonic} {ins.op_str}".strip()
+                     for ins in _md.disasm(image.data[candidate.at:candidate.at + candidate.length], candidate.at))

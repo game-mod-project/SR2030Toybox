@@ -1,7 +1,7 @@
 """주소 찾기(native/srtoybox/locate.cpp) 테스트용: 작은 가짜 실행 파일 이미지(RVA 대로 펼친 것).
 
-게임의 코드를 옮긴 것이 아니다. 새 찾기가 보는 서명(DLL 의 서명 표에서 받아 심는다)과, 옛 찾기가 보는 닻(치트 문자열)과
-명령의 바이트 꼴만 같은 자리 관계로 놓았다. pytest 가 직접 모으는 테스트 파일이 아니다.
+게임의 코드를 옮긴 것이 아니다. 새 찾기가 보는 서명(DLL 의 서명 표에서 받아 심는다 — 상태 묶음과 값 묶음)과, 옛 찾기가 보는
+닻(치트 문자열)과 명령의 바이트 꼴만 같은 자리 관계로 놓았다. pytest 가 직접 모으는 테스트 파일이 아니다.
 """
 import re
 import struct
@@ -16,6 +16,11 @@ STATE = {"multiplayer": DATA, "program_state": DATA + 8, "mode_state": DATA + 12
          "player_pointer": DATA + 24, "region_table": WORLD + 0x80, "region_count": DATA + 20}
 # 옛 찾기(치트 닻)의 가짜 주소
 LEGACY = {"handler": HANDLER, "context": DATA + 0x100, "options": DATA + 4}
+# 새 찾기(값 묶음)의 가짜 값: 서명의 이름 → 읽어 낼 것. 둘을 읽는 서명은 (간격, 첫 칸).
+# 진짜 게임의 값과 다르게 뒀다 — 코드에 박아 둔 값으로는 통과하지 못한다
+VALUES = {"world_pointer": DATA + 0x40, "treasury": 0x1230, "stock": (0x20, 0x2000), "used": (0x44, 0x28)}
+VALUE_LAYOUT = {"world_pointer": DATA + 0x40, "treasury": 0x1230, "stock_first": 0x2000, "stock_step": 0x20,
+                "used_first": 0x28, "used_step": 0x44}
 PLANT, AGAIN = TEXT + 0x1000, TEXT + 0x1800     # 서명을 심는 곳, 같은 서명을 한 번 더 심는 곳
 TOKEN = re.compile(r"\[rip(?:\+([14]))?\]|\[u(?:8|32)\]|\?|[0-9A-Fa-f]{2}")   # 서명 글의 낱말(native/srtoybox/sigs.h)
 
@@ -33,7 +38,7 @@ def shell(functions: list[tuple[int, int]], size: int = SIZE) -> bytearray:
     struct.pack_into("<II", image, optional + 112 + 3 * 8, PDATA, 12 * len(functions))
     for i, (name, rva, flags) in enumerate([(b".text", TEXT, 0x60000020), (b".rdata", RDATA, 0x40000040),
                                             (b".pdata", PDATA, 0x40000040), (b".data", DATA, 0xC0000040)]):
-        struct.pack_into("<8sIIIIIIHHI", image, optional + 0xF0 + 40 * i, name, 0x2000 if rva == TEXT else 0x1000, rva,
+        struct.pack_into("<8sIIIIIIHHI", image, optional + 0xF0 + 40 * i, name, 0x2000 if rva == TEXT else size - DATA if rva == DATA else 0x1000, rva,
                          0, 0, 0, 0, 0, 0, flags)
     unwind = RDATA + 0x800
     image[unwind:unwind + 4] = bytes([1, 0, 0, 0])                             # 풀기 정보: 뿌리(플래그 없음)
@@ -53,19 +58,21 @@ def rip(image: bytearray, rva: int, opcode: bytes, target: int, tail: bytes = b"
     return put(image, rva, opcode + struct.pack("<i", target - (rva + length)) + tail)
 
 
-def plant(image: bytearray, at: int, text: str, target: int) -> int:
-    """서명 글 하나를 at 에 심는다: 정해진 바이트는 그대로, 구멍은 건드리지 않고, 읽어 낼 자리는 target 이 나오게. 끝 자리를 돌려준다."""
+def plant(image: bytearray, at: int, text: str, target) -> int:
+    """서명 글 하나를 at 에 심는다: 정해진 바이트는 그대로, 구멍은 건드리지 않고, 읽어 낼 자리는 target 이 나오게.
+    target 이 튜플이면 읽어 낼 자리마다 차례로 하나씩 쓴다. 끝 자리를 돌려준다."""
+    values = iter(target if isinstance(target, tuple) else (target, target))
     pos = at
     for m in TOKEN.finditer(text):
         word = m.group(0)
         if word.startswith("[rip"):
-            struct.pack_into("<i", image, pos, target - (pos + 4 + int(m.group(1) or 0)))
+            struct.pack_into("<i", image, pos, next(values) - (pos + 4 + int(m.group(1) or 0)))
             pos += 4
         elif word == "[u32]":
-            struct.pack_into("<I", image, pos, target)
+            struct.pack_into("<I", image, pos, next(values))
             pos += 4
         elif word == "[u8]":
-            image[pos] = target
+            image[pos] = next(values)
             pos += 1
         elif word == "?":
             pos += 1
@@ -82,21 +89,26 @@ def shape(text: str) -> str:
                     for w in (m.group(0) for m in TOKEN.finditer(text)))
 
 
-def state_image(sigs: list[tuple[str, str]], *, broken=(), twice=(), stray=(), targets: dict[str, int] | None = None,
-                into: bytearray | None = None) -> bytes:
+def beside(target):
+    """그 값의 옆: 주소는 8바이트 옆, (간격, 첫 칸)은 저마다 4 큰 값."""
+    return tuple(value + 4 for value in target) if isinstance(target, tuple) else target + 8
+
+
+def sig_image(sigs: list[tuple[str, str]], *, broken=(), twice=(), stray=(), targets: dict | None = None,
+              into: bytearray | None = None) -> bytes:
     """DLL 의 서명 표(sigs: [(찾을 것, 서명 글)])를 심은 이미지. into 가 없으면 치트 문자열이 하나도 없는 빈 틀에 심는다.
 
-    broken · twice · stray 는 sigs 의 칸 번호들이다: 심지 않는다 / 한 번 더 심는다(두 번 맞는다) / 8바이트 옆을 가리키게 심는다.
-    targets 로 가짜 주소를 바꾼다.
+    broken · twice · stray 는 sigs 의 칸 번호들이다: 심지 않는다 / 한 번 더 심는다(두 번 맞는다) / 옆의 값을 가리키게 심는다.
+    targets 로 가짜 주소 · 값을 바꾼다(STATE 와 VALUES 의 이름으로).
     """
     image = into if into is not None else shell([(PLANT, TEXT + 0x2000)])
-    at = dict(STATE, **(targets or {}))
+    at = {**STATE, **VALUES, **(targets or {})}
     places: dict[str, int] = {}
     for i, (name, text) in enumerate(sigs):
         if i in broken:
             continue
         place = places.setdefault(shape(text), PLANT + 0x40 * len(places))
-        plant(image, place, text, at[name] + (8 if i in stray else 0))
+        plant(image, place, text, beside(at[name]) if i in stray else at[name])
         if i in twice:
             plant(image, AGAIN + 0x40 * i, text, at[name])
     return bytes(image)
@@ -128,4 +140,4 @@ def build(sigs: list[tuple[str, str]] | None = None, *, extra_anchor: bool = Fal
     rip(image, end, bytes([0xE8]), HANDLER)
     if second_call:
         rip(image, CALLER + 0x60, bytes([0xE8]), HANDLER)
-    return state_image(sigs, into=image) if sigs is not None else bytes(image)
+    return sig_image(sigs, into=image) if sigs is not None else bytes(image)

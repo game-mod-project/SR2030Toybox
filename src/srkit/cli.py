@@ -154,6 +154,13 @@ def cmd_toybox_build(cfg, _args) -> int:
     return 0
 
 
+def _print_sig_rows(rows) -> None:
+    for row in rows:
+        mark = "한 번" if row.count == 1 else "안 맞음" if row.count == 0 else "여러 번"
+        value = f"{row.value:#x}" + (f" · {row.value2:#x}" if row.value2 else "")
+        print(f"  {row.name:<15} {mark:<5} 자리 {row.at:#010x} → {value:<16} {row.text}")
+
+
 def cmd_locate(cfg, _args) -> int:
     exe = cfg.game_dir / toybox.EXE_NAME
     data = exe.read_bytes()
@@ -164,15 +171,21 @@ def cmd_locate(cfg, _args) -> int:
         return 1
     found = toybox.locate(cfg)
     print(f"새 찾기 — 게임 상태를 읽는 주소(서명. 내장 치트와 무관하다): {found.ms:.0f} ms")
-    for row in found.rows:
-        mark = "한 번" if row.count == 1 else "안 맞음" if row.count == 0 else "여러 번"
-        print(f"  {row.name:<15} {mark:<5} 자리 {row.at:#010x} → {row.value:#010x}  {row.text}")
+    _print_sig_rows(found.rows)
     if found.state is None:
         print(f"찾지 못했습니다: {found.state_why}")
         print("ToyBox 는 이 빌드에서 게임을 읽지 못합니다. uv run srkit sig-mine <RVA> 로 서명을 다시 뽑습니다(docs/11).")
     else:
         for name in toybox.STATE_FIELDS:
             print(f"  {found.state[name]:#010x}  {toybox.ADDRESS_NAMES[name]}")
+    print("새 찾기 — 값을 읽고 쓰는 자리(서명. 내장 치트와 무관하다. 둘을 읽는 서명은 간격 · 첫 칸):")
+    _print_sig_rows(found.value_rows)
+    if found.values is None:
+        print(f"찾지 못했습니다: {found.values_why}")
+        print("ToyBox 의 돈 탭이 이 빌드에서 꺼집니다. uv run srkit sig-mine [--offset] 으로 서명을 다시 뽑습니다(docs/11).")
+    else:
+        for name in toybox.VALUE_FIELDS:
+            print(f"  {found.values[name]:#010x}  {toybox.VALUE_NAMES[name]}")
     print("옛 찾기 — 아직 내장 치트로 도는 기능이 쓰는 주소(치트 문자열이 닻이다. 전환 기간에만):")
     if found.legacy is None:
         print(f"  찾지 못했습니다: {found.legacy_why}")
@@ -180,9 +193,9 @@ def cmd_locate(cfg, _args) -> int:
     else:
         for name in toybox.LEGACY_FIELDS:
             print(f"  {found.legacy[name]:#010x}  {toybox.ADDRESS_NAMES[name]}")
-    if found.state is not None and found.legacy is not None:
+    if found.state is not None and found.values is not None and found.legacy is not None:
         print("모두 찾았습니다. docs/11 의 표와 다르면 게임이 바뀐 것입니다.")
-    return 0 if found.state is not None else 1
+    return 0 if found.state is not None and found.values is not None else 1
 
 
 def cmd_sig_mine(cfg, args) -> int:
@@ -190,15 +203,32 @@ def cmd_sig_mine(cfg, args) -> int:
 
     exe = cfg.game_dir / toybox.EXE_NAME
     image = sigmine.Image(toybox.image_of(exe.read_bytes()))
-    target = int(args.address, 16)
-    handler = sigmine.handler_range(image)
-    picks = sigmine.best_per_function(sigmine.mine_address(image, target, exclude=handler, sites=args.sites))
-    left_out = f"치트 명령 처리 함수 {handler[0]:#x} – {handler[1]:#x} 는 뺐다" if handler else "치트 명령 처리 함수가 없는 빌드다"
-    print(f"{exe.name}: {target:#x} 를 가리키는 코드에서 ({left_out})")
+    values = [int(value, 16) for value in args.values]
+    if len(values) > (2 if args.offset else 1):
+        print("주소는 하나, --offset 의 상수는 하나나 둘입니다(서명 하나가 읽어 내는 값은 둘까지다).")
+        return 1
+    try:
+        cheats = sigmine.cheat_ranges(image)
+    except LookupError as error:
+        print(error)
+        return 1
+    if args.offset:
+        found = sigmine.mine_constants(image, values, exclude=cheats, sites=args.sites)
+        what = "상수 " + " · ".join(f"{value:#x}" for value in values) + " 을 차례로 든 코드에서"
+    else:
+        found = sigmine.mine_address(image, values[0], exclude=cheats, sites=args.sites)
+        what = f"{values[0]:#x} 를 가리키는 코드에서"
+    picks = sigmine.best_per_function(found)
+    left_out = (f"치트 코드 {len(cheats)}곳은 뺐다 — 명령 처리 함수 {cheats[0][0]:#x} – {cheats[0][1]:#x} 와 치트 코드에서만 불리는 함수"
+                if cheats else "치트 명령 처리 함수가 없는 빌드다")
+    print(f"{exe.name}: {what} ({left_out})")
     for c in picks[:args.limit]:
         function = f"{c.function:#x}" if c.function is not None else "표에 없음"
         print(f"  자리 {c.at:#010x}  함수 {function:>10}  {c.length:>2}바이트  {c.text}")
+        print(f"      {sigmine.listing(image, c)}")
     print(f"서로 다른 함수 {len(picks)}개에서 후보가 나왔습니다. 서명 표에는 서로 다른 함수의 것 셋을 골라 옮깁니다.")
+    if args.offset:
+        print("상수가 우연히 같은 코드도 섞여 나옵니다 — 명령을 보고 뜻이 맞는 것만 고릅니다(docs/11).")
     return 0 if len(picks) >= 3 else 1
 
 
@@ -291,8 +321,9 @@ def main(argv: list[str] | None = None) -> int:
         .set_defaults(fn=cmd_toybox_build)
     sub.add_parser("locate", help="설치된 게임에서 ToyBox 가 쓰는 주소를 찾아 보고(게임 업데이트 뒤 cheats-check 다음에)") \
         .set_defaults(fn=cmd_locate)
-    m = sub.add_parser("sig-mine", help="(개발용) 설치된 게임에서 그 주소를 읽어 낼 서명 후보 뽑기 — 치트 함수 밖의 코드에서")
-    m.add_argument("address", help="주소(RVA, 16진수. 예: 18295f8)")
+    m = sub.add_parser("sig-mine", help="(개발용) 설치된 게임에서 주소나 상수를 읽어 낼 서명 후보 뽑기 — 치트 코드 밖에서")
+    m.add_argument("values", nargs="+", help="주소(RVA, 16진수. 예: 18295f8). --offset 이면 차례로 나올 상수 하나나 둘(예: 150 14da4)")
+    m.add_argument("--offset", action="store_true", help="값이 주소가 아니라 구조체 안의 자리 · 간격(상수)이다")
     m.add_argument("--limit", type=int, default=12, help="보여 줄 후보의 수")
     m.add_argument("--sites", type=int, default=400, help="살펴볼 자리의 수(많으면 오래 걸린다)")
     m.set_defaults(fn=cmd_sig_mine)
