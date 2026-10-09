@@ -37,6 +37,45 @@ def test_extra_region_names_cover_sandbox_regions_missing_from_localization(cfg,
     assert "REGIONTEXT|2314|0" not in dict(korean.extra_region_names(cfg, known={"2314"}))
 
 
+def _game_with_two_regions_files(cfg, tmp_path):
+    """설치본 없이 쓰는 작은 게임 폴더. 언어 폴더의 루트와 하위 폴더에 같은 이름의 지역 파일이 하나씩 있다 —
+    확장팩이 Localize\\LOCALEN\\Scenario\\LocalText-Regions.csv 를 그렇게 넣는다."""
+    fake = replace(cfg, root=tmp_path / "proj", game_dir=tmp_path / "game")
+    (fake.source_dir / "Scenario").mkdir(parents=True)
+    (fake.source_dir / korean.REGIONS_NAME).write_bytes(b'&&REGIONTEXT\n100, "Root Land", "",\n&&END\n')
+    (fake.source_dir / "Scenario" / korean.REGIONS_NAME).write_bytes(b'&&REGIONTEXT\n300, "Old Land", "",\n&&END\n')
+    return fake
+
+
+def test_build_text_adds_extra_regions_to_the_root_regions_file_only(cfg, tmp_path):
+    fake = _game_with_two_regions_files(cfg, tmp_path)
+    korean.write_table(fake.translation_dir / korean.EXTRA_REGIONS_TABLE,
+                       {"REGIONTEXT|200|0": korean.Row("Data Land", "자료의 땅", "mt")})
+    out = tmp_path / "out"
+    applied, _ = korean.build_text(fake, out)
+    lang = out / "Localize" / fake.target_lang
+    assert srutf8.decode((lang / korean.REGIONS_NAME).read_bytes()) \
+        == '&&REGIONTEXT\n100, "Root Land", "",\n200, "자료의 땅"\n&&END\n'
+    assert srutf8.decode((lang / "Scenario" / korean.REGIONS_NAME).read_bytes()) \
+        == '&&REGIONTEXT\n300, "Old Land", "",\n&&END\n'
+    assert applied == 1
+
+
+def test_extract_takes_known_regions_from_the_root_regions_file(cfg, tmp_path):
+    """추가 지역은 '루트의 지역 파일에 없는 지역'이다. 하위 폴더의 같은 이름 파일에만 있는 번호(300)는 아는 지역이 아니다."""
+    fake = _game_with_two_regions_files(cfg, tmp_path)
+    (fake.game_dir / "Sandbox").mkdir()
+    (fake.game_dir / "Sandbox" / "World.scenario").write_bytes(
+        b'#include "LocalText-Regions.csv", "Localize"\n#include "World.CVP", "MAPS\\"\n')
+    (fake.game_dir / "Maps").mkdir()
+    (fake.game_dir / "Maps" / "World.CVP").write_bytes(
+        b'&&CVP 100\nregionname "Root Land"\n&&CVP 200\nregionname "Data Land"\n&&CVP 300\nregionname "Old Land"\n')
+    korean.extract(fake)
+    extras = korean.read_table(fake.translation_dir / korean.EXTRA_REGIONS_TABLE)
+    assert {key: row.en for key, row in extras.items()} \
+        == {"REGIONTEXT|200|0": "Data Land", "REGIONTEXT|300|0": "Old Land"}
+
+
 def test_patch_uisettings_puts_language_second():
     """옵션 화면이 앞의 6개 언어만 보여 주므로 영어 바로 다음에 넣는다. 끝에 들어 있던 것은 옮긴다."""
     text = 'langdirs, "LOCALEN", "LOCALPT", ""\r\nlangs, "English", "Portuguese", ""\r\nother, 1'

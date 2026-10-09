@@ -57,6 +57,11 @@ def source_files(cfg: Config) -> list[Path]:
     return out
 
 
+def _is_root_regions(rel: Path) -> bool:
+    """언어 폴더 바로 아래의 지역 이름 파일인가. 확장팩은 하위 폴더(Scenario\\)에 같은 이름의 파일을 하나 더 넣는다."""
+    return len(rel.parts) == 1 and rel.name.lower() == REGIONS_NAME.lower()
+
+
 def official_gui_keys(cfg: Config) -> list[str]:
     """공식 번역들의 GUI 사전 키(영어 원문). 영어 폴더에는 GUI 파일이 없어 다른 언어 파일들의 합집합을 쓴다."""
     keys: dict[str, None] = {}
@@ -246,7 +251,7 @@ def extract(cfg: Config) -> list[TableReport]:
         units = [(u.key, u.text) for u in doc.units()]
         if units:
             reports.append(_merge(cfg.translation_dir / table_name(rel), units))
-        if rel.name.lower() == REGIONS_NAME.lower():
+        if _is_root_regions(rel):
             region_ids = {ln.key for ln in doc.lines if ln.section == "REGIONTEXT" and ln.key}
     reports.append(_merge(cfg.translation_dir / GUI_TABLE, [(f"GUITRANS|{k}", k) for k in gui_keys(cfg)]))
     reports.append(_merge(cfg.translation_dir / EXTRA_REGIONS_TABLE, extra_region_names(cfg, region_ids)))
@@ -408,7 +413,7 @@ def build_text(cfg: Config, out_root: Path) -> tuple[int, set[str]]:
             continue
         doc = srtext.parse(decode_cp1252(path.read_bytes()).translate(PUNCT))
         applied += doc.apply(_translations(cfg.translation_dir / table_name(rel), skip))
-        if path.name.lower() == REGIONS_NAME.lower():
+        if _is_root_regions(rel):
             applied += _add_extra_regions(doc, _translations(cfg.translation_dir / EXTRA_REGIONS_TABLE, skip))
         emit(out_lang / rel, doc.serialize())
 
