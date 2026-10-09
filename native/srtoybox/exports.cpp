@@ -19,6 +19,7 @@
 #include "settings.h"
 #include "sigs.h"
 #include "ui.h"
+#include "values.h"
 
 #define EXPORT extern "C" __declspec(dllexport)
 
@@ -292,6 +293,26 @@ EXPORT int srtoybox_ui_report(char *out, int size)
 EXPORT int srtoybox_hotkey_name(int vk, int mods, char *out, int size)
 {
     return put(hotkey_name(vk, mods), out, size);
+}
+
+// 테스트: 값 계산(values.h). stock 이 0 이면 국고, 아니면 재고. change: 0 더하기, 1 이 값으로, 2 바닥.
+// 돌려주는 값은 Verdict: 0 쓴다(*out 에 쓸 값), 1 바꿀 것이 없다, 2 쓰지 않는다. 인자가 틀리면 -1.
+EXPORT int srtoybox_value(int stock, double now, int change, double amount, double *out)
+{
+    if (change < 0 || change > 2 || out == nullptr)
+        return -1;
+    double next = 0;
+    float next_stock = 0;       // (small 은 windows.h 가 매크로로 쓴다)
+    const Verdict verdict = stock != 0 ? stock_value(static_cast<float>(now), static_cast<Change>(change), amount, &next_stock)
+                                       : treasury_value(now, static_cast<Change>(change), amount, &next);
+    if (verdict == Verdict::Write)
+        *out = stock != 0 ? static_cast<double>(next_stock) : next;
+    return static_cast<int>(verdict);
+}
+
+EXPORT int srtoybox_short_number(double value, char *out, int size)
+{
+    return put(short_number(value), out, size);
 }
 
 
