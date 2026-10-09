@@ -16,6 +16,7 @@ TREASURY = -1                                                       # 쓰기의 
 READS, CALLS, WRITES = 1, 2, 4                                      # srtoybox_game_flags 의 비트
 UNREAD = "게임 상태를 읽을 수 있을 때만 씁니다."
 FAILED_OFF = "값 쓰기가 실패해 껐습니다. 게임을 다시 시작하면 다시 시도합니다."
+LEFT_GAME = "게임이 진행 중이 아니어서 쓰지 않았습니다."
 
 
 @pytest.fixture(scope="module")
@@ -35,6 +36,8 @@ def lib(cfg):
     lib.srtoybox_test_values.argtypes = [ctypes.c_void_p]
     lib.srtoybox_test_init.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong]
     lib.srtoybox_values_off.argtypes = [ctypes.c_char_p, ctypes.c_int]
+    lib.srtoybox_keeper_request.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_double]
+    lib.srtoybox_keeper_text.argtypes = [ctypes.c_char_p, ctypes.c_int]
     return lib
 
 
@@ -266,3 +269,105 @@ def test_startup_in_something_that_is_not_the_game(lib, image, tmp_path, monkeyp
     flags, off, log = init(lib, image, tmp_path, monkeypatch)
     assert flags == 0 and off == UNREAD
     assert "게임 상태를 읽을 수 없습니다" in log and "맞지 않은 서명" not in log     # 스물한 줄을 쏟아 내지 않는다
+
+
+@pytest.fixture
+def game(lib, tmp_path, monkeypatch):
+    """이 프로세스의 "게임"을 독일로 진행 중인 가짜 게임으로 바꾼다. 로그는 tmp_path 에 남는다."""
+    monkeypatch.setenv("SRTOYBOX_HOME", str(tmp_path))
+    fake = germany()
+    lib.srtoybox_test_game(fake.base, ctypes.byref(fake.at), None)
+    lib.srtoybox_test_values(ctypes.byref(fake.layout))
+    lib.srtoybox_keeper_reset()
+    yield fake
+    lib.srtoybox_keeper_reset()
+    lib.srtoybox_test_game(None, None, None)
+
+
+def ask(lib, slot: int, change: int, amount: float) -> bool:
+    return lib.srtoybox_keeper_request(slot, change, amount) == 1
+
+
+def told(lib) -> tuple[str, str]:
+    """(마지막으로 쓴 것, 알림)."""
+    last, notice = text(lib.srtoybox_keeper_text).split("\t")
+    return last, notice
+
+
+def test_requests_are_written_in_order_on_the_next_tick(lib, game, tmp_path):
+    assert ask(lib, TREASURY, SET, 100.0) and ask(lib, TREASURY, ADD, 50.0) and ask(lib, TREASURY, ADD, -200.0)
+    assert game.treasury(176) == 14.43e9                       # 누른 것만으로는 쓰지 않는다 — 창 스레드의 틱에서 쓴다
+    lib.srtoybox_keeper_tick()
+    assert game.treasury(176) == -50.0
+    assert told(lib) == ("국고 150 -> -50", "")
+    log = (tmp_path / "toybox.log").read_text(encoding="utf-8")
+    assert [line.split(" ", 2)[2] for line in log.splitlines()] == ["값 쓰기: 국고 14.43 B -> 100", "값 쓰기: 국고 100 -> 150",
+                                                                    "값 쓰기: 국고 150 -> -50"]
+    assert game.treasury(141) == 5e9 and game.peek(OPTIONS, "<I") == 0     # 다른 나라와 치트 허용 비트는 그대로다
+
+
+def test_stock_requests_reach_only_products_in_use(lib, game):
+    assert ask(lib, 3, ADD, 1e6) and ask(lib, 0, ADD, -1e8) and ask(lib, 5, ADD, 1e6)
+    lib.srtoybox_keeper_tick()
+    assert game.stock(176, 3) == 1002500.0 and game.stock(176, 0) == 0.0    # 0 아래로 내려가지 않는다
+    assert game.stock(176, 5) == 0.0                                        # 쓰지 않는 물자의 칸에는 쓰지 않는다
+    assert told(lib) == ("재고 칸 0 1.00 K -> 0", "이번 판에서 쓰지 않는 물자입니다.")
+
+
+def test_requests_are_dropped_outside_a_game(lib, game):
+    """누른 뒤 쓰기 전에 게임에서 나가거나 멀티플레이가 되면 쓰지 않고 버린다. 돌아오면 다시 된다."""
+    assert ask(lib, TREASURY, ADD, 1e9)
+    game.menu()
+    lib.srtoybox_keeper_tick()
+    game.play(176)
+    lib.srtoybox_keeper_tick()                                 # 버린 요청이 돌아온 뒤에 쓰이지 않는다
+    assert game.treasury(176) == 14.43e9 and told(lib) == ("", LEFT_GAME)
+    assert ask(lib, TREASURY, ADD, 1e9)
+    game.poke(MULTIPLAYER, "<B", 1)
+    lib.srtoybox_keeper_tick()
+    game.poke(MULTIPLAYER, "<B", 0)
+    lib.srtoybox_keeper_tick()
+    assert game.treasury(176) == 14.43e9
+    assert ask(lib, TREASURY, ADD, 1e9)
+    lib.srtoybox_keeper_tick()
+    assert game.treasury(176) == 15.43e9 and told(lib) == ("국고 14.43 B -> 15.43 B", "")     # 알림은 다음에 쓸 때 지워진다
+
+
+def test_a_value_that_is_not_a_number_is_left_alone(lib, game):
+    game.set_treasury(176, float("nan"))
+    assert ask(lib, TREASURY, SET, 5.0)
+    lib.srtoybox_keeper_tick()
+    assert game.treasury(176) != game.treasury(176)            # 아직 NaN 이다
+    assert told(lib) == ("", "지금 값이 수가 아니어서 쓰지 않았습니다.")
+    game.set_treasury(176, 1.0)
+    game.set_stock(176, 9, float("inf"))                       # 재고 칸 하나가 수가 아니면 값을 통째로 믿지 않는다
+    assert ask(lib, TREASURY, SET, 5.0)
+    lib.srtoybox_keeper_tick()
+    assert game.treasury(176) == 1.0 and told(lib) == ("", "게임의 값을 읽을 수 없어 쓰지 않았습니다.")
+
+
+def test_the_queue_takes_thirty_two(lib, game):
+    assert all(ask(lib, TREASURY, ADD, 1.0) for _ in range(32))
+    assert not ask(lib, TREASURY, ADD, 1.0)
+    lib.srtoybox_keeper_tick()
+    assert game.treasury(176) == 14.43e9 + 32
+    assert ask(lib, TREASURY, ADD, 1.0)
+
+
+def test_a_failed_write_turns_value_writing_off_for_this_run(lib, game, tmp_path):
+    game.lock(176)                                             # 플레이어 객체가 읽기 전용 쪽에 있다
+    game.play(176)
+    assert ask(lib, TREASURY, ADD, 1e9) and ask(lib, TREASURY, ADD, 1e9)
+    lib.srtoybox_keeper_tick()
+    assert game.treasury(176) == 14.43e9
+    assert text(lib.srtoybox_values_off) == FAILED_OFF
+    assert not ask(lib, TREASURY, ADD, 1e9)                    # 그 뒤로는 받지 않는다
+    log = (tmp_path / "toybox.log").read_text(encoding="utf-8")
+    assert log.count("값 쓰기 실패 (국고) — 값 쓰기를 끕니다") == 1 and "값 쓰기: " not in log
+
+
+def test_nothing_is_asked_when_values_cannot_be_written(lib, game):
+    lib.srtoybox_test_values(None)                             # 값의 자리를 찾지 못한 게임
+    assert not ask(lib, TREASURY, ADD, 1e9)
+    lib.srtoybox_keeper_tick()
+    assert game.treasury(176) == 14.43e9

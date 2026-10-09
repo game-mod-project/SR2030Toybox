@@ -10,6 +10,7 @@
 #include "features.h"
 #include "game.h"
 #include "input.h"
+#include "keeper.h"
 #include "locate.h"
 #include "log.h"
 #include "overlay.h"
@@ -312,6 +313,30 @@ EXPORT int srtoybox_game_flags(void)
 EXPORT int srtoybox_values_off(char *out, int size)
 {
     return put(game_values_off(), out, size);
+}
+
+// 테스트: 값 쓰기 요청(keeper.h). slot 이 -1 이면 국고. change: 0 더하기, 1 이 값으로, 2 바닥. 받았으면 1.
+EXPORT int srtoybox_keeper_request(int slot, int change, double amount)
+{
+    if (change < 0 || change > 2)
+        return -1;
+    return keeper_enqueue({slot, static_cast<Change>(change), amount}) ? 1 : 0;
+}
+
+EXPORT void srtoybox_keeper_tick(void)
+{
+    keeper_tick();
+}
+
+// 테스트: "<마지막으로 쓴 것>\t<알림>".
+EXPORT int srtoybox_keeper_text(char *out, int size)
+{
+    return put(keeper_last() + '\t' + keeper_notice(), out, size);
+}
+
+EXPORT void srtoybox_keeper_reset(void)
+{
+    keeper_reset_for_test();
 }
 
 EXPORT int srtoybox_region_label(int number, char *out, int size)

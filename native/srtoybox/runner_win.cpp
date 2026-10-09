@@ -158,6 +158,12 @@ bool runner_faulted()
     return g_faulted;
 }
 
+bool runner_calling()
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    return g_calling;
+}
+
 bool runner_direct()
 {
     return direct_wanted() && game_can_call();
