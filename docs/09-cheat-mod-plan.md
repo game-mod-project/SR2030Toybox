@@ -326,9 +326,11 @@
 
 1. **ToyBox 1단계 (끝).** 게임 안 설정 창 + 플레이어 대상 내장 치트 — [10](10-toybox.md).
 2. **ToyBox 2단계 (끝).** 게임 상태 읽기, 치트의 직접 실행, 나라를 골라 쓰는 치트 — [10](10-toybox.md), 게임의 안쪽은 [11](11-game-internals.md).
-3. **ToyBox 3단계.** GDP 처럼 내장 치트가 없는 값, 값을 유지하는 토글.
-4. **ToyBox 4단계.** 장비 수치 — 설계가 지역끼리 공유되어 "플레이어만"이 가장 어렵다.
-5. **(업데이트가 오면)** `srkit cheats-check` → `srkit locate`(ToyBox 가 게임을 아직 읽을 수 있는가) → 달라진 치트를 게임에서 다시 넣어 보고 [07](07-cheats.md) 갱신 → `srkit inventory` 로 형식 변화 확인 → ToyBox 가 뜨는지 확인.
+3. **ToyBox 3단계 (진행 중).** 모든 기능을 내장 치트에서 떼어 내고(사용자의 요구, 2026-10-09), 돈 · 물자 · 연구 · 부대를 세분화한다 —
+   여덟 묶음([설계](superpowers/specs/2026-10-09-toybox-stage3-1-design.md)). 첫 묶음의 앞 절반(치트와 무관한 주소 찾기)이 끝났다 — [10](10-toybox.md).
+4. **(3단계 뒤)** GDP 와 장비 수치처럼 내장 치트가 처음부터 없던 값.
+5. **(업데이트가 오면)** `srkit cheats-check` → `srkit locate`(서명이 아직 맞는가, 치트 명령 처리 함수가 남아 있는가) → 깨진 서명은 `srkit sig-mine` 으로 다시 뽑고([11](11-game-internals.md))
+   → 달라진 치트를 게임에서 다시 넣어 보고 [07](07-cheats.md) 갱신 → `srkit inventory` 로 형식 변화 확인 → ToyBox 가 뜨는지 확인.
 
 ## 미해결 문제
 
