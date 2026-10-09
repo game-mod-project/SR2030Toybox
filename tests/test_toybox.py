@@ -273,7 +273,7 @@ def _probe(cfg, tmp_path, mode: str, env: dict[str, str] | None = None) -> str:
     shutil.copyfile(toybox.output(cfg), tmp_path / toybox.DLL_NAME)
     probe = Path(__file__).with_name("toybox_overlay_probe.py")
     run = subprocess.run([sys.executable, str(probe), str(tmp_path / "hookcopy.dll"), mode], capture_output=True, text=True,
-                         encoding="utf-8", env={**os.environ, "SRTOYBOX_HOME": str(home), **(env or {})}, timeout=120)
+                         encoding="utf-8", errors="replace", env={**os.environ, "SRTOYBOX_HOME": str(home), **(env or {})}, timeout=120)
     out = run.stdout.strip()
     if out == "nodevice":
         pytest.skip("Direct3D 장치를 만들 수 없는 환경")
@@ -378,6 +378,17 @@ def test_mouse_follows_the_size_the_game_draws_at(dll, cfg, tmp_path):
     got = _fields(_probe(cfg, tmp_path, "scale"))
     assert got["title"] == "none"                   # 보이는 창의 제목 줄을 눌렀다 — 게임에 새지 않는다
     assert got["beside"] == "press+release"         # 보이는 창의 바깥이다 — 게임이 받는다
+
+
+def test_the_probe_hotkey_survives_a_real_modifier_key_pressed_elsewhere(dll, cfg, tmp_path):
+    """검사 도구의 단축키는 가짜 수정키다: 이 스레드의 키 상태표에 Ctrl · Shift 를 눌린 것으로 적고 T 를 보낸다.
+    다른 곳에서 실제 수정키가 눌렸다 떼이면(사용자가 다른 창에서 글을 친다) 그 변화가 이 스레드에 밀려 있다가 다음 GetKeyState 에서
+    상태표를 덮는다 — 적어 둔 Ctrl 이 지워져 단축키가 맨 T 로 게임에 새고 창이 열리지 않는다. 화면 검사 테스트가 드물게 아무것이나
+    하나씩 실패하던 까닭이다(2026-10-09). 도구가 밀린 변화를 먼저 받아 두어야 한다.
+
+    이 테스트는 시스템에 실제 키 입력을 넣는다(오른쪽 Ctrl 을 눌렀다 뗌, 두 번. 혼자서는 아무 일도 하지 않는 입력이다)."""
+    got = _fields(_probe(cfg, tmp_path, "real_key"))
+    assert got == {"first": "toybox", "shown": "1", "second": "toybox", "hidden": "1"}
 
 
 def test_buttons_are_off_outside_a_game(dll, cfg, tmp_path):
