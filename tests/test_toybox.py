@@ -193,7 +193,19 @@ def test_runner_takes_eight_and_rejects_the_rest(dll):
     assert text(dll.srtoybox_simulate, "cheat 한글".encode("utf-8"), 10) == "REJECT cheat 한글\n"   # 넣을 수 없는 글은 받지 않는다
 
 
-DEFAULTS = "hotkey_vk=84\nhotkey_mods=3\nmoney.amount=10000\ntechnology=120\nspawnunit=2413\n"
+KEEP_DEFAULTS = "keep.treasury=0\nkeep.treasury.value=0\n" + "".join(f"keep.stock.{slot}=0\nkeep.stock.{slot}.value=0\n"
+                                                                      for slot in range(12))
+DEFAULTS = "hotkey_vk=84\nhotkey_mods=3\nmoney.amount=10000\n" + KEEP_DEFAULTS + "technology=120\nspawnunit=2413\n"
+
+
+def kept(**lines: int) -> str:
+    """DEFAULTS 에서 유지의 줄 몇 개만 바꾼 것. 키의 점은 밑줄 둘로 적는다: kept(keep__stock__3=1)."""
+    out = DEFAULTS
+    for key, value in lines.items():
+        key = key.replace("__", ".")
+        assert f"{key}=0\n" in out, key
+        out = out.replace(f"{key}=0\n", f"{key}={value}\n")
+    return out
 
 
 def test_settings_fall_back_to_defaults(dll):
@@ -210,11 +222,28 @@ def test_settings_fall_back_to_defaults(dll):
     assert norm("money.amount=1000001\n") == DEFAULTS and norm("money.amount=1000000\n") == DEFAULTS.replace("=10000\n", "=1000000\n")
 
 
+def test_keep_settings(dll):
+    """최소 유지: 켜짐과 값을 모두 저장한다. 틀린 줄은 그 줄만 버린다(다른 유지는 그대로다)."""
+    norm = lambda ini: text(dll.srtoybox_settings_normalize, ini.encode("utf-8"))
+    assert norm("keep.treasury=1\nkeep.treasury.value=50000\n") == kept(keep__treasury=1, keep__treasury__value=50000)
+    assert norm("keep.stock.3=1\nkeep.stock.3.value=1000000\nkeep.stock.11.value=7\n") == \
+        kept(keep__stock__3=1, keep__stock__3__value=1000000, keep__stock__11__value=7)
+    assert norm("keep.treasury.value=1000000\nkeep.stock.0.value=1000000000\n") == \
+        kept(keep__treasury__value=1000000, keep__stock__0__value=1000000000)                # 한도까지는 된다
+    # 범위 밖의 값, 0 / 1 이 아닌 켜짐, 없는 칸, 깨진 키 — 모두 그 줄만 버린다
+    assert norm("keep.treasury=2\nkeep.treasury.value=1000001\nkeep.treasury.value=-1\nkeep.stock.3=7\nkeep.stock.3.value=1000000001\n"
+                "keep.stock.12=1\nkeep.stock.12.value=5\nkeep.stock.-1=1\nkeep.stock.=1\nkeep.stock.x=1\nkeep.stock.3.amount=5\n"
+                "keep.stock.3x=1\nkeep.stock=1\nkeep.stock.123=1\nkeep.stock. 3=1\n") == DEFAULTS
+    assert norm("keep.stock.5=1\nkeep.stock.5=x\nkeep.stock.6=1\n") == kept(keep__stock__5=1, keep__stock__6=1)
+    assert len(kept(**{f"keep__stock__{slot}__value": 1000000000 for slot in range(12)}, keep__treasury__value=1000000)) < 1024   # 읽는 쪽은 4096 까지 읽는다
+
+
 def test_settings_file_round_trip(dll, tmp_path, monkeypatch):
     monkeypatch.setenv("SRTOYBOX_HOME", str(tmp_path))
     assert text(dll.srtoybox_settings_file) == DEFAULTS                                      # 파일이 없으면 기본값
-    assert dll.srtoybox_settings_store(b"hotkey_vk=120\nhotkey_mods=4\ntechnology=140\n") == 1
-    saved = DEFAULTS.replace("=84", "=120").replace("mods=3", "mods=4").replace("=120\nspawn", "=140\nspawn")
+    assert dll.srtoybox_settings_store(b"hotkey_vk=120\nhotkey_mods=4\ntechnology=140\nkeep.stock.7=1\nkeep.stock.7.value=250000\n") == 1
+    saved = kept(keep__stock__7=1, keep__stock__7__value=250000).replace("=84", "=120").replace("mods=3", "mods=4") \
+        .replace("=120\nspawn", "=140\nspawn")
     assert (tmp_path / "toybox.ini").read_text(encoding="utf-8") == saved
     assert text(dll.srtoybox_settings_file) == saved
     (tmp_path / "toybox.ini").write_bytes(b"\xff\xfe\x00broken")
