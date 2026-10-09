@@ -5,6 +5,7 @@
 
 #include "game.h"
 #include "log.h"
+#include "products.h"
 #include "runner_win.h"
 
 namespace {
@@ -18,12 +19,20 @@ std::string g_last, g_notice;
 
 std::string target_name(int slot)
 {
-    return slot == TREASURY ? std::string("국고") : "재고 칸 " + std::to_string(slot);
+    return slot == TREASURY ? std::string("국고") : product_label(slot);
 }
 
-// 요청 하나를 지금 값(now)에 대어 쓴다. 값 쓰기가 꺼졌으면(실패) false — 남은 요청을 버린다. g_lock 을 쥔 채로 부른다.
-bool apply(const Request &r, const GameValues &now)
+// 국고는 재무 패널의 표기로, 물자는 위쪽 자원 표시줄의 표기로 적는다.
+std::string shown(int slot, double value)
 {
+    return slot == TREASURY ? short_number(value) : short_amount(value);
+}
+
+// 요청 하나(국고나 물자 한 칸)를 지금 값(now)에 대어 쓴다. 값 쓰기가 꺼졌으면(실패) false — 남은 요청을 버린다.
+// 썼으면 *wrote_it 이 true. g_lock 을 쥔 채로 부른다.
+bool apply(const Request &r, const GameValues &now, bool *wrote_it)
+{
+    *wrote_it = false;
     double from = 0, to = 0;
     Verdict verdict = Verdict::Refuse;
     if (r.slot == TREASURY) {
@@ -45,13 +54,31 @@ bool apply(const Request &r, const GameValues &now)
         return true;
     const Wrote wrote = r.slot == TREASURY ? game_write_treasury(to) : game_write_stock(r.slot, static_cast<float>(to));
     if (wrote == Wrote::Done) {
-        g_last = target_name(r.slot) + " " + short_number(from) + " -> " + short_number(to);
+        *wrote_it = true;
+        g_last = target_name(r.slot) + " " + shown(r.slot, from) + " -> " + shown(r.slot, to);
         log_line("값 쓰기: %s", g_last.c_str());
         return true;
     }
     if (wrote == Wrote::Failed || wrote == Wrote::Off)
         return false;                          // 까닭은 탭이 보인다(game_values_off)
     g_notice = LEFT_GAME;                      // 읽은 뒤 쓰기 전에 게임이 바뀌었다
+    return true;
+}
+
+// "모든 물자": 이번 판에서 쓰는 물자마다 같은 일을 한다. 한 칸에 쓰는 것은 다른 칸의 값을 바꾸지 않으므로 now 를 다시 읽지 않는다.
+bool apply_all(const Request &r, const GameValues &now)
+{
+    int count = 0;
+    for (int slot = 0; slot < STOCK_SLOTS; slot++) {
+        if (!now.used[slot])
+            continue;
+        bool wrote_it = false;
+        if (!apply({slot, r.change, r.amount}, now, &wrote_it))
+            return false;
+        count += wrote_it ? 1 : 0;
+    }
+    if (count > 0)
+        g_last = "모든 물자 " + std::to_string(count) + "개";
     return true;
 }
 
@@ -91,7 +118,8 @@ void keeper_tick()
             g_notice = "게임의 값을 읽을 수 없어 쓰지 않았습니다.";
             return;
         }
-        if (!apply(r, now)) {
+        bool wrote_it = false;
+        if (!(r.slot == ALL_STOCK ? apply_all(r, now) : apply(r, now, &wrote_it))) {
             g_queue.clear();
             return;
         }

@@ -282,6 +282,7 @@ const struct ValueWanted {
 };
 
 const int MAX_TABLE = STATE_WANTED * STATE_SIGS;    // 한 표의 서명 수의 상한(상태 21개, 값 12개)
+static_assert(VALUE_WANTED <= STATE_WANTED, "vote_table 의 배열은 상태 묶음의 크기로 잡았다 — 더 큰 표를 더하면 MAX_TABLE 을 키운다");
 
 // 전역 변수가 있을 수 있는 곳인가: 쓸 수 있는 자료 구역 안.
 bool in_data(const Image &im, uint64_t rva, uint64_t bytes)
@@ -307,7 +308,11 @@ bool vote_table(const Image &im, const Row *table, int n, const char *what, SigR
                 char *why, size_t why_size)
 {
     const int total = n * STATE_SIGS;
-    SigRange ranges[32];
+    if (total > MAX_TABLE) {
+        snprintf(why, why_size, "서명 표가 너무 큽니다 (%d개)", total);
+        return false;
+    }
+    SigRange ranges[32];                                // 구역은 32개까지 읽는다(parse)
     int range_count = 0;
     for (int s = 0; s < im.count; s++)
         if (im.sections[s].code) {
@@ -399,14 +404,26 @@ bool search_values(const uint8_t *image, size_t size, ValueLayout *out, SigRow *
         snprintf(why, why_size, "%s: 찾은 주소가 쓸 수 있는 자료 구역이 아닙니다", VALUES[0].label);
         return false;
     }
+    if (world % 8 != 0) {                       // 포인터와 double 은 8 의 배수 자리에, float 는 4 의 배수 자리에 놓인다
+        snprintf(why, why_size, "%s: 찾은 주소가 8 의 배수가 아닙니다", VALUES[0].label);
+        return false;
+    }
     if (!offset_ok(treasury)) {
         snprintf(why, why_size, "%s: 찾은 자리가 범위 밖입니다", VALUES[1].label);
+        return false;
+    }
+    if (treasury % 8 != 0) {
+        snprintf(why, why_size, "%s: 찾은 자리가 8 의 배수가 아닙니다", VALUES[1].label);
         return false;
     }
     for (int w = 2; w < VALUE_WANTED; w++) {    // 표 둘: (간격, 첫 칸). 칸이 float 라 간격은 4 의 배수다
         const uint64_t step = v[w][0], first = v[w][1];
         if (!offset_ok(first) || step == 0 || step % 4 != 0 || !offset_ok(first + step * (STOCK_SLOTS - 1) + 4)) {
             snprintf(why, why_size, "%s: 찾은 자리나 간격이 범위 밖입니다", VALUES[w].label);
+            return false;
+        }
+        if (first % 4 != 0) {
+            snprintf(why, why_size, "%s: 찾은 자리가 4 의 배수가 아닙니다", VALUES[w].label);
             return false;
         }
     }
@@ -476,6 +493,20 @@ bool locate_values(const uint8_t *image, size_t size, ValueLayout *out, SigRow *
         snprintf(why, why_size, "실행 파일에 읽을 수 없는 곳이 있습니다");
         return false;
     }
+}
+
+bool locate_fits(const GameAddresses &state, const ValueLayout &values, char *why, size_t why_size)
+{
+    const uint64_t world = values.world_pointer;
+    for (int w = 0; w < STATE_WANTED; w++) {
+        const uint64_t rva = state.*(STATE[w].field);
+        if (world < rva + STATE[w].bytes && rva < world + 8) {
+            snprintf(why, why_size, "%s: 찾은 주소가 %s 의 자리와 겹칩니다", VALUES[0].label, STATE[w].label);
+            return false;
+        }
+    }
+    snprintf(why, why_size, "%s", "");
+    return true;
 }
 
 uint32_t locate_function_root(const uint8_t *image, size_t size, uint32_t rva)

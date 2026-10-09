@@ -15,7 +15,7 @@ from .config import Config
 
 DLL_NAME = "srtoybox.dll"
 SOURCES = ["features.cpp", "command.cpp", "runner.cpp", "settings.cpp", "exports.cpp",
-           "log.cpp", "runner_win.cpp", "ui.cpp", "input.cpp", "prologue.cpp", "sigs.cpp", "locate.cpp", "values.cpp", "game.cpp", "keeper.cpp", "regions.cpp",
+           "log.cpp", "runner_win.cpp", "ui.cpp", "input.cpp", "prologue.cpp", "sigs.cpp", "locate.cpp", "values.cpp", "game.cpp", "keeper.cpp", "regions.cpp", "products.cpp",
            "overlay.cpp"]
 LIBS = ["kernel32.lib", "user32.lib", "gdi32.lib", "imm32.lib", "dwmapi.lib", "d3d11.lib", "dxgi.lib", "d3dcompiler.lib"]
 FLAGS = "/nologo /c /utf-8 /std:c++17 /O2 /MT /EHsc /DNDEBUG /DNOMINMAX"   # NDEBUG: 게임 안에서 assert 로 죽지 않게. NOMINMAX: windows.h 의 min · max 매크로를 끈다
@@ -26,6 +26,9 @@ IMGUI_DEFINES = "/DIMGUI_IMPL_WIN32_DISABLE_GAMEPAD"    # 게임패드는 쓰지
 EXE_NAME = "SupremeRuler2030.exe"
 # REGIONTEXT|<지역 번호>|0 행이 지역의 이름이다. 뒤의 표(게임의 표에 없어 덧붙인 지역)가 앞의 것을 덮는다
 REGION_TABLES = ["mods/korean/translation/localtext-regions.csv", "mods/korean/translation/localtext-regions.extra.csv"]
+# LOCALIZE|productsl|<칸> 행이 물자의 이름이다. 재고 칸과 같은 순서로 0 … 10 의 열하나다 — 11 부터는 물자가 아니다(전체 · 금융 · 인구 …)
+PRODUCT_TABLE = "mods/korean/translation/variables.csv"
+PRODUCT_NAMES = 11
 # native/srtoybox/locate.h 의 GameAddresses 와 같은 순서다
 ADDRESS_FIELDS = ["handler", "context", "multiplayer", "options", "program_state", "mode_state", "player_index",
                   "player_pointer", "region_table", "region_count"]
@@ -115,6 +118,23 @@ def regions_inc(rows: list[tuple[int, str, str]]) -> str:
     return "".join(f"{{{number}, {c_string(ko)}, {c_string(en)}}},\n" for number, ko, en in rows)
 
 
+def product_rows(cfg: Config) -> list[tuple[int, str, str]]:
+    """번역 테이블에서 (재고 칸, 한글 이름, 영문 이름)을 칸순으로. 번역이 빈 행은 영문 이름을 쓴다."""
+    rows: dict[int, tuple[str, str]] = {}
+    with (cfg.root / PRODUCT_TABLE).open(encoding="utf-8-sig", newline="") as f:
+        for row in csv.DictReader(f):
+            m = re.fullmatch(r"LOCALIZE\|productsl\|(\d+)", row["key"])
+            en = row["en"].strip()
+            if m and en and int(m[1]) < PRODUCT_NAMES:
+                rows[int(m[1])] = (row["ko"].strip() or en, en)
+    return [(slot, *rows[slot]) for slot in sorted(rows)]
+
+
+def products_inc(rows: list[tuple[int, str, str]]) -> str:
+    """native/srtoybox/products.cpp 가 끼워 넣는 초기화 목록(한 줄에 물자 하나). 꼴은 지역 이름표와 같다."""
+    return regions_inc(rows)
+
+
 def build(cfg: Config) -> Path:
     src = cfg.root / "native" / "srtoybox"
     out, obj = output(cfg), cfg.build_dir / "toybox-obj"      # 중간 산출물(.obj .lib .exp)은 모드 폴더 밖에 둔다
@@ -125,6 +145,7 @@ def build(cfg: Config) -> Path:
     theirs = [imgui / name for name in IMGUI_SOURCES]
     objs = [obj / (p.stem + ".obj") for p in ours + theirs]
     (obj / "regions_table.inc").write_text(regions_inc(region_rows(cfg)), encoding="utf-8", newline="\n")
+    (obj / "products_table.inc").write_text(products_inc(product_rows(cfg)), encoding="utf-8", newline="\n")
     include = f'/I"{imgui}" /I"{imgui / "backends"}" /I"{obj}" {IMGUI_DEFINES}'
     script = obj / "build.cmd"
     script.write_text(
@@ -150,6 +171,7 @@ def library(cfg: Config) -> ctypes.CDLL:
                                           ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
     lib.srtoybox_locate_values.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong, ctypes.POINTER(ValueLayout), ctypes.c_char_p,
                                            ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
+    lib.srtoybox_locate_fits.argtypes = [ctypes.POINTER(GameAddresses), ctypes.POINTER(ValueLayout), ctypes.c_char_p, ctypes.c_int]
     lib.srtoybox_function_root.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong, ctypes.c_uint]
     lib.srtoybox_function_root.restype = ctypes.c_uint
     return lib
@@ -189,6 +211,13 @@ def values_of(lib: ctypes.CDLL, image: bytes) -> tuple[dict[str, int] | None, st
     return ({name: getattr(found, name) for name in VALUE_FIELDS} if ok else None), error.value.decode("utf-8"), _sig_rows(rows.value)
 
 
+def fits(lib: ctypes.CDLL, state: dict[str, int], values: dict[str, int]) -> str:
+    """두 묶음의 대조(세계 자료 포인터가 상태 전역과 겹치지 않는가). 맞으면 빈 글, 아니면 까닭."""
+    error = ctypes.create_string_buffer(256)
+    ok = lib.srtoybox_locate_fits(ctypes.byref(GameAddresses(**state)), ctypes.byref(ValueLayout(**values)), error, len(error)) == 0
+    return "" if ok else error.value.decode("utf-8")
+
+
 def legacy_of(lib: ctypes.CDLL, image: bytes) -> tuple[dict[str, int] | None, str]:
     """옛 찾기(치트 닻)를 그 이미지에 돌린다: (이름 → RVA, "") 또는 (None, 까닭)."""
     found, error = GameAddresses(), ctypes.create_string_buffer(256)
@@ -208,5 +237,8 @@ def locate(cfg: Config) -> Located:
     state, state_why, rows = state_of(lib, image)
     ms = (time.perf_counter() - started) * 1000
     values, values_why, value_rows = values_of(lib, image)
+    clash = fits(lib, state, values) if state is not None and values is not None else ""
+    if clash:
+        values, values_why = None, clash      # 게임 안의 ToyBox 도 이때 값 묶음을 버린다(game_init_from)
     legacy, legacy_why = legacy_of(lib, image)
     return Located(state, state_why, rows, ms, values, values_why, value_rows, legacy, legacy_why)

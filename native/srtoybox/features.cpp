@@ -2,12 +2,10 @@
 
 #include <cstring>
 
-// 국고의 세 줄(treasury · georgew · georgeww)은 3단계 1 에서 지웠다 — 돈 탭이 내장 치트 없이 직접 한다(ui.cpp 의 money_tab).
+// 국고의 세 줄(treasury · georgew · georgeww)과 물자의 세 줄(products · branson · bezos)은 3단계 1 에서 지웠다 —
+// 돈 탭과 물자 탭이 내장 치트 없이 직접 한다(ui.cpp 의 money_tab · stock_tab).
 // 남은 줄은 아직 내장 치트로 돈다. 묶음마다 옮기고 지운다(docs/10-toybox.md 의 "다음 단계").
 const Feature FEATURES[] = {
-    {"products", "물자", "모든 물자 추가", "입력한 수량만큼 모든 물자의 재고가 늘어난다", "cheat products", true, 100000, 1, 100000000, false},
-    {"branson", "물자", "모든 물자 +100만", "모든 물자의 재고가 100만씩 늘어난다", "cheat branson", false, 0, 0, 0, false},
-    {"bezos", "물자", "모든 물자 +1억", "모든 물자의 재고가 약 1억씩 늘어난다", "cheat bezos", false, 0, 0, 0, false},
     {"technology", "연구", "기술 수준 N 이하 전부 보유", "입력한 기술 수준 이하의 기술을 모두 연구한 것으로 만든다", "cheat technology", true, 120, 1, 999, false},
     {"e=mc2", "연구", "대기열의 연구 즉시 완료", "대기열에 건 연구가 바로 끝난다. 대기열이 비어 있으면 아무 일도 없다", "cheat e=mc2", false, 0, 0, 0, false},
     {"finalexam", "연구", "지식 순위 올리기", "지식 지수 순위가 오른다", "cheat finalexam", false, 0, 0, 0, false},

@@ -218,11 +218,32 @@ def test_value_signatures_that_disagree_are_refused(lib, value_sigs):
     ({"stock": (0x20, 0x100000)}, "재고 칸"),                   # 자리가 터무니없이 멀다
     ({"used": (0, 0x28)}, "쓰는 물자 표"),                      # 간격이 0
     ({"treasury": 0}, "국고 칸"),                               # 자리가 0
-], ids=["overlap", "odd-step", "far", "zero-step", "zero-offset"])
+    ({"world_pointer": toybox_fake_exe.DATA + 0x44}, "세계 자료 포인터: 찾은 주소가 8 의 배수가 아닙니다"),
+    ({"treasury": 0x1234}, "국고 칸: 찾은 자리가 8 의 배수가 아닙니다"),          # double 이 놓일 수 없는 자리
+    ({"stock": (0x20, 0x2002)}, "재고 칸: 찾은 자리가 4 의 배수가 아닙니다"),
+    ({"used": (0x44, 0x2A)}, "쓰는 물자 표: 찾은 자리가 4 의 배수가 아닙니다"),
+], ids=["overlap", "odd-step", "far", "zero-step", "zero-offset", "pointer-unaligned", "treasury-unaligned", "stock-unaligned",
+        "used-unaligned"])
 def test_values_that_do_not_add_up_are_refused(lib, value_sigs, targets, reason):
     """서명들이 서로 맞아도 읽어 낸 자리가 말이 안 되면 못 찾은 것이다."""
     found, why, _ = toybox.values_of(lib, toybox_fake_exe.sig_image(value_sigs, targets=targets))
     assert found is None and reason in why, why
+
+
+def test_the_world_pointer_must_not_sit_on_a_state_global(lib, sigs, value_sigs):
+    """두 묶음을 저마다 찾았어도, 세계 자료 포인터가 상태 전역과 겹치면 둘 가운데 하나는 엉뚱한 것을 읽은 것이다 — 값 묶음을 버린다."""
+    clash = {"world_pointer": toybox_fake_exe.STATE["player_pointer"]}
+    image = toybox_fake_exe.sig_image(sigs + value_sigs, targets=clash)
+    state, why, _ = toybox.state_of(lib, image)
+    assert state == toybox_fake_exe.STATE, why
+    values, why, _ = toybox.values_of(lib, image)
+    assert values == {**toybox_fake_exe.VALUE_LAYOUT, **clash}, why          # 저마다는 말이 된다
+    assert toybox.fits(lib, state, values) == "세계 자료 포인터: 찾은 주소가 플레이어 포인터 의 자리와 겹칩니다"
+    assert toybox.fits(lib, state, toybox_fake_exe.VALUE_LAYOUT) == ""
+    inside = {**toybox_fake_exe.VALUE_LAYOUT, "world_pointer": toybox_fake_exe.STATE["region_table"] + 0x800}
+    assert "지역 표" in toybox.fits(lib, state, inside)                       # 지역 표(8바이트 × 1024칸)의 한가운데
+    edge = {**toybox_fake_exe.VALUE_LAYOUT, "world_pointer": toybox_fake_exe.STATE["player_pointer"] + 8}
+    assert toybox.fits(lib, state, edge) == ""                               # 바로 옆은 겹침이 아니다
 
 
 @pytest.mark.parametrize("image", GARBAGE, ids=GARBAGE_IDS)
@@ -425,6 +446,29 @@ def test_region_names(lib):
     assert label(lib, 1499) == "독일" and label(lib, 1106) == "폴란드"
     assert label(lib, 109) == "수에즈 운하 지대"          # localtext-regions.extra.csv 에만 있는 지역
     assert label(lib, 12345) == "#12345" and label(lib, -7) == "#-7"
+
+
+def product(lib, slot: int) -> str:
+    out = ctypes.create_string_buffer(256)
+    assert lib.srtoybox_product_label(slot, out, len(out)) >= 0
+    return out.value.decode("utf-8")
+
+
+def test_product_names(lib):
+    """물자 이름표도 저장소의 번역 테이블에서 온다(재고 칸의 순서 = 게임의 물자 목록의 순서). 표에 없는 칸은 "물자 #칸" 으로 보인다."""
+    assert [product(lib, slot) for slot in range(11)] == ["농산물", "고무", "목재", "석유", "석탄", "금속 광석", "우라늄", "전력", "소비재",
+                                                           "산업재", "군수품"]
+    assert product(lib, 11) == "물자 #11" and product(lib, 12) == "물자 #12" and product(lib, -1) == "물자 #-1"   # 열두째 칸에는 이름이 없다
+    out = ctypes.create_string_buffer(256)
+    assert lib.srtoybox_product_names(3, out, len(out)) > 0 and out.value.decode("utf-8") == "석유\tPetroleum"
+    assert lib.srtoybox_product_names(11, out, len(out)) == -1
+
+
+def test_product_rows_come_from_the_translation_table(cfg):
+    rows = toybox.product_rows(cfg)
+    assert [slot for slot, _, _ in rows] == list(range(11))                  # 같은 목록의 11(전체) · 12(금융) · 13(인구) … 는 물자가 아니다
+    assert rows[3] == (3, "석유", "Petroleum") and rows[10] == (10, "군수품", "Military Goods")
+    assert toybox.products_inc(rows[:1]) == '{0, "농산물", "Agriculture"},\n'
 
 
 def test_region_rows_come_from_the_translation_table(cfg):

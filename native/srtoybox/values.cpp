@@ -25,7 +25,10 @@ Verdict treasury_value(double now, Change change, double amount, double *out)
     const Verdict verdict = wanted(now, change, amount, &value);
     if (verdict != Verdict::Write)
         return verdict;
-    value = std::min(TREASURY_LIMIT, std::max(-TREASURY_LIMIT, value));
+    const bool set = change == Change::Set;      // 더하기 · 바닥은 한도 밖에 있던 값을 한도 쪽으로 끌어오지 않는다
+    const double high = set ? TREASURY_LIMIT : std::max(TREASURY_LIMIT, now);
+    const double low = set ? -TREASURY_LIMIT : std::min(-TREASURY_LIMIT, now);
+    value = std::min(high, std::max(low, value));
     if (value == now)
         return Verdict::Nothing;
     *out = value;
@@ -38,7 +41,8 @@ Verdict stock_value(float now, Change change, double amount, float *out)
     const Verdict verdict = wanted(now, change, amount, &value);
     if (verdict != Verdict::Write)
         return verdict;
-    const float next = static_cast<float>(std::min(STOCK_LIMIT, std::max(0.0, value)));
+    const double high = change == Change::Set ? STOCK_LIMIT : std::max(STOCK_LIMIT, static_cast<double>(now));
+    const float next = static_cast<float>(std::min(high, std::max(0.0, value)));
     if (next == now)
         return Verdict::Nothing;
     *out = next;
@@ -63,5 +67,29 @@ std::string short_number(double value)
         snprintf(text, sizeof(text), "%.2f B", value / 1e9);
     else
         snprintf(text, sizeof(text), "%.2f T", value / 1e12);
+    return text;
+}
+
+std::string short_amount(double value)
+{
+    static const struct {
+        double unit;
+        char letter;
+    } UNITS[] = {{1e3, 'K'}, {1e6, 'M'}, {1e9, 'B'}, {1e12, 'T'}};
+    const int last = static_cast<int>(sizeof(UNITS) / sizeof(UNITS[0])) - 1;
+    if (!std::isfinite(value))
+        return "?";
+    const double size = std::fabs(value);
+    if (size < 0.5)
+        return "0";                  // "-0" 이 되지 않게
+    char text[40] = "";
+    if (size < 999.5) {
+        snprintf(text, sizeof(text), "%.0f", value);
+        return text;
+    }
+    int u = 0;
+    while (u < last && size / UNITS[u].unit >= 999.5)
+        u++;                         // 999.5 K 부터는 1.0 M 이다
+    snprintf(text, sizeof(text), size / UNITS[u].unit < 99.95 ? "%.1f %c" : "%.0f %c", value / UNITS[u].unit, UNITS[u].letter);
     return text;
 }

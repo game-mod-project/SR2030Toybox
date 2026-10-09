@@ -14,6 +14,7 @@
 #include "locate.h"
 #include "log.h"
 #include "overlay.h"
+#include "products.h"
 #include "prologue.h"
 #include "regions.h"
 #include "runner.h"
@@ -234,6 +235,18 @@ EXPORT int srtoybox_locate_values(const unsigned char *image, unsigned long long
     return 0;
 }
 
+// 두 묶음의 대조(locate_fits). 0 이면 맞는다. -1 이면 error 에 까닭.
+EXPORT int srtoybox_locate_fits(const GameAddresses *state, const ValueLayout *values, char *error, int error_size)
+{
+    char why[160] = "";
+    if (state == nullptr || values == nullptr)
+        return -1;
+    if (locate_fits(*state, *values, why, sizeof(why)))
+        return 0;
+    put(why, error, error_size);
+    return -1;
+}
+
 EXPORT int srtoybox_stock_slots(void)
 {
     return STOCK_SLOTS;
@@ -315,7 +328,7 @@ EXPORT int srtoybox_values_off(char *out, int size)
     return put(game_values_off(), out, size);
 }
 
-// 테스트: 값 쓰기 요청(keeper.h). slot 이 -1 이면 국고. change: 0 더하기, 1 이 값으로, 2 바닥. 받았으면 1.
+// 테스트: 값 쓰기 요청(keeper.h). slot 이 -1 이면 국고, -2 면 쓰는 물자 모두. change: 0 더하기, 1 이 값으로, 2 바닥. 받았으면 1.
 EXPORT int srtoybox_keeper_request(int slot, int change, double amount)
 {
     if (change < 0 || change > 2)
@@ -337,6 +350,18 @@ EXPORT int srtoybox_keeper_text(char *out, int size)
 EXPORT void srtoybox_keeper_reset(void)
 {
     keeper_reset_for_test();
+}
+
+EXPORT int srtoybox_product_label(int slot, char *out, int size)
+{
+    return put(product_label(slot), out, size);
+}
+
+// 물자 이름표의 한 줄: "<한글 이름>\t<영문 이름>". 표에 없는 칸이면 -1.
+EXPORT int srtoybox_product_names(int slot, char *out, int size)
+{
+    const ProductName *name = find_product(slot);
+    return name == nullptr ? -1 : put(std::string(name->ko) + '\t' + name->en, out, size);
 }
 
 EXPORT int srtoybox_region_label(int number, char *out, int size)
@@ -389,6 +414,11 @@ EXPORT int srtoybox_value(int stock, double now, int change, double amount, doub
 EXPORT int srtoybox_short_number(double value, char *out, int size)
 {
     return put(short_number(value), out, size);
+}
+
+EXPORT int srtoybox_short_amount(double value, char *out, int size)
+{
+    return put(short_amount(value), out, size);
 }
 
 

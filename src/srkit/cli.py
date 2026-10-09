@@ -182,7 +182,7 @@ def cmd_locate(cfg, _args) -> int:
     _print_sig_rows(found.value_rows)
     if found.values is None:
         print(f"찾지 못했습니다: {found.values_why}")
-        print("ToyBox 의 돈 탭이 이 빌드에서 꺼집니다. uv run srkit sig-mine [--offset] 으로 서명을 다시 뽑습니다(docs/11).")
+        print("ToyBox 의 돈 · 물자 탭이 이 빌드에서 꺼집니다. uv run srkit sig-mine [--offset] 으로 서명을 다시 뽑습니다(docs/11).")
     else:
         for name in toybox.VALUE_FIELDS:
             print(f"  {found.values[name]:#010x}  {toybox.VALUE_NAMES[name]}")

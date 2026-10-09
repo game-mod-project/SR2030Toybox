@@ -12,7 +12,7 @@ ADD, SET, FLOOR = 0, 1, 2                 # native/srtoybox/values.h 의 Change
 WRITE, NOTHING, REFUSE = 0, 1, 2          # 〃 Verdict
 NAN, INF = float("nan"), float("inf")
 DONE, NOT_IN_GAME, NOT_USED, BAD_VALUE, FAILED, OFF = range(6)      # native/srtoybox/game.h 의 Wrote
-TREASURY = -1                                                       # 쓰기의 대상: 국고. 0 … 11 은 그 칸의 재고
+TREASURY, ALL_STOCK = -1, -2                                        # 쓰기의 대상: 국고 / 쓰는 물자 모두. 0 … 11 은 그 칸의 재고
 READS, CALLS, WRITES = 1, 2, 4                                      # srtoybox_game_flags 의 비트
 UNREAD = "게임 상태를 읽을 수 있을 때만 씁니다."
 FAILED_OFF = "값 쓰기가 실패해 껐습니다. 게임을 다시 시작하면 다시 시도합니다."
@@ -27,6 +27,7 @@ def lib(cfg):
     lib = toybox.library(cfg)
     lib.srtoybox_value.argtypes = [ctypes.c_int, ctypes.c_double, ctypes.c_int, ctypes.c_double, ctypes.POINTER(ctypes.c_double)]
     lib.srtoybox_short_number.argtypes = [ctypes.c_double, ctypes.c_char_p, ctypes.c_int]
+    lib.srtoybox_short_amount.argtypes = [ctypes.c_double, ctypes.c_char_p, ctypes.c_int]
     pointer = ctypes.POINTER
     lib.srtoybox_values_read.argtypes = [ctypes.c_void_p, pointer(toybox.GameAddresses), pointer(toybox.ValueLayout), ctypes.c_char_p,
                                          ctypes.c_int]
@@ -67,6 +68,20 @@ def test_treasury_values(lib):
     assert value(lib, False, 5e15, FLOOR, 1e9) == (NOTHING, None)                 # 바닥은 값을 내리지 않는다 — 한도 밖의 값이어도
 
 
+def test_a_value_already_beyond_the_limit_is_not_pulled_back(lib):
+    """한도는 "여기까지만 민다"는 뜻이다. 게임이 한도 밖으로 만든 값을 더하기 · 바닥이 한도 쪽으로 끌어오면, 올리라는 요청이 값을 내린다."""
+    assert value(lib, False, 1.5e15, FLOOR, 2e15) == (NOTHING, None)              # 바닥이 한도 위여도 내리지 않는다
+    assert value(lib, False, 1.5e15, ADD, 1.0) == (NOTHING, None)                 # 더 밀지 않을 뿐이다
+    assert value(lib, False, 1.5e15, ADD, -1e14) == (WRITE, 1.4e15)               # 한도 쪽으로는 청한 만큼만 간다
+    assert value(lib, False, -1.5e15, ADD, -1.0) == (NOTHING, None)
+    assert value(lib, False, -1.5e15, ADD, 1e14) == (WRITE, -1.4e15)
+    assert value(lib, False, 1.5e15, SET, 2e15) == (WRITE, 1e15)                  # "이 값으로"만 한도 안으로 자른다
+    assert value(lib, True, 2e9, FLOOR, 3e9) == (NOTHING, None)
+    assert value(lib, True, 2e9, ADD, 1e6) == (NOTHING, None)
+    assert value(lib, True, 2e9, ADD, -1e9) == (WRITE, 1e9)
+    assert value(lib, True, 2e9, SET, 3e9) == (WRITE, 1e9)
+
+
 def test_stock_values(lib):
     assert value(lib, True, 1000.0, ADD, 1e6) == (WRITE, 1001000.0)
     assert value(lib, True, 1000.0, ADD, -1e8) == (WRITE, 0.0)                    # 0 아래로 내려가지 않는다
@@ -92,6 +107,15 @@ def test_short_numbers_look_like_the_games(lib):
     short = lambda v: text(lib.srtoybox_short_number, v)
     assert [short(v) for v in (0, 7, 999.4, 1000, 50000, 14.43e9, 1.1e6, 999999, 1e12, -1e12, -24.5e9, 0.3, -0.3)] == \
         ["0", "7", "999", "1.00 K", "50.00 K", "14.43 B", "1.10 M", "1.00 M", "1.00 T", "-1.00 T", "-24.50 B", "0", "0"]
+    assert short(NAN) == "?" and short(INF) == "?"
+
+
+def test_short_amounts_look_like_the_resource_bar(lib):
+    """물자의 수량은 게임의 위쪽 자원 표시줄처럼: 100 아래는 소수 첫째 자리까지(1.8 M · 23.7 M), 그 위는 정수(129 K · 779 M)."""
+    short = lambda v: text(lib.srtoybox_short_amount, v)
+    assert [short(v) for v in (0, 7, 999.4, 1000, 2500, 129000, 1.8e6, 23.7e6, 779e6, 1e9, -5, 0.3, -0.3)] == \
+        ["0", "7", "999", "1.0 K", "2.5 K", "129 K", "1.8 M", "23.7 M", "779 M", "1.0 B", "-5", "0", "0"]
+    assert [short(v) for v in (99.94e3, 99.96e3, 999.4e3, 999.6e3, 5e15)] == ["99.9 K", "100 K", "999 K", "1.0 M", "5000 T"]
     assert short(NAN) == "?" and short(INF) == "?"
 
 
@@ -258,6 +282,16 @@ def test_startup_names_the_signatures_that_did_not_match(lib, all_sigs, tmp_path
     assert "맞지 않은 서명: multiplayer #1 (안 맞음)" in log and "맞지 않은 서명: world_pointer #2 (안 맞음)" in log
 
 
+def test_startup_drops_the_values_when_the_two_searches_clash(lib, all_sigs, tmp_path, monkeypatch):
+    """두 묶음을 저마다 찾았어도 세계 자료 포인터가 상태 전역과 겹치면 값은 쓰지 않는다. 상태 읽기는 그대로다."""
+    state, values = all_sigs
+    image = toybox_fake_exe.sig_image(state + values, targets={"world_pointer": toybox_fake_exe.STATE["player_pointer"]})
+    flags, off, log = init(lib, image, tmp_path, monkeypatch)
+    clash = "세계 자료 포인터: 찾은 주소가 플레이어 포인터 의 자리와 겹칩니다"
+    assert flags == READS and off == f"이 게임 판에서는 쓸 수 없습니다 ({clash})"
+    assert f"값을 쓸 수 없습니다 ({clash})" in log and "게임 상태를 읽습니다 (서명 21개 가운데 21개" in log
+
+
 def test_startup_with_everything(lib, all_sigs, tmp_path, monkeypatch):
     state, values = all_sigs
     flags, off, _log = init(lib, toybox_fake_exe.build(state + values), tmp_path, monkeypatch)
@@ -311,7 +345,26 @@ def test_stock_requests_reach_only_products_in_use(lib, game):
     lib.srtoybox_keeper_tick()
     assert game.stock(176, 3) == 1002500.0 and game.stock(176, 0) == 0.0    # 0 아래로 내려가지 않는다
     assert game.stock(176, 5) == 0.0                                        # 쓰지 않는 물자의 칸에는 쓰지 않는다
-    assert told(lib) == ("재고 칸 0 1.00 K -> 0", "이번 판에서 쓰지 않는 물자입니다.")
+    assert told(lib) == ("농산물 1.0 K -> 0", "이번 판에서 쓰지 않는 물자입니다.")      # 물자는 이름으로, 자원 표시줄의 표기로
+
+
+def test_a_request_for_all_products_reaches_every_product_in_use(lib, game, tmp_path):
+    """"모든 물자" 줄의 요청은 쓸 때 이번 판에서 쓰는 물자마다의 요청으로 풀린다. 쓰지 않는 칸 · 다른 나라는 그대로다."""
+    game.set_stock(141, 3, 777.0)
+    assert ask(lib, ALL_STOCK, ADD, 1e6)
+    lib.srtoybox_keeper_tick()
+    assert [game.stock(176, slot) for slot in range(12)] == [1001000.0, 0, 0, 1002500.0, 0, 0, 0, 1000000.0, 0, 0, 0, 0]
+    assert told(lib) == ("모든 물자 3개", "")
+    assert ask(lib, ALL_STOCK, SET, 0.0)
+    lib.srtoybox_keeper_tick()
+    assert [game.stock(176, slot) for slot in (0, 3, 7)] == [0.0, 0.0, 0.0] and told(lib) == ("모든 물자 3개", "")
+    assert ask(lib, ALL_STOCK, ADD, -1e8) and ask(lib, 7, ADD, 5.0)
+    lib.srtoybox_keeper_tick()
+    assert told(lib) == ("전력 0 -> 5", "")                    # 바꿀 것이 없던 "모든 물자"는 마지막으로 쓴 것을 덮지 않는다
+    assert game.stock(141, 3) == 777.0 and game.treasury(176) == 14.43e9
+    log = (tmp_path / "toybox.log").read_text(encoding="utf-8")
+    assert [line.split(" ", 2)[2] for line in log.splitlines()][:3] == ["값 쓰기: 농산물 1.0 K -> 1.0 M", "값 쓰기: 석유 2.5 K -> 1.0 M",
+                                                                        "값 쓰기: 전력 0 -> 1.0 M"]
 
 
 def test_requests_are_dropped_outside_a_game(lib, game):
@@ -364,6 +417,16 @@ def test_a_failed_write_turns_value_writing_off_for_this_run(lib, game, tmp_path
     assert not ask(lib, TREASURY, ADD, 1e9)                    # 그 뒤로는 받지 않는다
     log = (tmp_path / "toybox.log").read_text(encoding="utf-8")
     assert log.count("값 쓰기 실패 (국고) — 값 쓰기를 끕니다") == 1 and "값 쓰기: " not in log
+
+
+def test_a_failed_stock_write_names_the_product(lib, game, tmp_path):
+    game.lock(176)
+    game.play(176)
+    assert ask(lib, ALL_STOCK, ADD, 1e6)
+    lib.srtoybox_keeper_tick()
+    assert text(lib.srtoybox_values_off) == FAILED_OFF and told(lib)[0] == ""
+    log = (tmp_path / "toybox.log").read_text(encoding="utf-8")
+    assert log.count("값 쓰기 실패 (농산물) — 값 쓰기를 끕니다") == 1 and "값 쓰기: " not in log   # 첫 칸에서 멈춘다
 
 
 def test_nothing_is_asked_when_values_cannot_be_written(lib, game):

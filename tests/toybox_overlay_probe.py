@@ -49,6 +49,11 @@ ToyBox 가 부른 함수 안에서 난 예외를 위에서 잡을 때 (출력 "c
     money_unreadable 게임 안인데 재고 칸 하나가 수가 아니다(보지 못한 구성의 판) — 〃
     money_fail       플레이어 지역 객체가 읽기 전용 쪽에 있다 — 쓰기가 실패하고 탭이 꺼진다
     money_reenter    옮기지 않은 기능의 직접 실행이 게임의 함수 안에 있는 동안 타이머가 다시 온다 — 그 안에서는 쓰지 않는다
+    money_fault      옮기지 않은 기능의 직접 실행이 죽는다(오류 가드) — 함께 대기열에 있던 국고 요청을 쓰지 않는다
+    money_hint       게임 안에서 돈 · 물자 탭과 내장 치트로 도는 탭의 바닥 안내
+물자 탭 — 내장 치트를 거치지 않고 물자 재고를 고친다 (출력은 JSON 한 줄):
+    stock            게임 안(물자 0 · 3 · 7 · 11 을 쓰는 판)에서 석유의 단추, "모든 물자"의 단추, 농산물의 단추를 누른다
+    stock_menu       메뉴에 있다 — 이름표의 물자가 재고 없이 나오고 단추가 꺼져 있다
 설정 창에 보이는 글 (출력은 JSON 한 줄. 보이지 않는 글은 "-"):
     confirm          "외교·영토" 탭에서 폴란드를 고르고 스크롤을 내려 맨 아래의 "이 나라로 플레이"를 두 번 누른다
     confirm_fault    같은 탭에서 직접 실행이 죽는다 — 경고가 스크롤을 내려도 보인다
@@ -665,7 +670,7 @@ def run_window(hook: str, mode: str) -> int:
         print(json.dumps(out, ensure_ascii=False))
         return 0
     if mode == "hints":
-        game.hotkey()
+        game.open()                                           # 내장 치트로 도는 탭에서 본다(돈 · 물자 탭의 안내는 money_hint 가 본다)
         out["menu"] = game.shown("hint")
         fake.play(176)
         out["game"] = game.shown("hint")
@@ -805,7 +810,8 @@ def run_money(hook: str, mode: str) -> int:
             inside.append(box["fake"].treasury(176))
 
     game.handler = HANDLER(body)                              # 게임이 살아 있는 동안 붙들어 둔다
-    fake = box["fake"] = fake_game(hook, ctypes.cast(game.handler, ctypes.c_void_p).value, values=mode != "money_notfound")
+    handler = crash_stub() if mode == "money_fault" else ctypes.cast(game.handler, ctypes.c_void_p).value
+    fake = box["fake"] = fake_game(hook, handler, values=mode != "money_notfound")
     if mode == "money_fail":
         fake.lock(176)                                        # 플레이어 지역 객체가 읽기 전용 쪽에 있다(읽을 수는 있다)
     if mode == "money_unreadable":
@@ -815,7 +821,7 @@ def run_money(hook: str, mode: str) -> int:
     game.hotkey()                                             # 창이 열리면 첫 탭이 "돈"이다
     game.got.clear()
     facts = game.facts()
-    out: dict[str, object] = {"now": game.shown("money:now"), "off": game.shown("money:off")}
+    out: dict[str, object] = {"now": game.shown("money:now"), "off": game.shown("money:off"), "hint": game.shown("hint")}
     out["cheat_buttons"] = sorted(name for name in facts if name.startswith("run:"))
     out["buttons"] = sorted(name for name in facts
                             if name.startswith("money:") and name not in ("money:now", "money:off", "money:amount"))
@@ -851,7 +857,76 @@ def run_money(hook: str, mode: str) -> int:
         game.click("money:+10b")                              # 국고 요청도 대기열에 든다
         game.wait(0.5)
         out["inside"], out["after"] = inside, fake.treasury(176)
+    elif mode == "money_fault":
+        game.click(CHEAT_TAB)
+        game.click(BUTTON)                                    # 옮기지 않은 기능 하나가 대기열에 든다 — 실행되면 죽는다
+        game.click(MONEY)
+        game.click("money:+10b")                              # 국고 요청도 대기열에 든다
+        game.wait(0.5)
+        out["after"], out["fault"] = fake.treasury(176), game.shown("fault")
+    elif mode == "money_hint":
+        game.click(STOCK)
+        out["stock_hint"] = game.shown("hint")
+        game.click(CHEAT_TAB)
+        out["cheat_hint"] = game.shown("hint")
+    elif mode in ("money_write_off", "money_notfound", "money_unread", "money_unreadable"):
+        game.click(STOCK)                                     # 물자 탭도 같은 까닭 한 줄뿐이어야 한다
+        facts = game.facts()
+        out["stock_off"] = game.shown("stock:off")
+        out["stock_rows"] = sorted(name for name in facts if name.startswith("stock:") and name != "stock:off")
+        out["stock_cheats"] = sorted(name for name in facts if name.startswith("run:"))
     out["lines"], out["text"], out["options"], out["poland"] = lines, game.text(), fake.peek(OPTIONS, "<I"), fake.treasury(141)
+    print(json.dumps(out, ensure_ascii=False))
+    return 0
+
+
+STOCK = "tab:물자"
+STOCK_SLOTS_SEEN = (0, 3, 7, 11, 5)     # run_stock 이 재고를 적어 내는 칸: 쓰는 물자 넷과 쓰지 않는 물자 하나
+
+
+def run_stock(hook: str, mode: str) -> int:
+    """물자 탭: 내장 치트를 거치지 않고 물자 재고를 고친다. 출력은 JSON 한 줄(보이지 않는 글은 "-").
+
+    독일은 물자 0(농산물 1000) · 3(석유 250만) · 7(전력 0) · 11(이름 없는 열두째 칸, 5)을 쓴다. 폴란드의 석유는 777 이다.
+    """
+    game = start_game(hook)
+    if game is None:
+        return 0
+    lines: list[str] = []
+    game.handler = HANDLER(lambda _context, line: lines.append(line.decode()))   # 불리면 안 된다
+    fake = fake_game(hook, ctypes.cast(game.handler, ctypes.c_void_p).value)
+    for slot, amount in ((0, 1000.0), (3, 2.5e6), (7, 0.0), (11, 5.0)):
+        fake.use(slot)
+        fake.set_stock(176, slot, amount)
+    fake.set_stock(141, 3, 777.0)
+    if mode != "stock_menu":
+        fake.play(176)
+    game.hotkey()
+    game.click(STOCK)
+    game.got.clear()
+    facts = game.facts()
+    rows = [name for name in facts if name.startswith("stock:") and name.count(":") == 1 and name != "stock:off"]   # 그린 순서대로
+    out: dict[str, object] = {"off": game.shown("stock:off"), "hint": game.shown("hint"),
+                              "rows": [[name, facts[name][3], facts[name + ":now"][3]] for name in rows],
+                              "cheat_buttons": sorted(name for name in facts if name.startswith("run:")),
+                              "buttons": sorted(name[len("stock:3:"):] for name in facts
+                                                if name.startswith("stock:3:") and name != "stock:3:now")}
+
+    def press(name: str) -> list[float]:
+        game.click(name)
+        game.wait(0.2)                                        # 쓰는 것은 다음 타이머에서다
+        return [fake.stock(176, slot) for slot in STOCK_SLOTS_SEEN]
+
+    if mode == "stock":
+        out["steps"] = [press(name) for name in ("stock:3:+1m", "stock:3:-100m", "stock:3:+100m", "stock:3:zero", "stock:all:+1m",
+                                                 "stock:all:-100m")]
+        out["wrote_all"] = game.shown("wrote")
+        out["steps"].append(press("stock:0:+100m"))
+        out["wrote"], out["now_after"] = game.shown("wrote"), game.shown("stock:0:now")
+    else:
+        out["steps"] = [press("stock:3:+1m")]
+        out["status"] = game.shown("status")
+    out["lines"], out["text"], out["options"], out["poland"] = lines, game.text(), fake.peek(OPTIONS, "<I"), fake.stock(141, 3)
     print(json.dumps(out, ensure_ascii=False))
     return 0
 
@@ -900,7 +975,7 @@ def run_input(hook: str) -> int:
         return 0
     out = {"hotkey": game.open()}
     out["button"] = game.click(BUTTON)                        # 설정 창의 단추 — 게임에 가면 안 된다. 명령이 대기열에 든다
-    out["outside"] = game.click((700, 100))                   # 설정 창 밖 — 게임이 받아야 한다
+    out["outside"] = game.click((900, 100))                   # 설정 창 밖(창은 40..760 x 60..580 이다) — 게임이 받아야 한다
     game.got.clear()
     out["typing"] = int(game.pump(lambda: game.has("char", ord("c")), 10))   # 실행기가 치트를 적기 시작했다
     # 그동안 사용자가 실제 키보드로 9 를 치고(게임에 가면 치트를 받아 적는 줄에 섞인다) 단축키를 누른다(평소처럼 창이 닫혀야 한다)
@@ -940,7 +1015,7 @@ def run_scale(hook: str) -> int:
     if game is None:
         return 0
     game.hotkey()
-    # 설정 창은 그리는 좌표로 40..540 x 60..520 에 있고, 화면(창의 좌표)에는 80..1080 x 120..1040 으로 보인다
+    # 설정 창은 그리는 좌표로 40..760 x 60..580 에 있고, 화면(창의 좌표)에는 80..1520 x 120..1160 으로 보인다
     title = game.click((TITLE[0] * 2, TITLE[1] * 2))          # 보이는 창의 제목 줄 — 게임에 가면 안 된다
     beside = game.click((60, 80))                             # 보이는 창의 왼쪽 위 바깥(그리는 좌표로 30,40) — 게임이 받아야 한다
     print(f"title={title} beside={beside}")
@@ -963,6 +1038,8 @@ def main() -> int:
         return run_reenter(hook, mode)
     if mode.startswith("money"):
         return run_money(hook, mode)
+    if mode.startswith("stock"):
+        return run_stock(hook, mode)
     if mode in ("confirm", "confirm_fault", "hints", "leave", "multiplayer", "pick_gone", "pick_become", "pick_again", "ansi_search"):
         return run_window(hook, mode)
     if mode == "present_fault":
