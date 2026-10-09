@@ -1,6 +1,7 @@
 // 테스트(tests/test_toybox.py)와 불러오는 쪽(srhook)이 쓰는 C 인터페이스. 글은 UTF-8, 버퍼가 작거나 대상이 없으면 -1.
 #include <windows.h>
 
+#include <cstdio>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -16,6 +17,7 @@
 #include "regions.h"
 #include "runner.h"
 #include "settings.h"
+#include "sigs.h"
 #include "ui.h"
 
 #define EXPORT extern "C" __declspec(dllexport)
@@ -117,6 +119,51 @@ EXPORT int srtoybox_settings_file(char *out, int size)
 EXPORT int srtoybox_prologue_length(const unsigned char *code, int size, int want)
 {
     return prologue_length(code, size, want);
+}
+
+// 테스트: 서명 글들(줄바꿈으로 나눈다)을 image 의 [begin, end) 에서 맞춰 본다.
+// 서명마다 한 줄 "<맞은 횟수> <처음 맞은 자리> <값0> <값1>"(16진수. 글이 틀리면 "bad"),
+// 끝 줄은 투표 "vote <찾았는가 0/1> <한 번만 맞은 수> <값0> <값1>".
+EXPORT int srtoybox_sig_find(const unsigned char *image, unsigned long long size, unsigned begin, unsigned end, const char *sigs,
+                             int need, char *out, int out_size)
+{
+    std::vector<Sig> parsed;
+    std::vector<int> where;      // 줄 → parsed 의 칸. 틀린 글이면 -1
+    const std::string all = sigs == nullptr ? "" : sigs;
+    for (size_t pos = 0; pos <= all.size(); ) {
+        size_t stop = all.find('\n', pos);
+        if (stop == std::string::npos)
+            stop = all.size();
+        Sig sig = {};
+        if (sig_parse(all.substr(pos, stop - pos).c_str(), &sig)) {
+            where.push_back(static_cast<int>(parsed.size()));
+            parsed.push_back(sig);
+        } else {
+            where.push_back(-1);
+        }
+        pos = stop + 1;
+    }
+    std::vector<SigHit> hits(parsed.size());
+    const SigRange range = {begin, end};
+    if (image != nullptr && !parsed.empty())
+        sig_scan(image, static_cast<size_t>(size), &range, 1, parsed.data(), static_cast<int>(parsed.size()), hits.data());
+    std::string text;
+    char line[96];
+    for (int at : where) {
+        if (at < 0) {
+            text += "bad\n";
+            continue;
+        }
+        const SigHit &hit = hits[static_cast<size_t>(at)];
+        snprintf(line, sizeof(line), "%x %x %llx %llx\n", static_cast<unsigned>(hit.count), hit.at, hit.value[0], hit.value[1]);
+        text += line;
+    }
+    uint64_t value[SIG_CAPTURES] = {};
+    int matched = 0;
+    const bool found = !parsed.empty()
+        && sig_vote(parsed.data(), hits.data(), static_cast<int>(parsed.size()), need, value, &matched);
+    snprintf(line, sizeof(line), "vote %d %d %llx %llx", found ? 1 : 0, matched, value[0], value[1]);
+    return put(text + line, out, out_size);
 }
 
 // 실행 파일의 이미지(RVA 대로 펼친 것)에서 주소를 찾는다. 0 이면 out 을 채웠다. -1 이면 error 에 까닭.
