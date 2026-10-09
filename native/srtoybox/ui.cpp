@@ -1,5 +1,6 @@
 #include "ui.h"
 
+#include <algorithm>
 #include <cfloat>
 #include <cstring>
 #include <mutex>
@@ -10,6 +11,7 @@
 #include "features.h"
 #include "game.h"
 #include "imgui.h"
+#include "keeper.h"
 #include "overlay.h"
 #include "regions.h"
 #include "runner_win.h"
@@ -133,6 +135,63 @@ void picker(const RegionView &view)
     ImGui::Spacing();
 }
 
+// 돈 탭의 단추 하나: 누르면 국고에 대한 요청을 대기열에 넣는다. 쓰는 것은 게임 창의 타이머에서다(keeper.h).
+void money_button(const char *label, const char *name, Change change, double amount)
+{
+    const bool pressed = ImGui::Button(label);
+    note(name, label);
+    if (pressed)
+        g_notice = keeper_enqueue({TREASURY, change, amount}) ? "" : "대기 중인 요청이 많아 받지 못했습니다.";
+}
+
+// 돈 탭: 내장 치트를 거치지 않고 플레이어의 국고를 직접 고친다(기능 표가 아니라 여기서 그린다).
+// 쓸 수 없으면 까닭 한 줄만 보인다 — 내장 치트로 되돌아가지 않는다.
+void money_tab(const GameState &game, bool blocked)
+{
+    const std::string off = game.known ? game_values_off() : std::string("게임 상태를 읽을 수 있을 때만 씁니다.");
+    if (!off.empty()) {
+        ImGui::TextWrapped("%s", off.c_str());
+        note("money:off", off);
+        return;
+    }
+    const GameValues now = game.in_game ? game_values() : GameValues();   // 탭이 보이는 동안 프레임마다 읽는다
+    const std::string have = now.ok ? "국고: $ " + short_number(now.treasury) : std::string("국고: -");
+    ImGui::TextUnformatted(have.c_str());
+    note("money:now", have);
+    ImGui::Spacing();
+
+    ImGui::BeginDisabled(blocked || !now.ok);
+    ImGui::SetNextItemWidth(150.0f);
+    if (ImGui::InputScalar("##amount", ImGuiDataType_S64, &g_settings.money_amount)) {
+        g_settings.money_amount = std::min(MONEY_AMOUNT_MAX, std::max(MONEY_AMOUNT_MIN, g_settings.money_amount));
+        save_settings(g_settings);
+    }
+    note("money:amount", std::to_string(g_settings.money_amount));
+    const double amount = static_cast<double>(g_settings.money_amount) * 1e6;
+    ImGui::SameLine();
+    ImGui::TextUnformatted("백만 달러");
+    ImGui::SameLine();
+    money_button("더하기", "money:add", Change::Add, amount);
+    ImGui::SameLine();
+    money_button("빼기", "money:sub", Change::Add, -amount);
+    ImGui::SameLine();
+    money_button("이 값으로", "money:set", Change::Set, amount);
+    ImGui::TextDisabled("입력한 금액만큼 국고를 더하거나 빼거나, 국고를 그 금액으로 맞춘다");
+    ImGui::Spacing();
+
+    money_button("-$100 B", "money:-100b", Change::Add, -100e9);
+    ImGui::SameLine();
+    money_button("-$10 B", "money:-10b", Change::Add, -10e9);
+    ImGui::SameLine();
+    money_button("$0", "money:zero", Change::Set, 0.0);
+    ImGui::SameLine();
+    money_button("+$10 B", "money:+10b", Change::Add, 10e9);
+    ImGui::SameLine();
+    money_button("+$100 B", "money:+100b", Change::Add, 100e9);
+    ImGui::TextDisabled("국고는 음수가 될 수 있다. 다른 나라의 국고는 건드리지 않는다");
+    ImGui::EndDisabled();
+}
+
 void settings_tab()
 {
     ImGui::Text("창 여닫기: %s", hotkey_name(g_settings.hotkey_vk, g_settings.hotkey_mods).c_str());
@@ -237,6 +296,14 @@ void ui_draw()
             g_footer = 3.0f * ImGui::GetTextLineHeightWithSpacing();   // 첫 프레임의 어림. 그 뒤로는 지난 프레임에 잰 값
         const ImVec2 body(0.0f, -g_footer);
         if (ImGui::BeginTabBar("tabs")) {
+            const bool money = ImGui::BeginTabItem("돈");   // 첫 탭. 기능 표에 없다 — 내장 치트 없이 직접 한다
+            note("tab:돈", "돈");
+            if (money) {
+                if (ImGui::BeginChild("body", body))
+                    money_tab(game, blocked);
+                ImGui::EndChild();
+                ImGui::EndTabItem();
+            }
             const char *tab = nullptr;
             for (int i = 0; i < FEATURE_COUNT; i++) {
                 if (tab != nullptr && strcmp(tab, FEATURES[i].tab) == 0)
@@ -282,6 +349,16 @@ void ui_draw()
             ImGui::Text("넣는 중: %s (남은 것 %d)", last.c_str(), pending);
         else if (!last.empty())
             ImGui::Text("마지막으로 넣은 것: %s", last.c_str());
+        const std::string wrote = keeper_last();
+        if (!wrote.empty()) {
+            ImGui::Text("마지막으로 쓴 값: %s", wrote.c_str());
+            note("wrote", wrote);
+        }
+        const std::string unwritten = keeper_notice();
+        if (!unwritten.empty()) {
+            ImGui::TextWrapped("%s", unwritten.c_str());
+            note("unwritten", unwritten);
+        }
         if (!g_notice.empty()) {
             ImGui::TextWrapped("%s", g_notice.c_str());
             note("notice", g_notice);
