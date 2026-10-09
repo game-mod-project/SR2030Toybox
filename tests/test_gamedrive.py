@@ -128,3 +128,123 @@ def test_modifiers_are_released_even_when_the_body_fails(gd, fake_user32):
         with gd.held(1, [0x11, 0x10]):
             raise KeyboardInterrupt
     assert fake_user32.calls[-4:] == [("up", 0x10), ("up", 0x11), ("state", ()), ("detach",)]
+
+
+class FakeDesktop:
+    """앞 창을 다루는 user32 함수의 대역. 이 PC 에서 잰 대로 흉내 낸다(docs/04 의 "포커스", 2026-10-10):
+    다른 프로세스는 입력을 낸 직후에만 앞 창을 바꿀 수 있다 — 앞 창의 스레드에 입력을 붙이는 것으로는 안 된다."""
+    USER, MAIN, VIDEO, SHELL = 0x100, 0x200, 0x300, 0x900     # 쓰던 창, 게임의 본 창, 게임의 인트로 영상 창(더 크다), 바탕 화면
+    GAME_PID, USER_PID = 4242, 7
+
+    def __init__(self, foreground: int, movable: bool = True):
+        self.foreground, self.movable = foreground, movable
+        self.armed, self.calls = False, []
+
+    def GetForegroundWindow(self):
+        return self.foreground
+
+    def GetShellWindow(self):
+        return self.SHELL
+
+    def IsWindow(self, hwnd):
+        return int(hwnd in (self.USER, self.MAIN, self.VIDEO, self.SHELL))
+
+    def GetWindowThreadProcessId(self, hwnd, pid):
+        if pid is not None:
+            pid._obj.value = self.GAME_PID if hwnd in (self.MAIN, self.VIDEO) else self.USER_PID
+        return 77
+
+    def GetSystemMetrics(self, index):
+        return 1920 if index == 78 else 0
+
+    def GetWindowRect(self, hwnd, rect):
+        rect._obj.left = 5000                                 # 이미 화면 밖이다
+        return 1
+
+    def SetWindowPos(self, *args):
+        return 1
+
+    def AttachThreadInput(self, me, target, on):
+        return 1
+
+    def SendInput(self, count, inputs, size):
+        self.calls.append("input")
+        self.armed = True
+        return count
+
+    def SetForegroundWindow(self, hwnd):
+        ok = self.armed and self.movable
+        self.armed = False
+        self.calls.append(("set", hwnd, ok))
+        if ok:
+            self.foreground = hwnd
+        return int(ok)
+
+    def LockSetForegroundWindow(self, code):
+        self.calls.append(("lock", code))
+        return 1
+
+
+def watch(gd, monkeypatch, desk: FakeDesktop, previous: int, largest: int = FakeDesktop.VIDEO) -> None:
+    """keep_hidden 을 가짜 바탕 화면에서 잠깐 돌린다. 게임의 가장 큰 창은 largest 다."""
+    monkeypatch.setattr(gd, "user32", desk)
+    monkeypatch.setattr(gd.time, "sleep", lambda seconds: None)
+    monkeypatch.setattr(gd, "game_window", lambda pids=None: (largest, "Supreme Ruler 2030", (1044, 811)))
+    gd.keep_hidden(lambda: {desk.GAME_PID}, previous, settle=0.05, watch=0.2)
+
+
+def test_focus_goes_back_to_the_window_the_user_was_using(gd, monkeypatch, capsys):
+    """게임이 뜨면서 포커스를 가져가면 쓰던 창에 돌려준다 — 실제로 넘어갔을 때만 "돌려줌"으로 센다."""
+    desk = FakeDesktop(foreground=FakeDesktop.VIDEO)
+    watch(gd, monkeypatch, desk, previous=desk.USER)
+    assert desk.foreground == desk.USER
+    out = capsys.readouterr().out
+    assert "포커스 돌려줌 1회" in out and "포커스는 다른 창에 있음" in out and "돌려주지 못함" not in out
+
+
+def test_focus_is_taken_back_from_any_window_of_the_game(gd, monkeypatch):
+    """게임은 창이 둘이다(본 창과 인트로 영상 창). 가장 큰 창이 아닌 쪽이 포커스를 쥐어도 돌려준다 —
+    가장 큰 창만 보던 때에는 시도조차 하지 않아 게임이 포커스를 쥔 채로 남았다."""
+    desk = FakeDesktop(foreground=FakeDesktop.MAIN)
+    watch(gd, monkeypatch, desk, previous=desk.USER, largest=desk.VIDEO)
+    assert desk.foreground == desk.USER
+
+
+def test_focus_goes_to_the_desktop_when_no_window_was_in_front(gd, monkeypatch):
+    """시작할 때 앞 창이 없었으면(직전에 포커스를 쥔 게임을 껐다) 바탕 화면에 넘긴다 — 보이지 않는 게임이 키 입력을 받지 않게."""
+    desk = FakeDesktop(foreground=FakeDesktop.MAIN)
+    watch(gd, monkeypatch, desk, previous=0, largest=desk.MAIN)
+    assert desk.foreground == desk.SHELL
+
+
+def test_a_focus_that_could_not_be_given_back_is_not_counted_as_given(gd, monkeypatch, capsys):
+    desk = FakeDesktop(foreground=FakeDesktop.VIDEO, movable=False)
+    watch(gd, monkeypatch, desk, previous=desk.USER)
+    out = capsys.readouterr().out
+    assert desk.foreground == desk.VIDEO
+    assert "포커스 돌려줌 0회" in out and "돌려주지 못함" in out and "게임이 포커스를 쥐고 있음" in out
+
+
+def test_the_foreground_is_locked_before_the_game_is_started(gd, cfg, monkeypatch, capsys):
+    """이 도구를 띄운 앱이 앞 창이면 게임이 뜨자마자 포커스를 가져간다. 띄우기 전에 앞 창 잠금을 걸고, 지켜보기가 끝나면 푼다."""
+    desk = FakeDesktop(foreground=FakeDesktop.USER)
+
+    class Game:
+        pid = FakeDesktop.GAME_PID
+
+        def poll(self):
+            return None
+
+    def launch(*args, **kwargs):
+        desk.calls.append("launch")
+        return Game()
+
+    monkeypatch.setattr(gd, "user32", desk)
+    monkeypatch.setattr(gd.time, "sleep", lambda seconds: None)
+    monkeypatch.setattr(gd.subprocess, "Popen", launch)
+    monkeypatch.setattr(gd, "record_owned", lambda cfg, pids: None)
+    monkeypatch.setattr(gd, "game_window", lambda pids=None: (desk.MAIN, "Supreme Ruler 2030", (1024, 768)))
+    monkeypatch.setattr(gd, "keep_hidden", lambda pids, previous, **kwargs: desk.calls.append("watch"))
+    gd.start_in_background(cfg, cfg.game_dir / gd.EXE, ["-window"])
+    assert desk.calls == [("lock", 1), "launch", "watch", ("lock", 2)]
+    assert "앞 창 잠금" in capsys.readouterr().out
