@@ -235,6 +235,18 @@ EXPORT int srtoybox_locate_values(const unsigned char *image, unsigned long long
     return 0;
 }
 
+// 두 묶음의 대조(locate_fits). 0 이면 맞는다. -1 이면 error 에 까닭.
+EXPORT int srtoybox_locate_fits(const GameAddresses *state, const ValueLayout *values, char *error, int error_size)
+{
+    char why[160] = "";
+    if (state == nullptr || values == nullptr)
+        return -1;
+    if (locate_fits(*state, *values, why, sizeof(why)))
+        return 0;
+    put(why, error, error_size);
+    return -1;
+}
+
 EXPORT int srtoybox_stock_slots(void)
 {
     return STOCK_SLOTS;

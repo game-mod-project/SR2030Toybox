@@ -218,11 +218,32 @@ def test_value_signatures_that_disagree_are_refused(lib, value_sigs):
     ({"stock": (0x20, 0x100000)}, "재고 칸"),                   # 자리가 터무니없이 멀다
     ({"used": (0, 0x28)}, "쓰는 물자 표"),                      # 간격이 0
     ({"treasury": 0}, "국고 칸"),                               # 자리가 0
-], ids=["overlap", "odd-step", "far", "zero-step", "zero-offset"])
+    ({"world_pointer": toybox_fake_exe.DATA + 0x44}, "세계 자료 포인터: 찾은 주소가 8 의 배수가 아닙니다"),
+    ({"treasury": 0x1234}, "국고 칸: 찾은 자리가 8 의 배수가 아닙니다"),          # double 이 놓일 수 없는 자리
+    ({"stock": (0x20, 0x2002)}, "재고 칸: 찾은 자리가 4 의 배수가 아닙니다"),
+    ({"used": (0x44, 0x2A)}, "쓰는 물자 표: 찾은 자리가 4 의 배수가 아닙니다"),
+], ids=["overlap", "odd-step", "far", "zero-step", "zero-offset", "pointer-unaligned", "treasury-unaligned", "stock-unaligned",
+        "used-unaligned"])
 def test_values_that_do_not_add_up_are_refused(lib, value_sigs, targets, reason):
     """서명들이 서로 맞아도 읽어 낸 자리가 말이 안 되면 못 찾은 것이다."""
     found, why, _ = toybox.values_of(lib, toybox_fake_exe.sig_image(value_sigs, targets=targets))
     assert found is None and reason in why, why
+
+
+def test_the_world_pointer_must_not_sit_on_a_state_global(lib, sigs, value_sigs):
+    """두 묶음을 저마다 찾았어도, 세계 자료 포인터가 상태 전역과 겹치면 둘 가운데 하나는 엉뚱한 것을 읽은 것이다 — 값 묶음을 버린다."""
+    clash = {"world_pointer": toybox_fake_exe.STATE["player_pointer"]}
+    image = toybox_fake_exe.sig_image(sigs + value_sigs, targets=clash)
+    state, why, _ = toybox.state_of(lib, image)
+    assert state == toybox_fake_exe.STATE, why
+    values, why, _ = toybox.values_of(lib, image)
+    assert values == {**toybox_fake_exe.VALUE_LAYOUT, **clash}, why          # 저마다는 말이 된다
+    assert toybox.fits(lib, state, values) == "세계 자료 포인터: 찾은 주소가 플레이어 포인터 의 자리와 겹칩니다"
+    assert toybox.fits(lib, state, toybox_fake_exe.VALUE_LAYOUT) == ""
+    inside = {**toybox_fake_exe.VALUE_LAYOUT, "world_pointer": toybox_fake_exe.STATE["region_table"] + 0x800}
+    assert "지역 표" in toybox.fits(lib, state, inside)                       # 지역 표(8바이트 × 1024칸)의 한가운데
+    edge = {**toybox_fake_exe.VALUE_LAYOUT, "world_pointer": toybox_fake_exe.STATE["player_pointer"] + 8}
+    assert toybox.fits(lib, state, edge) == ""                               # 바로 옆은 겹침이 아니다
 
 
 @pytest.mark.parametrize("image", GARBAGE, ids=GARBAGE_IDS)

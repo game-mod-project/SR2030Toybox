@@ -171,6 +171,7 @@ def library(cfg: Config) -> ctypes.CDLL:
                                           ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
     lib.srtoybox_locate_values.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong, ctypes.POINTER(ValueLayout), ctypes.c_char_p,
                                            ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
+    lib.srtoybox_locate_fits.argtypes = [ctypes.POINTER(GameAddresses), ctypes.POINTER(ValueLayout), ctypes.c_char_p, ctypes.c_int]
     lib.srtoybox_function_root.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong, ctypes.c_uint]
     lib.srtoybox_function_root.restype = ctypes.c_uint
     return lib
@@ -210,6 +211,13 @@ def values_of(lib: ctypes.CDLL, image: bytes) -> tuple[dict[str, int] | None, st
     return ({name: getattr(found, name) for name in VALUE_FIELDS} if ok else None), error.value.decode("utf-8"), _sig_rows(rows.value)
 
 
+def fits(lib: ctypes.CDLL, state: dict[str, int], values: dict[str, int]) -> str:
+    """두 묶음의 대조(세계 자료 포인터가 상태 전역과 겹치지 않는가). 맞으면 빈 글, 아니면 까닭."""
+    error = ctypes.create_string_buffer(256)
+    ok = lib.srtoybox_locate_fits(ctypes.byref(GameAddresses(**state)), ctypes.byref(ValueLayout(**values)), error, len(error)) == 0
+    return "" if ok else error.value.decode("utf-8")
+
+
 def legacy_of(lib: ctypes.CDLL, image: bytes) -> tuple[dict[str, int] | None, str]:
     """옛 찾기(치트 닻)를 그 이미지에 돌린다: (이름 → RVA, "") 또는 (None, 까닭)."""
     found, error = GameAddresses(), ctypes.create_string_buffer(256)
@@ -229,5 +237,8 @@ def locate(cfg: Config) -> Located:
     state, state_why, rows = state_of(lib, image)
     ms = (time.perf_counter() - started) * 1000
     values, values_why, value_rows = values_of(lib, image)
+    clash = fits(lib, state, values) if state is not None and values is not None else ""
+    if clash:
+        values, values_why = None, clash      # 게임 안의 ToyBox 도 이때 값 묶음을 버린다(game_init_from)
     legacy, legacy_why = legacy_of(lib, image)
     return Located(state, state_why, rows, ms, values, values_why, value_rows, legacy, legacy_why)

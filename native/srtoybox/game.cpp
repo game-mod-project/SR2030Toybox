@@ -333,7 +333,8 @@ void game_init_from(const uint8_t *base, size_t size)
     ValueLayout layout = {};
     SigRow value_rows[VALUE_WANTED * STATE_SIGS];
     char value_why[160] = "";
-    const bool values = state && locate_values(base, size, &layout, value_rows, value_why, sizeof(value_why));
+    const bool values = state && locate_values(base, size, &layout, value_rows, value_why, sizeof(value_why))
+        && locate_fits(at, layout, value_why, sizeof(value_why));
     const unsigned long long took = GetTickCount64() - started;
 
     // 옛 찾기(전환 기간에만): 아직 내장 치트로 도는 기능의 직접 실행이 쓴다. 상태를 읽지 못하면 그 기능들도 글쇠 방식이라 찾지 않는다

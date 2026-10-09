@@ -282,6 +282,16 @@ def test_startup_names_the_signatures_that_did_not_match(lib, all_sigs, tmp_path
     assert "맞지 않은 서명: multiplayer #1 (안 맞음)" in log and "맞지 않은 서명: world_pointer #2 (안 맞음)" in log
 
 
+def test_startup_drops_the_values_when_the_two_searches_clash(lib, all_sigs, tmp_path, monkeypatch):
+    """두 묶음을 저마다 찾았어도 세계 자료 포인터가 상태 전역과 겹치면 값은 쓰지 않는다. 상태 읽기는 그대로다."""
+    state, values = all_sigs
+    image = toybox_fake_exe.sig_image(state + values, targets={"world_pointer": toybox_fake_exe.STATE["player_pointer"]})
+    flags, off, log = init(lib, image, tmp_path, monkeypatch)
+    clash = "세계 자료 포인터: 찾은 주소가 플레이어 포인터 의 자리와 겹칩니다"
+    assert flags == READS and off == f"이 게임 판에서는 쓸 수 없습니다 ({clash})"
+    assert f"값을 쓸 수 없습니다 ({clash})" in log and "게임 상태를 읽습니다 (서명 21개 가운데 21개" in log
+
+
 def test_startup_with_everything(lib, all_sigs, tmp_path, monkeypatch):
     state, values = all_sigs
     flags, off, _log = init(lib, toybox_fake_exe.build(state + values), tmp_path, monkeypatch)

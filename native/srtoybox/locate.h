@@ -61,10 +61,14 @@ const int VALUE_WANTED = 4;     // 값 묶음에서 찾을 것의 수: 세계 �
 const int STOCK_SLOTS = 12;     // 재고의 칸 수. 코드에서 한 가지 꼴로 읽어 낼 자리가 없어 상수로 둔다(docs/11-game-internals.md)
 
 // 새 찾기(값 묶음): 규칙은 locate_state 와 같다. 찾으면 true 와 out. 못 찾으면 false 와 why(UTF-8) — out 은 그대로다.
-// 읽어 낸 값이 말이 되는지도 본다: 포인터는 쓸 수 있는 자료 구역 안, 자리는 0 보다 크고 0x100000 보다 작다, 간격은 4 의 배수,
-// 국고 칸(8바이트)과 재고 칸들(4바이트 × STOCK_SLOTS)이 겹치지 않는다.
+// 읽어 낸 값이 말이 되는지도 본다: 포인터는 쓸 수 있는 자료 구역 안의 8 의 배수 자리, 자리는 0 보다 크고 0x100000 보다 작다,
+// 국고 칸은 8 의 배수 · 표의 첫 칸과 간격은 4 의 배수, 국고 칸(8바이트)과 재고 칸들(4바이트 × STOCK_SLOTS)이 겹치지 않는다.
 // rows: VALUE_WANTED * STATE_SIGS 칸(서명마다의 결과)이거나 nullptr.
 bool locate_values(const uint8_t *image, size_t size, ValueLayout *out, SigRow *rows, char *why, size_t why_size);
+
+// 두 묶음을 함께 본다(둘 다 찾은 뒤에): 세계 자료 포인터가 상태 전역 일곱 가운데 어느 것과도 겹치지 않아야 한다.
+// 겹치면 false 와 why(UTF-8) — 값 묶음을 못 찾은 것으로 친다(상태 묶음은 그대로 쓴다).
+bool locate_fits(const GameAddresses &state, const ValueLayout &values, char *why, size_t why_size);
 
 // 옛 찾기(전환 기간에만): 찾으면 nullptr 과 out 의 handler · context · options(다른 필드는 건드리지 않는다).
 // 못 찾으면 까닭(UTF-8, 정적 문자열)이고 out 은 그대로다.
