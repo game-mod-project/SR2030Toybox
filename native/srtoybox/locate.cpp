@@ -2,7 +2,10 @@
 
 #include <excpt.h>
 
+#include <cstdio>
 #include <cstring>
+
+#include "sigs.h"
 
 namespace {
 
@@ -312,6 +315,88 @@ const char *search(const uint8_t *image, size_t size, GameAddresses *out)
     return nullptr;
 }
 
+// 게임 상태를 읽는 데 쓰는 전역 일곱. 서명은 모두 치트 명령 처리 함수 밖의 코드에서 뽑았다(uv run srkit sig-mine <RVA>):
+// build 21347933 에서 저마다 실행 구역에 한 번만 맞고, 찾을 것마다 세 서명이 서로 다른 함수에 있다(docs/11-game-internals.md).
+// 프로그램 상태와 모드 상태의 셋째 서명은 같은 자리(게임 진입의 mov [모드 상태],2 / mov [프로그램 상태],1)를 읽는다.
+const struct Wanted {
+    const char *name;                       // GameAddresses 의 필드 이름(srkit locate 와 테스트가 본다)
+    const char *label;                      // 로그에 나오는 이름
+    uint32_t GameAddresses::*field;
+    uint32_t bytes;                         // 그 주소에서 이만큼은 실행 파일 안이어야 한다
+    const char *sigs[STATE_SIGS];
+} STATE[STATE_WANTED] = {
+    {"multiplayer", "멀티플레이 표시", &GameAddresses::multiplayer, 1,
+     {"80 3D [rip+1] 00 74 18 8B 47 3C", "80 3D [rip+1] 00 0F B6 FA 74 47", "80 3D [rip+1] 00 74 13 8B 41 14"}},
+    {"program_state", "프로그램 상태", &GameAddresses::program_state, 4,
+     {"83 3D [rip+1] 01 75 08 48 8B CB", "83 3D [rip+1] 06 48 8B F2 4C 8B F9",
+      "C7 05 ? ? ? ? 02 00 00 00 C7 05 [rip+4] 01 00 00 00"}},
+    {"mode_state", "모드 상태", &GameAddresses::mode_state, 4,
+     {"83 3D [rip+1] 02 48 8B D9 75 40", "83 3D [rip+1] 00 48 8B D9 75 21",
+      "C7 05 [rip+4] 02 00 00 00 C7 05 ? ? ? ? 01 00 00 00"}},
+    {"player_index", "플레이어 인덱스", &GameAddresses::player_index, 4,
+     {"44 3B 05 [rip] 49 63 C8 74 16", "44 8B 35 [rip] 45 84 ED 74 05", "44 8B 0D [rip] 45 33 C0 33 D2"}},
+    {"player_pointer", "플레이어 포인터", &GameAddresses::player_pointer, 8,
+     {"48 8B 15 [rip] 8B 42 6C 85 C0", "48 8B 0D [rip] 48 85 C9 74 58", "4C 8B 35 [rip] FF C7 3B 7D 38"}},
+    {"region_table", "지역 표", &GameAddresses::region_table, 8 * 1024,
+     {"4C 8D 05 [rip] 49 8B 10 48 85 D2", "48 8D 0D [rip] 90 48 8B 31 48 85 F6", "48 8D 0D [rip] 48 8B 0C C1 48 85 C9"}},
+    {"region_count", "지역 수", &GameAddresses::region_count, 4,
+     {"44 8B 35 [rip] 44 8B DF 8B D6", "44 8B 0D [rip] 8B D7 45 85 C9", "44 8B 15 [rip] 43 8D 04 0C 99"}},
+};
+
+bool search_state(const uint8_t *image, size_t size, GameAddresses *out, SigRow *rows, char *why, size_t why_size)
+{
+    const int total = STATE_WANTED * STATE_SIGS;
+    Image im = {};
+    im.p = image;
+    im.size = size;
+    if (image == nullptr || !parse(im)) {
+        snprintf(why, why_size, "실행 파일의 머리말을 읽을 수 없습니다");
+        return false;
+    }
+    SigRange ranges[32];
+    int range_count = 0;
+    for (int s = 0; s < im.count; s++)
+        if (im.sections[s].code) {
+            ranges[range_count].begin = im.sections[s].rva;
+            ranges[range_count].end = im.sections[s].rva + im.sections[s].size;
+            range_count++;
+        }
+    Sig sigs[STATE_WANTED * STATE_SIGS];
+    SigHit hits[STATE_WANTED * STATE_SIGS];
+    for (int i = 0; i < total; i++)
+        if (!sig_parse(STATE[i / STATE_SIGS].sigs[i % STATE_SIGS], &sigs[i])) {
+            snprintf(why, why_size, "서명 표가 틀렸습니다 (%s)", STATE[i / STATE_SIGS].name);
+            return false;
+        }
+    sig_scan(image, size, ranges, range_count, sigs, total, hits);
+    if (rows != nullptr)
+        for (int i = 0; i < total; i++) {
+            rows[i].count = hits[i].count;
+            rows[i].at = hits[i].at;
+            rows[i].value = static_cast<uint32_t>(hits[i].value[0]);
+        }
+    GameAddresses found = *out;
+    for (int w = 0; w < STATE_WANTED; w++) {
+        uint64_t value[SIG_CAPTURES] = {};
+        int matched = 0;
+        if (!sig_vote(sigs + w * STATE_SIGS, hits + w * STATE_SIGS, STATE_SIGS, STATE_NEED, value, &matched)) {
+            if (matched >= STATE_NEED)
+                snprintf(why, why_size, "%s: 서명들이 서로 다른 주소를 냅니다", STATE[w].label);
+            else
+                snprintf(why, why_size, "%s: 서명 %d개 가운데 %d개", STATE[w].label, STATE_SIGS, matched);
+            return false;
+        }
+        if (value[0] == 0 || value[0] >= size || !im.has(value[0], STATE[w].bytes)) {
+            snprintf(why, why_size, "%s: 찾은 주소가 실행 파일 밖입니다", STATE[w].label);
+            return false;
+        }
+        found.*(STATE[w].field) = static_cast<uint32_t>(value[0]);
+    }
+    *out = found;
+    snprintf(why, why_size, "%s", "");
+    return true;
+}
+
 }  // namespace
 
 // 올라와 있는 실행 파일에는 읽을 수 없는 쪽이 있을 수 있다(보호된 구역). 그때도 죽지 않는다 — 여기서 예외가 새면 게임이 뜨다가 죽는다.
@@ -322,5 +407,37 @@ const char *locate_game(const uint8_t *image, size_t size, GameAddresses *out)
         return search(image, size, out);
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         return "실행 파일에 읽을 수 없는 곳이 있습니다";
+    }
+}
+
+// 서명을 맞추다 읽을 수 없는 쪽을 만나도 죽지 않는다(locate_game 과 같은 까닭). rows 의 이름과 글은 찾기 전에 채운다 —
+// 머리말조차 못 읽은 이미지에서도 서명 표를 볼 수 있다(테스트와 srkit locate 가 쓴다).
+bool locate_state(const uint8_t *image, size_t size, GameAddresses *out, SigRow *rows, char *why, size_t why_size)
+{
+    if (rows != nullptr)
+        for (int i = 0; i < STATE_WANTED * STATE_SIGS; i++) {
+            rows[i].name = STATE[i / STATE_SIGS].name;
+            rows[i].text = STATE[i / STATE_SIGS].sigs[i % STATE_SIGS];
+            rows[i].count = 0;
+            rows[i].at = 0;
+            rows[i].value = 0;
+        }
+    __try {
+        return search_state(image, size, out, rows, why, why_size);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        snprintf(why, why_size, "실행 파일에 읽을 수 없는 곳이 있습니다");
+        return false;
+    }
+}
+
+uint32_t locate_function_root(const uint8_t *image, size_t size, uint32_t rva)
+{
+    __try {
+        Image im = {};
+        im.p = image;
+        im.size = size;
+        return image != nullptr && parse(im) ? function_root(im, rva) : 0;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return 0;
     }
 }

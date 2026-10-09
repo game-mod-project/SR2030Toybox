@@ -14,6 +14,9 @@ BUILD_21347933 = {"handler": 0x522330, "context": 0x1764310, "multiplayer": 0xF1
                   "program_state": 0x1EED11C, "mode_state": 0xE7BE30, "player_index": 0x18294E0, "player_pointer": 0x18295F8,
                   "region_table": 0x1AF78C0, "region_count": 0x18294D8}
 BUILD_21347933_STAMP = 0x695377B6
+BUILD_STATE = {name: BUILD_21347933[name] for name in toybox.STATE_FIELDS}
+GARBAGE = [b"", b"MZ", bytes(0x1000), b"MZ" + bytes(0x3A) + struct.pack("<I", 0x7FFFFFF0) + bytes(0x100)]
+GARBAGE_IDS = ["empty", "two-bytes", "zeros", "header-far-outside"]
 
 
 @pytest.fixture(scope="module")
@@ -99,6 +102,126 @@ def test_locate_on_the_installed_game(lib, cfg, game_dir):
 def test_srkit_locate_reports_the_addresses(lib, cfg, game_dir):
     found, why = toybox.locate(cfg)
     assert why == "" and found is not None and set(found) == set(toybox.ADDRESS_FIELDS)
+
+
+@pytest.fixture(scope="module")
+def sigs(lib):
+    """DLL 에 든 서명 표: [(찾을 것, 서명 글)] — 찾을 것마다 셋, 표의 순서대로."""
+    return [(row.name, row.text) for row in toybox.state_of(lib, b"")[2]]
+
+
+def installed_image(game_dir) -> bytes:
+    """설치된 게임의 실행 파일을 펼친 것. 아는 빌드(21347933)가 아니면 건너뛴다."""
+    exe = (game_dir / "SupremeRuler2030.exe").read_bytes()
+    stamp = struct.unpack_from("<I", exe, struct.unpack_from("<I", exe, 0x3C)[0] + 8)[0]
+    if stamp != BUILD_21347933_STAMP:
+        pytest.skip(f"다른 빌드(TimeDateStamp {stamp:#x})")
+    return toybox.image_of(exe)
+
+
+def test_the_signature_table_has_three_signatures_per_address(sigs):
+    assert [name for name, _ in sigs] == [name for name in toybox.STATE_FIELDS for _ in range(3)]
+    assert len({text for _, text in sigs}) == 21
+
+
+def test_state_is_found_in_an_image_without_any_cheat_string(lib, sigs):
+    """새 찾기는 치트 문자열에 기대지 않는다 — 게임이 치트를 없애도 상태를 읽는다."""
+    image = toybox_fake_exe.state_image(sigs)
+    assert b"cheat" not in image
+    found, why, rows = toybox.state_of(lib, image)
+    assert found == toybox_fake_exe.STATE, why
+    assert [row.count for row in rows] == [1] * 21
+
+
+@pytest.mark.parametrize("which", range(7))
+def test_state_survives_one_broken_signature_per_address(lib, sigs, which):
+    """업데이트로 서명 하나가 깨져도 나머지 둘이 같은 주소를 내면 찾은 것이다."""
+    found, why, rows = toybox.state_of(lib, toybox_fake_exe.state_image(sigs, broken={3 * which}))
+    assert found == toybox_fake_exe.STATE, why
+    assert rows[3 * which].count == 0
+
+
+def test_state_is_not_found_when_two_signatures_of_one_address_break(lib, sigs):
+    found, why, _ = toybox.state_of(lib, toybox_fake_exe.state_image(sigs, broken={0, 1}))
+    assert found is None and "멀티플레이 표시" in why and "3개 가운데 1개" in why
+
+
+def test_a_signature_that_matches_twice_does_not_count(lib, sigs):
+    found, why, rows = toybox.state_of(lib, toybox_fake_exe.state_image(sigs, twice={0}))
+    assert found == toybox_fake_exe.STATE and rows[0].count == 2, why        # 나머지 둘로 찾는다
+    found, why, _ = toybox.state_of(lib, toybox_fake_exe.state_image(sigs, twice={0}, broken={1}))
+    assert found is None and "3개 가운데 1개" in why                          # 두 번 맞은 것은 표가 아니다
+
+
+def test_signatures_that_disagree_are_refused(lib, sigs):
+    """셋이 모두 맞았는데 하나가 다른 주소를 낸다 — 다수결로 고르지 않고 못 찾은 것으로 친다."""
+    found, why, _ = toybox.state_of(lib, toybox_fake_exe.state_image(sigs, stray={12}))
+    assert found is None and "플레이어 포인터" in why and "서로 다른 주소" in why
+
+
+def test_a_state_address_outside_the_image_is_refused(lib, sigs):
+    targets = {"region_table": toybox_fake_exe.SIZE - 0x100}      # 지역 표(8바이트 × 1024칸)가 이미지의 끝을 넘는다
+    found, why, _ = toybox.state_of(lib, toybox_fake_exe.state_image(sigs, targets=targets))
+    assert found is None and "지역 표" in why and "실행 파일 밖" in why
+
+
+@pytest.mark.parametrize("image", GARBAGE, ids=GARBAGE_IDS)
+def test_state_survives_garbage(lib, image):
+    found, why, _ = toybox.state_of(lib, image)
+    assert found is None and why
+
+
+def test_state_survives_an_image_with_a_page_it_cannot_read(lib, sigs):
+    """올라와 있는 실행 파일에 읽을 수 없는 쪽이 있어도(보호된 구역) 죽지 않고 "못 찾았다"로 친다."""
+    image = toybox_fake_exe.state_image(sigs)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.VirtualAlloc.restype = ctypes.c_void_p
+    kernel32.VirtualAlloc.argtypes = [ctypes.c_void_p, ctypes.c_size_t, wintypes.DWORD, wintypes.DWORD]
+    kernel32.VirtualProtect.argtypes = [ctypes.c_void_p, ctypes.c_size_t, wintypes.DWORD, ctypes.POINTER(wintypes.DWORD)]
+    kernel32.VirtualFree.argtypes = [ctypes.c_void_p, ctypes.c_size_t, wintypes.DWORD]
+    memory = kernel32.VirtualAlloc(None, len(image), 0x3000, 0x04)            # 예약+확정, 읽기 · 쓰기
+    ctypes.memmove(memory, image, len(image))
+    old = wintypes.DWORD()
+    assert kernel32.VirtualProtect(memory + toybox_fake_exe.PLANT, 0x1000, 0x01, ctypes.byref(old))   # 서명이 든 쪽: PAGE_NOACCESS
+    found, error = toybox.GameAddresses(), ctypes.create_string_buffer(256)
+    try:
+        result = lib.srtoybox_locate_state(ctypes.c_char_p(memory), len(image), ctypes.byref(found), error, len(error), None, 0)
+    finally:
+        kernel32.VirtualFree(memory, 0, 0x8000)
+    assert result == -1 and "읽을 수 없는 곳" in error.value.decode("utf-8")
+
+
+def test_state_on_the_installed_game(lib, game_dir):
+    """build 21347933: 서명 21개가 저마다 실행 구역에 정확히 한 번 맞고, 읽어 낸 주소가 docs/11 의 표와 같다."""
+    found, why, rows = toybox.state_of(lib, installed_image(game_dir))
+    assert found == BUILD_STATE, why
+    assert [row.count for row in rows] == [1] * 21
+    assert all(row.value == BUILD_STATE[row.name] for row in rows)
+
+
+def test_state_signatures_lie_outside_the_cheat_handler(lib, game_dir):
+    """요구 3: 서명은 치트 명령 처리 함수의 코드에서 뽑지 않는다."""
+    oracle = pytest.importorskip("toybox_cheat_oracle", reason="capstone 이 없다 (uv sync)")
+    image = installed_image(game_dir)
+    begin, end = oracle.handler(image)
+    for row in toybox.state_of(lib, image)[2]:
+        assert not begin <= row.at < end, row
+        assert lib.srtoybox_function_root(image, len(image), row.at) != begin, row
+
+
+def test_each_address_takes_its_signatures_from_different_functions(lib, game_dir):
+    image = installed_image(game_dir)
+    rows = toybox.state_of(lib, image)[2]
+    for i in range(0, 21, 3):
+        roots = {lib.srtoybox_function_root(image, len(image), row.at) or -row.at for row in rows[i:i + 3]}   # 함수 표에 없으면 0
+        assert len(roots) == 3, rows[i].name
+
+
+def test_state_agrees_with_what_the_cheat_code_says(lib, game_dir):
+    """치트 코드가 남아 있는 빌드에서의 대조: 새 찾기(서명)의 값 == 2단계의 방식(치트 닻)으로 읽은 값."""
+    oracle = pytest.importorskip("toybox_cheat_oracle", reason="capstone 이 없다 (uv sync)")
+    image = installed_image(game_dir)
+    assert toybox.state_of(lib, image)[0] == oracle.state(image)
 
 
 def state(lib, fake: FakeGame) -> dict[str, str]:

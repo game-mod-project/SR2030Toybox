@@ -3,6 +3,7 @@
 게임의 코드를 옮긴 것이 아니다. locate 가 찾는 닻(문자열)과 서명(명령의 바이트 꼴)만 같은 자리 관계로 놓았다.
 pytest 가 직접 모으는 테스트 파일이 아니다(tests/test_toybox_game.py 가 쓴다).
 """
+import re
 import struct
 
 SIZE = 0x8000                                 # 지역 표(8바이트 × 1024칸)가 DATA + 0x200 부터 들어갈 만큼
@@ -47,6 +48,62 @@ def rip(image: bytearray, rva: int, opcode: bytes, target: int, tail: bytes = b"
     """RIP 상대 변위가 든 명령 하나: opcode + 변위(4) + tail. 변위는 명령의 끝을 기준으로 한다."""
     length = len(opcode) + 4 + len(tail)
     return put(image, rva, opcode + struct.pack("<i", target - (rva + length)) + tail)
+
+
+# 새 찾기(상태 묶음)의 가짜 주소. 지역 표(8바이트 × 1024칸)는 WORLD + 0x80 부터다
+STATE = {"multiplayer": DATA, "program_state": DATA + 8, "mode_state": DATA + 12, "player_index": DATA + 16,
+         "player_pointer": DATA + 24, "region_table": WORLD + 0x80, "region_count": DATA + 20}
+PLANT, AGAIN = TEXT + 0x1000, TEXT + 0x1800     # 서명을 심는 곳, 같은 서명을 한 번 더 심는 곳
+TOKEN = re.compile(r"\[rip(?:\+([14]))?\]|\[u(?:8|32)\]|\?|[0-9A-Fa-f]{2}")   # 서명 글의 낱말(native/srtoybox/sigs.h)
+
+
+def plant(image: bytearray, at: int, text: str, target: int) -> int:
+    """서명 글 하나를 at 에 심는다: 정해진 바이트는 그대로, 구멍은 건드리지 않고, 읽어 낼 자리는 target 이 나오게. 끝 자리를 돌려준다."""
+    pos = at
+    for m in TOKEN.finditer(text):
+        word = m.group(0)
+        if word.startswith("[rip"):
+            struct.pack_into("<i", image, pos, target - (pos + 4 + int(m.group(1) or 0)))
+            pos += 4
+        elif word == "[u32]":
+            struct.pack_into("<I", image, pos, target)
+            pos += 4
+        elif word == "[u8]":
+            image[pos] = target
+            pos += 1
+        elif word == "?":
+            pos += 1
+        else:
+            image[pos] = int(word, 16)
+            pos += 1
+    return pos
+
+
+def shape(text: str) -> str:
+    """읽어 낼 자리를 구멍으로 바꾼 글. 꼴이 같은 서명들은 게임에서 같은 자리의 명령을 읽는다
+    (프로그램 상태와 모드 상태가 게임 진입의 두 mov 에서 하나씩 읽는다) — 한 곳에만 심어야 저마다 한 번씩 맞는다."""
+    return " ".join("? ? ? ?" if w.startswith("[rip") or w == "[u32]" else "?" if w in ("?", "[u8]") else w.upper()
+                    for w in (m.group(0) for m in TOKEN.finditer(text)))
+
+
+def state_image(sigs: list[tuple[str, str]], *, broken=(), twice=(), stray=(), targets: dict[str, int] | None = None,
+                into: bytearray | None = None) -> bytes:
+    """DLL 의 서명 표(sigs: [(찾을 것, 서명 글)])를 심은 이미지. 치트 문자열은 하나도 없다.
+
+    broken · twice · stray 는 sigs 의 칸 번호들이다: 심지 않는다 / 한 번 더 심는다(두 번 맞는다) / 8바이트 옆을 가리키게 심는다.
+    targets 로 가짜 주소를 바꾼다. into 를 주면 그 이미지에 심는다(없으면 빈 틀).
+    """
+    image = into if into is not None else shell([(PLANT, TEXT + 0x2000)])
+    at = dict(STATE, **(targets or {}))
+    places: dict[str, int] = {}
+    for i, (name, text) in enumerate(sigs):
+        if i in broken:
+            continue
+        place = places.setdefault(shape(text), PLANT + 0x40 * len(places))
+        plant(image, place, text, at[name] + (8 if i in stray else 0))
+        if i in twice:
+            plant(image, AGAIN + 0x40 * i, text, at[name])
+    return bytes(image)
 
 
 def build(extra_anchor: bool = False, second_call: bool = False, no_head_check: bool = False, other_pointer: bool = False,

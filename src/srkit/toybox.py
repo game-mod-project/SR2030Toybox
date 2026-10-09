@@ -6,6 +6,7 @@ import ctypes
 import re
 import struct
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 
 from . import hook
@@ -32,6 +33,18 @@ ADDRESS_NAMES = {"handler": "명령 처리 함수", "context": "그 함수의 �
                  "mode_state": "모드 상태(dword)", "player_index": "플레이어 지역의 인덱스(dword)",
                  "player_pointer": "플레이어 지역 객체의 포인터(qword)", "region_table": "지역 포인터 표(qword × 1024)",
                  "region_count": "지역 수(dword)"}
+# 새 찾기(서명)가 채우는 일곱 — native/srtoybox/locate.cpp 의 표 STATE 와 같은 순서다
+STATE_FIELDS = ["multiplayer", "program_state", "mode_state", "player_index", "player_pointer", "region_table", "region_count"]
+
+
+@dataclass
+class SigRow:
+    """서명 하나의 결과."""
+    name: str       # 찾을 것(GameAddresses 의 필드 이름)
+    text: str       # 서명 글
+    count: int      # 실행 구역에서 맞은 횟수(2 에서 멈춘다)
+    at: int         # 처음 맞은 자리
+    value: int      # 거기서 읽어 낸 주소
 
 
 class GameAddresses(ctypes.Structure):
@@ -104,6 +117,10 @@ def library(cfg: Config) -> ctypes.CDLL:
     """빌드한 DLL 을 불러 주소 찾기 함수의 인자 형을 적어 둔다(srkit locate 와 테스트가 쓴다)."""
     lib = ctypes.CDLL(str(output(cfg)))
     lib.srtoybox_locate.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong, ctypes.POINTER(GameAddresses), ctypes.c_char_p, ctypes.c_int]
+    lib.srtoybox_locate_state.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong, ctypes.POINTER(GameAddresses), ctypes.c_char_p,
+                                          ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
+    lib.srtoybox_function_root.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong, ctypes.c_uint]
+    lib.srtoybox_function_root.restype = ctypes.c_uint
     return lib
 
 
@@ -119,6 +136,15 @@ def image_of(exe: bytes) -> bytes:
         n = min(virtual_size, raw_size)
         image[rva:rva + n] = exe[raw:raw + n]
     return bytes(image)
+
+
+def state_of(lib: ctypes.CDLL, image: bytes) -> tuple[dict[str, int] | None, str, list[SigRow]]:
+    """새 찾기(상태 묶음)를 그 이미지에 돌린다: (이름 → RVA 또는 None, 까닭, 서명마다의 결과)."""
+    found, error, rows = GameAddresses(), ctypes.create_string_buffer(256), ctypes.create_string_buffer(8192)
+    ok = lib.srtoybox_locate_state(image, len(image), ctypes.byref(found), error, len(error), rows, len(rows)) == 0
+    table = [SigRow(name, text, int(count, 16), int(at, 16), int(value, 16))
+             for name, text, count, at, value in (line.split("\t") for line in rows.value.decode("utf-8").splitlines())]
+    return ({name: getattr(found, name) for name in STATE_FIELDS} if ok else None), error.value.decode("utf-8"), table
 
 
 def locate(cfg: Config) -> tuple[dict[str, int] | None, str]:
