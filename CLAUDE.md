@@ -28,8 +28,9 @@ Supreme Ruler 2030 모드 제작 저장소. 개요는 [README.md](README.md), �
   게임은 시작할 때 검사 로그를 쓰고 평소처럼 계속 실행된다.
 - 내장 치트는 게임 안에서 `gamedrive.py key CTRL+SHIFT+S` → `type cheat allowcheats` → `key ENTER` → `type cheat <명령>` → `key ENTER` 로 넣는다
   ([docs/07](docs/07-cheats.md)). `cheat resettutorial`(Steam 업적을 지운다)과 `cheat depopulate`(인구가 1 이 된다)는 넣지 않는다.
-- **게임이 업데이트된 뒤에는** `uv run srkit cheats-check`(내장 치트가 문서와 같은가) → `uv run srkit inventory`(데이터 형식이 바뀌었는가)부터 돌린다
-  ([docs/09](docs/09-cheat-mod-plan.md)의 "게임 업데이트 대비").
+- **게임이 업데이트된 뒤에는** `uv run srkit cheats-check`(내장 치트가 문서와 같은가) → `uv run srkit locate`(ToyBox 의 서명이 아직 맞는가) →
+  `uv run srkit inventory`(데이터 형식이 바뀌었는가)부터 돌린다. 서명이 깨졌으면 `uv run srkit sig-mine <RVA>` 로 다시 뽑는다
+  ([docs/09](docs/09-cheat-mod-plan.md)의 "게임 업데이트 대비", [docs/11](docs/11-game-internals.md)의 "주소를 찾는 법").
 - 데이터 수정이 게임에 반영되는지는 `uv run srkit probe` 로 값 한 곳만 바꾼 시험 모드를 만들어 `srkit deploy` 로 본다. `DEFAULT.UNIT` · `*.CVP` 를 고친 것은
   로비의 "모드용 캐시 재생성"을 켜야 반영되고, **그때 게임이 `Cache\*.SAV` 를 고쳐 쓴다** — 먼저 원본을 `build/` 에 떠 두고 실험 뒤 되돌린다([docs/06](docs/06-data-reference.md)).
 
@@ -42,6 +43,9 @@ Supreme Ruler 2030 모드 제작 저장소. 개요는 [README.md](README.md), �
 - 번역 테이블(`mods/korean/translation/*.csv`)은 UTF-8 BOM + LF. 손으로 고칠 때 `key`, `en` 열은 건드리지 않는다.
 - 실행 파일 주소(RVA)는 게임 빌드마다 달라진다. 문서에 적을 때는 빌드 번호를 함께 적는다.
 - 게임 안에서 확인하지 않은 동작을 "된다"고 쓰지 않는다. `docs/04` 의 검증 현황에 구분해 둔다.
+- **ToyBox 의 기능은 게임의 내장 치트와 별도로 동작해야 한다**(사용자의 요구, 2026-10-09). 새 기능과 옮긴 기능은 치트 명령 처리 함수를 부르지 않고,
+  치트 문자열 · 치트 함수의 코드를 주소 찾기의 닻으로 쓰지 않으며, 못 찾았을 때 내장 치트로 되돌아가지 않는다. 치트 코드를 보는 것은 개발 중의 분석과
+  자동 테스트의 대조뿐이다([설계](docs/superpowers/specs/2026-10-09-toybox-stage3-1-design.md)).
 
 ## Git 브랜치 전략
 
