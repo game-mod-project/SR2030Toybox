@@ -1,17 +1,25 @@
-// 창에서 바꾸는 설정: 여닫는 단축키, 돈 탭의 입력란, 기능마다 마지막에 넣은 값.
+// 창에서 바꾸는 설정: 여닫는 단축키, 돈 탭의 입력란, 국고와 물자의 최소 유지, 기능마다 마지막에 넣은 값.
 // 글 형식은 한 줄에 "키=값". 모르는 줄은 버리고 틀린 값은 기본값으로 돌린다.
 #pragma once
 
 #include <map>
 #include <string>
 
+#include "locate.h"
+
 const int HOTKEY_CTRL = 1, HOTKEY_SHIFT = 2, HOTKEY_ALT = 4;
 const long long MONEY_AMOUNT_MIN = 1, MONEY_AMOUNT_MAX = 1000000, MONEY_AMOUNT_DEFAULT = 10000;   // 돈 탭의 입력란(백만 달러)
+const long long KEEP_TREASURY_MAX = 1000000;       // 유지할 국고(백만 달러): 0 ~ 1,000,000
+const long long KEEP_STOCK_MAX = 1000000000;       // 유지할 물자의 수량: 0 ~ 1,000,000,000
 
 struct Settings {
     int hotkey_vk = 0x54;                            // T
     int hotkey_mods = HOTKEY_CTRL | HOTKEY_SHIFT;
     long long money_amount = MONEY_AMOUNT_DEFAULT;   // 돈 탭의 입력란. 파일의 줄은 "money.amount"
+    bool keep_treasury = false;                      // 국고의 최소 유지. "keep.treasury"(0 / 1)
+    long long keep_treasury_value = 0;               // 그 금액(백만 달러). "keep.treasury.value"
+    bool keep_stock[STOCK_SLOTS] = {};               // 물자마다의 최소 유지. "keep.stock.<칸>"(0 / 1)
+    long long keep_stock_value[STOCK_SLOTS] = {};    // 그 수량. "keep.stock.<칸>.value"
     std::map<std::string, long long> values;         // 값이 있는 기능의 id → 값
 };
 

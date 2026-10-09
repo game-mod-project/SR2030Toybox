@@ -39,6 +39,9 @@ def lib(cfg):
     lib.srtoybox_values_off.argtypes = [ctypes.c_char_p, ctypes.c_int]
     lib.srtoybox_keeper_request.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_double]
     lib.srtoybox_keeper_text.argtypes = [ctypes.c_char_p, ctypes.c_int]
+    lib.srtoybox_keeper_tick_at.argtypes = [ctypes.c_ulonglong]
+    lib.srtoybox_keeper_keep.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_double]
+    lib.srtoybox_keep_text.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int]
     return lib
 
 
@@ -427,6 +430,143 @@ def test_a_failed_stock_write_names_the_product(lib, game, tmp_path):
     assert text(lib.srtoybox_values_off) == FAILED_OFF and told(lib)[0] == ""
     log = (tmp_path / "toybox.log").read_text(encoding="utf-8")
     assert log.count("값 쓰기 실패 (농산물) — 값 쓰기를 끕니다") == 1 and "값 쓰기: " not in log   # 첫 칸에서 멈춘다
+
+
+def keep(lib, slot: int, floor: float, on: bool = True) -> None:
+    assert lib.srtoybox_keeper_keep(slot, int(on), floor) == 0
+
+
+def kept_lines(tmp_path) -> list[str]:
+    """로그의 "유지: …" 줄들(때를 뗀 것)."""
+    log = tmp_path / "toybox.log"
+    lines = [line.split(" ", 2)[2] for line in log.read_text(encoding="utf-8").splitlines()] if log.is_file() else []
+    return [line for line in lines if line.startswith("유지: ")]
+
+
+def test_keep_raises_what_falls_below_its_floor(lib, game, tmp_path):
+    """최소 유지: 켠 다음 틱에 바로 올리고, 그 뒤로는 0.5초마다 본다. 바닥 위의 값은 건드리지 않는다. 창의 "마지막으로 쓴 값"은 그대로다."""
+    keep(lib, TREASURY, 20e9)
+    keep(lib, 3, 5000.0)
+    keep(lib, 0, 500.0)                                        # 농산물은 1000 — 바닥 위다
+    assert game.treasury(176) == 14.43e9                       # 켠 것만으로는 쓰지 않는다 — 창 스레드의 틱에서 쓴다
+    lib.srtoybox_keeper_tick_at(100_000)
+    assert game.treasury(176) == 20e9 and game.stock(176, 3) == 5000.0 and game.stock(176, 0) == 1000.0
+    assert told(lib) == ("", "")
+    game.set_treasury(176, 1e9)                                # 게임이 그 사이에 썼다
+    game.set_stock(176, 3, 100.0)
+    lib.srtoybox_keeper_tick_at(100_010)
+    lib.srtoybox_keeper_tick_at(100_499)
+    assert game.treasury(176) == 1e9 and game.stock(176, 3) == 100.0     # 아직 0.5초가 안 됐다
+    lib.srtoybox_keeper_tick_at(100_500)
+    assert game.treasury(176) == 20e9 and game.stock(176, 3) == 5000.0
+    assert game.treasury(141) == 5e9 and game.peek(OPTIONS, "<I") == 0   # 다른 나라와 치트 허용 비트는 그대로다
+    assert kept_lines(tmp_path) == ["유지: 국고 14.43 B -> 20.00 B", "유지: 석유 2.5 K -> 5.0 K"]   # 항목마다 첫 번째만 적는다
+
+
+def test_keep_leaves_products_this_game_does_not_use(lib, game):
+    keep(lib, 5, 1000.0)                                       # 이번 판에서 쓰지 않는 물자(금속 광석)
+    keep(lib, 7, 1000.0)
+    lib.srtoybox_keeper_tick_at(1000)
+    assert game.stock(176, 5) == 0.0 and game.stock(176, 7) == 1000.0
+    assert lib.srtoybox_keeper_keep(12, 1, 5.0) == -1 and lib.srtoybox_keeper_keep(-2, 1, 5.0) == -1     # 없는 칸
+
+
+def test_keep_rests_outside_a_game_and_says_nothing(lib, game, tmp_path):
+    """게임 밖 · 멀티플레이에서는 쉰다(알림도 없다 — 0.5초마다 온다). 돌아오면 다시 한다."""
+    keep(lib, TREASURY, 20e9)
+    game.menu()
+    lib.srtoybox_keeper_tick_at(1000)
+    game.play(176)
+    game.poke(MULTIPLAYER, "<B", 1)
+    lib.srtoybox_keeper_tick_at(1500)
+    assert game.treasury(176) == 14.43e9 and told(lib) == ("", "") and kept_lines(tmp_path) == []
+    game.poke(MULTIPLAYER, "<B", 0)
+    lib.srtoybox_keeper_tick_at(1600)                          # 쉰 것도 본 것이다 — 다음은 0.5초 뒤
+    assert game.treasury(176) == 14.43e9
+    lib.srtoybox_keeper_tick_at(2000)
+    assert game.treasury(176) == 20e9
+
+
+def test_keep_follows_the_country_being_played(lib, game):
+    """플레이하는 나라가 바뀌면 그 뒤로는 새 나라의 값을 본다. 앞의 나라는 건드리지 않는다."""
+    keep(lib, TREASURY, 20e9)
+    lib.srtoybox_keeper_tick_at(1000)
+    assert game.treasury(176) == 20e9 and game.treasury(141) == 5e9
+    game.set_treasury(176, 1e9)
+    game.play(141)                                             # 폴란드로 바꿨다(이 나라로 플레이)
+    lib.srtoybox_keeper_tick_at(1500)
+    assert game.treasury(141) == 20e9 and game.treasury(176) == 1e9
+
+
+def test_a_button_and_keep_work_on_the_same_tick(lib, game):
+    """단추의 요청을 먼저 쓰고, 때가 됐으면 이어서 유지를 본다 — 방금 내린 값이 바닥 아래면 올린다."""
+    keep(lib, TREASURY, 5e9)
+    lib.srtoybox_keeper_tick_at(1000)                          # 14.43 B 는 바닥 위다
+    assert ask(lib, TREASURY, SET, 0.0)
+    lib.srtoybox_keeper_tick_at(1100)
+    assert game.treasury(176) == 0.0 and told(lib) == ("국고 14.43 B -> 0", "")   # 아직 때가 아니다
+    lib.srtoybox_keeper_tick_at(1500)
+    assert game.treasury(176) == 5e9 and told(lib) == ("국고 14.43 B -> 0", "")   # 유지는 "마지막으로 쓴 값"을 덮지 않는다
+    assert ask(lib, TREASURY, SET, 1.0)
+    lib.srtoybox_keeper_tick_at(2000)                          # 요청과 유지가 같은 틱에
+    assert game.treasury(176) == 5e9 and told(lib) == ("국고 5.00 B -> 1", "")
+
+
+def test_keep_leaves_a_value_that_is_not_a_number(lib, game):
+    keep(lib, TREASURY, 5e9)
+    game.set_treasury(176, float("nan"))
+    lib.srtoybox_keeper_tick_at(1000)
+    assert game.treasury(176) != game.treasury(176) and told(lib) == ("", "")      # 아직 NaN 이고, 알리지도 않는다
+
+
+def test_keep_stops_when_a_write_fails(lib, game, tmp_path):
+    game.lock(176)
+    game.play(176)
+    keep(lib, TREASURY, 20e9)
+    keep(lib, 3, 5000.0)
+    lib.srtoybox_keeper_tick_at(1000)
+    lib.srtoybox_keeper_tick_at(2000)
+    assert game.treasury(176) == 14.43e9 and game.stock(176, 3) == 2500.0
+    assert text(lib.srtoybox_values_off) == FAILED_OFF
+    log = (tmp_path / "toybox.log").read_text(encoding="utf-8")
+    assert log.count("값 쓰기 실패") == 1 and "값 쓰기 실패 (국고) — 값 쓰기를 끕니다" in log     # 한 번 실패하면 더 시도하지 않는다
+
+
+def test_keep_logs_the_first_raise_again_after_its_setting_changes(lib, game, tmp_path):
+    keep(lib, 3, 5000.0)
+    lib.srtoybox_keeper_tick_at(1000)
+    game.set_stock(176, 3, 0.0)
+    lib.srtoybox_keeper_tick_at(1500)
+    assert kept_lines(tmp_path) == ["유지: 석유 2.5 K -> 5.0 K"]
+    keep(lib, 3, 9000.0)                                       # 바닥을 고쳤다
+    lib.srtoybox_keeper_tick_at(1501)                          # 고친 다음 틱에 바로 본다
+    assert game.stock(176, 3) == 9000.0
+    assert kept_lines(tmp_path) == ["유지: 석유 2.5 K -> 5.0 K", "유지: 석유 5.0 K -> 9.0 K"]
+    keep(lib, 3, 9000.0, on=False)
+    game.set_stock(176, 3, 0.0)
+    lib.srtoybox_keeper_tick_at(5000)
+    assert game.stock(176, 3) == 0.0                           # 껐다
+
+
+def test_the_status_line_says_what_is_being_kept(lib, game):
+    """상태 줄의 뒤에 붙는 글. 게임 안에서는 지금 유지되는 것의 이름(넷을 넘으면 첫 이름과 나머지의 수), 쉬는 동안에는 켜진 수와 까닭."""
+    active = lambda used: text(lib.srtoybox_keep_text, used.encode(), None)
+    resting = lambda why: text(lib.srtoybox_keep_text, None, why.encode("utf-8"))
+    assert active("1" * 12) == "" and resting("게임에 들어가면 적용") == ""          # 켠 것이 없다
+    keep(lib, 3, 1.0)
+    keep(lib, 7, 1.0)
+    assert active("1" * 12) == " · 유지 중: 석유, 전력"
+    assert active("000100000000") == " · 유지 중: 석유"                              # 이번 판에서 쓰지 않는 물자는 유지되지 않는다
+    assert active("0" * 12) == ""
+    assert resting("게임에 들어가면 적용") == " · 유지 2개 켜짐(게임에 들어가면 적용)"
+    keep(lib, TREASURY, 1.0)
+    keep(lib, 0, 1.0)
+    assert active("1" * 12) == " · 유지 중: 국고, 농산물, 석유, 전력"                 # 국고가 먼저, 물자는 칸의 순서로
+    keep(lib, 11, 1.0)
+    keep(lib, 10, 1.0)
+    assert active("1" * 12) == " · 유지 중: 국고 외 5개"                             # 넷을 넘으면
+    assert active("000100000001") == " · 유지 중: 국고, 석유, 물자 #11"
+    assert resting("멀티플레이에서는 쉽니다") == " · 유지 6개 켜짐(멀티플레이에서는 쉽니다)"
 
 
 def test_nothing_is_asked_when_values_cannot_be_written(lib, game):

@@ -31,6 +31,24 @@ bool parse_int(const std::string &s, long long &out)
     return true;
 }
 
+// "keep.stock.<칸>" 과 "keep.stock.<칸>.value" 의 줄. rest 는 "keep.stock." 뒤의 글이다. 칸이나 값이 틀리면 버린다.
+void parse_keep_stock(const std::string &rest, long long n, Settings &s)
+{
+    const size_t dot = rest.find('.');
+    const std::string digits = rest.substr(0, dot);
+    if (digits.empty() || digits.size() > 2 || digits.find_first_not_of("0123456789") != std::string::npos)
+        return;
+    const int slot = atoi(digits.c_str());
+    if (slot >= STOCK_SLOTS)
+        return;
+    if (dot == std::string::npos) {
+        if (n == 0 || n == 1)
+            s.keep_stock[slot] = n == 1;
+    } else if (rest.compare(dot, std::string::npos, ".value") == 0 && n >= 0 && n <= KEEP_STOCK_MAX) {
+        s.keep_stock_value[slot] = n;
+    }
+}
+
 std::wstring env(const wchar_t *name)
 {
     wchar_t buf[MAX_PATH];
@@ -108,6 +126,14 @@ Settings parse_settings(const std::string &ini)
         } else if (key == "money.amount") {
             if (n >= MONEY_AMOUNT_MIN && n <= MONEY_AMOUNT_MAX)
                 s.money_amount = n;
+        } else if (key == "keep.treasury") {
+            if (n == 0 || n == 1)
+                s.keep_treasury = n == 1;
+        } else if (key == "keep.treasury.value") {
+            if (n >= 0 && n <= KEEP_TREASURY_MAX)
+                s.keep_treasury_value = n;
+        } else if (key.compare(0, 11, "keep.stock.") == 0) {
+            parse_keep_stock(key.substr(11), n, s);
         } else {
             const Feature *f = find_feature(key.c_str());
             if (f != nullptr && f->has_value && n >= f->min && n <= f->max)
@@ -125,6 +151,13 @@ std::string format_settings(const Settings &s)
 {
     std::string out = "hotkey_vk=" + std::to_string(s.hotkey_vk) + "\nhotkey_mods=" + std::to_string(s.hotkey_mods)
         + "\nmoney.amount=" + std::to_string(s.money_amount) + "\n";
+    out += "keep.treasury=" + std::to_string(s.keep_treasury ? 1 : 0) + "\nkeep.treasury.value=" + std::to_string(s.keep_treasury_value)
+        + "\n";
+    for (int slot = 0; slot < STOCK_SLOTS; slot++) {
+        const std::string key = "keep.stock." + std::to_string(slot);
+        out += key + "=" + std::to_string(s.keep_stock[slot] ? 1 : 0) + "\n" + key + ".value=" + std::to_string(s.keep_stock_value[slot])
+            + "\n";
+    }
     for (int i = 0; i < FEATURE_COUNT; i++) {
         if (!FEATURES[i].has_value)
             continue;
@@ -156,7 +189,7 @@ Settings load_settings()
         if (f != INVALID_HANDLE_VALUE) {
             char buf[4096];
             DWORD n = 0;
-            if (ReadFile(f, buf, sizeof(buf), &n, nullptr))   // 설정 파일은 100바이트 남짓이다. 4096 을 넘는 부분은 읽지 않는다
+            if (ReadFile(f, buf, sizeof(buf), &n, nullptr))   // 설정 파일은 1 KB 를 넘지 않는다. 4096 을 넘는 부분은 읽지 않는다
                 ini.assign(buf, n);
             CloseHandle(f);
         }

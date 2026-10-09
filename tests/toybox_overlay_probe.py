@@ -54,6 +54,15 @@ ToyBox 가 부른 함수 안에서 난 예외를 위에서 잡을 때 (출력 "c
 물자 탭 — 내장 치트를 거치지 않고 물자 재고를 고친다 (출력은 JSON 한 줄):
     stock            게임 안(물자 0 · 3 · 7 · 11 을 쓰는 판)에서 석유의 단추, "모든 물자"의 단추, 농산물의 단추를 누른다
     stock_menu       메뉴에 있다 — 이름표의 물자가 재고 없이 나오고 단추가 꺼져 있다
+최소 유지 — 국고와 물자가 정해 둔 값보다 적어지면 올린다 (출력은 JSON 한 줄):
+    keep             석유(500만)와 석탄(이번 판에서 쓰지 않는다)의 유지를 켜 둔 설정으로 게임에 들어간다. 창을 열어 국고의 유지를 켜고 끈다
+    keep_menu        같은 설정으로 메뉴에 있다 — 쉬고, 상태 줄에 켜진 수가 보이고, 거기서 끌 수 있다
+    keep_type        석유의 유지를 켠 채 수량을 새로 친다 — 입력을 마쳐야(Enter, 다른 곳을 누름) 쓰인다. 치던 채로 창을 닫으면 버려진다
+    keep_reenter     국고의 유지를 켠 채, 옮기지 않은 기능의 직접 실행이 게임의 함수 안에 있는 동안 타이머가 다시 온다 — 그 안에서는 올리지 않는다
+    keep_write_off   유지를 켜 둔 설정인데 값 쓰기가 꺼져 있다(SRTOYBOX_WRITE=0) — 메뉴에서도 게임 안에서도 상태 줄이 "쓸 수 없어 쉰다"고 한다
+물자 탭이 창 안에 들어오는가 (출력은 JSON 한 줄):
+    layout_full      처음 여는 창에서, 물자 열하나를 쓰는 판 — 바닥에 "마지막으로 쓴 값" 줄이 생긴 뒤에도 모든 줄이 보인다
+    layout_saved     이미 써 본 사용자의 창(저장된 크기 500x460) — 최소 유지의 긴 안내 글이 창 밖으로 나가지 않는다
 설정 창에 보이는 글 (출력은 JSON 한 줄. 보이지 않는 글은 "-"):
     confirm          "외교·영토" 탭에서 폴란드를 고르고 스크롤을 내려 맨 아래의 "이 나라로 플레이"를 두 번 누른다
     confirm_fault    같은 탭에서 직접 실행이 죽는다 — 경고가 스크롤을 내려도 보인다
@@ -824,7 +833,8 @@ def run_money(hook: str, mode: str) -> int:
     out: dict[str, object] = {"now": game.shown("money:now"), "off": game.shown("money:off"), "hint": game.shown("hint")}
     out["cheat_buttons"] = sorted(name for name in facts if name.startswith("run:"))
     out["buttons"] = sorted(name for name in facts
-                            if name.startswith("money:") and name not in ("money:now", "money:off", "money:amount"))
+                            if name.startswith("money:") and name not in ("money:now", "money:off", "money:amount", "money:keep",
+                                                                           "money:keepvalue"))     # 단추만 — 최소 유지의 칸은 따로 본다
 
     def press(name: str) -> float:
         game.click(name)
@@ -884,6 +894,144 @@ STOCK = "tab:물자"
 STOCK_SLOTS_SEEN = (0, 3, 7, 11, 5)     # run_stock 이 재고를 적어 내는 칸: 쓰는 물자 넷과 쓰지 않는 물자 하나
 
 
+def stock_rows(facts: dict) -> list[str]:
+    """물자 탭에 그려진 줄들의 이름("stock:all", "stock:3" …), 그린 순서대로."""
+    return [name for name in facts if name.startswith("stock:") and name.count(":") == 1 and name != "stock:off"]
+
+
+def type_into(game: Game, name: str, digits: str) -> None:
+    """그 입력란을 누르고(지금 값이 통째로 골라진다) 숫자를 친다. Enter 는 누르지 않는다."""
+    game.click(name)
+    game.present(3)
+    for char in digits:
+        user32.SendMessageW(game.hwnd, WM_CHAR, ord(char), 1)
+        game.present()
+    game.present(3)
+
+
+def run_keep(hook: str, mode: str) -> int:
+    """최소 유지. 출력은 JSON 한 줄(보이지 않는 글은 "-").
+
+    설정(ToyBox 가 뜰 때 읽는다): 국고의 유지는 꺼져 있고 값이 20000(백만 달러), 석유(3)는 켜져 있고 500만, 석탄(4)은 켜져 있고 100.
+    독일은 물자 0(농산물 1000) · 3(석유 250만) · 7(전력 0)을 쓴다 — 석탄은 keep_menu 에서만 쓰는 판이다.
+    기다리는 시간(0.8초)은 유지를 보는 간격(0.5초)보다 넉넉히 길다.
+    """
+    home = os.environ.get("SRTOYBOX_HOME")
+    if home:
+        ini = "keep.treasury.value=20000\nkeep.stock.3=1\nkeep.stock.3.value=5000000\n"
+        ini += {"keep_type": "", "keep_reenter": "keep.treasury=1\n"}.get(mode, "keep.stock.4=1\nkeep.stock.4.value=100\n")
+        Path(home, "toybox.ini").write_text(ini, encoding="utf-8")
+    game = start_game(hook)
+    if game is None:
+        return 0
+    lines: list[str] = []
+    inside: list[float] = []
+
+    def body(_context, line):                                 # keep_reenter 에서만 불린다(옮기지 않은 기능의 직접 실행)
+        lines.append(line.decode())
+        if line == b"cheat allowcheats":
+            fake.poke(OPTIONS, "<I", fake.peek(OPTIONS, "<I") | 0x40)
+            return
+        fake.set_treasury(176, 1e9)                           # 게임의 함수가 국고를 고치는 중이다(바닥 아래로)
+        time.sleep(0.6)                                       # 유지를 볼 때가 지났다
+        user32.SendMessageW(game.hwnd, WM_TIMER, TIMER_ID, 0)  # 그 안에서 ToyBox 의 타이머가 다시 온다
+        inside.append(fake.treasury(176))
+
+    game.handler = HANDLER(body)                              # 게임이 살아 있는 동안 붙들어 둔다
+    fake = fake_game(hook, ctypes.cast(game.handler, ctypes.c_void_p).value)
+    for slot, amount in ((0, 1000.0), (3, 2.5e6), (7, 0.0)):
+        fake.use(slot)
+        fake.set_stock(176, slot, amount)
+    out: dict[str, object] = {}
+    seen = lambda: [fake.treasury(176), fake.stock(176, 3), fake.stock(176, 4)]
+    keeps = lambda facts: {name: [facts[name + ":keep"][3], facts[name + ":keepvalue"][3]] for name in stock_rows(facts)
+                           if name != "stock:all"}
+    if mode == "keep":
+        fake.play(176)
+        game.wait(0.8)                                        # 창은 닫혀 있다. 유지는 타이머에서 돈다
+        out["closed"] = seen()
+        game.hotkey()                                         # 창이 열리면 첫 탭이 "돈"이다
+        game.got.clear()
+        out["status"] = game.shown("status")
+        out["money"] = [game.shown("money:keep"), game.shown("money:keepvalue")]
+        game.click("money:keep")                              # 국고의 유지를 켠다
+        game.wait(0.8)
+        out["on"], out["status_on"] = fake.treasury(176), game.shown("status")
+        game.click("money:-10b")                              # 바닥 아래로 내린다 — 다음 검사에서 돌아온다
+        game.wait(0.8)
+        out["back"] = fake.treasury(176)
+        game.click("money:keep")                              # 끈다
+        game.click("money:-10b")
+        game.wait(0.8)
+        out["off"], out["status_off"] = fake.treasury(176), game.shown("status")
+        game.click(STOCK)
+        facts = game.facts()
+        out["rows"] = [[name, facts[name][3], facts[name + ":now"][3]] for name in stock_rows(facts)]
+        out["keeps"] = keeps(facts)
+        game.click("stock:4:+1m")                             # 쓰지 않는 물자의 단추 — 꺼져 있다
+        game.wait(0.2)
+        out["unused_press"] = fake.stock(176, 4)
+        game.click("stock:4:keep")                            # 석탄의 유지를 끈다 — 줄이 없어진다
+        game.click("stock:3:keep")                            # 석유의 유지를 끈다
+        game.click("stock:3:zero")
+        game.wait(0.8)
+        out["stock_off"] = [fake.stock(176, 3), fake.stock(176, 4)]
+        out["status_end"], out["rows_end"] = game.shown("status"), stock_rows(game.facts())
+    elif mode == "keep_menu":
+        fake.use(4)                                           # 석탄을 쓰는 판
+        game.wait(0.8)
+        game.hotkey()
+        game.got.clear()
+        out["status"], out["rested"] = game.shown("status"), seen()[:2]
+        game.click(STOCK)
+        out["keeps"] = keeps(game.facts())
+        game.click("stock:3:keep")                            # 메뉴에서 석유의 유지를 끈다
+        out["status_off"] = game.shown("status")
+        fake.play(176)
+        game.wait(0.8)
+        out["entered"] = seen()
+    elif mode == "keep_write_off":                            # 값 쓰기가 꺼져 있다 — 유지는 게임에 들어가도 돌지 않는다
+        game.hotkey()
+        out["status_menu"] = game.shown("status")
+        fake.play(176)
+        game.wait(0.8)
+        out["status_game"], out["rested"] = game.shown("status"), seen()
+    elif mode == "keep_reenter":
+        fake.play(176)
+        game.wait(0.8)
+        out["before"] = fake.treasury(176)                    # 유지가 돌고 있다(국고 $20 B)
+        game.open()
+        game.click(BUTTON)                                    # 옮기지 않은 기능 하나(직접 실행) — 그 안에서 body 가 돈다
+        game.wait(1.5)
+        out["inside"], out["after"] = inside, fake.treasury(176)
+    else:
+        fake.play(176)
+        game.hotkey()
+        game.click(STOCK)
+        game.wait(0.8)                                        # 석유가 500만으로 올라온다
+        game.got.clear()
+        amount = lambda: [fake.stock(176, 3), game.shown("stock:3:keepvalue")]
+        type_into(game, "stock:3:keepvalue", "7000000")
+        game.wait(0.8)                                        # 치는 동안의 값이 쓰였다면 그사이에 700만이 됐을 것이다
+        out["typing"] = amount()
+        user32.SendMessageW(game.hwnd, WM_KEYDOWN, 0x0D, 1)   # Enter
+        user32.SendMessageW(game.hwnd, WM_KEYUP, 0x0D, 0xC0000001)
+        game.wait(0.8)
+        out["entered"] = amount()
+        type_into(game, "stock:3:keepvalue", "9000000")
+        game.click("stock:all")                               # 다른 곳(글)을 누른다
+        game.wait(0.8)
+        out["clicked_away"] = amount()
+        type_into(game, "stock:3:keepvalue", "1234")
+        game.hotkey()                                         # 치던 채로 창을 닫는다
+        game.wait(0.8)
+        game.hotkey()                                         # 다시 연다(물자 탭이 그대로 열려 있다)
+        out["closed"] = amount()
+    out["lines"], out["text"], out["options"] = lines, game.text(), fake.peek(OPTIONS, "<I")
+    print(json.dumps(out, ensure_ascii=False))
+    return 0
+
+
 def run_stock(hook: str, mode: str) -> int:
     """물자 탭: 내장 치트를 거치지 않고 물자 재고를 고친다. 출력은 JSON 한 줄(보이지 않는 글은 "-").
 
@@ -910,7 +1058,7 @@ def run_stock(hook: str, mode: str) -> int:
                               "rows": [[name, facts[name][3], facts[name + ":now"][3]] for name in rows],
                               "cheat_buttons": sorted(name for name in facts if name.startswith("run:")),
                               "buttons": sorted(name[len("stock:3:"):] for name in facts
-                                                if name.startswith("stock:3:") and name != "stock:3:now")}
+                                                if name.startswith("stock:3:") and name[len("stock:3:"):] not in ("now", "keep", "keepvalue"))}
 
     def press(name: str) -> list[float]:
         game.click(name)
@@ -927,6 +1075,35 @@ def run_stock(hook: str, mode: str) -> int:
         out["steps"] = [press("stock:3:+1m")]
         out["status"] = game.shown("status")
     out["lines"], out["text"], out["options"], out["poland"] = lines, game.text(), fake.peek(OPTIONS, "<I"), fake.stock(141, 3)
+    print(json.dumps(out, ensure_ascii=False))
+    return 0
+
+
+def run_layout(hook: str, mode: str) -> int:
+    """물자 탭이 창 안에 들어오는가. 독일은 물자 열하나를 모두 쓴다. 출력은 JSON 한 줄(보이지 않는 글은 "-").
+
+    안내 글의 오른쪽 끝은 창이 스스로 적어 둔다(항목 help:money · help:stock 의 글이 그 x 좌표다).
+    """
+    home = os.environ.get("SRTOYBOX_HOME")
+    if mode == "layout_saved" and home:                       # ImGui 가 저장해 둔 창의 자리와 크기(이미 써 본 사용자)
+        Path(home, "imgui.ini").write_text("[Window][SR2030 ToyBox]\nPos=40,60\nSize=500,460\nCollapsed=0\n", encoding="utf-8")
+    game = start_game(hook)
+    if game is None:
+        return 0
+    fake = fake_game(hook, None)
+    for slot in range(11):
+        fake.use(slot)
+        fake.set_stock(176, slot, 1000.0 * (slot + 1))
+    fake.play(176)
+    game.hotkey()
+    out: dict[str, object] = {"money_help_right": game.shown("help:money")}
+    game.click(STOCK)
+    game.click("stock:0:+1m")                                 # 바닥에 "마지막으로 쓴 값" 줄이 생긴다
+    game.wait(0.3)
+    facts = game.facts()
+    out["rows"] = len(stock_rows(facts))
+    out["hidden"] = [name for name in stock_rows(facts) if not facts[name][2]]
+    out["help_right"], out["wrote"] = game.shown("help:stock"), game.shown("wrote")
     print(json.dumps(out, ensure_ascii=False))
     return 0
 
@@ -975,7 +1152,7 @@ def run_input(hook: str) -> int:
         return 0
     out = {"hotkey": game.open()}
     out["button"] = game.click(BUTTON)                        # 설정 창의 단추 — 게임에 가면 안 된다. 명령이 대기열에 든다
-    out["outside"] = game.click((900, 100))                   # 설정 창 밖(창은 40..760 x 60..580 이다) — 게임이 받아야 한다
+    out["outside"] = game.click((900, 100))                   # 설정 창 밖(창은 40..760 x 60..660 이다) — 게임이 받아야 한다
     game.got.clear()
     out["typing"] = int(game.pump(lambda: game.has("char", ord("c")), 10))   # 실행기가 치트를 적기 시작했다
     # 그동안 사용자가 실제 키보드로 9 를 치고(게임에 가면 치트를 받아 적는 줄에 섞인다) 단축키를 누른다(평소처럼 창이 닫혀야 한다)
@@ -1015,7 +1192,7 @@ def run_scale(hook: str) -> int:
     if game is None:
         return 0
     game.hotkey()
-    # 설정 창은 그리는 좌표로 40..760 x 60..580 에 있고, 화면(창의 좌표)에는 80..1520 x 120..1160 으로 보인다
+    # 설정 창은 그리는 좌표로 40..760 x 60..660 에 있고, 화면(창의 좌표)에는 80..1520 x 120..1320 으로 보인다
     title = game.click((TITLE[0] * 2, TITLE[1] * 2))          # 보이는 창의 제목 줄 — 게임에 가면 안 된다
     beside = game.click((60, 80))                             # 보이는 창의 왼쪽 위 바깥(그리는 좌표로 30,40) — 게임이 받아야 한다
     print(f"title={title} beside={beside}")
@@ -1040,6 +1217,10 @@ def main() -> int:
         return run_money(hook, mode)
     if mode.startswith("stock"):
         return run_stock(hook, mode)
+    if mode.startswith("keep"):
+        return run_keep(hook, mode)
+    if mode.startswith("layout"):
+        return run_layout(hook, mode)
     if mode in ("confirm", "confirm_fault", "hints", "leave", "multiplayer", "pick_gone", "pick_become", "pick_again", "ansi_search"):
         return run_window(hook, mode)
     if mode == "present_fault":

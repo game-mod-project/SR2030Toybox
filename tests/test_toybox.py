@@ -193,7 +193,19 @@ def test_runner_takes_eight_and_rejects_the_rest(dll):
     assert text(dll.srtoybox_simulate, "cheat 한글".encode("utf-8"), 10) == "REJECT cheat 한글\n"   # 넣을 수 없는 글은 받지 않는다
 
 
-DEFAULTS = "hotkey_vk=84\nhotkey_mods=3\nmoney.amount=10000\ntechnology=120\nspawnunit=2413\n"
+KEEP_DEFAULTS = "keep.treasury=0\nkeep.treasury.value=0\n" + "".join(f"keep.stock.{slot}=0\nkeep.stock.{slot}.value=0\n"
+                                                                      for slot in range(12))
+DEFAULTS = "hotkey_vk=84\nhotkey_mods=3\nmoney.amount=10000\n" + KEEP_DEFAULTS + "technology=120\nspawnunit=2413\n"
+
+
+def kept(**lines: int) -> str:
+    """DEFAULTS 에서 유지의 줄 몇 개만 바꾼 것. 키의 점은 밑줄 둘로 적는다: kept(keep__stock__3=1)."""
+    out = DEFAULTS
+    for key, value in lines.items():
+        key = key.replace("__", ".")
+        assert f"{key}=0\n" in out, key
+        out = out.replace(f"{key}=0\n", f"{key}={value}\n")
+    return out
 
 
 def test_settings_fall_back_to_defaults(dll):
@@ -210,11 +222,28 @@ def test_settings_fall_back_to_defaults(dll):
     assert norm("money.amount=1000001\n") == DEFAULTS and norm("money.amount=1000000\n") == DEFAULTS.replace("=10000\n", "=1000000\n")
 
 
+def test_keep_settings(dll):
+    """최소 유지: 켜짐과 값을 모두 저장한다. 틀린 줄은 그 줄만 버린다(다른 유지는 그대로다)."""
+    norm = lambda ini: text(dll.srtoybox_settings_normalize, ini.encode("utf-8"))
+    assert norm("keep.treasury=1\nkeep.treasury.value=50000\n") == kept(keep__treasury=1, keep__treasury__value=50000)
+    assert norm("keep.stock.3=1\nkeep.stock.3.value=1000000\nkeep.stock.11.value=7\n") == \
+        kept(keep__stock__3=1, keep__stock__3__value=1000000, keep__stock__11__value=7)
+    assert norm("keep.treasury.value=1000000\nkeep.stock.0.value=1000000000\n") == \
+        kept(keep__treasury__value=1000000, keep__stock__0__value=1000000000)                # 한도까지는 된다
+    # 범위 밖의 값, 0 / 1 이 아닌 켜짐, 없는 칸, 깨진 키 — 모두 그 줄만 버린다
+    assert norm("keep.treasury=2\nkeep.treasury.value=1000001\nkeep.treasury.value=-1\nkeep.stock.3=7\nkeep.stock.3.value=1000000001\n"
+                "keep.stock.12=1\nkeep.stock.12.value=5\nkeep.stock.-1=1\nkeep.stock.=1\nkeep.stock.x=1\nkeep.stock.3.amount=5\n"
+                "keep.stock.3x=1\nkeep.stock=1\nkeep.stock.123=1\nkeep.stock. 3=1\n") == DEFAULTS
+    assert norm("keep.stock.5=1\nkeep.stock.5=x\nkeep.stock.6=1\n") == kept(keep__stock__5=1, keep__stock__6=1)
+    assert len(kept(**{f"keep__stock__{slot}__value": 1000000000 for slot in range(12)}, keep__treasury__value=1000000)) < 1024   # 읽는 쪽은 4096 까지 읽는다
+
+
 def test_settings_file_round_trip(dll, tmp_path, monkeypatch):
     monkeypatch.setenv("SRTOYBOX_HOME", str(tmp_path))
     assert text(dll.srtoybox_settings_file) == DEFAULTS                                      # 파일이 없으면 기본값
-    assert dll.srtoybox_settings_store(b"hotkey_vk=120\nhotkey_mods=4\ntechnology=140\n") == 1
-    saved = DEFAULTS.replace("=84", "=120").replace("mods=3", "mods=4").replace("=120\nspawn", "=140\nspawn")
+    assert dll.srtoybox_settings_store(b"hotkey_vk=120\nhotkey_mods=4\ntechnology=140\nkeep.stock.7=1\nkeep.stock.7.value=250000\n") == 1
+    saved = kept(keep__stock__7=1, keep__stock__7__value=250000).replace("=84", "=120").replace("mods=3", "mods=4") \
+        .replace("=120\nspawn", "=140\nspawn")
     assert (tmp_path / "toybox.ini").read_text(encoding="utf-8") == saved
     assert text(dll.srtoybox_settings_file) == saved
     (tmp_path / "toybox.ini").write_bytes(b"\xff\xfe\x00broken")
@@ -662,6 +691,94 @@ def test_the_stock_tab_lists_the_named_products_outside_a_game(dll, cfg, tmp_pat
     assert got["buttons"] == STOCK_BUTTONS and got["hint"] == "-"
     assert got["steps"] == [[1000.0, 2.5e6, 0.0, 5.0, 0.0]] and got["lines"] == [] and got["text"] == ""
     assert got["status"] == "게임을 진행 중이 아닙니다 — 단추가 꺼져 있습니다"
+
+
+KEEP_NOTE = "최소 유지를 켜 두면"
+
+
+def test_keep_works_with_the_window_closed_and_shows_in_the_status_line(dll, cfg, tmp_path):
+    """최소 유지: 저장해 둔 설정이 게임에 들어가자마자, 설정 창을 한 번도 열지 않아도 적용된다. 상태 줄에 무엇이 유지되는지 늘 보이고,
+    창에서 켜고 끄면 바로 따른다. 내장 치트는 거치지 않는다."""
+    got = json.loads(_probe(cfg, tmp_path, "keep"))
+    assert got["closed"] == [14.43e9, 5e6, 0.0]                 # 창을 열기 전: 석유만 250만 → 500만(국고의 유지는 꺼져 있다)
+    assert got["status"] == "플레이 중: 독일 (1499) · 유지 중: 석유"
+    assert got["money"] == ["0", "20000"]                        # 돈 탭의 체크와 입력란(저장해 둔 값)
+    assert got["on"] == 20e9 and got["status_on"] == "플레이 중: 독일 (1499) · 유지 중: 국고, 석유"
+    assert got["back"] == 20e9                                   # -$10 B 로 내려도 0.5초 안에 돌아온다
+    assert got["off"] == 10e9 and got["status_off"] == "플레이 중: 독일 (1499) · 유지 중: 석유"   # 끄면 내린 채로 있다
+    # 물자 탭: 유지가 켜진 물자는 이번 판에서 쓰지 않아도 줄이 남는다(끌 수 있게). 단추는 꺼져 있고, 유지되지도 않는다
+    assert got["rows"] == [["stock:all", "모든 물자", "-"], ["stock:0", "농산물", "1.0 K"], ["stock:3", "석유", "5.0 M"],
+                           ["stock:4", "석탄", "쓰지 않음"], ["stock:7", "전력", "0"]]
+    assert got["keeps"] == {"stock:0": ["0", "0"], "stock:3": ["1", "5000000"], "stock:4": ["1", "100"], "stock:7": ["0", "0"]}
+    assert got["unused_press"] == 0.0                            # 쓰지 않는 물자의 단추는 꺼져 있다
+    assert got["stock_off"] == [0.0, 0.0]                        # 석유의 유지를 끄고 0 으로 만들면 0 인 채로 있다
+    assert got["status_end"] == "플레이 중: 독일 (1499)" and got["rows_end"] == ["stock:all", "stock:0", "stock:3", "stock:7"]
+    assert got["lines"] == [] and got["text"] == "" and got["options"] == 0
+    saved = (tmp_path / "home" / "toybox.ini").read_text(encoding="utf-8")
+    assert saved == kept(keep__treasury__value=20000, keep__stock__3__value=5000000, keep__stock__4__value=100)   # 모두 꺼진 채로 저장됐다
+    log = [line.split(" ", 2)[2] for line in (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8").splitlines()]
+    assert [line for line in log if line.startswith("유지")] == [
+        "유지 켬: 석유 5000000", "유지 켬: 석탄 100", "유지: 석유 2.5 M -> 5.0 M", "유지 켬: 국고 20000 (백만 달러)",
+        "유지: 국고 14.43 B -> 20.00 B", "유지 끔: 국고", "유지 끔: 석탄", "유지 끔: 석유"]
+    assert [line for line in log if line.startswith("값 쓰기")] == ["값 쓰기: 국고 20.00 B -> 10.00 B", "값 쓰기: 국고 20.00 B -> 10.00 B",
+                                                                  "값 쓰기: 석유 5.0 M -> 0"]
+    assert "직접 실행" not in " ".join(log)
+
+
+def test_keep_rests_in_the_menu_and_can_be_turned_off_there(dll, cfg, tmp_path):
+    """게임 밖에서는 쉬지만 상태 줄에 켜진 수가 보이고, 단추가 꺼진 탭에서도 유지는 끌 수 있다(켜 둔 것을 잊고 새 판을 시작하지 않게)."""
+    got = json.loads(_probe(cfg, tmp_path, "keep_menu"))
+    assert got["status"] == "게임을 진행 중이 아닙니다 — 단추가 꺼져 있습니다 · 유지 2개 켜짐(게임에 들어가면 적용)"
+    assert got["rested"] == [14.43e9, 2.5e6] and got["keeps"]["stock:3"] == ["1", "5000000"]
+    assert got["status_off"] == "게임을 진행 중이 아닙니다 — 단추가 꺼져 있습니다 · 유지 1개 켜짐(게임에 들어가면 적용)"
+    assert got["entered"] == [14.43e9, 2.5e6, 100.0]            # 게임에 들어가면 남은 유지(석탄 100)만 적용된다 — 석탄을 쓰는 판이다
+    assert "keep.stock.3=0\n" in (tmp_path / "home" / "toybox.ini").read_text(encoding="utf-8")
+
+
+def test_keep_does_not_write_while_the_games_handler_is_running(dll, cfg, tmp_path):
+    """옮기지 않은 기능의 직접 실행이 게임의 함수 안에 있는 동안에는, 유지를 볼 때가 됐어도 게임의 메모리에 쓰지 않는다."""
+    got = json.loads(_probe(cfg, tmp_path, "keep_reenter"))
+    assert got["before"] == 20e9                                 # 유지가 돌고 있다
+    assert got["lines"] == ["cheat allowcheats", "cheat fullmapshow"]
+    assert got["inside"] == [1e9]                                # 그 함수 안에서 다시 온 타이머는 바닥 아래가 된 국고를 올리지 않았다
+    assert got["after"] == 20e9                                  # 함수가 끝난 뒤에 올린다
+
+
+def test_the_status_line_does_not_promise_a_keep_that_cannot_run(dll, cfg, tmp_path):
+    """값 쓰기가 꺼져 있으면(SRTOYBOX_WRITE=0, 값의 자리를 못 찾았다, 쓰기가 실패했다) 유지는 게임에 들어가도 돌지 않는다.
+    메뉴의 상태 줄이 "게임에 들어가면 적용"이라고 하면 안 된다 — 유지 검사(keeper)와 같은 순서로 까닭을 고른다."""
+    got = json.loads(_probe(cfg, tmp_path, "keep_write_off", env={"SRTOYBOX_WRITE": "0"}))
+    resting = " · 유지 2개 켜짐(값을 쓸 수 없어 쉽니다)"
+    assert got["status_menu"] == "게임을 진행 중이 아닙니다 — 단추가 꺼져 있습니다" + resting
+    assert got["status_game"] == "플레이 중: 독일 (1499)" + resting
+    assert got["rested"] == [14.43e9, 2.5e6, 0.0]                # 게임에 들어가도 쓰지 않는다
+
+
+def test_every_product_row_shows_in_a_window_opened_for_the_first_time(dll, cfg, tmp_path):
+    """처음 여는 창에서 "모든 물자"와 물자 열하나의 줄이 굴리지 않아도 모두 보인다 — 바닥에 "마지막으로 쓴 값" 줄이 있어도."""
+    got = json.loads(_probe(cfg, tmp_path, "layout_full"))
+    assert got["wrote"] == "농산물 1.0 K -> 1.0 M" and got["rows"] == 12
+    assert got["hidden"] == []
+
+
+def test_the_keep_help_stays_inside_a_narrow_window(dll, cfg, tmp_path):
+    """이미 써 본 사용자의 창은 저장된 크기(500x460) 그대로다. 최소 유지의 긴 안내 글이 창 밖으로 잘리지 않는다(줄을 바꾼다)."""
+    got = json.loads(_probe(cfg, tmp_path, "layout_saved"))
+    assert got["money_help_right"] != "-" and int(got["money_help_right"]) <= 540      # 창은 x = 40 … 540
+    assert got["help_right"] != "-" and int(got["help_right"]) <= 540
+
+
+def test_a_typed_keep_amount_takes_effect_when_the_typing_is_done(dll, cfg, tmp_path):
+    """수량을 치는 동안의 값(7, 70, 700 …)은 쓰이지 않는다. Enter 를 누르거나 다른 곳을 누르면 쓰이고, 치던 채로 창을 닫으면 버려진다."""
+    got = json.loads(_probe(cfg, tmp_path, "keep_type"))
+    assert got["typing"] == [5e6, "5000000"]                     # 다 쳤지만 아직 입력란 안이다 — 유지는 앞의 수량(500만) 그대로다
+    assert got["entered"] == [7e6, "7000000"]                    # Enter
+    assert got["clicked_away"] == [9e6, "9000000"]               # 다시 치고 다른 곳을 눌렀다
+    assert got["closed"] == [9e6, "9000000"]                     # 또 치다가 창을 닫았다 — 친 것은 버려진다
+    assert got["text"] == ""                                     # 친 글자는 게임에 가지 않았다
+    assert "keep.stock.3.value=9000000\n" in (tmp_path / "home" / "toybox.ini").read_text(encoding="utf-8")
+    log = (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8")
+    assert log.count("유지 켬: 석유") == 3                        # 뜰 때의 500만, 고친 700만 · 900만
 
 
 def test_prologue_length_knows_only_plain_function_heads(dll):

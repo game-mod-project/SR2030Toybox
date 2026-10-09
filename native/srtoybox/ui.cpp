@@ -12,6 +12,7 @@
 #include "game.h"
 #include "imgui.h"
 #include "keeper.h"
+#include "log.h"
 #include "overlay.h"
 #include "products.h"
 #include "regions.h"
@@ -36,6 +37,7 @@ double g_regions_at = -10.0;  // 그것을 읽은 때(ImGui 의 시계, 초)
 bool g_reporting;             // 테스트가 그린 것의 목록을 청했다(ui_report). 그 전에는 모으지 않는다
 std::string g_report, g_drawing;   // 지난 프레임의 목록 / 지금 모으는 것
 float g_footer;               // 바닥 줄들(알림 · 안내)의 높이 — 지난 프레임에 잰 것
+Keep g_keep_sent;             // keeper 에 마지막으로 넘긴 최소 유지(저장한 설정과 같다)
 
 // 방금 그린 항목을 적는다: "이름\t가운데 x\t가운데 y\t보이는가(0/1)\t글". 테스트가 단추의 자리와 글을 여기서 읽는다.
 void note(const std::string &name, const std::string &text)
@@ -47,6 +49,16 @@ void note(const std::string &name, const std::string &text)
     const bool seen = ImGui::IsRectVisible(ImVec2(middle.x - 1, middle.y - 1), ImVec2(middle.x + 1, middle.y + 1));   // 가운데가 가려지지 않았다
     g_drawing += name + '\t' + std::to_string(static_cast<int>(middle.x)) + '\t' + std::to_string(static_cast<int>(middle.y)) + '\t'
         + (seen ? "1" : "0") + '\t' + text + '\n';
+}
+
+// 긴 안내 글(흐린 글씨). 창이 좁으면 줄을 바꾼다 — 그냥 두면 창 밖으로 잘린다(이미 써 본 사용자의 창은 저장된 크기 그대로다).
+// name 으로 그 글의 오른쪽 끝(x)을 적는다 — 창 안에 드는지 테스트가 본다.
+void help(const char *name, const char *text)
+{
+    ImGui::PushTextWrapPos(0.0f);
+    ImGui::TextDisabled("%s", text);
+    ImGui::PopTextWrapPos();
+    note(name, std::to_string(static_cast<int>(ImGui::GetItemRectMax().x)));
 }
 
 // 되돌릴 수 없는 단추가 둘째 누름을 기다릴 때의 글: 무엇을 어느 나라에 하는지를 그 단추에 적는다.
@@ -136,6 +148,73 @@ void picker(const RegionView &view)
     ImGui::Spacing();
 }
 
+// 설정의 최소 유지를 keeper 가 쓰는 꼴로: 국고는 백만 달러 → 달러.
+Keep keep_of(const Settings &s)
+{
+    Keep keep;
+    keep.treasury = s.keep_treasury;
+    keep.treasury_floor = static_cast<double>(s.keep_treasury_value) * 1e6;
+    for (int slot = 0; slot < STOCK_SLOTS; slot++) {
+        keep.stock[slot] = s.keep_stock[slot];
+        keep.stock_floor[slot] = static_cast<double>(s.keep_stock_value[slot]);
+    }
+    return keep;
+}
+
+// 창에서 고친 최소 유지를 keeper 에 넘긴다(save 면 설정 파일에도 적는다). 달라진 것이 없으면 아무것도 하지 않는다.
+// 로그에는 켠 것 · 끈 것 · 켜진 채로 값이 바뀐 것을 적는다.
+void send_keep(bool save)
+{
+    const Keep want = keep_of(g_settings);
+    bool changed = want.treasury != g_keep_sent.treasury || want.treasury_floor != g_keep_sent.treasury_floor;
+    if (want.treasury && (!g_keep_sent.treasury || want.treasury_floor != g_keep_sent.treasury_floor))
+        log_line("유지 켬: 국고 %lld (백만 달러)", g_settings.keep_treasury_value);
+    else if (!want.treasury && g_keep_sent.treasury)
+        log_line("유지 끔: 국고");
+    for (int slot = 0; slot < STOCK_SLOTS; slot++) {
+        changed = changed || want.stock[slot] != g_keep_sent.stock[slot] || want.stock_floor[slot] != g_keep_sent.stock_floor[slot];
+        if (want.stock[slot] && (!g_keep_sent.stock[slot] || want.stock_floor[slot] != g_keep_sent.stock_floor[slot]))
+            log_line("유지 켬: %s %lld", product_label(slot).c_str(), g_settings.keep_stock_value[slot]);
+        else if (!want.stock[slot] && g_keep_sent.stock[slot])
+            log_line("유지 끔: %s", product_label(slot).c_str());
+    }
+    if (!changed)
+        return;
+    if (save)
+        save_settings(g_settings);
+    keeper_set_keep(want);
+    g_keep_sent = want;
+}
+
+// 최소 유지의 수량 입력란. 치는 동안의 값(5, 50, 500 …)은 쓰이지 않는다 — ImGui 의 InputScalar 는 입력을 마쳤을 때
+// (Enter, 다른 곳을 누름)에만 값을 넘겨준다. 치던 채로 창을 닫으면 친 것은 버려진다. 누르면 지금 값이 통째로 골라진다.
+void keep_input(const char *id, long long *value, long long high, float width)
+{
+    ImGui::SetNextItemWidth(width);
+    if (ImGui::InputScalar(id, ImGuiDataType_S64, value)) {
+        *value = std::min(high, std::max(0LL, *value));
+        send_keep(true);
+    }
+}
+
+// 상태 줄의 뒤에 붙는 글: 최소 유지가 지금 무엇을 하고 있는가. 켜진 것이 없으면 빈 글.
+// 까닭을 고르는 순서는 유지 검사(keeper_tick)가 쉬는 순서와 같다 — 값을 쓸 수 없으면 게임 밖에서도 "게임에 들어가면 적용"이라고 하지 않는다.
+std::string keep_text(const GameState &game)
+{
+    if (keep_count(g_keep_sent) == 0)
+        return std::string();
+    if (!game.known)
+        return keep_resting_text(g_keep_sent, "게임을 읽을 수 없어 쉽니다");
+    if (!game_values_off().empty())
+        return keep_resting_text(g_keep_sent, "값을 쓸 수 없어 쉽니다");
+    if (game.multiplayer)
+        return keep_resting_text(g_keep_sent, "멀티플레이에서는 쉽니다");
+    if (!game.in_game)
+        return keep_resting_text(g_keep_sent, "게임에 들어가면 적용");
+    const GameValues now = game_values();
+    return now.ok ? keep_active_text(g_keep_sent, now.used) : keep_resting_text(g_keep_sent, "값을 읽을 수 없어 쉽니다");
+}
+
 // 돈 탭의 단추 하나: 누르면 국고에 대한 요청을 대기열에 넣는다. 쓰는 것은 게임 창의 타이머에서다(keeper.h).
 void money_button(const char *label, const char *name, Change change, double amount)
 {
@@ -203,6 +282,18 @@ bool money_tab(const GameState &game, bool blocked)
     money_button("+$100 B", "money:+100b", Change::Add, 100e9);
     ImGui::TextDisabled("국고는 음수가 될 수 있다. 다른 나라의 국고는 건드리지 않는다");
     ImGui::EndDisabled();
+    ImGui::Spacing();
+
+    // 최소 유지는 설정이다 — 게임 밖에서도 켜고 끌 수 있다(쓰는 것은 게임 안에서만이다)
+    if (ImGui::Checkbox("최소 유지", &g_settings.keep_treasury))
+        send_keep(true);
+    note("money:keep", g_settings.keep_treasury ? "1" : "0");
+    ImGui::SameLine();
+    keep_input("##keepvalue", &g_settings.keep_treasury_value, KEEP_TREASURY_MAX, 150.0f);
+    note("money:keepvalue", std::to_string(g_settings.keep_treasury_value));
+    ImGui::SameLine();
+    ImGui::TextUnformatted("백만 달러");
+    help("help:money", "켜 두면 국고가 이 금액보다 적어질 때 이 금액으로 올린다(0.5초마다). 창을 닫아도, 새 판에서도 계속된다");
     return true;
 }
 
@@ -227,13 +318,15 @@ void stock_buttons(const std::string &name, int slot)
     }
 }
 
-// 물자 탭의 한 줄. slot 이 ALL_STOCK 이면 "모든 물자" 줄이다(재고 표시가 없다).
+// 물자 탭의 한 줄. slot 이 ALL_STOCK 이면 "모든 물자" 줄이다(재고 표시와 최소 유지가 없다).
+// 이번 판에서 쓰지 않는 물자의 줄(최소 유지가 켜져 있어 남은 것)은 단추가 꺼져 있다.
 void stock_row(int slot, const GameValues &now, bool blocked)
 {
     const bool all = slot == ALL_STOCK;
+    const bool unused = !all && now.ok && !now.used[slot];
     const std::string name = all ? std::string("stock:all") : "stock:" + std::to_string(slot);
     const std::string label = all ? std::string("모든 물자") : product_label(slot);
-    const std::string have = all || !now.ok ? std::string("-") : short_amount(now.stock[slot]);
+    const std::string have = all || !now.ok ? std::string("-") : unused ? std::string("쓰지 않음") : short_amount(now.stock[slot]);
     ImGui::PushID(slot);
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
@@ -245,32 +338,44 @@ void stock_row(int slot, const GameValues &now, bool blocked)
     ImGui::TextUnformatted(have.c_str());
     note(name + ":now", have);
     ImGui::TableNextColumn();
-    ImGui::BeginDisabled(blocked || !now.ok);
+    ImGui::BeginDisabled(blocked || !now.ok || unused);
     stock_buttons(name, slot);
     ImGui::EndDisabled();
+    ImGui::TableNextColumn();
+    if (!all) {                                  // 최소 유지는 설정이다 — 단추가 꺼져 있을 때도 고칠 수 있다
+        if (ImGui::Checkbox("##keep", &g_settings.keep_stock[slot]))
+            send_keep(true);
+        note(name + ":keep", g_settings.keep_stock[slot] ? "1" : "0");
+        ImGui::SameLine();
+        keep_input("##keepvalue", &g_settings.keep_stock_value[slot], KEEP_STOCK_MAX, 120.0f);
+        note(name + ":keepvalue", std::to_string(g_settings.keep_stock_value[slot]));
+    }
     ImGui::PopID();
 }
 
 // 물자 탭: 내장 치트를 거치지 않고 플레이어의 물자 재고를 직접 고친다. 물자마다 한 줄 —
-// 게임 안에서는 이번 판에서 쓰는 물자만, 게임 밖에서는 이름표에 있는 물자가 나온다(단추는 꺼져 있다). 쓸 수 있으면 true.
+// 게임 안에서는 이번 판에서 쓰는 물자만, 게임 밖에서는 이름표에 있는 물자가 나온다(단추는 꺼져 있다).
+// 최소 유지가 켜진 물자는 어느 쪽에서든 줄이 남는다(끌 수 있게). 쓸 수 있으면 true.
 bool stock_tab(const GameState &game, bool blocked)
 {
     GameValues now;
     if (!values_ready(game, "stock:off", &now))
         return false;
     ImGui::TextDisabled("재고는 0 아래로 내려가지 않는다. 다른 나라의 재고는 건드리지 않는다");
+    help("help:stock", "최소 유지를 켜 두면 재고가 그 수량보다 적어질 때 그 수량으로 올린다(0.5초마다). 창을 닫아도, 새 판에서도 계속된다");
     const ImGuiTableFlags flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV
         | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY;   // 창이 좁으면 표가 가로로 구른다
-    if (!ImGui::BeginTable("stock", 3, flags))
+    if (!ImGui::BeginTable("stock", 4, flags))
         return true;
     ImGui::TableSetupScrollFreeze(1, 1);                       // 이름 칸과 머리 줄은 굴려도 남는다
     ImGui::TableSetupColumn("물자");
     ImGui::TableSetupColumn("재고");
     ImGui::TableSetupColumn("빼기 / 더하기");
+    ImGui::TableSetupColumn("최소 유지");
     ImGui::TableHeadersRow();
     stock_row(ALL_STOCK, now, blocked);
     for (int slot = 0; slot < STOCK_SLOTS; slot++)
-        if (now.ok ? now.used[slot] : find_product(slot) != nullptr)
+        if ((now.ok ? now.used[slot] : find_product(slot) != nullptr) || g_settings.keep_stock[slot])
             stock_row(slot, now, blocked);
     ImGui::EndTable();
     return true;
@@ -290,10 +395,11 @@ void settings_tab()
 // 상태 줄: ToyBox 가 게임을 어떻게 보고 있는지 한 줄로.
 void status_line(const GameState &game)
 {
-    const std::string text = !game.known ? "게임 상태를 읽을 수 없습니다 — 글쇠 방식으로 동작합니다"
+    const std::string state = !game.known ? "게임 상태를 읽을 수 없습니다 — 글쇠 방식으로 동작합니다"
         : game.multiplayer ? "멀티플레이에서는 동작하지 않습니다"
         : !game.in_game ? "게임을 진행 중이 아닙니다 — 단추가 꺼져 있습니다"
         : "플레이 중: " + region_label(game.player) + " (" + std::to_string(game.player) + ")";
+    const std::string text = state + keep_text(game);   // 최소 유지가 켜져 있으면 늘 보인다 — 켜 둔 것을 잊지 않게
     if (!game.known)
         ImGui::TextDisabled("%s", text.c_str());
     else
@@ -307,6 +413,7 @@ void ui_init()
 {
     Lock lock(ui_mutex());
     g_settings = load_settings();
+    send_keep(false);             // 저장해 둔 최소 유지를 keeper 에 넘긴다 — 창을 한 번도 열지 않아도 돈다
 }
 
 bool ui_visible()
@@ -361,7 +468,8 @@ void ui_draw()
     Lock lock(ui_mutex());
     g_drawing.clear();
     ImGui::SetNextWindowPos(ImVec2(40.0f, 60.0f), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(720.0f, 520.0f), ImGuiCond_FirstUseEver);   // 물자 탭의 표가 한눈에 들어오는 크기
+    // 물자 탭의 표(물자 열하나 + "모든 물자")가 굴리지 않아도 다 보이는 크기. 이미 써 본 사용자의 창은 저장된 크기 그대로다
+    ImGui::SetNextWindowSize(ImVec2(720.0f, 600.0f), ImGuiCond_FirstUseEver);
     // 창은 구르지 않는다. 구르는 것은 탭의 내용(body)뿐이다 — 맨 위의 상태 줄 · 고른 나라와 바닥의 알림은 늘 보인다
     if (ImGui::Begin("SR2030 ToyBox", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
         const GameState game = game_state();
