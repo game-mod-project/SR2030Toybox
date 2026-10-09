@@ -44,6 +44,7 @@ ToyBox 가 부른 함수 안에서 난 예외를 위에서 잡을 때 (출력 "c
     money_write_off  SRTOYBOX_WRITE=0 — 까닭 한 줄만 보인다
     money_notfound   값의 자리를 찾지 못한 게임 — 〃
     money_unread     SRTOYBOX_READ=0 — 〃
+    money_unreadable 게임 안인데 재고 칸 하나가 수가 아니다(보지 못한 구성의 판) — 〃
     money_fail       플레이어 지역 객체가 읽기 전용 쪽에 있다 — 쓰기가 실패하고 탭이 꺼진다
     money_reenter    옮기지 않은 기능의 직접 실행이 게임의 함수 안에 있는 동안 타이머가 다시 온다 — 그 안에서는 쓰지 않는다
 설정 창에 보이는 글 (출력은 JSON 한 줄. 보이지 않는 글은 "-"):
@@ -764,6 +765,8 @@ def run_money(hook: str, mode: str) -> int:
     fake = box["fake"] = fake_game(hook, ctypes.cast(game.handler, ctypes.c_void_p).value, values=mode != "money_notfound")
     if mode == "money_fail":
         fake.lock(176)                                        # 플레이어 지역 객체가 읽기 전용 쪽에 있다(읽을 수는 있다)
+    if mode == "money_unreadable":
+        fake.set_stock(176, 9, float("nan"))                  # 값을 통째로 믿지 않는다(read_values)
     if mode != "money_menu":
         fake.play(176)
     game.hotkey()                                             # 창이 열리면 첫 탭이 "돈"이다

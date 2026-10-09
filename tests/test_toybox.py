@@ -571,7 +571,8 @@ def test_a_money_request_is_dropped_when_the_game_ends_first(dll, cfg, tmp_path)
     ("money_write_off", {"SRTOYBOX_WRITE": "0"}, "값 쓰기를 껐습니다 (SRTOYBOX_WRITE=0)"),
     ("money_notfound", {}, "이 게임 판에서는 쓸 수 없습니다 (값의 자리를 주지 않았습니다)"),
     ("money_unread", {"SRTOYBOX_READ": "0"}, "게임 상태를 읽을 수 있을 때만 씁니다."),
-], ids=["write-off", "not-found", "unread"])
+    ("money_unreadable", {}, "게임의 값을 읽을 수 없어 쓸 수 없습니다."),
+], ids=["write-off", "not-found", "unread", "unreadable"])
 def test_the_money_tab_says_why_it_is_off_and_offers_no_cheat(dll, cfg, tmp_path, mode, env, why):
     """쓸 수 없을 때 내장 치트로 되돌아가지 않는다 — 까닭 한 줄만 보이고 단추가 없다."""
     got = json.loads(_probe(cfg, tmp_path, mode, env=env))

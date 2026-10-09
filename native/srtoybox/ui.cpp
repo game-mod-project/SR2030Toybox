@@ -155,6 +155,12 @@ void money_tab(const GameState &game, bool blocked)
         return;
     }
     const GameValues now = game.in_game ? game_values() : GameValues();   // 탭이 보이는 동안 프레임마다 읽는다
+    if (game.in_game && !now.ok) {   // 게임 안인데 값을 믿을 수 없다(재고 칸이 수가 아니다, 세계 자료를 읽지 못했다) — 까닭 없이 꺼 두지 않는다
+        const char *const why = "게임의 값을 읽을 수 없어 쓸 수 없습니다.";
+        ImGui::TextWrapped("%s", why);
+        note("money:off", why);
+        return;
+    }
     const std::string have = now.ok ? "국고: $ " + short_number(now.treasury) : std::string("국고: -");
     ImGui::TextUnformatted(have.c_str());
     note("money:now", have);
