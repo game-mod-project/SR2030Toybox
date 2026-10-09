@@ -21,6 +21,8 @@ Present 를 부르고 창 메시지를 보낸다. Steam 오버레이 같은 다�
     draw_resize      창을 켜고 그린 뒤 ResizeBuffers · Present1 을 부른다
     input            단축키, 창 위 · 밖의 누름, 치트를 넣는 동안의 실제 글쇠, 게임이 받은 글
     scale            그리는 크기가 창의 절반일 때 창 위 · 밖의 누름
+    real_key         다른 곳에서 실제 수정키(Ctrl)가 눌렸다 떼인 뒤에 단축키를 누른다 — 그래도 ToyBox 가 받아야 한다
+                     (검사 도구가 적어 둔 가짜 수정키가 지워지면 단축키가 맨 T 로 게임에 샌다)
 게임 상태에 따른 단추 (출력 "button=<창 위 누름이 게임에 갔는가> text=<게임이 받은 글>"):
     gate_menu        ToyBox 가 게임을 읽을 수 있고 메뉴에 있다 — 단추가 꺼져 있다
     gate_leave       게임 안에서 단추를 누른 직후(실행되기 전) 메뉴로 나갔다 — 실행하지 않는다
@@ -118,6 +120,8 @@ user32.CreateWindowExW.argtypes = [wintypes.DWORD, wintypes.LPCWSTR, wintypes.LP
     + [wintypes.HWND, wintypes.HMENU, wintypes.HINSTANCE, wintypes.LPVOID]
 user32.DefWindowProcW.restype = LRESULT
 user32.DefWindowProcW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+user32.GetKeyState.restype = ctypes.c_short
+user32.GetKeyState.argtypes = [ctypes.c_int]
 user32.SendMessageW.restype = LRESULT
 user32.SendMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
 user32.PostMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
@@ -227,9 +231,19 @@ def load_toybox(hook: str, table, slot: int = SLOT_PRESENT) -> bool:
     return table[slot] != before
 
 
+MODIFIERS = (0x11, 0x10, 0x12)          # Ctrl · Shift · Alt
+
+
 def set_mods(on: bool) -> None:
     """이 스레드의 키 상태표에 Ctrl · Shift 를 눌린 것(또는 뗀 것)으로 적는다. Alt 는 늘 뗀 것으로 적는다 —
-    테스트가 도는 동안 사용자가 실제 키보드의 Alt 를 누르고 있으면 상태표에 그것이 남아, 단축키가 Ctrl+Shift+Alt+T 로 읽힌다."""
+    테스트가 도는 동안 사용자가 실제 키보드의 Alt 를 누르고 있으면 상태표에 그것이 남아, 단축키가 Ctrl+Shift+Alt+T 로 읽힌다.
+
+    적기 전에 GetKeyState 를 부른다. 다른 곳에서 실제 수정키가 눌리거나 떼이면(사용자가 다른 창에서 글을 친다) 그 변화는 이 스레드에
+    밀려 있다가 **다음 GetKeyState 에서** 상태표를 실제 값으로 덮는다. GetKeyboardState · SetKeyboardState · PeekMessage 는 그것을
+    받아 가지 않는다 — 먼저 받아 두지 않으면, 여기서 적은 Ctrl · Shift 가 ToyBox 의 창 프로시저가 수정키를 읽는 순간 지워진다
+    [확인: 실행, 2026-10-09 — 오른쪽 Ctrl 을 한 번 눌렀다 뗀 뒤의 단축키가 네 번 가운데 네 번 게임으로 샜다]."""
+    for vk in MODIFIERS:
+        user32.GetKeyState(vk)
     state = (ctypes.c_ubyte * 256)()
     user32.GetKeyboardState(state)
     for vk in (0x11, 0x10):
@@ -246,9 +260,38 @@ def mods_down() -> bool:
 
 def press_hotkey(hwnd, lparam: int = 1) -> None:
     """Ctrl+Shift+T (ToyBox 의 기본 단축키)."""
-    set_mods(True)
+    for _ in range(5):                                        # 적은 것이 그대로 읽히는지 보고 보낸다(사이에 실제 수정키가 또 끼면 다시 적는다)
+        set_mods(True)
+        if [user32.GetKeyState(vk) < 0 for vk in MODIFIERS] == [True, True, False]:
+            break
     user32.SendMessageW(hwnd, WM_KEYDOWN, 0x54, lparam)
     set_mods(False)
+
+
+class KEYBDINPUT(ctypes.Structure):
+    _fields_ = [("wVk", wintypes.WORD), ("wScan", wintypes.WORD), ("dwFlags", wintypes.DWORD), ("time", wintypes.DWORD),
+                ("dwExtraInfo", ctypes.c_size_t)]
+
+
+class INPUT(ctypes.Structure):
+    class _U(ctypes.Union):
+        _fields_ = [("ki", KEYBDINPUT), ("pad", ctypes.c_byte * 32)]
+    _anonymous_ = ("u",)
+    _fields_ = [("type", wintypes.DWORD), ("u", _U)]
+
+
+def tap_real_ctrl() -> bool:
+    """시스템에 '진짜' 키 입력을 넣는다: 오른쪽 Ctrl 을 눌렀다 뗀다(사용자가 다른 창에서 수정키를 쓴 것처럼). 넣었으면 True.
+
+    누름과 뗌을 한 번의 SendInput 에 넣는다 — 사용자의 실제 입력이 그 사이에 끼지 않는다. 혼자 눌렀다 떼는 Ctrl 은 아무 일도 하지 않는다.
+    """
+    events = (INPUT * 2)()
+    for i, flags in enumerate((1, 1 | 2)):                    # KEYEVENTF_EXTENDEDKEY, 거기에 KEYEVENTF_KEYUP
+        events[i].type = 1                                    # INPUT_KEYBOARD
+        events[i].ki = KEYBDINPUT(0xA3, 0, flags, 0, 0)       # VK_RCONTROL
+    sent = user32.SendInput(2, events, ctypes.sizeof(INPUT))
+    time.sleep(0.05)                                          # 그 입력이 시스템의 키 상태에 닿을 때까지
+    return sent == 2
 
 
 def u32(hr: int) -> str:
@@ -875,6 +918,23 @@ def run_input(hook: str) -> int:
     return 0
 
 
+def run_real_key(hook: str) -> int:
+    """사용자가 다른 창에서 수정키를 쓰는 동안에도 검사 도구의 단축키가 ToyBox 에 닿는다. 출력 "first=… shown=… second=… hidden=…"."""
+    game = start_game(hook)
+    if game is None:
+        return 0
+    if not tap_real_ctrl():                                   # 가짜 게임이 뜬 뒤, 첫 단축키 전에
+        print("skip 실제 키 입력을 넣을 수 없다(SendInput 이 막혔다)")
+        return 0
+    first = game.hotkey()
+    shown = int("status" in game.facts())                     # 창이 열렸다
+    tap_real_ctrl()                                           # 창이 열린 뒤에 한 번 더
+    second = game.hotkey()
+    hidden = int("status" not in game.facts())                # 창이 닫혔다
+    print(f"first={first} shown={shown} second={second} hidden={hidden}")
+    return 0
+
+
 def run_scale(hook: str) -> int:
     game = start_game(hook, buffer=(512, 384))                # 창은 1024x768 인데 그리는 크기는 그 절반 — 화면에는 두 배로 늘어나 보인다
     if game is None:
@@ -893,6 +953,8 @@ def main() -> int:
         return run_input(hook)
     if mode == "scale":
         return run_scale(hook)
+    if mode == "real_key":
+        return run_real_key(hook)
     if mode.startswith("gate_"):
         return run_gate(hook, mode)
     if mode.startswith("direct"):
