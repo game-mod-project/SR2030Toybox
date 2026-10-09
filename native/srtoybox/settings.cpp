@@ -105,6 +105,9 @@ Settings parse_settings(const std::string &ini)
             vk = n;
         } else if (key == "hotkey_mods") {
             mods = n;
+        } else if (key == "money.amount") {
+            if (n >= MONEY_AMOUNT_MIN && n <= MONEY_AMOUNT_MAX)
+                s.money_amount = n;
         } else {
             const Feature *f = find_feature(key.c_str());
             if (f != nullptr && f->has_value && n >= f->min && n <= f->max)
@@ -120,7 +123,8 @@ Settings parse_settings(const std::string &ini)
 
 std::string format_settings(const Settings &s)
 {
-    std::string out = "hotkey_vk=" + std::to_string(s.hotkey_vk) + "\nhotkey_mods=" + std::to_string(s.hotkey_mods) + "\n";
+    std::string out = "hotkey_vk=" + std::to_string(s.hotkey_vk) + "\nhotkey_mods=" + std::to_string(s.hotkey_mods)
+        + "\nmoney.amount=" + std::to_string(s.money_amount) + "\n";
     for (int i = 0; i < FEATURE_COUNT; i++) {
         if (!FEATURES[i].has_value)
             continue;

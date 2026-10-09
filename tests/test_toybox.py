@@ -18,7 +18,7 @@ EXCLUDED = {
     "democracy", "saddam", "breakground", "depopulate", "trumpme", "sanction", "wmsanction", "shelovesmenot", "saddamme",
     "hate", "liberate", "revolt", "resettutorial", "allowcheats",
 }
-TABS = ["돈", "물자", "연구", "인구·여론", "외교·영토", "부대", "화면·진행"]
+TABS = ["물자", "연구", "인구·여론", "외교·영토", "부대", "화면·진행"]     # 기능 표의 탭. "돈" 탭은 기능 표가 아니라 전용 화면이 그린다
 TEXT_CALLS = ["srtoybox_feature_info", "srtoybox_command", "srtoybox_plan", "srtoybox_simulate",
               "srtoybox_settings_normalize", "srtoybox_settings_file", "srtoybox_hotkey_name"]
 
@@ -71,15 +71,16 @@ def documented(cfg) -> dict[str, tuple[str, str]]:
 
 def test_feature_table(dll):
     fs = features(dll)
-    assert len(fs) == 25
-    assert len({f["id"] for f in fs}) == 25 and len({f["command"] for f in fs}) == 25
+    assert len(fs) == 22
+    assert len({f["id"] for f in fs}) == 22 and len({f["command"] for f in fs}) == 22
+    assert not {"treasury", "georgew", "georgeww"} & {f["id"] for f in fs}   # 국고는 내장 치트를 거치지 않는다(돈 탭)
     assert [t for i, t in enumerate(f["tab"] for f in fs) if i == 0 or fs[i - 1]["tab"] != t] == TABS   # 탭끼리 모여 있고 이 순서다
     for f in fs:
         assert f["command"] == "cheat " + f["id"] and f["label"] and f["help"]
         assert not (f["has_value"] and f["target"] != "none")           # 한 기능의 인자는 하나다
         if f["has_value"]:
             assert f["min"] <= f["default"] <= f["max"]
-    assert {f["id"] for f in fs if f["has_value"]} == {"treasury", "products", "technology", "spawnunit"}
+    assert {f["id"] for f in fs if f["has_value"]} == {"products", "technology", "spawnunit"}
     assert {f["id"] for f in fs if f["target"] == "player"} == {"approval"}
     assert {f["id"] for f in fs if f["target"] == "picked"} == {"love", "neutral", "annex", "colonize", "novichok", "fight",
                                                                 "becomeregion"}
@@ -87,7 +88,7 @@ def test_feature_table(dll):
     assert [f["id"] for f in fs if f["confirm"]] == ["annex", "colonize", "novichok", "fight", "becomeregion", "instantwin"]
     assert {f["id"] for f in fs if f["tab"] == "외교·영토"} == {"love", "neutral", "treaty", "annex", "colonize", "novichok",
                                                               "fight", "becomeregion"}
-    assert dll.srtoybox_feature_info(25, ctypes.create_string_buffer(8), 8) == -1
+    assert dll.srtoybox_feature_info(22, ctypes.create_string_buffer(8), 8) == -1
 
 
 def test_only_cheats_that_were_seen_working_and_reach_what_the_user_chose(dll, cfg):
@@ -105,11 +106,11 @@ def test_only_cheats_that_were_seen_working_and_reach_what_the_user_chose(dll, c
 
 
 def test_command_text(dll):
-    assert text(dll.srtoybox_command, b"treasury", 1234, 0) == "cheat treasury 1234"
-    assert text(dll.srtoybox_command, b"treasury", 0, 0) == "cheat treasury 1"                 # 범위로 잘라 맞춘다
-    assert text(dll.srtoybox_command, b"treasury", -5, 0) == "cheat treasury 1"
-    assert text(dll.srtoybox_command, b"treasury", 10**12, 0) == "cheat treasury 1000000"
-    assert text(dll.srtoybox_command, b"georgew", 999, 1106) == "cheat georgew"                # 값도 대상도 없는 기능은 둘 다 무시한다
+    assert text(dll.srtoybox_command, b"technology", 140, 0) == "cheat technology 140"
+    assert text(dll.srtoybox_command, b"technology", 0, 0) == "cheat technology 1"             # 범위로 잘라 맞춘다
+    assert text(dll.srtoybox_command, b"technology", -5, 0) == "cheat technology 1"
+    assert text(dll.srtoybox_command, b"technology", 10**12, 0) == "cheat technology 999"
+    assert text(dll.srtoybox_command, b"finalexam", 999, 1106) == "cheat finalexam"            # 값도 대상도 없는 기능은 둘 다 무시한다
     assert text(dll.srtoybox_command, b"e=mc2", 0, 0) == "cheat e=mc2"
     assert text(dll.srtoybox_command, b"approval", 0, 1499) == "cheat approval 1499"           # 대상이 있는 기능은 지역 번호가 붙는다
     assert text(dll.srtoybox_command, b"love", 0, 1106) == "cheat love 1106"
@@ -117,7 +118,8 @@ def test_command_text(dll):
     assert text(dll.srtoybox_command, b"love", 0, 0) is None                                   # 나라를 고르지 않았으면 만들지 않는다
     assert text(dll.srtoybox_command, b"approval", 0, -1) is None
     assert text(dll.srtoybox_command, b"depopulate", 0, 0) is None                             # 표에 없는 것은 만들지 않는다
-    assert text(dll.srtoybox_command, b"treasury", 1, 0, size=4) is None                       # 버퍼가 작으면 넘치지 않고 -1
+    assert text(dll.srtoybox_command, b"treasury", 1, 0) is None                               # 지운 기능 — 국고는 돈 탭이 직접 한다
+    assert text(dll.srtoybox_command, b"technology", 1, 0, size=4) is None                     # 버퍼가 작으면 넘치지 않고 -1
 
 
 def expected_plan(command: str) -> list[str]:
@@ -189,19 +191,20 @@ def test_runner_takes_eight_and_rejects_the_rest(dll):
     assert text(dll.srtoybox_simulate, "cheat 한글".encode("utf-8"), 10) == "REJECT cheat 한글\n"   # 넣을 수 없는 글은 받지 않는다
 
 
-DEFAULTS = "hotkey_vk=84\nhotkey_mods=3\ntreasury=10000\nproducts=100000\ntechnology=120\nspawnunit=2413\n"
+DEFAULTS = "hotkey_vk=84\nhotkey_mods=3\nmoney.amount=10000\nproducts=100000\ntechnology=120\nspawnunit=2413\n"
 
 
 def test_settings_fall_back_to_defaults(dll):
     norm = lambda ini: text(dll.srtoybox_settings_normalize, ini.encode("utf-8"))
     assert norm("") == DEFAULTS
     assert norm("\xff garbage\n===\n[x]\nhotkey_vk\n=5\n") == DEFAULTS                      # 깨진 파일
-    assert norm("treasury=0\nproducts=999999999999\ntechnology=abc\nspawnunit=12x\n") == DEFAULTS   # 범위 밖·숫자 아님 → 기본값
-    assert norm("unknown=5\ngeorgew=7\ndepopulate=1\n") == DEFAULTS                          # 모르는 키, 값이 없는 기능
+    assert norm("money.amount=0\nproducts=999999999999\ntechnology=abc\nspawnunit=12x\n") == DEFAULTS   # 범위 밖·숫자 아님 → 기본값
+    assert norm("unknown=5\ngeorgew=7\ndepopulate=1\ntreasury=500\n") == DEFAULTS            # 모르는 키, 값이 없는 기능, 지운 기능
     assert norm("hotkey_vk=16\nhotkey_mods=1\n") == DEFAULTS                                 # 수정키만으로는 단축키가 못 된다
     assert norm("hotkey_vk=27\nhotkey_mods=0\n") == DEFAULTS                                 # ESC 만은 취소다
     assert norm("hotkey_vk=84\nhotkey_mods=9\n") == DEFAULTS
-    assert norm(" hotkey_vk = 123 \r\nhotkey_mods=0\r\ntreasury= 500 \r\n") == DEFAULTS.replace("=84", "=123").replace("mods=3", "mods=0").replace("treasury=10000", "treasury=500")
+    assert norm(" hotkey_vk = 123 \r\nhotkey_mods=0\r\nmoney.amount= 500 \r\n") == DEFAULTS.replace("=84", "=123").replace("mods=3", "mods=0").replace("amount=10000", "amount=500")
+    assert norm("money.amount=1000001\n") == DEFAULTS and norm("money.amount=1000000\n") == DEFAULTS.replace("=10000\n", "=1000000\n")
 
 
 def test_settings_file_round_trip(dll, tmp_path, monkeypatch):
@@ -367,7 +370,7 @@ def test_keys_and_clicks_reach_only_the_side_they_are_meant_for(dll, cfg, tmp_pa
     assert got["outside"] == "press+release"        # 설정 창 밖의 누름은 게임이 받는다
     assert got["typing"] == "1" and got["done"] == "1", got
     # 게임이 받은 글쇠는 계획 그대로다. 넣는 동안 사용자가 친 9 와 단축키(<0x54>)는 섞이지 않는다
-    assert got["text"] == typed_keys("cheat georgew")
+    assert got["text"] == typed_keys("cheat fullmapshow")
     assert got["hotkey_busy"] == "toybox"           # 넣는 동안에도 단축키는 ToyBox 의 것이고
     assert got["title_after"] == "press+release"    # 그래서 창이 닫혔다
     assert got["mods_left"] == "0"                  # Ctrl · Shift 가 눌린 채로 남지 않는다
@@ -405,7 +408,7 @@ def test_a_queued_command_is_dropped_when_the_game_ends_first(dll, cfg, tmp_path
 
 def test_the_typing_route_still_works_in_a_game_toybox_can_read(dll, cfg, tmp_path):
     got = _fields(_probe(cfg, tmp_path, "gate_typing", env={"SRTOYBOX_DIRECT": "0"}))
-    assert got["text"] == typed_keys("cheat georgew")
+    assert got["text"] == typed_keys("cheat fullmapshow")
 
 
 def test_direct_run_calls_the_games_handler(dll, cfg, tmp_path):
@@ -415,11 +418,11 @@ def test_direct_run_calls_the_games_handler(dll, cfg, tmp_path):
     (메뉴에 나갔다 오면 게임이 꺼 두므로 그때는 다시 부른다).
     """
     got = _fields(_probe(cfg, tmp_path, "direct"))
-    assert got["lines"].replace("_", " ").split("|") == ["cheat allowcheats", "cheat georgew", "cheat georgew",
-                                                        "cheat allowcheats", "cheat georgew"]
+    assert got["lines"].replace("_", " ").split("|") == ["cheat allowcheats", "cheat fullmapshow", "cheat fullmapshow",
+                                                        "cheat allowcheats", "cheat fullmapshow"]
     assert got["text"] == ""                                    # 글쇠는 가지 않는다 — 게임의 설정 창이 뜨지 않는다
     log = (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8")
-    assert log.count("직접 실행: cheat georgew") == 3
+    assert log.count("직접 실행: cheat fullmapshow") == 3
 
 
 def test_a_fault_in_the_games_handler_is_caught_and_nothing_runs_after(dll, cfg, tmp_path):
@@ -440,7 +443,7 @@ def test_the_games_handler_is_not_called_outside_a_game(dll, cfg, tmp_path):
 def test_srtoybox_direct_0_keeps_the_typing_route(dll, cfg, tmp_path):
     """탈출구: SRTOYBOX_DIRECT=0 이면 명령 처리 함수를 부를 수 있어도 글쇠를 넣는다."""
     got = _fields(_probe(cfg, tmp_path, "direct_off", env={"SRTOYBOX_DIRECT": "0"}))
-    assert got["lines"] == "" and got["text"] == typed_keys("cheat georgew")
+    assert got["lines"] == "" and got["text"] == typed_keys("cheat fullmapshow")
 
 
 @pytest.mark.parametrize("mode", ["reenter_timer", "reenter_keyup", "reenter_present"])
@@ -452,10 +455,10 @@ def test_the_games_handler_may_come_back_into_toybox(dll, cfg, tmp_path, mode):
     """
     got = _fields(_probe(cfg, tmp_path, mode))
     assert got["inside"] == "ok" and got["deepest"] == "1", got
-    assert got["lines"].replace("_", " ").split("|") == ["cheat allowcheats"] + ["cheat georgew"] * 3
+    assert got["lines"].replace("_", " ").split("|") == ["cheat allowcheats"] + ["cheat fullmapshow"] * 3
     assert got["text"] == ""
     log = (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8")
-    assert "예외" not in log and log.count("직접 실행: cheat georgew") == 3, log
+    assert "예외" not in log and log.count("직접 실행: cheat fullmapshow") == 3, log
 
 
 def test_toybox_keeps_drawing_after_an_exception_passes_through_present(dll, cfg, tmp_path):
@@ -469,7 +472,7 @@ def test_srtoybox_read_0_turns_the_game_reading_off(dll, cfg, tmp_path):
     """탈출구: ToyBox 가 게임 안인데도 "게임 밖"으로 잘못 알면(다른 빌드, 보지 못한 화면) 모든 단추가 꺼진 채 풀 길이 없다.
     SRTOYBOX_READ=0 이면 게임을 읽지 않는다 — 1단계처럼 단추가 늘 켜져 있고 글쇠를 넣는다."""
     got = _fields(_probe(cfg, tmp_path, "direct_read_off", env={"SRTOYBOX_READ": "0"}))
-    assert got["lines"] == "" and got["text"] == typed_keys("cheat georgew")
+    assert got["lines"] == "" and got["text"] == typed_keys("cheat fullmapshow")
     log = (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8")
     assert "게임 상태를 읽지 않습니다 (SRTOYBOX_READ=0)" in log, log
 
@@ -512,7 +515,7 @@ def test_direct_run_is_dropped_when_the_game_stops_being_playable_first(dll, cfg
     got = json.loads(_probe(cfg, tmp_path, mode))
     assert got["dropped"] == [] and got["trouble"] == "게임이 진행 중이 아니어서 실행하지 않았습니다."
     assert got["status"] == status and got["while_off"] == []
-    assert got["lines"] == ["cheat allowcheats", "cheat georgew"]
+    assert got["lines"] == ["cheat allowcheats", "cheat fullmapshow"]
 
 
 @pytest.mark.parametrize("mode, status", [("pick_gone", "플레이 중: 독일 (1499)"), ("pick_become", "플레이 중: 폴란드 (1106)")],
@@ -541,6 +544,69 @@ def test_hangul_typed_into_an_ansi_game_window_reaches_the_search_box_whole(dll,
     got = json.loads(_probe(cfg, tmp_path, "ansi_search"))
     assert got["ansi"] == 1
     assert got["search"] == "폴" and got["rows"] == ["row:1106"]   # 폴란드만 남는다
+
+
+MONEY_BUTTONS = ["money:+100b", "money:+10b", "money:-100b", "money:-10b", "money:add", "money:set", "money:sub", "money:zero"]
+VALUES_FAILED = "값 쓰기가 실패해 껐습니다. 게임을 다시 시작하면 다시 시도합니다."
+
+
+def test_the_money_tab_writes_the_treasury_without_any_cheat(dll, cfg, tmp_path):
+    """요구 3: 돈 탭은 내장 치트를 거치지 않는다 — 명령 처리 함수를 부르지 않고, 글쇠를 넣지 않고, 치트 허용 비트를 건드리지 않는다.
+    쓰는 곳은 플레이어의 국고뿐이다(다른 나라의 국고는 그대로다)."""
+    got = json.loads(_probe(cfg, tmp_path, "money"))
+    assert got["now"] == "국고: $ 14.43 B" and got["off"] == "-"
+    assert got["buttons"] == MONEY_BUTTONS and got["cheat_buttons"] == []
+    # +$10 B, +$100 B, -$10 B, -$100 B, $0, 더하기 × 2, 빼기, +$10 B, 이 값으로 (입력란은 1234 백만 달러)
+    assert got["steps"] == [24.43e9, 124.43e9, 114.43e9, 14.43e9, 0.0, 1.234e9, 2.468e9, 1.234e9, 11.234e9, 1.234e9]
+    assert got["amount"] == "1234" and got["now_after"] == "국고: $ 1.23 B" and got["wrote"] == "국고 11.23 B -> 1.23 B"
+    assert got["lines"] == [] and got["text"] == "" and got["options"] == 0 and got["poland"] == 5e9
+    log = (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8")
+    assert log.count("값 쓰기: 국고") == 10 and "직접 실행" not in log
+
+
+def test_money_buttons_are_off_outside_a_game(dll, cfg, tmp_path):
+    got = json.loads(_probe(cfg, tmp_path, "money_menu"))
+    assert got["now"] == "국고: -" and got["buttons"] == MONEY_BUTTONS       # 단추는 보이지만 꺼져 있다
+    assert got["steps"] == [14.43e9] and got["lines"] == [] and got["text"] == ""
+    assert got["status"] == "게임을 진행 중이 아닙니다 — 단추가 꺼져 있습니다"
+
+
+def test_a_money_request_is_dropped_when_the_game_ends_first(dll, cfg, tmp_path):
+    """단추를 누른 뒤 쓰기 전에 게임에서 나가면 쓰지 않고 버린다. 돌아온 뒤에 뒤늦게 쓰이지 않고, 새로 누르면 된다."""
+    got = json.loads(_probe(cfg, tmp_path, "money_leave"))
+    assert got["dropped"] == 14.43e9 and got["unwritten"] == "게임이 진행 중이 아니어서 쓰지 않았습니다."
+    assert got["steps"] == [24.43e9] and got["unwritten_after"] == "-"
+
+
+@pytest.mark.parametrize("mode, env, why", [
+    ("money_write_off", {"SRTOYBOX_WRITE": "0"}, "값 쓰기를 껐습니다 (SRTOYBOX_WRITE=0)"),
+    ("money_notfound", {}, "이 게임 판에서는 쓸 수 없습니다 (값의 자리를 주지 않았습니다)"),
+    ("money_unread", {"SRTOYBOX_READ": "0"}, "게임 상태를 읽을 수 있을 때만 씁니다."),
+    ("money_unreadable", {}, "게임의 값을 읽을 수 없어 쓸 수 없습니다."),
+], ids=["write-off", "not-found", "unread", "unreadable"])
+def test_the_money_tab_says_why_it_is_off_and_offers_no_cheat(dll, cfg, tmp_path, mode, env, why):
+    """쓸 수 없을 때 내장 치트로 되돌아가지 않는다 — 까닭 한 줄만 보이고 단추가 없다."""
+    got = json.loads(_probe(cfg, tmp_path, mode, env=env))
+    assert got["off"] == why and got["now"] == "-"
+    assert got["buttons"] == [] and got["cheat_buttons"] == []
+    assert got["lines"] == [] and got["text"] == ""
+
+
+def test_a_failed_write_turns_the_money_tab_off_and_says_why(dll, cfg, tmp_path):
+    """쓸 수 없는 곳을 만나면 죽지 않고, 이번 실행에서 값 쓰기를 끄고 까닭을 보인다."""
+    got = json.loads(_probe(cfg, tmp_path, "money_fail"))
+    assert got["now"] == "국고: $ 14.43 B" and got["steps"] == [14.43e9]
+    assert got["off_after"] == VALUES_FAILED and got["buttons_after"] == []
+    log = (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8")
+    assert log.count("값 쓰기 실패 (국고) — 값 쓰기를 끕니다") == 1
+
+
+def test_money_is_not_written_while_the_games_handler_is_running(dll, cfg, tmp_path):
+    """옮기지 않은 기능의 직접 실행이 게임의 함수 안에 있는 동안 타이머가 다시 와도, 그 안에서는 게임의 메모리에 쓰지 않는다."""
+    got = json.loads(_probe(cfg, tmp_path, "money_reenter"))
+    assert got["lines"] == ["cheat allowcheats", "cheat fullmapshow"]
+    assert got["inside"] == [14.43e9, 14.43e9]                  # 그 함수 안에서 다시 온 타이머의 앞뒤
+    assert got["after"] == 24.43e9                              # 함수가 끝난 뒤에 쓴다
 
 
 def test_prologue_length_knows_only_plain_function_heads(dll):

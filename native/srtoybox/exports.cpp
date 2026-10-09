@@ -10,6 +10,7 @@
 #include "features.h"
 #include "game.h"
 #include "input.h"
+#include "keeper.h"
 #include "locate.h"
 #include "log.h"
 #include "overlay.h"
@@ -19,6 +20,7 @@
 #include "settings.h"
 #include "sigs.h"
 #include "ui.h"
+#include "values.h"
 
 #define EXPORT extern "C" __declspec(dllexport)
 
@@ -262,6 +264,81 @@ EXPORT void srtoybox_test_game(const unsigned char *base, const GameAddresses *a
     game_set_for_test(base, at, handler);
 }
 
+// 테스트: 가짜 메모리에서 값을 읽는다. "ok=1 treasury=14430000000 used=100100010000 stock=1000,0,0,2500,…"
+EXPORT int srtoybox_values_read(const unsigned char *base, const GameAddresses *at, const ValueLayout *layout, char *out, int size)
+{
+    if (at == nullptr || layout == nullptr)
+        return -1;
+    const GameValues v = read_values(base, *at, *layout);
+    char number[40];
+    snprintf(number, sizeof(number), "%.17g", v.treasury);
+    std::string used, stock;
+    for (int i = 0; i < STOCK_SLOTS; i++) {
+        used += v.used[i] ? '1' : '0';
+        char one[32];
+        snprintf(one, sizeof(one), "%s%.9g", i == 0 ? "" : ",", static_cast<double>(v.stock[i]));
+        stock += one;
+    }
+    return put("ok=" + std::to_string(v.ok) + " treasury=" + number + " used=" + used + " stock=" + stock, out, size);
+}
+
+// 테스트: 가짜 메모리에 쓴다. slot 이 -1 이면 국고, 아니면 그 칸의 재고. 돌려주는 값은 Wrote
+// (0 썼다, 1 게임 밖, 2 쓰지 않는 물자, 3 쓸 수 없는 값이나 칸, 4 실패).
+EXPORT int srtoybox_values_write(const unsigned char *base, const GameAddresses *at, const ValueLayout *layout, int slot, double value)
+{
+    if (at == nullptr || layout == nullptr)
+        return -1;
+    return static_cast<int>(slot == -1 ? write_treasury(base, *at, *layout, value)
+                                       : write_stock(base, *at, *layout, slot, static_cast<float>(value)));
+}
+
+// 테스트: 이 프로세스의 "게임"에 값의 자리를 준다(srtoybox_test_game 다음에 부른다). nullptr 이면 못 찾은 것으로.
+EXPORT void srtoybox_test_values(const ValueLayout *layout)
+{
+    game_set_values_for_test(layout);
+}
+
+// 테스트: 게임이 뜰 때의 찾기(game_init_from)를 그 이미지에 돌린다. 이미지는 srtoybox_test_game(nullptr, …) 로 비울 때까지 살아 있어야 한다.
+EXPORT void srtoybox_test_init(const unsigned char *image, unsigned long long size)
+{
+    game_init_from(image, static_cast<size_t>(size));
+}
+
+// 테스트: 이 프로세스의 "게임"에 대해 아는 것. 비트 1 = 상태를 읽는다, 2 = 명령 처리 함수를 부를 수 있다, 4 = 값을 쓸 수 있다.
+EXPORT int srtoybox_game_flags(void)
+{
+    return (game_reads() ? 1 : 0) | (game_can_call() ? 2 : 0) | (game_values_off().empty() ? 4 : 0);
+}
+
+EXPORT int srtoybox_values_off(char *out, int size)
+{
+    return put(game_values_off(), out, size);
+}
+
+// 테스트: 값 쓰기 요청(keeper.h). slot 이 -1 이면 국고. change: 0 더하기, 1 이 값으로, 2 바닥. 받았으면 1.
+EXPORT int srtoybox_keeper_request(int slot, int change, double amount)
+{
+    if (change < 0 || change > 2)
+        return -1;
+    return keeper_enqueue({slot, static_cast<Change>(change), amount}) ? 1 : 0;
+}
+
+EXPORT void srtoybox_keeper_tick(void)
+{
+    keeper_tick();
+}
+
+// 테스트: "<마지막으로 쓴 것>\t<알림>".
+EXPORT int srtoybox_keeper_text(char *out, int size)
+{
+    return put(keeper_last() + '\t' + keeper_notice(), out, size);
+}
+
+EXPORT void srtoybox_keeper_reset(void)
+{
+    keeper_reset_for_test();
+}
+
 EXPORT int srtoybox_region_label(int number, char *out, int size)
 {
     return put(region_label(number), out, size);
@@ -292,6 +369,26 @@ EXPORT int srtoybox_ui_report(char *out, int size)
 EXPORT int srtoybox_hotkey_name(int vk, int mods, char *out, int size)
 {
     return put(hotkey_name(vk, mods), out, size);
+}
+
+// 테스트: 값 계산(values.h). stock 이 0 이면 국고, 아니면 재고. change: 0 더하기, 1 이 값으로, 2 바닥.
+// 돌려주는 값은 Verdict: 0 쓴다(*out 에 쓸 값), 1 바꿀 것이 없다, 2 쓰지 않는다. 인자가 틀리면 -1.
+EXPORT int srtoybox_value(int stock, double now, int change, double amount, double *out)
+{
+    if (change < 0 || change > 2 || out == nullptr)
+        return -1;
+    double next = 0;
+    float next_stock = 0;       // (small 은 windows.h 가 매크로로 쓴다)
+    const Verdict verdict = stock != 0 ? stock_value(static_cast<float>(now), static_cast<Change>(change), amount, &next_stock)
+                                       : treasury_value(now, static_cast<Change>(change), amount, &next);
+    if (verdict == Verdict::Write)
+        *out = stock != 0 ? static_cast<double>(next_stock) : next;
+    return static_cast<int>(verdict);
+}
+
+EXPORT int srtoybox_short_number(double value, char *out, int size)
+{
+    return put(short_number(value), out, size);
 }
 
 

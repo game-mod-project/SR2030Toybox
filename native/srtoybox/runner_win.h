@@ -12,4 +12,5 @@ int runner_pending();
 std::string runner_last();
 std::string runner_notice();                       // 실행하지 못한 까닭(창에 보인다). 없으면 빈 글
 bool runner_faulted();                             // 직접 실행 중 예외가 났다 — 게임을 다시 띄울 때까지 아무것도 실행하지 않는다
+bool runner_calling();                             // 지금 게임의 명령 처리 함수 안이다 — 그동안 ToyBox 는 게임의 메모리에 쓰지 않는다
 bool runner_direct();                              // 명령을 게임의 함수에 바로 넘기는가(아니면 글쇠 방식)

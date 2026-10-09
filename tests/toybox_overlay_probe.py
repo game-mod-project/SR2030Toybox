@@ -39,6 +39,16 @@ Present 를 부르고 창 메시지를 보낸다. Steam 오버레이 같은 다�
     reenter_present  그 안에서 화면을 한 번 내보낸다
 ToyBox 가 부른 함수 안에서 난 예외를 위에서 잡을 때 (출력 "caught=<잡았는가> drawn=<그 뒤에 설정 창을 그렸는가>"):
     present_fault    진짜 Present 자리의 함수가 한 번 죽는다
+돈 탭 — 내장 치트를 거치지 않고 국고를 고친다 (출력은 JSON 한 줄):
+    money            게임 안에서 빠른 단추 다섯과 입력란(1234)의 더하기 · 빼기 · 이 값으로를 누른다
+    money_menu       메뉴에 있다 — 단추가 꺼져 있다
+    money_leave      단추를 누른 뒤 쓰기 전에 게임에서 나간다 — 쓰지 않고 버린다. 돌아오면 다시 된다
+    money_write_off  SRTOYBOX_WRITE=0 — 까닭 한 줄만 보인다
+    money_notfound   값의 자리를 찾지 못한 게임 — 〃
+    money_unread     SRTOYBOX_READ=0 — 〃
+    money_unreadable 게임 안인데 재고 칸 하나가 수가 아니다(보지 못한 구성의 판) — 〃
+    money_fail       플레이어 지역 객체가 읽기 전용 쪽에 있다 — 쓰기가 실패하고 탭이 꺼진다
+    money_reenter    옮기지 않은 기능의 직접 실행이 게임의 함수 안에 있는 동안 타이머가 다시 온다 — 그 안에서는 쓰지 않는다
 설정 창에 보이는 글 (출력은 JSON 한 줄. 보이지 않는 글은 "-"):
     confirm          "외교·영토" 탭에서 폴란드를 고르고 스크롤을 내려 맨 아래의 "이 나라로 플레이"를 두 번 누른다
     confirm_fault    같은 탭에서 직접 실행이 죽는다 — 경고가 스크롤을 내려도 보인다
@@ -72,7 +82,8 @@ WM_TIMER, WM_MOUSEWHEEL = 0x113, 0x20A
 TIMER_ID = 0x7B0C0001       # ToyBox 의 실행기가 게임 창에 건 타이머(native/srtoybox/input.cpp)
 REAL_KEY = 0x00140001       # 실제 키보드의 메시지처럼 스캔 코드가 든 lParam (ToyBox 의 실행기가 보내는 것은 스캔 코드가 0 이다)
 # 설정 창의 자리: 처음 뜨는 곳 40,60 · 크기 500x460 (build/verify/toybox/G1-open.png). 단추의 자리는 창에게 묻는다(Game.spot)
-BUTTON = "run:georgew"      # 돈 탭의 둘째 줄 "국고 +$10 B" (cheat georgew)
+CHEAT_TAB = "tab:화면·진행"   # 아직 내장 치트로 도는 단추가 있는 탭(첫 탭 "돈"은 값 쓰기 전용 화면이다)
+BUTTON = "run:fullmapshow"   # 그 탭의 첫 줄 "GUI 숨기기/보이기" (cheat fullmapshow) — 묶음 6 에서 옮길 때까지 남는다
 TITLE = (300, 70)           # 제목 줄 — 눌러도 아무 일도 없다
 NO_DIRTY_RECTS = (ctypes.c_byte * 40)()     # 0 으로 채운 DXGI_PRESENT_PARAMETERS (Present1 이 읽는 동안 살아 있어야 한다)
 
@@ -471,6 +482,12 @@ class Game:
         self.present(3)
         return "game" if ("down", 0x54) in self.got[seen:] else "toybox"
 
+    def open(self, lparam: int = 1) -> str:
+        """단축키로 창을 열고 CHEAT_TAB 으로 간다. 단축키를 받은 쪽("toybox" / "game")을 돌려준다."""
+        who = self.hotkey(lparam)
+        self.click(CHEAT_TAB)
+        return who
+
     def has(self, name: str, value: int) -> bool:
         return (name, value) in self.got
 
@@ -500,17 +517,23 @@ def start_game(hook: str, buffer: tuple[int, int] | None = None, ansi: bool = Fa
     return game
 
 
-def fake_game(hook: str, handler: int | None = None) -> FakeGame:
-    """ToyBox 가 보는 "게임"을 가짜 메모리로 바꾼다. 폴란드(141, 1106)와 독일(176, 1499)이 있고 메뉴 상태다.
+def fake_game(hook: str, handler: int | None = None, values: bool = True) -> FakeGame:
+    """ToyBox 가 보는 "게임"을 가짜 메모리로 바꾼다. 폴란드(141, 1106. 국고 $5 B)와 독일(176, 1499. 국고 $14.43 B)이 있고 메뉴 상태다.
 
     handler 는 명령 처리 함수 자리에 둘 함수의 주소(없으면 직접 실행을 쓰는 테스트가 아니다).
+    values 가 False 면 값의 자리를 찾지 못한 게임이다(돈 탭이 꺼진다).
     """
     toybox = ctypes.WinDLL(str(Path(hook).with_name("srtoybox.dll")))
     toybox.srtoybox_test_game.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
+    toybox.srtoybox_test_values.argtypes = [ctypes.c_void_p]
     fake = FakeGame()
     fake.region(141, 1106, alive=3)
     fake.region(176, 1499)
+    fake.set_treasury(141, 5e9)
+    fake.set_treasury(176, 14.43e9)
     toybox.srtoybox_test_game(fake.base, ctypes.byref(fake.at), handler)
+    if values:
+        toybox.srtoybox_test_values(ctypes.byref(fake.layout))
     return fake
 
 
@@ -521,7 +544,7 @@ def run_gate(hook: str, mode: str) -> int:
     fake = fake_game(hook)
     if mode != "gate_menu":
         fake.play(176)
-    game.hotkey()
+    game.open()
     button = game.click(BUTTON)
     if mode == "gate_leave":
         fake.menu()                                           # 눌린 명령이 실행되기 전에 게임에서 나갔다
@@ -555,7 +578,7 @@ def run_direct(hook: str, mode: str) -> int:
     fake = box["fake"] = fake_game(hook, crash_stub() if mode == "direct_fault" else ctypes.cast(handler, ctypes.c_void_p).value)
     if mode not in ("direct_menu", "direct_read_off"):
         fake.play(176)
-    game.hotkey()
+    game.open()
     game.got.clear()
     if mode in ("direct_off", "direct_read_off"):
         game.click(BUTTON)
@@ -620,7 +643,7 @@ def run_window(hook: str, mode: str) -> int:
     out: dict[str, object] = {}
     if mode in ("leave", "multiplayer"):
         fake.play(176)
-        game.hotkey()
+        game.open()
         game.click(BUTTON)                                    # 눌렀다. 실행은 다음 타이머에서다(메시지를 돌릴 때 온다)
         if mode == "leave":
             fake.menu()                                       # 그 전에 게임에서 나갔다
@@ -745,7 +768,7 @@ def run_reenter(hook: str, mode: str) -> int:
     handler = HANDLER(body)
     fake = box["fake"] = fake_game(hook, ctypes.cast(handler, ctypes.c_void_p).value)
     fake.play(176)
-    game.hotkey()
+    game.open()
     game.got.clear()
     game.click(BUTTON)
     game.click(BUTTON)                                        # 둘째 명령이 대기열에 있는 채로 첫째가 실행된다
@@ -754,6 +777,82 @@ def run_reenter(hook: str, mode: str) -> int:
     game.wait(0.4)
     print(f"inside={';'.join(inside) or '-'} deepest={box['deepest']} lines=" + "|".join(line.replace(" ", "_") for line in lines)
           + " text=" + game.text())
+    return 0
+
+
+MONEY = "tab:돈"
+
+
+def run_money(hook: str, mode: str) -> int:
+    """돈 탭: 내장 치트를 거치지 않고 국고를 고친다. 출력은 JSON 한 줄(보이지 않는 글은 "-")."""
+    home = os.environ.get("SRTOYBOX_HOME")
+    if mode == "money" and home:
+        Path(home, "toybox.ini").write_text("money.amount=1234\n", encoding="utf-8")   # 입력란의 값(백만 달러). ToyBox 가 뜰 때 읽는다
+    game = start_game(hook)
+    if game is None:
+        return 0
+    lines: list[str] = []
+    inside: list[float] = []
+    box: dict[str, FakeGame] = {}
+
+    def body(_context, line):
+        lines.append(line.decode())
+        if line == b"cheat allowcheats":
+            box["fake"].poke(OPTIONS, "<I", box["fake"].peek(OPTIONS, "<I") | 0x40)
+        elif mode == "money_reenter":                         # 게임의 함수가 일하는 도중에 ToyBox 의 타이머가 다시 온다
+            inside.append(box["fake"].treasury(176))
+            user32.SendMessageW(game.hwnd, WM_TIMER, TIMER_ID, 0)
+            inside.append(box["fake"].treasury(176))
+
+    game.handler = HANDLER(body)                              # 게임이 살아 있는 동안 붙들어 둔다
+    fake = box["fake"] = fake_game(hook, ctypes.cast(game.handler, ctypes.c_void_p).value, values=mode != "money_notfound")
+    if mode == "money_fail":
+        fake.lock(176)                                        # 플레이어 지역 객체가 읽기 전용 쪽에 있다(읽을 수는 있다)
+    if mode == "money_unreadable":
+        fake.set_stock(176, 9, float("nan"))                  # 값을 통째로 믿지 않는다(read_values)
+    if mode != "money_menu":
+        fake.play(176)
+    game.hotkey()                                             # 창이 열리면 첫 탭이 "돈"이다
+    game.got.clear()
+    facts = game.facts()
+    out: dict[str, object] = {"now": game.shown("money:now"), "off": game.shown("money:off")}
+    out["cheat_buttons"] = sorted(name for name in facts if name.startswith("run:"))
+    out["buttons"] = sorted(name for name in facts
+                            if name.startswith("money:") and name not in ("money:now", "money:off", "money:amount"))
+
+    def press(name: str) -> float:
+        game.click(name)
+        game.wait(0.2)                                        # 쓰는 것은 다음 타이머에서다
+        return fake.treasury(176)
+
+    if mode == "money":
+        out["steps"] = [press(name) for name in ("money:+10b", "money:+100b", "money:-10b", "money:-100b", "money:zero",
+                                                 "money:add", "money:add", "money:sub", "money:+10b", "money:set")]
+        out["amount"], out["now_after"], out["wrote"] = game.shown("money:amount"), game.shown("money:now"), game.shown("wrote")
+    elif mode == "money_menu":
+        out["steps"] = [press("money:+10b")]
+        out["status"] = game.shown("status")
+    elif mode == "money_leave":
+        game.click("money:+10b")                              # 눌렀다. 쓰는 것은 다음 타이머에서다(메시지를 돌릴 때 온다)
+        fake.menu()                                           # 그 전에 게임에서 나갔다
+        game.wait(0.3)
+        out["dropped"], out["unwritten"] = fake.treasury(176), game.shown("unwritten")
+        fake.play(176)
+        out["steps"] = [press("money:+10b")]                  # 돌아오면 다시 된다
+        out["unwritten_after"] = game.shown("unwritten")
+    elif mode == "money_fail":
+        out["steps"] = [press("money:+10b")]
+        out["off_after"] = game.shown("money:off")
+        out["buttons_after"] = sorted(name for name in game.facts() if name.startswith("money:") and name != "money:off")
+    elif mode == "money_reenter":
+        game.click(CHEAT_TAB)
+        game.click(BUTTON)                                    # 옮기지 않은 기능 하나(직접 실행)가 대기열에 든다
+        game.click(MONEY)
+        game.click("money:+10b")                              # 국고 요청도 대기열에 든다
+        game.wait(0.5)
+        out["inside"], out["after"] = inside, fake.treasury(176)
+    out["lines"], out["text"], out["options"], out["poland"] = lines, game.text(), fake.peek(OPTIONS, "<I"), fake.treasury(141)
+    print(json.dumps(out, ensure_ascii=False))
     return 0
 
 
@@ -799,7 +898,7 @@ def run_input(hook: str) -> int:
     game = start_game(hook)
     if game is None:
         return 0
-    out = {"hotkey": game.hotkey()}
+    out = {"hotkey": game.open()}
     out["button"] = game.click(BUTTON)                        # 설정 창의 단추 — 게임에 가면 안 된다. 명령이 대기열에 든다
     out["outside"] = game.click((700, 100))                   # 설정 창 밖 — 게임이 받아야 한다
     game.got.clear()
@@ -862,6 +961,8 @@ def main() -> int:
         return run_direct(hook, mode)
     if mode.startswith("reenter_"):
         return run_reenter(hook, mode)
+    if mode.startswith("money"):
+        return run_money(hook, mode)
     if mode in ("confirm", "confirm_fault", "hints", "leave", "multiplayer", "pick_gone", "pick_become", "pick_again", "ansi_search"):
         return run_window(hook, mode)
     if mode == "present_fault":

@@ -2,10 +2,9 @@
 
 #include <cstring>
 
+// 국고의 세 줄(treasury · georgew · georgeww)은 3단계 1 에서 지웠다 — 돈 탭이 내장 치트 없이 직접 한다(ui.cpp 의 money_tab).
+// 남은 줄은 아직 내장 치트로 돈다. 묶음마다 옮기고 지운다(docs/10-toybox.md 의 "다음 단계").
 const Feature FEATURES[] = {
-    {"treasury", "돈", "국고 추가", "입력한 금액(백만 달러)만큼 국고가 늘어난다", "cheat treasury", true, 10000, 1, 1000000, false},
-    {"georgew", "돈", "국고 +$10 B", "국고가 100억 달러 늘어난다", "cheat georgew", false, 0, 0, 0, false},
-    {"georgeww", "돈", "국고 +$100 B", "국고가 1000억 달러 늘어난다", "cheat georgeww", false, 0, 0, 0, false},
     {"products", "물자", "모든 물자 추가", "입력한 수량만큼 모든 물자의 재고가 늘어난다", "cheat products", true, 100000, 1, 100000000, false},
     {"branson", "물자", "모든 물자 +100만", "모든 물자의 재고가 100만씩 늘어난다", "cheat branson", false, 0, 0, 0, false},
     {"bezos", "물자", "모든 물자 +1억", "모든 물자의 재고가 약 1억씩 늘어난다", "cheat bezos", false, 0, 0, 0, false},
