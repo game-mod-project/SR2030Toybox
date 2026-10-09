@@ -18,7 +18,7 @@ EXCLUDED = {
     "democracy", "saddam", "breakground", "depopulate", "trumpme", "sanction", "wmsanction", "shelovesmenot", "saddamme",
     "hate", "liberate", "revolt", "resettutorial", "allowcheats",
 }
-TABS = ["물자", "연구", "인구·여론", "외교·영토", "부대", "화면·진행"]     # 기능 표의 탭. "돈" 탭은 기능 표가 아니라 전용 화면이 그린다
+TABS = ["연구", "인구·여론", "외교·영토", "부대", "화면·진행"]     # 기능 표의 탭. "돈" · "물자" 탭은 기능 표가 아니라 전용 화면이 그린다
 TEXT_CALLS = ["srtoybox_feature_info", "srtoybox_command", "srtoybox_plan", "srtoybox_simulate",
               "srtoybox_settings_normalize", "srtoybox_settings_file", "srtoybox_hotkey_name"]
 
@@ -71,16 +71,17 @@ def documented(cfg) -> dict[str, tuple[str, str]]:
 
 def test_feature_table(dll):
     fs = features(dll)
-    assert len(fs) == 22
-    assert len({f["id"] for f in fs}) == 22 and len({f["command"] for f in fs}) == 22
-    assert not {"treasury", "georgew", "georgeww"} & {f["id"] for f in fs}   # 국고는 내장 치트를 거치지 않는다(돈 탭)
+    assert len(fs) == 19
+    assert len({f["id"] for f in fs}) == 19 and len({f["command"] for f in fs}) == 19
+    # 국고와 물자는 내장 치트를 거치지 않는다(돈 탭 · 물자 탭)
+    assert not {"treasury", "georgew", "georgeww", "products", "branson", "bezos"} & {f["id"] for f in fs}
     assert [t for i, t in enumerate(f["tab"] for f in fs) if i == 0 or fs[i - 1]["tab"] != t] == TABS   # 탭끼리 모여 있고 이 순서다
     for f in fs:
         assert f["command"] == "cheat " + f["id"] and f["label"] and f["help"]
         assert not (f["has_value"] and f["target"] != "none")           # 한 기능의 인자는 하나다
         if f["has_value"]:
             assert f["min"] <= f["default"] <= f["max"]
-    assert {f["id"] for f in fs if f["has_value"]} == {"products", "technology", "spawnunit"}
+    assert {f["id"] for f in fs if f["has_value"]} == {"technology", "spawnunit"}
     assert {f["id"] for f in fs if f["target"] == "player"} == {"approval"}
     assert {f["id"] for f in fs if f["target"] == "picked"} == {"love", "neutral", "annex", "colonize", "novichok", "fight",
                                                                 "becomeregion"}
@@ -88,7 +89,7 @@ def test_feature_table(dll):
     assert [f["id"] for f in fs if f["confirm"]] == ["annex", "colonize", "novichok", "fight", "becomeregion", "instantwin"]
     assert {f["id"] for f in fs if f["tab"] == "외교·영토"} == {"love", "neutral", "treaty", "annex", "colonize", "novichok",
                                                               "fight", "becomeregion"}
-    assert dll.srtoybox_feature_info(22, ctypes.create_string_buffer(8), 8) == -1
+    assert dll.srtoybox_feature_info(19, ctypes.create_string_buffer(8), 8) == -1
 
 
 def test_only_cheats_that_were_seen_working_and_reach_what_the_user_chose(dll, cfg):
@@ -119,6 +120,7 @@ def test_command_text(dll):
     assert text(dll.srtoybox_command, b"approval", 0, -1) is None
     assert text(dll.srtoybox_command, b"depopulate", 0, 0) is None                             # 표에 없는 것은 만들지 않는다
     assert text(dll.srtoybox_command, b"treasury", 1, 0) is None                               # 지운 기능 — 국고는 돈 탭이 직접 한다
+    assert text(dll.srtoybox_command, b"products", 1, 0) is None                               # 〃 — 물자는 물자 탭이
     assert text(dll.srtoybox_command, b"technology", 1, 0, size=4) is None                     # 버퍼가 작으면 넘치지 않고 -1
 
 
@@ -191,15 +193,16 @@ def test_runner_takes_eight_and_rejects_the_rest(dll):
     assert text(dll.srtoybox_simulate, "cheat 한글".encode("utf-8"), 10) == "REJECT cheat 한글\n"   # 넣을 수 없는 글은 받지 않는다
 
 
-DEFAULTS = "hotkey_vk=84\nhotkey_mods=3\nmoney.amount=10000\nproducts=100000\ntechnology=120\nspawnunit=2413\n"
+DEFAULTS = "hotkey_vk=84\nhotkey_mods=3\nmoney.amount=10000\ntechnology=120\nspawnunit=2413\n"
 
 
 def test_settings_fall_back_to_defaults(dll):
     norm = lambda ini: text(dll.srtoybox_settings_normalize, ini.encode("utf-8"))
     assert norm("") == DEFAULTS
     assert norm("\xff garbage\n===\n[x]\nhotkey_vk\n=5\n") == DEFAULTS                      # 깨진 파일
-    assert norm("money.amount=0\nproducts=999999999999\ntechnology=abc\nspawnunit=12x\n") == DEFAULTS   # 범위 밖·숫자 아님 → 기본값
-    assert norm("unknown=5\ngeorgew=7\ndepopulate=1\ntreasury=500\n") == DEFAULTS            # 모르는 키, 값이 없는 기능, 지운 기능
+    assert norm("money.amount=0\ntechnology=999999999999\nspawnunit=12x\n") == DEFAULTS       # 범위 밖·숫자 아님 → 기본값
+    assert norm("technology=abc\n") == DEFAULTS
+    assert norm("unknown=5\nfinalexam=7\ndepopulate=1\ntreasury=500\nproducts=5\n") == DEFAULTS   # 모르는 키, 값이 없는 기능, 지운 기능
     assert norm("hotkey_vk=16\nhotkey_mods=1\n") == DEFAULTS                                 # 수정키만으로는 단축키가 못 된다
     assert norm("hotkey_vk=27\nhotkey_mods=0\n") == DEFAULTS                                 # ESC 만은 취소다
     assert norm("hotkey_vk=84\nhotkey_mods=9\n") == DEFAULTS
@@ -564,6 +567,18 @@ def test_the_money_tab_writes_the_treasury_without_any_cheat(dll, cfg, tmp_path)
     assert log.count("값 쓰기: 국고") == 10 and "직접 실행" not in log
 
 
+DIRECT_HINT = "값은 바로 바뀝니다. 게임 화면의 숫자는 그 패널을 누르거나 다시 열 때 따라옵니다."
+
+
+@pytest.mark.parametrize("env", [{}, {"SRTOYBOX_DIRECT": "0"}], ids=["direct", "typing"])
+def test_the_hint_on_a_value_tab_never_talks_about_the_typing_route(dll, cfg, tmp_path, env):
+    """돈 · 물자 탭은 글쇠 방식과 상관없다. 내장 치트로 도는 기능이 글쇠 방식으로 돌 때(SRTOYBOX_DIRECT=0, 옛 찾기 실패)에도
+    이 탭들의 바닥 안내는 "게임의 설정 창이 잠깐 열렸다 닫힙니다"가 아니다."""
+    got = json.loads(_probe(cfg, tmp_path, "money_hint", env=env))
+    assert got["hint"] == DIRECT_HINT and got["stock_hint"] == DIRECT_HINT
+    assert got["cheat_hint"] == (DIRECT_HINT if not env else "단추를 누르면 게임의 설정 창이 잠깐 열렸다 닫힙니다.")
+
+
 def test_money_buttons_are_off_outside_a_game(dll, cfg, tmp_path):
     got = json.loads(_probe(cfg, tmp_path, "money_menu"))
     assert got["now"] == "국고: -" and got["buttons"] == MONEY_BUTTONS       # 단추는 보이지만 꺼져 있다
@@ -587,8 +602,9 @@ def test_a_money_request_is_dropped_when_the_game_ends_first(dll, cfg, tmp_path)
 def test_the_money_tab_says_why_it_is_off_and_offers_no_cheat(dll, cfg, tmp_path, mode, env, why):
     """쓸 수 없을 때 내장 치트로 되돌아가지 않는다 — 까닭 한 줄만 보이고 단추가 없다."""
     got = json.loads(_probe(cfg, tmp_path, mode, env=env))
-    assert got["off"] == why and got["now"] == "-"
+    assert got["off"] == why and got["now"] == "-" and got["hint"] == "-"
     assert got["buttons"] == [] and got["cheat_buttons"] == []
+    assert got["stock_off"] == why and got["stock_rows"] == [] and got["stock_cheats"] == []      # 물자 탭도 같다
     assert got["lines"] == [] and got["text"] == ""
 
 
@@ -607,6 +623,45 @@ def test_money_is_not_written_while_the_games_handler_is_running(dll, cfg, tmp_p
     assert got["lines"] == ["cheat allowcheats", "cheat fullmapshow"]
     assert got["inside"] == [14.43e9, 14.43e9]                  # 그 함수 안에서 다시 온 타이머의 앞뒤
     assert got["after"] == 24.43e9                              # 함수가 끝난 뒤에 쓴다
+
+
+def test_values_are_not_written_after_the_fault_guard_trips(dll, cfg, tmp_path):
+    """직접 실행의 오류 가드가 걸린 뒤에는 값 쓰기도 멈춘다 — 대기열에 먼저 들어와 있던 국고 요청도 버린다."""
+    got = json.loads(_probe(cfg, tmp_path, "money_fault"))
+    assert got["fault"] == FAULT_WARNING and got["after"] == 14.43e9
+    log = (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8")
+    assert "값 쓰기: " not in log
+
+
+STOCK_BUTTONS = ["+100m", "+1m", "-100m", "-1m", "zero"]
+PRODUCTS = ["농산물", "고무", "목재", "석유", "석탄", "금속 광석", "우라늄", "전력", "소비재", "산업재", "군수품"]
+
+
+def test_the_stock_tab_writes_stock_without_any_cheat(dll, cfg, tmp_path):
+    """요구 3: 물자 탭도 내장 치트를 거치지 않는다. 이번 판에서 쓰는 물자만 줄로 나오고, "모든 물자" 줄은 그 물자들에만 닿는다.
+    쓰는 곳은 플레이어의 재고뿐이다(다른 나라의 재고, 쓰지 않는 물자의 칸은 그대로다)."""
+    got = json.loads(_probe(cfg, tmp_path, "stock"))
+    assert got["off"] == "-" and got["hint"] == DIRECT_HINT and got["cheat_buttons"] == []
+    assert got["rows"] == [["stock:all", "모든 물자", "-"], ["stock:0", "농산물", "1.0 K"], ["stock:3", "석유", "2.5 M"],
+                           ["stock:7", "전력", "0"], ["stock:11", "물자 #11", "5"]]     # 열두째 칸은 이름이 없어도 쓰는 판이면 나온다
+    assert got["buttons"] == STOCK_BUTTONS
+    # 재고의 칸 0 · 3 · 7 · 11 과 쓰지 않는 칸 5. 석유 +100만, -1억, +1억, 0 / 모든 물자 +100만, -1억 / 농산물 +1억
+    assert got["steps"] == [[1000.0, 3.5e6, 0.0, 5.0, 0.0], [1000.0, 0.0, 0.0, 5.0, 0.0], [1000.0, 1e8, 0.0, 5.0, 0.0],
+                            [1000.0, 0.0, 0.0, 5.0, 0.0], [1001000.0, 1e6, 1e6, 1000005.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0],
+                            [1e8, 0.0, 0.0, 0.0, 0.0]]
+    assert got["wrote_all"] == "모든 물자 4개" and got["wrote"] == "농산물 0 -> 100 M" and got["now_after"] == "100 M"
+    assert got["lines"] == [] and got["text"] == "" and got["options"] == 0 and got["poland"] == 777.0
+    log = (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8")
+    assert log.count("값 쓰기: 석유") == 6 and log.count("값 쓰기: ") == 13 and "직접 실행" not in log
+
+
+def test_the_stock_tab_lists_the_named_products_outside_a_game(dll, cfg, tmp_path):
+    """메뉴에서는 이름표의 물자 열하나가 재고 없이 나오고 단추가 꺼져 있다."""
+    got = json.loads(_probe(cfg, tmp_path, "stock_menu"))
+    assert got["rows"] == [["stock:all", "모든 물자", "-"]] + [[f"stock:{slot}", name, "-"] for slot, name in enumerate(PRODUCTS)]
+    assert got["buttons"] == STOCK_BUTTONS and got["hint"] == "-"
+    assert got["steps"] == [[1000.0, 2.5e6, 0.0, 5.0, 0.0]] and got["lines"] == [] and got["text"] == ""
+    assert got["status"] == "게임을 진행 중이 아닙니다 — 단추가 꺼져 있습니다"
 
 
 def test_prologue_length_knows_only_plain_function_heads(dll):

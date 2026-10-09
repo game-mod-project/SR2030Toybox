@@ -13,6 +13,7 @@
 #include "imgui.h"
 #include "keeper.h"
 #include "overlay.h"
+#include "products.h"
 #include "regions.h"
 #include "runner_win.h"
 #include "settings.h"
@@ -144,23 +145,29 @@ void money_button(const char *label, const char *name, Change change, double amo
         g_notice = keeper_enqueue({TREASURY, change, amount}) ? "" : "대기 중인 요청이 많아 받지 못했습니다.";
 }
 
-// 돈 탭: 내장 치트를 거치지 않고 플레이어의 국고를 직접 고친다(기능 표가 아니라 여기서 그린다).
-// 쓸 수 없으면 까닭 한 줄만 보인다 — 내장 치트로 되돌아가지 않는다.
-void money_tab(const GameState &game, bool blocked)
+// 값을 쓰는 탭(돈 · 물자)의 머리. 쓸 수 없으면 까닭 한 줄만 그리고(name 으로 적는다) false — 내장 치트로 되돌아가지 않는다.
+// 쓸 수 있으면 true 와 *now(탭이 보이는 동안 프레임마다 읽는다. 게임 밖이면 ok 가 거짓인 빈 값).
+bool values_ready(const GameState &game, const char *name, GameValues *now)
 {
-    const std::string off = game.known ? game_values_off() : std::string("게임 상태를 읽을 수 있을 때만 씁니다.");
-    if (!off.empty()) {
-        ImGui::TextWrapped("%s", off.c_str());
-        note("money:off", off);
-        return;
+    std::string off = game.known ? game_values_off() : std::string("게임 상태를 읽을 수 있을 때만 씁니다.");
+    if (off.empty()) {
+        *now = game.in_game ? game_values() : GameValues();
+        if (game.in_game && !now->ok)   // 게임 안인데 값을 믿을 수 없다(재고 칸이 수가 아니다, 세계 자료를 읽지 못했다) — 까닭 없이 꺼 두지 않는다
+            off = "게임의 값을 읽을 수 없어 쓸 수 없습니다.";
     }
-    const GameValues now = game.in_game ? game_values() : GameValues();   // 탭이 보이는 동안 프레임마다 읽는다
-    if (game.in_game && !now.ok) {   // 게임 안인데 값을 믿을 수 없다(재고 칸이 수가 아니다, 세계 자료를 읽지 못했다) — 까닭 없이 꺼 두지 않는다
-        const char *const why = "게임의 값을 읽을 수 없어 쓸 수 없습니다.";
-        ImGui::TextWrapped("%s", why);
-        note("money:off", why);
-        return;
-    }
+    if (off.empty())
+        return true;
+    ImGui::TextWrapped("%s", off.c_str());
+    note(name, off);
+    return false;
+}
+
+// 돈 탭: 내장 치트를 거치지 않고 플레이어의 국고를 직접 고친다(기능 표가 아니라 여기서 그린다). 쓸 수 있으면 true.
+bool money_tab(const GameState &game, bool blocked)
+{
+    GameValues now;
+    if (!values_ready(game, "money:off", &now))
+        return false;
     const std::string have = now.ok ? "국고: $ " + short_number(now.treasury) : std::string("국고: -");
     ImGui::TextUnformatted(have.c_str());
     note("money:now", have);
@@ -196,6 +203,77 @@ void money_tab(const GameState &game, bool blocked)
     money_button("+$100 B", "money:+100b", Change::Add, 100e9);
     ImGui::TextDisabled("국고는 음수가 될 수 있다. 다른 나라의 국고는 건드리지 않는다");
     ImGui::EndDisabled();
+    return true;
+}
+
+// 물자 탭의 한 줄에 놓이는 단추 다섯: 그 칸(또는 ALL_STOCK)의 재고에서 빼고, 0 으로 만들고, 더한다.
+void stock_buttons(const std::string &name, int slot)
+{
+    static const struct {
+        const char *label, *id;
+        Change change;
+        double amount;
+    } BUTTONS[] = {
+        {"-1억", ":-100m", Change::Add, -1e8}, {"-100만", ":-1m", Change::Add, -1e6}, {"0", ":zero", Change::Set, 0.0},
+        {"+100만", ":+1m", Change::Add, 1e6}, {"+1억", ":+100m", Change::Add, 1e8},
+    };
+    for (size_t i = 0; i < sizeof(BUTTONS) / sizeof(BUTTONS[0]); i++) {
+        if (i > 0)
+            ImGui::SameLine();
+        const bool pressed = ImGui::Button(BUTTONS[i].label);
+        note(name + BUTTONS[i].id, BUTTONS[i].label);
+        if (pressed)
+            g_notice = keeper_enqueue({slot, BUTTONS[i].change, BUTTONS[i].amount}) ? "" : "대기 중인 요청이 많아 받지 못했습니다.";
+    }
+}
+
+// 물자 탭의 한 줄. slot 이 ALL_STOCK 이면 "모든 물자" 줄이다(재고 표시가 없다).
+void stock_row(int slot, const GameValues &now, bool blocked)
+{
+    const bool all = slot == ALL_STOCK;
+    const std::string name = all ? std::string("stock:all") : "stock:" + std::to_string(slot);
+    const std::string label = all ? std::string("모든 물자") : product_label(slot);
+    const std::string have = all || !now.ok ? std::string("-") : short_amount(now.stock[slot]);
+    ImGui::PushID(slot);
+    ImGui::TableNextRow();
+    ImGui::TableNextColumn();
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted(label.c_str());
+    note(name, label);
+    ImGui::TableNextColumn();
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted(have.c_str());
+    note(name + ":now", have);
+    ImGui::TableNextColumn();
+    ImGui::BeginDisabled(blocked || !now.ok);
+    stock_buttons(name, slot);
+    ImGui::EndDisabled();
+    ImGui::PopID();
+}
+
+// 물자 탭: 내장 치트를 거치지 않고 플레이어의 물자 재고를 직접 고친다. 물자마다 한 줄 —
+// 게임 안에서는 이번 판에서 쓰는 물자만, 게임 밖에서는 이름표에 있는 물자가 나온다(단추는 꺼져 있다). 쓸 수 있으면 true.
+bool stock_tab(const GameState &game, bool blocked)
+{
+    GameValues now;
+    if (!values_ready(game, "stock:off", &now))
+        return false;
+    ImGui::TextDisabled("재고는 0 아래로 내려가지 않는다. 다른 나라의 재고는 건드리지 않는다");
+    const ImGuiTableFlags flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV
+        | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY;   // 창이 좁으면 표가 가로로 구른다
+    if (!ImGui::BeginTable("stock", 3, flags))
+        return true;
+    ImGui::TableSetupScrollFreeze(1, 1);                       // 이름 칸과 머리 줄은 굴려도 남는다
+    ImGui::TableSetupColumn("물자");
+    ImGui::TableSetupColumn("재고");
+    ImGui::TableSetupColumn("빼기 / 더하기");
+    ImGui::TableHeadersRow();
+    stock_row(ALL_STOCK, now, blocked);
+    for (int slot = 0; slot < STOCK_SLOTS; slot++)
+        if (now.ok ? now.used[slot] : find_product(slot) != nullptr)
+            stock_row(slot, now, blocked);
+    ImGui::EndTable();
+    return true;
 }
 
 void settings_tab()
@@ -283,7 +361,7 @@ void ui_draw()
     Lock lock(ui_mutex());
     g_drawing.clear();
     ImGui::SetNextWindowPos(ImVec2(40.0f, 60.0f), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(500.0f, 460.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(720.0f, 520.0f), ImGuiCond_FirstUseEver);   // 물자 탭의 표가 한눈에 들어오는 크기
     // 창은 구르지 않는다. 구르는 것은 탭의 내용(body)뿐이다 — 맨 위의 상태 줄 · 고른 나라와 바닥의 알림은 늘 보인다
     if (ImGui::Begin("SR2030 ToyBox", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
         const GameState game = game_state();
@@ -301,12 +379,23 @@ void ui_draw()
         if (g_footer <= 0.0f)
             g_footer = 3.0f * ImGui::GetTextLineHeightWithSpacing();   // 첫 프레임의 어림. 그 뒤로는 지난 프레임에 잰 값
         const ImVec2 body(0.0f, -g_footer);
+        bool values_tab = false, values_ok = false;         // 지금 보이는 탭이 값을 직접 쓰는 탭(돈 · 물자)인가, 그 탭을 쓸 수 있는가
         if (ImGui::BeginTabBar("tabs")) {
             const bool money = ImGui::BeginTabItem("돈");   // 첫 탭. 기능 표에 없다 — 내장 치트 없이 직접 한다
             note("tab:돈", "돈");
             if (money) {
+                values_tab = true;
                 if (ImGui::BeginChild("body", body))
-                    money_tab(game, blocked);
+                    values_ok = money_tab(game, blocked);
+                ImGui::EndChild();
+                ImGui::EndTabItem();
+            }
+            const bool stock = ImGui::BeginTabItem("물자");   // 둘째 탭. 이것도 기능 표에 없다
+            note("tab:물자", "물자");
+            if (stock) {
+                values_tab = true;
+                if (ImGui::BeginChild("body", body))
+                    values_ok = stock_tab(game, blocked);
                 ImGui::EndChild();
                 ImGui::EndTabItem();
             }
@@ -376,14 +465,17 @@ void ui_draw()
         // 게임 화면에 무슨 일이 생기는지. 게임을 읽을 수 있으면 게임 밖에서는 단추가 꺼져 있으므로(상태 줄이 그렇게 말한다) 띄우지 않는다.
         // 직접 실행에서는 게임의 설정 창이 뜨지 않는 대신, 열려 있던 패널이 스스로 다시 그려지지 않는다 — 일시 정지 중에도,
         // 시간이 흐르는 중에도(같은 날 안에서) [확인: 게임]
+        // 값을 직접 쓰는 탭(돈 · 물자)은 글쇠 방식과 상관없다 — 쓸 수 있으면 늘 바로 바뀌고, 쓸 수 없으면 탭의 까닭 한 줄이 전부다.
+        const char *const direct = "값은 바로 바뀝니다. 게임 화면의 숫자는 그 패널을 누르거나 다시 열 때 따라옵니다.";
         const char *const hint = game.known && blocked ? nullptr
-            : game.known && runner_direct() ? "값은 바로 바뀝니다. 게임 화면의 숫자는 그 패널을 누르거나 다시 열 때 따라옵니다."
+            : values_tab ? (values_ok ? direct : nullptr)
+            : game.known && runner_direct() ? direct
             : "단추를 누르면 게임의 설정 창이 잠깐 열렸다 닫힙니다.";
         if (hint != nullptr) {
             ImGui::TextWrapped("%s", hint);
             note("hint", hint);
         }
-        if (!game.known)   // 게임을 읽지 못하면 단추를 끌 수 없다
+        if (!game.known && !values_tab)   // 게임을 읽지 못하면 내장 치트로 도는 단추를 끌 수 없다
             ImGui::TextWrapped("게임을 진행하는 중에만 누르십시오. 메뉴나 로비에서는 글자가 다른 곳에 들어갈 수 있습니다.");
         g_footer = ImGui::GetCursorPosY() - top;
     }
