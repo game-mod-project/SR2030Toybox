@@ -11,6 +11,7 @@
     uv run python scripts/gamedrive.py wheel N [X Y]          # 마우스 휠 N칸(음수 = 아래로). 지도 확대·축소
     uv run python scripts/gamedrive.py key VK [VK...]         # 가상 키 코드(16진/10진), 이름(ESC, ENTER, SPACE), 글자(S), 조합(CTRL+SHIFT+S)
     uv run python scripts/gamedrive.py show                  # 화면 밖에 둔 게임 창을 화면으로 가져온다(직접 볼 때)
+    uv run python scripts/gamedrive.py peek                   # 이 도구가 띄운 게임의 메모리에서 ToyBox 가 보는 값을 읽는다(읽기만, JSON)
     uv run python scripts/gamedrive.py stop                   # 이 도구가 띄운 게임만 끝낸다 (--all: 전부)
 
 이 도구는 **자기가 띄운 게임만** 다룬다(build/gamedrive-pids.json 에 기록). 사용자가 직접 켠 게임에는 캡처·입력·종료를 하지 않는다.
@@ -77,6 +78,7 @@ kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
 kernel32.OpenProcess.restype = wintypes.HANDLE
 kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
 kernel32.GetProcessTimes.argtypes = [wintypes.HANDLE] + [ctypes.POINTER(wintypes.FILETIME)] * 4
+kernel32.ReadProcessMemory.argtypes = [wintypes.HANDLE, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_size_t, ctypes.POINTER(ctypes.c_size_t)]
 
 FILE_MAP_ALL_ACCESS = 0xF001F
 OWNED_FILE = "gamedrive-pids.json"   # build/ 아래: 이 도구가 띄운 게임의 프로세스 ID 와 시작 시각
@@ -314,6 +316,56 @@ def need_window(cfg: config.Config) -> tuple[int, str, tuple[int, int]]:
     return win
 
 
+def peek_game(cfg: config.Config) -> dict:
+    """이 도구가 띄운 게임의 메모리에서 ToyBox 가 보는 것을 읽는다(읽기만). 주소는 srkit locate 와 같은 방법(서명)으로 찾는다.
+
+    ToyBox 의 창에 보이는 값이 아니라 게임의 메모리 그 자체다 — ToyBox 가 쓴 값과 치트 허용 비트를 따로 확인하는 데 쓴다.
+    """
+    import struct
+
+    from srkit import toybox
+
+    mine = owned_pids(cfg)
+    if not mine:
+        raise SystemExit(not_ours() if game_pids() else "게임이 떠 있지 않습니다")
+    found = toybox.locate(cfg)
+    if found.state is None or found.values is None:
+        raise SystemExit(f"주소를 찾지 못했습니다: {found.state_why or found.values_why}")
+    state, values, legacy = found.state, found.values, found.legacy
+    psapi = ctypes.WinDLL("psapi", use_last_error=True)
+    psapi.EnumProcessModules.argtypes = [wintypes.HANDLE, ctypes.POINTER(ctypes.c_void_p), wintypes.DWORD, ctypes.POINTER(wintypes.DWORD)]
+    process = kernel32.OpenProcess(0x0410, False, sorted(mine)[0])      # PROCESS_QUERY_INFORMATION | PROCESS_VM_READ
+    if not process:
+        raise SystemExit("게임 프로세스를 열 수 없습니다")
+    try:
+        module, needed = ctypes.c_void_p(), wintypes.DWORD()
+        if not psapi.EnumProcessModules(process, ctypes.byref(module), ctypes.sizeof(module), ctypes.byref(needed)):
+            raise SystemExit("게임의 모듈 목록을 읽을 수 없습니다")
+        base = module.value                                             # 첫 모듈이 실행 파일이다
+
+        def read(address: int, fmt: str):
+            buf, got = ctypes.create_string_buffer(struct.calcsize(fmt)), ctypes.c_size_t()
+            ok = kernel32.ReadProcessMemory(process, address, buf, len(buf), ctypes.byref(got))
+            return struct.unpack(fmt, buf.raw)[0] if ok and got.value == len(buf) else None
+
+        out = {"program": read(base + state["program_state"], "<i"), "mode": read(base + state["mode_state"], "<i"),
+               "multiplayer": read(base + state["multiplayer"], "<B"), "player_index": read(base + state["player_index"], "<i")}
+        if legacy is not None:
+            out["cheats_allowed"] = int(bool((read(base + legacy["options"], "<I") or 0) & 0x40))
+        player = read(base + state["player_pointer"], "<Q")
+        out["in_game"] = bool(out["mode"] == 2 and out["program"] == 1 and player)
+        if out["in_game"]:
+            world = read(base + values["world_pointer"], "<Q")
+            out["player"] = read(player + 8, "<H")
+            out["treasury"] = read(player + values["treasury"], "<d")
+            out["stock"] = [read(player + values["stock_first"] + values["stock_step"] * i, "<f") for i in range(toybox.STOCK_SLOTS)]
+            out["used"] = [bool((read(world + values["used_first"] + values["used_step"] * i, "<f") or 0) > 0)
+                           for i in range(toybox.STOCK_SLOTS)] if world else None
+        return out
+    finally:
+        kernel32.CloseHandle(process)
+
+
 @contextmanager
 def held(hwnd: int, mods: list[int]):
     """게임 스레드의 키 상태표에 수정키를 눌린 것으로 적어 둔다(GetKeyState 가 읽는 값). 실제 키보드는 건드리지 않는다.
@@ -453,6 +505,8 @@ def main(argv: list[str]) -> int:
             user32.PostMessageW(hwnd, WM_CHAR, b, 1)
             time.sleep(0.03)
         print(f"입력 {' '.join(args)!r}")
+    elif cmd == "peek":
+        print(json.dumps(peek_game(cfg), ensure_ascii=False))
     elif cmd == "stop":
         # 이 도구가 띄운 게임만 끝낸다. 사용자가 켠 게임까지 끝내려면 --all 을 분명히 준다
         mine, everything = owned_pids(cfg), set(game_pids())
