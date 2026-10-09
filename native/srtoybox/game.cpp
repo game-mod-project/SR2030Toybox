@@ -10,6 +10,7 @@
 
 #include "features.h"
 #include "log.h"
+#include "products.h"
 
 namespace {
 
@@ -225,10 +226,7 @@ Wrote write(int slot, double value)
             std::lock_guard<std::mutex> lock(g_lock);
             g_write_failed = true;
         }
-        if (slot < 0)
-            log_line("값 쓰기 실패 (국고) — 값 쓰기를 끕니다");
-        else
-            log_line("값 쓰기 실패 (재고 칸 %d) — 값 쓰기를 끕니다", slot);
+        log_line("값 쓰기 실패 (%s) — 값 쓰기를 끕니다", slot < 0 ? "국고" : product_label(slot).c_str());
     }
     return wrote;
 }

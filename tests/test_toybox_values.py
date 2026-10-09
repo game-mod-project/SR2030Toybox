@@ -12,7 +12,7 @@ ADD, SET, FLOOR = 0, 1, 2                 # native/srtoybox/values.h 의 Change
 WRITE, NOTHING, REFUSE = 0, 1, 2          # 〃 Verdict
 NAN, INF = float("nan"), float("inf")
 DONE, NOT_IN_GAME, NOT_USED, BAD_VALUE, FAILED, OFF = range(6)      # native/srtoybox/game.h 의 Wrote
-TREASURY = -1                                                       # 쓰기의 대상: 국고. 0 … 11 은 그 칸의 재고
+TREASURY, ALL_STOCK = -1, -2                                        # 쓰기의 대상: 국고 / 쓰는 물자 모두. 0 … 11 은 그 칸의 재고
 READS, CALLS, WRITES = 1, 2, 4                                      # srtoybox_game_flags 의 비트
 UNREAD = "게임 상태를 읽을 수 있을 때만 씁니다."
 FAILED_OFF = "값 쓰기가 실패해 껐습니다. 게임을 다시 시작하면 다시 시도합니다."
@@ -345,7 +345,26 @@ def test_stock_requests_reach_only_products_in_use(lib, game):
     lib.srtoybox_keeper_tick()
     assert game.stock(176, 3) == 1002500.0 and game.stock(176, 0) == 0.0    # 0 아래로 내려가지 않는다
     assert game.stock(176, 5) == 0.0                                        # 쓰지 않는 물자의 칸에는 쓰지 않는다
-    assert told(lib) == ("재고 칸 0 1.00 K -> 0", "이번 판에서 쓰지 않는 물자입니다.")
+    assert told(lib) == ("농산물 1.0 K -> 0", "이번 판에서 쓰지 않는 물자입니다.")      # 물자는 이름으로, 자원 표시줄의 표기로
+
+
+def test_a_request_for_all_products_reaches_every_product_in_use(lib, game, tmp_path):
+    """"모든 물자" 줄의 요청은 쓸 때 이번 판에서 쓰는 물자마다의 요청으로 풀린다. 쓰지 않는 칸 · 다른 나라는 그대로다."""
+    game.set_stock(141, 3, 777.0)
+    assert ask(lib, ALL_STOCK, ADD, 1e6)
+    lib.srtoybox_keeper_tick()
+    assert [game.stock(176, slot) for slot in range(12)] == [1001000.0, 0, 0, 1002500.0, 0, 0, 0, 1000000.0, 0, 0, 0, 0]
+    assert told(lib) == ("모든 물자 3개", "")
+    assert ask(lib, ALL_STOCK, SET, 0.0)
+    lib.srtoybox_keeper_tick()
+    assert [game.stock(176, slot) for slot in (0, 3, 7)] == [0.0, 0.0, 0.0] and told(lib) == ("모든 물자 3개", "")
+    assert ask(lib, ALL_STOCK, ADD, -1e8) and ask(lib, 7, ADD, 5.0)
+    lib.srtoybox_keeper_tick()
+    assert told(lib) == ("전력 0 -> 5", "")                    # 바꿀 것이 없던 "모든 물자"는 마지막으로 쓴 것을 덮지 않는다
+    assert game.stock(141, 3) == 777.0 and game.treasury(176) == 14.43e9
+    log = (tmp_path / "toybox.log").read_text(encoding="utf-8")
+    assert [line.split(" ", 2)[2] for line in log.splitlines()][:3] == ["값 쓰기: 농산물 1.0 K -> 1.0 M", "값 쓰기: 석유 2.5 K -> 1.0 M",
+                                                                        "값 쓰기: 전력 0 -> 1.0 M"]
 
 
 def test_requests_are_dropped_outside_a_game(lib, game):
@@ -398,6 +417,16 @@ def test_a_failed_write_turns_value_writing_off_for_this_run(lib, game, tmp_path
     assert not ask(lib, TREASURY, ADD, 1e9)                    # 그 뒤로는 받지 않는다
     log = (tmp_path / "toybox.log").read_text(encoding="utf-8")
     assert log.count("값 쓰기 실패 (국고) — 값 쓰기를 끕니다") == 1 and "값 쓰기: " not in log
+
+
+def test_a_failed_stock_write_names_the_product(lib, game, tmp_path):
+    game.lock(176)
+    game.play(176)
+    assert ask(lib, ALL_STOCK, ADD, 1e6)
+    lib.srtoybox_keeper_tick()
+    assert text(lib.srtoybox_values_off) == FAILED_OFF and told(lib)[0] == ""
+    log = (tmp_path / "toybox.log").read_text(encoding="utf-8")
+    assert log.count("값 쓰기 실패 (농산물) — 값 쓰기를 끕니다") == 1 and "값 쓰기: " not in log   # 첫 칸에서 멈춘다
 
 
 def test_nothing_is_asked_when_values_cannot_be_written(lib, game):

@@ -328,7 +328,7 @@ EXPORT int srtoybox_values_off(char *out, int size)
     return put(game_values_off(), out, size);
 }
 
-// 테스트: 값 쓰기 요청(keeper.h). slot 이 -1 이면 국고. change: 0 더하기, 1 이 값으로, 2 바닥. 받았으면 1.
+// 테스트: 값 쓰기 요청(keeper.h). slot 이 -1 이면 국고, -2 면 쓰는 물자 모두. change: 0 더하기, 1 이 값으로, 2 바닥. 받았으면 1.
 EXPORT int srtoybox_keeper_request(int slot, int change, double amount)
 {
     if (change < 0 || change > 2)
