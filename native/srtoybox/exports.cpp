@@ -338,7 +338,42 @@ EXPORT int srtoybox_keeper_request(int slot, int change, double amount)
 
 EXPORT void srtoybox_keeper_tick(void)
 {
-    keeper_tick();
+    keeper_tick(GetTickCount64());
+}
+
+// 테스트: 가짜 시계로 틱(최소 유지는 KEEP_EVERY_MS 마다 본다).
+EXPORT void srtoybox_keeper_tick_at(unsigned long long now_ms)
+{
+    keeper_tick(now_ms);
+}
+
+// 테스트: 최소 유지의 한 항목을 켜고 끈다. slot 이 -1 이면 국고(floor 는 달러), 0 … 11 이면 그 칸의 물자(수량). 없는 칸이면 -1.
+EXPORT int srtoybox_keeper_keep(int slot, int on, double floor)
+{
+    Keep keep = keeper_keep();
+    if (slot == TREASURY) {
+        keep.treasury = on != 0;
+        keep.treasury_floor = floor;
+    } else if (slot >= 0 && slot < STOCK_SLOTS) {
+        keep.stock[slot] = on != 0;
+        keep.stock_floor[slot] = floor;
+    } else {
+        return -1;
+    }
+    keeper_set_keep(keep);
+    return 0;
+}
+
+// 테스트: 상태 줄에 붙는 글. used 가 '0' · '1' 열두 글자면 게임 안의 글(그 물자들을 쓰는 판), nullptr 이면 쉬는 동안의 글(까닭 why).
+EXPORT int srtoybox_keep_text(const char *used, const char *why, char *out, int size)
+{
+    const Keep keep = keeper_keep();
+    if (used == nullptr)
+        return put(keep_resting_text(keep, why == nullptr ? "" : why), out, size);
+    bool flags[STOCK_SLOTS] = {};
+    for (int slot = 0; slot < STOCK_SLOTS && used[slot] != '\0'; slot++)
+        flags[slot] = used[slot] == '1';
+    return put(keep_active_text(keep, flags), out, size);
 }
 
 // 테스트: "<마지막으로 쓴 것>\t<알림>".
