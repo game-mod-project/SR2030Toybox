@@ -278,3 +278,67 @@ def test_peek_reads_tech_opinion_and_the_relation_with_one_region(gd):
     assert gd.peek_more(read, {**MORE, "tech": 0, "relation0": 0}, germany, 176, poland) == {"opinion": [0.0, 0.0, 0.0]}
     assert gd.peek_more(read, dict.fromkeys(MORE, 0), germany, 176, poland) == {}
     assert fake.snapshot(176) + fake.snapshot(141) == before
+
+
+@pytest.fixture
+def lab_game(cfg):
+    """독일(176)로 진행 중인 가짜 게임과 그 연구(toybox_fake_game.standard_lab), 표의 꼴(ToyBox 의 DLL 이 아는 것 — locate.h), 읽는 함수."""
+    import ctypes
+
+    from srkit import toybox
+    from toybox_fake_game import FakeGame, standard_lab
+
+    if not toybox.output(cfg).is_file():
+        pytest.skip("ToyBox DLL 미빌드 (srkit toybox-build)")
+    fake = FakeGame()
+    fake.region(141, 1106, alive=3)
+    fake.region(176, 1499)
+    fake.play(176)
+    return fake, standard_lab(fake), toybox.research_shape(toybox.library(cfg)), lambda address, size: ctypes.string_at(address, size)
+
+
+def test_research_reads_what_a_region_holds_and_the_players_queue(gd, lab_game):
+    """research 는 게임의 메모리에서 연구를 읽는다(읽기만): 그 지역이 보유한 기술 · 부대 설계, 쓰는 항목과 묶음이 없는 항목의 수,
+    플레이어의 대기열(나중에 건 것이 앞이다), 모든 기술의 연구 기간의 합. ToyBox 가 쓴 것을 창의 숫자가 아니라 이것으로 본다."""
+    from toybox_fake_game import RESEARCH
+
+    fake, lab, shape, read = lab_game
+    before = lab.everything()
+    germany = gd.peek_research(read, RESEARCH, shape, fake.base, 176, 176)
+    assert germany == {"index": 176, "techs": [1, 4, 6], "designs": [10, 13, 14], "used": {"techs": 6, "designs": 5},
+                       "unhoused": {"techs": 1, "designs": 1}, "days": 600.0,
+                       "queue": [[2, 11, "00000001", "60000001"], [1, 2, "00000001", "00000000"]]}
+    poland = gd.peek_research(read, RESEARCH, shape, fake.base, 141, 176)
+    assert (poland["index"], poland["techs"], poland["designs"]) == (141, [1, 2], [11, 13])
+    assert poland["queue"] == germany["queue"] and "effects" not in poland     # 대기열은 플레이어의 것이다. 보정 표는 달라고 할 때만
+    assert lab.everything() == before
+
+
+def test_research_reads_the_effect_tables_of_the_build_it_knows(gd, lab_game, monkeypatch):
+    """지역의 보정 표(게임의 "효과를 다시 셈"이 쌓는 것)의 자리는 한 빌드에서만 안다 — 지역 객체의 주소를 줄 때만 읽는다.
+    표는 세계 객체 안에 지역마다 있고(첫 자리 + 간격 × 지역 인덱스), 한 칸은 지역 객체 안에 있다."""
+    import struct
+
+    from toybox_fake_game import RESEARCH
+
+    fake, _lab, shape, read = lab_game
+    world = fake.base + RESEARCH["world"]
+    monkeypatch.setattr(gd, "EFFECT_TABLES", {"mul": (0x100000, 0x10, 3), "add": (0x200000, 0x20, 2)})
+    monkeypatch.setattr(gd, "EFFECT_CELL", 0x800)
+    far = {world + 0x100000 + 0x10 * 176: struct.pack("<3f", 1.0, 1.5, 2.0), world + 0x200000 + 0x20 * 176: struct.pack("<2f", 0.25, 0.5)}
+    fake._write(176, 0x800, "<I", 7)
+    got = gd.peek_research(lambda address, size: far[address] if address in far else read(address, size), RESEARCH, shape, fake.base,
+                           176, 176, region=fake.where[176])
+    assert got["effects"] == {"mul": [1.0, 1.5, 2.0], "add": [0.25, 0.5], "cell": 7} and got["techs"] == [1, 4, 6]
+
+
+def test_research_stops_when_the_game_cannot_be_read(gd, lab_game):
+    """표를 읽을 수 없거나 자리 수가 말이 안 되면 반쯤 읽은 것을 내지 않는다."""
+    from toybox_fake_game import RESEARCH
+
+    fake, _lab, shape, read = lab_game
+    with pytest.raises(SystemExit, match="게임의 메모리를 읽을 수 없습니다"):
+        gd.peek_research(lambda address, size: None if size > 64 else read(address, size), RESEARCH, shape, fake.base, 176, 176)
+    fake.poke(RESEARCH["tech_count"], "<i", 70000)
+    with pytest.raises(SystemExit, match="자리 수가 범위 밖입니다"):
+        gd.peek_research(read, RESEARCH, shape, fake.base, 176, 176)

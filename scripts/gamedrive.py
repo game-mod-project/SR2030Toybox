@@ -14,6 +14,9 @@
     uv run python scripts/gamedrive.py peek [지역 번호]       # 이 도구가 띄운 게임의 메모리에서 ToyBox 가 보는 값을 읽는다(읽기만, JSON).
                                                               # 번호를 주면 플레이어 대신 그 지역의 국고 · 재고 · 기술 수준 · 여론을 읽고,
                                                               # 플레이어와 그 지역 사이의 관계 여섯 칸도 읽는다
+    uv run python scripts/gamedrive.py research [지역 번호] [--out 파일]   # 그 지역(없으면 플레이어)이 보유한 기술 · 부대 설계,
+                                                              # 플레이어의 연구 대기열, 모든 기술의 연구 기간의 합(읽기만, JSON).
+                                                              # 앞뒤 두 번을 견줘 ToyBox 가 무엇을 바꿨고 무엇이 그대로인지 본다
     uv run python scripts/gamedrive.py stop                   # 이 도구가 띄운 게임만 끝낸다 (--all: 전부)
 
 이 도구는 **자기가 띄운 게임만** 다룬다(build/gamedrive-pids.json 에 기록). 사용자가 직접 켠 게임에는 캡처·입력·종료를 하지 않는다.
@@ -462,6 +465,127 @@ def peek_game(cfg: config.Config, number: int | None = None) -> dict:
         kernel32.CloseHandle(process)
 
 
+RESEARCH_BUILD = 0x695377B6     # 아래 보정 표의 자리를 본 빌드(21347933)의 PE TimeDateStamp
+# 그 빌드에서만 아는 자리: 게임의 "효과를 다시 셈"이 지역마다 쌓는 보정 표 — (세계 객체 안의 자리, 지역마다의 간격, float 칸의 수).
+# 검증에만 쓰는 상수다. ToyBox 는 이 자리를 모르고 건드리지 않는다(docs/11-game-internals.md)
+EFFECT_TABLES = {"mul": (0x5456A8, 0x320, 200), "add": (0x60D6A8, 0x2C0, 176)}
+EFFECT_CELL = 0x14D38           # 지역 객체 안의 한 칸(dword) — 같은 함수가 0 으로 되돌리고 다시 쌓는다
+TECH_DAYS = 0x30                # 기술 레코드의 연구 기간(float). ToyBox 는 읽지도 쓰지도 않는다 — "그대로인가"만 본다
+MAX_NODES = 4096                # 연구 목록이 이 안에 끝나지 않으면 읽지 않는다(ToyBox 의 스냅숏과 같다)
+
+
+def peek_research(read, research: dict[str, int], shape: dict[str, int], base: int, index: int, me: int,
+                  region: int | None = None) -> dict:
+    """연구의 표와 목록을 읽는다(읽기만). ToyBox 의 창이 아니라 게임의 메모리 그 자체다.
+
+    read(주소, 바이트 수) 는 그만큼을 읽어 주는 함수(못 읽으면 None), research 는 srkit.toybox.locate 가 찾은 자리,
+    shape 는 표의 꼴(srkit.toybox.research_shape), base 는 실행 파일이 올라온 주소다. index 는 보유를 볼 지역의 인덱스, me 는 플레이어의 인덱스.
+    region 은 그 지역의 객체의 주소 — 주면 그 지역의 보정 표(effects)도 읽는다(RESEARCH_BUILD 에서만 부른다).
+
+    결과: techs · designs(그 지역이 보유한 번호들), used(쓰는 항목의 수), unhoused(보유 묶음이 없는 항목의 수 — 아무도 보유한 적이 없다),
+    queue(플레이어의 연구 목록: [종류(1 기술, 2 부대 설계), 번호, 깃발 1, 깃발 2] — 깃발은 16진 글), days(모든 기술의 연구 기간의 합).
+    """
+    import struct
+
+    def chunk(address: int, size: int) -> bytes:
+        raw = read(address, size)
+        if raw is None:
+            raise SystemExit(f"게임의 메모리를 읽을 수 없습니다: {address:#x} 부터 {size}바이트")
+        return raw
+
+    def value(address: int, fmt: str):
+        return struct.unpack(fmt, chunk(address, struct.calcsize(fmt)))[0]
+
+    def owned(pointer: int) -> bool:
+        return bool(pointer) and bool(value(pointer + index // 8, "<B") >> index % 8 & 1)
+
+    out: dict = {"index": index, "techs": [], "designs": [], "used": {"techs": 0, "designs": 0},
+                 "unhoused": {"techs": 0, "designs": 0}, "queue": [], "days": 0.0}
+    tables = (("techs", "tech_table", "tech_count", shape["tech_size"], shape["tech_kind"], "<B", shape["tech_owners"]),
+              ("designs", "design_table", "design_count", shape["design_size"], shape["design_name"], "<Q", shape["design_owners"]))
+    for name, table, count, size, alive, alive_fmt, owners in tables:
+        start, slots = value(base + research[table], "<Q"), value(base + research[count], "<i")
+        if not start or not 2 <= slots <= 65536:
+            raise SystemExit(f"연구의 표가 없거나 자리 수가 범위 밖입니다: {name} {slots}")
+        records = chunk(start, slots * size)                # 표는 한 번에 읽는다(부대 설계는 22000 × 0x168)
+        for number in range(1, slots):
+            at = number * size
+            if not struct.unpack_from(alive_fmt, records, at + alive)[0]:
+                continue                                    # 빈 자리
+            pointer = struct.unpack_from("<Q", records, at + owners)[0]
+            out["used"][name] += 1
+            out["unhoused"][name] += 0 if pointer else 1
+            if owned(pointer):
+                out[name].append(number)
+            if name == "techs":
+                out["days"] += struct.unpack_from("<f", records, at + TECH_DAYS)[0]
+    node = value(base + research["world"] + research["lists"] + shape["list_step"] * me, "<Q")
+    while node:
+        if len(out["queue"]) >= MAX_NODES:
+            raise SystemExit("연구 목록이 끝나지 않습니다")
+        first, second = value(node + shape["node_flags"], "<I"), value(node + shape["node_flags"] + 4, "<I")
+        out["queue"].append([value(node + shape["node_kind"], "<B"), value(node + shape["node_id"], "<i"), f"{first:08x}", f"{second:08x}"])
+        node = value(node + shape["node_next"], "<Q")
+    if region is not None:
+        world = base + research["world"]
+        out["effects"] = {name: list(struct.unpack(f"<{cells}f", chunk(world + start + step * index, 4 * cells)))
+                          for name, (start, step, cells) in EFFECT_TABLES.items()}
+        out["effects"]["cell"] = value(region + EFFECT_CELL, "<I")
+    return out
+
+
+def research_game(cfg: config.Config, number: int | None = None) -> dict:
+    """이 도구가 띄운 게임의 메모리에서 연구를 읽는다(peek_research). number 를 주면 플레이어 대신 그 번호의 지역이 보유한 것을 읽는다."""
+    import struct
+
+    from srkit import toybox
+
+    mine = owned_pids(cfg)
+    if not mine:
+        raise SystemExit(not_ours() if game_pids() else "게임이 떠 있지 않습니다")
+    found = toybox.locate(cfg)
+    if found.state is None or found.research is None:
+        raise SystemExit(f"주소를 찾지 못했습니다: {found.state_why or found.research_why}")
+    state, shape = found.state, toybox.research_shape(toybox.library(cfg))
+    exe = (cfg.game_dir / EXE).read_bytes()
+    stamp = struct.unpack_from("<I", exe, struct.unpack_from("<I", exe, 0x3C)[0] + 8)[0]
+    psapi = ctypes.WinDLL("psapi", use_last_error=True)
+    psapi.EnumProcessModules.argtypes = [wintypes.HANDLE, ctypes.POINTER(ctypes.c_void_p), wintypes.DWORD, ctypes.POINTER(wintypes.DWORD)]
+    process = kernel32.OpenProcess(0x0410, False, sorted(mine)[0])      # PROCESS_QUERY_INFORMATION | PROCESS_VM_READ
+    if not process:
+        raise SystemExit("게임 프로세스를 열 수 없습니다")
+    try:
+        module, needed = ctypes.c_void_p(), wintypes.DWORD()
+        if not psapi.EnumProcessModules(process, ctypes.byref(module), ctypes.sizeof(module), ctypes.byref(needed)):
+            raise SystemExit("게임의 모듈 목록을 읽을 수 없습니다")
+        base = module.value                                             # 첫 모듈이 실행 파일이다
+
+        def read(address: int, size: int):
+            buf, got = ctypes.create_string_buffer(size), ctypes.c_size_t()
+            ok = kernel32.ReadProcessMemory(process, ctypes.c_void_p(address), buf, size, ctypes.byref(got))
+            return buf.raw if ok and got.value == size else None
+
+        def value(address: int, fmt: str):
+            raw = read(address, struct.calcsize(fmt))
+            return struct.unpack(fmt, raw)[0] if raw is not None else None
+
+        player, me = value(base + state["player_pointer"], "<Q"), value(base + state["player_index"], "<i")
+        if not (value(base + state["mode_state"], "<i") == 2 and value(base + state["program_state"], "<i") == 1 and player):
+            raise SystemExit("게임이 진행 중이 아닙니다")
+        who, index = player, me
+        if number is not None:                                          # 지역 표(인덱스 1 … 지역 수)에서 그 번호의 객체를 찾는다
+            count = min(value(base + state["region_count"], "<i") or 0, 1023)
+            table = ((i, value(base + state["region_table"] + 8 * i, "<Q")) for i in range(1, count + 1))
+            index, who = next(((i, pointer) for i, pointer in table if pointer and value(pointer + 8, "<H") == number), (0, None))
+            if who is None:
+                raise SystemExit(f"그 번호의 지역이 지역 표에 없습니다: {number}")
+        out = {"player": value(player + 8, "<H"), "region": value(who + 8, "<H")}
+        out.update(peek_research(read, found.research, shape, base, index, me, who if stamp == RESEARCH_BUILD else None))
+        return out
+    finally:
+        kernel32.CloseHandle(process)
+
+
 @contextmanager
 def held(hwnd: int, mods: list[int]):
     """게임 스레드의 키 상태표에 수정키를 눌린 것으로 적어 둔다(GetKeyState 가 읽는 값). 실제 키보드는 건드리지 않는다.
@@ -605,6 +729,17 @@ def main(argv: list[str]) -> int:
         print(f"입력 {' '.join(args)!r}")
     elif cmd == "peek":
         print(json.dumps(peek_game(cfg, int(args[0]) if args else None), ensure_ascii=False))
+    elif cmd == "research":
+        # research [지역 번호] [--out 파일]: 보유한 부대 설계가 수천 줄이라, 파일을 주면 거기에 적고 화면에는 수만 보인다
+        target = args[args.index("--out") + 1] if "--out" in args else None
+        numbers = [a for a in args if a not in ("--out", target)]
+        got = research_game(cfg, int(numbers[0]) if numbers else None)
+        if target is None:
+            print(json.dumps(got, ensure_ascii=False))
+        else:
+            Path(target).write_text(json.dumps(got, ensure_ascii=False), encoding="utf-8")
+            print(f"{target}: 지역 {got['region']} — 기술 {len(got['techs'])}개 · 부대 설계 {len(got['designs'])}개 보유, "
+                  f"대기열 {len(got['queue'])}개, 연구 기간의 합 {got['days']:g}")
     elif cmd == "stop":
         # 이 도구가 띄운 게임만 끝낸다. 사용자가 켠 게임까지 끝내려면 --all 을 분명히 준다
         mine, everything = owned_pids(cfg), set(game_pids())
