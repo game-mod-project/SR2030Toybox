@@ -307,10 +307,63 @@ const struct MoreWanted {
      {"F3 0F 10 9C 8A [u32] 0F 2F FB 76 35", "F3 41 0F 5C 8C 82 [u32] 0F 2F C1 76 02", "F3 0F 11 84 88 [u32] 0F 28 C2 48 8B 07"}},
 };
 
-const int MAX_TABLE = STATE_WANTED * STATE_SIGS;    // 한 표의 서명 수의 상한(상태 21개, 값 12개, 더 쓰는 값 21개)
-static_assert(VALUE_WANTED <= STATE_WANTED && MORE_WANTED <= STATE_WANTED,
+// 연구의 일곱. 같은 규칙으로 뽑되(uv run srkit sig-mine …) 꼴의 상수가 박힌 명령까지 늘렸다(--with · --back · --through-jumps).
+// 서명마다 무엇이 박혀 있는지는 docs/11-game-internals.md 의 표와 tests/test_toybox_game.py 의 RESEARCH_PINS 에 있다:
+//   기술 표        레코드 88h · 보유 묶음 +50h · 묶음 80h 바이트 / 수준 +1 · 빈 자리(+0 이 0)
+//   기술 수        선행 +4 · +6, 레코드 88h
+//   부대 설계 표   보유 묶음 +F8h · 레코드 168h · 묶음 80h 바이트 / 깃발 +F0h(1000000h) · +ECh(1) · 연구 대상 +20h · 빈 자리(+0 이 0)
+//   부대 설계 수   레코드 168h · 연구 대상 +20h · 선행 +34h
+//   세계 객체      lea 의 목표와, 바로 뒤 명령의 "지역 표까지의 거리"(둘을 읽는다 — 상태 묶음의 지역 표와 견준다)
+//   연구 목록      칸 24바이트(×3 ×8) · 노드의 종류 +1Ch · 번호 +18h · 다음 +10h · 깃발 +20h · +24h
+//   다시 셈 함수   call 의 목표. 앞의 두 명령(mov edx,-1 / mov rcx,<세계 객체>)이 인자의 꼴을 박는다
+const struct ResearchWanted {
+    const char *name;                       // srkit locate 와 테스트가 본다(ResearchLayout 의 필드 순서와 같다)
+    const char *label;                      // 로그와 창에 나오는 이름
+    const char *sigs[STATE_SIGS];
+} RESEARCH[RESEARCH_WANTED] = {
+    {"tech_table", "기술 표",
+     {"48 8B 15 [rip] 48 69 F0 88 00 00 00 4C 89 74 24 48 48 8D 7A 50 44 0F B7 71 04 41 8B EE 48 03 FE 74 3C 48 8B 17 48 85 D2 75 10 "
+      "B9 80 00 00 00",
+      "48 8B 0D [rip] 4C 69 CE 88 00 00 00 48 83 C1 50",
+      "48 8B 05 [rip] 44 38 24 03 76 33 8B 54 03 4C F6 C2 40 75 2A 0F B6 4C 03 01"}},
+    {"tech_count", "기술 수",
+     {"39 3D [rip] 7E 7B 48 89 5C 24 30 48 8B DF 0F 1F 00 48 8B 0D ? ? ? ? 48 03 CB 80 39 00 76 4B 0F BF 41 04 3B C6 74 08 "
+      "0F BF 41 06",
+      "44 8B 0D [rip] 33 DB 48 89 7C 24 40 45 85 C9 0F 8E ? ? ? ? 33 FF 0F 1F 00 48 8B 0D ? ? ? ? 80 3C 39 00 76 7E "
+      "0F BF 44 39 04 8B 55 18 3B C2 74 09 0F BF 44 39 06",
+      "44 3B 35 [rip] 0F 8D ? ? ? ? 49 69 D6 88 00 00 00 48 03 15 ? ? ? ? F6 05 ? ? ? ? 02 0F BF 42 04 89 44 24 60 0F BF 42 06"}},
+    {"design_table", "부대 설계 표",
+     {"4C 8B 3D [rip] 49 63 04 24 49 8D 9F F8 00 00 00 44 0F B7 77 04 48 69 C8 68 01 00 00 41 8B FE 48 03 D9 74 2B 48 8B 03 "
+      "48 85 C0 75 0D B9 80 00 00 00",
+      "4C 8B 05 [rip] 4D 03 C2 49 39 38 74 3B 41 F7 80 F0 00 00 00 00 00 00 01 75 2E 41 F6 80 EC 00 00 00 01 75 24 66 41 39 78 20",
+      "48 8B 1D [rip] 48 83 3C 2B 00 0F 84 ? ? ? ? F7 84 2B F0 00 00 00 00 00 00 01 0F 85 ? ? ? ? F6 84 2B EC 00 00 00 01 "
+      "0F 85 ? ? ? ? 66 83 7C 2B 20 00"}},
+    {"design_count", "부대 설계 수",
+     {"3B 1D [rip] 0F 8D ? ? ? ? 48 69 CB 68 01 00 00 4A 83 3C 39 00 0F 84 ? ? ? ? 66 42 83 7C 39 20 00 0F 84 ? ? ? ? 33 C0 "
+      "4D 8D 4F 34",
+      "44 3B 35 [rip] 0F 8D ? ? ? ? 48 8B 0D ? ? ? ? 49 69 DE 68 01 00 00 F6 05 ? ? ? ? 02 0F B7 44 0B 34",
+      "41 FF C1 49 81 C2 68 01 00 00 44 3B 0D [rip]"}},
+    {"world", "세계 객체",
+     {"4C 8D 15 [rip] 4D 8B 84 F2 [u32] 85 DB", "48 8D 05 [rip] 48 8B 9C D8 [u32] 8B F5", "48 8D 05 [rip] B2 01 48 8B 8C D8 [u32]"}},
+    {"lists", "연구 목록",
+     {"48 8D 0C 40 48 8B 94 CA [u32] 48 8B CA 48 85 D2 74 31 80 79 1C 02 75 10 44 3B 59 18 74 18 48 85 C9 75 05 48 8B CA EB EA "
+      "48 8B 41 10 48 8B C8 48 85 C0 75 DE EB 0D F7 41 20 00 00 00 88",
+      "49 8B 94 CF [u32] 48 8B C2 48 85 D2 74 30 48 8B CA 80 79 1C 01 75 10 44 3B 49 18 74 18 48 85 C0 75 05 48 8B C2 EB E7 "
+      "48 8B 40 10 48 8B C8 48 85 C0 75 DE EB 09 F7 41 24 00 00 00 88",
+      "48 8D 0C 40 49 8B 94 CC [u32] 48 8B C2 48 85 D2 74 5B 48 8B DA 0F 1F 80 00 00 00 00 80 7B 1C 01 75 0F 3B 7B 18 74 18 "
+      "48 85 C0 75 05 48 8B C2 EB E1 48 8B 40 10"}},
+    {"recompute", "다시 셈 함수",
+     {"BA FF FF FF FF 49 8B C9 E8 [rip]", "BA FF FF FF FF 49 8B CA E8 [rip]",
+      "BA FF FF FF FF 49 8B CC E8 [rip] 4C 63 84 24 50 41 00 00"}},
+};
+
+const int MAX_TABLE = STATE_WANTED * STATE_SIGS;    // 한 표의 서명 수의 상한(상태 21개, 값 12개, 더 쓰는 값 21개, 연구 21개)
+static_assert(VALUE_WANTED <= STATE_WANTED && MORE_WANTED <= STATE_WANTED && RESEARCH_WANTED <= STATE_WANTED,
               "서명을 맞추는 배열은 상태 묶음의 크기로 잡았다 — 더 큰 표를 더하면 MAX_TABLE 을 키운다");
 static_assert(sizeof(MoreLayout) == MORE_WANTED * sizeof(uint32_t), "MoreLayout 의 필드는 표 MORE 의 순서대로 uint32_t 일곱이다");
+static_assert(sizeof(ResearchLayout) == RESEARCH_WANTED * sizeof(uint32_t),
+              "ResearchLayout 의 필드는 표 RESEARCH 의 순서대로 uint32_t 일곱이다");
+static_assert(RESEARCH_NEED <= STATE_SIGS, "모두 맞아야 한다는 것은 서명의 수까지다");
 
 // 전역 변수가 있을 수 있는 곳인가: 쓸 수 있는 자료 구역 안.
 bool in_data(const Image &im, uint64_t rva, uint64_t bytes)
@@ -364,14 +417,15 @@ bool scan_table(const Image &im, const Row *table, int n, SigRow *rows, Sig *sig
 }
 
 // 찾을 것 하나(표의 w 째)의 투표. value 는 SIG_CAPTURES 칸. 못 찾으면 false 와 why. what 은 서명이 읽어 내는 것("주소를" · "값을").
+// need: 정확히 한 번 맞아야 하는 서명의 수(연구 묶음은 셋 모두).
 template <class Row>
 bool vote_item(const Row *table, int w, const char *what, const Sig *sigs, const SigHit *hits, uint64_t *value, char *why,
-               size_t why_size)
+               size_t why_size, int need = STATE_NEED)
 {
     int matched = 0;
-    if (sig_vote(sigs + w * STATE_SIGS, hits + w * STATE_SIGS, STATE_SIGS, STATE_NEED, value, &matched))
+    if (sig_vote(sigs + w * STATE_SIGS, hits + w * STATE_SIGS, STATE_SIGS, need, value, &matched))
         return true;
-    if (matched >= STATE_NEED)
+    if (matched >= need)
         snprintf(why, why_size, "%s: 서명들이 서로 다른 %s 냅니다", table[w].label, what);
     else
         snprintf(why, why_size, "%s: 서명 %d개 가운데 %d개", table[w].label, STATE_SIGS, matched);
@@ -382,14 +436,14 @@ bool vote_item(const Row *table, int w, const char *what, const Sig *sigs, const
 // values: n 줄 × SIG_CAPTURES 칸(0 으로 채워서 준다).
 template <class Row>
 bool vote_table(const Image &im, const Row *table, int n, const char *what, SigRow *rows, uint64_t (*values)[SIG_CAPTURES],
-                char *why, size_t why_size)
+                char *why, size_t why_size, int need = STATE_NEED)
 {
     Sig sigs[MAX_TABLE];
     SigHit hits[MAX_TABLE];
     if (!scan_table(im, table, n, rows, sigs, hits, why, why_size))
         return false;
     for (int w = 0; w < n; w++)
-        if (!vote_item(table, w, what, sigs, hits, values[w], why, why_size))
+        if (!vote_item(table, w, what, sigs, hits, values[w], why, why_size, need))
             return false;
     return true;
 }
@@ -571,6 +625,78 @@ int search_more(const uint8_t *image, size_t size, const ValueLayout *values, Mo
     return groups;
 }
 
+// 연구: 일곱을 모두 찾아야 한다. 저마다 서명 셋이 모두 맞아야 하고(RESEARCH_NEED), 읽어 낸 값이 서로 · 상태 묶음과 맞아야 한다.
+bool search_research(const uint8_t *image, size_t size, const GameAddresses &state, ResearchLayout *out, SigRow *rows, char *why,
+                     size_t why_size)
+{
+    Image im = {};
+    im.p = image;
+    im.size = size;
+    if (image == nullptr || !parse(im)) {
+        snprintf(why, why_size, "실행 파일의 머리말을 읽을 수 없습니다");
+        return false;
+    }
+    uint64_t v[RESEARCH_WANTED][SIG_CAPTURES] = {};
+    if (!vote_table(im, RESEARCH, RESEARCH_WANTED, "값을", rows, v, why, why_size, RESEARCH_NEED))
+        return false;
+    static const uint32_t BYTES[4] = {8, 4, 8, 4};      // 기술 표 · 기술 수 · 부대 설계 표 · 부대 설계 수(포인터는 8, 수는 4바이트)
+    for (int w = 0; w < 4; w++) {
+        const uint64_t rva = v[w][0];
+        if (rva == 0 || rva >= size || !im.has(rva, BYTES[w])) {
+            snprintf(why, why_size, "%s: 찾은 주소가 실행 파일 밖입니다", RESEARCH[w].label);
+            return false;
+        }
+        if (!in_data(im, rva, BYTES[w])) {
+            snprintf(why, why_size, "%s: 찾은 주소가 쓸 수 있는 자료 구역이 아닙니다", RESEARCH[w].label);
+            return false;
+        }
+        if (rva % BYTES[w] != 0) {
+            snprintf(why, why_size, "%s: 찾은 주소가 %u 의 배수가 아닙니다", RESEARCH[w].label, BYTES[w]);
+            return false;
+        }
+        for (int u = 0; u < w; u++)
+            if (overlap(rva, BYTES[w], v[u][0], BYTES[u])) {
+                snprintf(why, why_size, "%s: 찾은 주소가 %s 의 자리와 겹칩니다", RESEARCH[w].label, RESEARCH[u].label);
+                return false;
+            }
+        for (int s = 0; s < STATE_WANTED; s++) {
+            const uint64_t other = state.*(STATE[s].field);
+            if (other != 0 && overlap(rva, BYTES[w], other, STATE[s].bytes)) {
+                snprintf(why, why_size, "%s: 찾은 주소가 %s 의 자리와 겹칩니다", RESEARCH[w].label, STATE[s].label);
+                return false;
+            }
+        }
+    }
+    const uint64_t world = v[4][0], distance = v[4][1], lists = v[5][0], recompute = v[6][0];
+    if (world == 0 || world >= size || !in_data(im, world, 8)) {
+        snprintf(why, why_size, "%s: 찾은 주소가 쓸 수 있는 자료 구역이 아닙니다", RESEARCH[4].label);
+        return false;
+    }
+    if (state.region_table == 0 || world + distance != state.region_table) {      // 세계 객체 안에 지역 표가 있다 — 따로 찾은 것과 맞아야 한다
+        snprintf(why, why_size, "%s: 지역 표까지의 거리가 맞지 않습니다", RESEARCH[4].label);
+        return false;
+    }
+    const uint64_t list_bytes = static_cast<uint64_t>(LIST_STEP) * REGION_SLOTS;
+    if (lists == 0 || lists % 8 != 0 || !in_data(im, world + lists, list_bytes)) {
+        snprintf(why, why_size, "%s: 찾은 자리가 범위 밖입니다", RESEARCH[5].label);
+        return false;
+    }
+    if (overlap(world + lists, list_bytes, state.region_table, 8ull * REGION_SLOTS)) {
+        snprintf(why, why_size, "%s: 찾은 자리가 %s 의 자리와 겹칩니다", RESEARCH[5].label, STATE[5].label);
+        return false;
+    }
+    if (recompute == 0 || recompute >= size || function_root(im, static_cast<uint32_t>(recompute)) != recompute) {
+        snprintf(why, why_size, "%s: 찾은 주소가 함수의 시작이 아닙니다", RESEARCH[6].label);
+        return false;
+    }
+    uint32_t found[RESEARCH_WANTED];
+    for (int w = 0; w < RESEARCH_WANTED; w++)
+        found[w] = static_cast<uint32_t>(v[w][0]);
+    memcpy(out, found, sizeof(found));
+    snprintf(why, why_size, "%s", "");
+    return true;
+}
+
 // 서명마다의 결과 칸에 이름과 글을 채운다 — 찾기 전에. 머리말조차 못 읽은 이미지에서도 서명 표를 볼 수 있다(테스트와 srkit locate 가 쓴다).
 template <class Row>
 void name_rows(const Row *table, int n, SigRow *rows)
@@ -639,6 +765,47 @@ int locate_more(const uint8_t *image, size_t size, const ValueLayout *values, Mo
 int locate_more_group(int wanted)
 {
     return wanted >= 0 && wanted < MORE_WANTED ? MORE[wanted].group : -1;
+}
+
+bool locate_research(const uint8_t *image, size_t size, const GameAddresses &state, ResearchLayout *out, SigRow *rows, char *why,
+                     size_t why_size)
+{
+    name_rows(RESEARCH, RESEARCH_WANTED, rows);
+    __try {
+        return search_research(image, size, state, out, rows, why, why_size);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        snprintf(why, why_size, "실행 파일에 읽을 수 없는 곳이 있습니다");
+        return false;
+    }
+}
+
+const char *locate_research_shape()
+{
+    static char text[640];
+    snprintf(text, sizeof(text),
+             "tech_size\t%x\ntech_kind\t%x\ntech_level\t%x\ntech_needs\t%x\ntech_need_count\t%x\ntech_owners\t%x\n"
+             "design_size\t%x\ndesign_name\t%x\ndesign_class\t%x\ndesign_year\t%x\ndesign_open\t%x\ndesign_needs\t%x\n"
+             "design_need_count\t%x\ndesign_hold_a\t%x\ndesign_hold_a_bit\t%x\ndesign_hold_b\t%x\ndesign_hold_b_bit\t%x\n"
+             "design_owners\t%x\nowners_bytes\t%x\nlist_step\t%x\nnode_next\t%x\nnode_id\t%x\nnode_kind\t%x\nnode_flags\t%x\n"
+             "node_gone\t%x\nnode_ended\t%x\nneed\t%x\n",
+             TECH_SIZE, TECH_KIND, TECH_LEVEL, TECH_NEEDS, TECH_NEED_COUNT, TECH_OWNERS, DESIGN_SIZE, DESIGN_NAME, DESIGN_CLASS,
+             DESIGN_YEAR, DESIGN_OPEN, DESIGN_NEEDS, DESIGN_NEED_COUNT, DESIGN_HOLD_A, DESIGN_HOLD_A_BIT, DESIGN_HOLD_B,
+             DESIGN_HOLD_B_BIT, DESIGN_OWNERS, OWNERS_BYTES, LIST_STEP, NODE_NEXT, NODE_ID, NODE_KIND, NODE_FLAGS, NODE_GONE,
+             NODE_ENDED, RESEARCH_NEED);
+    return text;
+}
+
+bool locate_research_fits(const ResearchLayout &research, const ValueLayout &values, char *why, size_t why_size)
+{
+    const uint64_t at[4] = {research.tech_table, research.tech_count, research.design_table, research.design_count};
+    static const uint32_t BYTES[4] = {8, 4, 8, 4};
+    for (int w = 0; w < 4; w++)
+        if (overlap(at[w], BYTES[w], values.world_pointer, 8)) {
+            snprintf(why, why_size, "%s: 찾은 주소가 %s 의 자리와 겹칩니다", RESEARCH[w].label, VALUES[0].label);
+            return false;
+        }
+    snprintf(why, why_size, "%s", "");
+    return true;
 }
 
 bool locate_fits(const GameAddresses &state, const ValueLayout &values, char *why, size_t why_size)

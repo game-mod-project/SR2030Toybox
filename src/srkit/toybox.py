@@ -15,7 +15,7 @@ from .config import Config
 
 DLL_NAME = "srtoybox.dll"
 SOURCES = ["features.cpp", "command.cpp", "runner.cpp", "settings.cpp", "exports.cpp",
-           "log.cpp", "runner_win.cpp", "ui.cpp", "input.cpp", "prologue.cpp", "sigs.cpp", "locate.cpp", "values.cpp", "game.cpp", "keeper.cpp", "regions.cpp", "products.cpp",
+           "log.cpp", "runner_win.cpp", "ui.cpp", "input.cpp", "prologue.cpp", "sigs.cpp", "locate.cpp", "values.cpp", "research.cpp", "game.cpp", "keeper.cpp", "regions.cpp", "products.cpp",
            "overlay.cpp"]
 LIBS = ["kernel32.lib", "user32.lib", "gdi32.lib", "imm32.lib", "dwmapi.lib", "d3d11.lib", "dxgi.lib", "d3dcompiler.lib"]
 FLAGS = "/nologo /c /utf-8 /std:c++17 /O2 /MT /EHsc /DNDEBUG /DNOMINMAX"   # NDEBUG: 게임 안에서 assert 로 죽지 않게. NOMINMAX: windows.h 의 min · max 매크로를 끈다
@@ -55,6 +55,13 @@ MORE_NAMES = {"tech": "기술 수준 칸", "opinion0": "세계 시장 여론의 
 # 묶음: 기능마다 따로 찾고 따로 꺼진다 — (이름, 그 묶음의 필드들). locate.h 의 MORE_TECH · MORE_OPINION · MORE_RELATIONS 순서다
 MORE_GROUPS = [("기술 수준", ["tech"]), ("세계 시장 여론", ["opinion0", "opinion1", "opinion2"]),
                ("관계", ["relation0", "relation1", "casus"])]
+# 새 찾기(서명)가 채우는 연구 묶음 — native/srtoybox/locate.h 의 ResearchLayout 과 같은 순서다
+RESEARCH_FIELDS = ["tech_table", "tech_count", "design_table", "design_count", "world", "lists", "recompute"]
+RESEARCH_NAMES = {"tech_table": "기술 표의 포인터(qword)", "tech_count": "기술 표의 자리 수(dword)",
+                  "design_table": "부대 설계 표의 포인터(qword)", "design_count": "부대 설계 표의 자리 수(dword)",
+                  "world": "세계 객체(전역 구조체. 지역 표와 연구 목록이 그 안에 있다)",
+                  "lists": "지역별 연구 목록의 첫 칸 — 세계 객체 안의 자리(지역 인덱스 × 24 를 더한다)",
+                  "recompute": "지역의 효과를 다시 셈하는 함수(세계 객체, 지역 인덱스)"}
 
 
 @dataclass
@@ -83,6 +90,9 @@ class Located:
     more: dict[str, int]             # 새 찾기(서명): 더 쓰는 값. 못 찾은 묶음의 자리는 0
     more_why: list[str]              # 묶음마다(MORE_GROUPS 순서)의 까닭. 찾았으면 빈 글
     more_rows: list[SigRow]
+    research: dict[str, int] | None  # 새 찾기(서명): 연구 묶음. 못 찾았으면 None
+    research_why: str
+    research_rows: list[SigRow]      # 세계 객체의 value2 는 지역 표까지의 거리
 
 
 class GameAddresses(ctypes.Structure):
@@ -95,6 +105,10 @@ class ValueLayout(ctypes.Structure):
 
 class MoreLayout(ctypes.Structure):
     _fields_ = [(name, ctypes.c_uint32) for name in MORE_FIELDS]
+
+
+class ResearchLayout(ctypes.Structure):
+    _fields_ = [(name, ctypes.c_uint32) for name in RESEARCH_FIELDS]
 
 
 def output(cfg: Config) -> Path:
@@ -189,6 +203,11 @@ def library(cfg: Config) -> ctypes.CDLL:
     lib.srtoybox_locate_fits.argtypes = [ctypes.POINTER(GameAddresses), ctypes.POINTER(ValueLayout), ctypes.c_char_p, ctypes.c_int]
     lib.srtoybox_locate_more.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong, ctypes.POINTER(ValueLayout), ctypes.POINTER(MoreLayout),
                                          ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
+    lib.srtoybox_locate_research.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong, ctypes.POINTER(GameAddresses),
+                                             ctypes.POINTER(ResearchLayout), ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
+    lib.srtoybox_locate_research_fits.argtypes = [ctypes.POINTER(ResearchLayout), ctypes.POINTER(ValueLayout), ctypes.c_char_p,
+                                                  ctypes.c_int]
+    lib.srtoybox_research_shape.argtypes = [ctypes.c_char_p, ctypes.c_int]
     lib.srtoybox_function_root.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong, ctypes.c_uint]
     lib.srtoybox_function_root.restype = ctypes.c_uint
     return lib
@@ -247,6 +266,32 @@ def more_of(lib: ctypes.CDLL, image: bytes, values: dict[str, int] | None = None
     return {name: getattr(found, name) for name in MORE_FIELDS}, why, _sig_rows(rows.value)
 
 
+def research_of(lib: ctypes.CDLL, image: bytes, state: dict[str, int] | None) -> tuple[dict[str, int] | None, str, list[SigRow]]:
+    """새 찾기(연구)를 그 이미지에 돌린다: (이름 → 값 또는 None, 까닭, 서명마다의 결과).
+
+    state 는 상태 묶음(찾았을 때)이다 — 세계 객체에서 읽어 낸 "지역 표까지의 거리"를 그 지역 표와 견준다. 없으면 못 찾은 것이 된다.
+    """
+    found, error, rows = ResearchLayout(), ctypes.create_string_buffer(256), ctypes.create_string_buffer(8192)
+    ok = lib.srtoybox_locate_research(image, len(image), ctypes.byref(GameAddresses(**state)) if state else None, ctypes.byref(found),
+                                      error, len(error), rows, len(rows)) == 0
+    return ({name: getattr(found, name) for name in RESEARCH_FIELDS} if ok else None), error.value.decode("utf-8"), _sig_rows(rows.value)
+
+
+def research_fits(lib: ctypes.CDLL, research: dict[str, int], values: dict[str, int]) -> str:
+    """연구 묶음과 값 묶음의 대조(연구의 전역이 세계 자료 포인터와 겹치지 않는가). 맞으면 빈 글, 아니면 까닭."""
+    error = ctypes.create_string_buffer(256)
+    ok = lib.srtoybox_locate_research_fits(ctypes.byref(ResearchLayout(**research)), ctypes.byref(ValueLayout(**values)), error,
+                                           len(error)) == 0
+    return "" if ok else error.value.decode("utf-8")
+
+
+def research_shape(lib: ctypes.CDLL) -> dict[str, int]:
+    """DLL 이 아는 연구의 표와 목록의 꼴(native/srtoybox/locate.h 의 상수): 이름 → 값."""
+    out = ctypes.create_string_buffer(2048)
+    lib.srtoybox_research_shape(out, len(out))
+    return {name: int(value, 16) for name, value in (line.split("\t") for line in out.value.decode("utf-8").splitlines())}
+
+
 def legacy_of(lib: ctypes.CDLL, image: bytes) -> tuple[dict[str, int] | None, str]:
     """옛 찾기(치트 닻)를 그 이미지에 돌린다: (이름 → RVA, "") 또는 (None, 까닭)."""
     found, error = GameAddresses(), ctypes.create_string_buffer(256)
@@ -271,4 +316,9 @@ def locate(cfg: Config) -> Located:
         values, values_why = None, clash      # 게임 안의 ToyBox 도 이때 값 묶음을 버린다(game_init_from)
     legacy, legacy_why = legacy_of(lib, image)
     more, more_why, more_rows = more_of(lib, image, values)
-    return Located(state, state_why, rows, ms, values, values_why, value_rows, legacy, legacy_why, more, more_why, more_rows)
+    research, research_why, research_rows = research_of(lib, image, state)
+    clash = research_fits(lib, research, values) if research is not None and values is not None else ""
+    if clash:
+        research, research_why = None, clash  # 게임 안의 ToyBox 도 이때 연구 묶음을 버린다(game_init_from)
+    return Located(state, state_why, rows, ms, values, values_why, value_rows, legacy, legacy_why, more, more_why, more_rows,
+                   research, research_why, research_rows)

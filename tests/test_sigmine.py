@@ -140,6 +140,85 @@ def test_a_candidate_can_be_shown_as_instructions():
     assert sigmine.listing(image, found) == "imul rcx, r14, 0x84; movss xmm0, dword ptr [rcx + rax + 0x18]; comiss xmm0, xmm6"
 
 
+F = 0x1300                                    # 가짜 함수(부르는 자리들이 가리킨다)
+A, B, C = 0x1000 + 48, 0x1080 + 48, 0x1100 + 48
+
+
+def calls_image() -> bytes:
+    """함수 F 를 부르는 자리: A · B 는 뒤따르는 명령이 서로 다르고, C 는 앞에 인자를 싣는 명령 둘이 있고 바로 ret 다.
+    넷째 자리는 call 이 아니다 — 다른 명령(movabs)의 상수 안에 E8 과 F 까지의 거리가 우연히 들어 있다."""
+    image = fake.shell([(0x1000 + 0x80 * i, 0x1080 + 0x80 * i) for i in range(4)] + [(F, F + 0x40)])
+    end = fake.rip(image, fake.put(image, 0x1000, NOPS), bytes([0xE8]), F)     # A: call F / mov r9b,1 / xor r8d,r8d / xor edx,edx / ret
+    fake.put(image, end, bytes.fromhex("41 B1 01 45 33 C0 33 D2 C3"))
+    end = fake.rip(image, fake.put(image, 0x1080, NOPS), bytes([0xE8]), F)     # B: call F / mov r15,[rbp-48h] / mov r14,[rbp-50h] / ret
+    fake.put(image, end, bytes.fromhex("4C 8B 7D B8 4C 8B 75 B0 C3"))
+    end = fake.put(image, 0x1100, NOPS + bytes.fromhex("BA FF FF FF FF 49 8B CC"))   # C: mov edx,-1 / mov rcx,r12 / call F / ret
+    fake.put(image, fake.rip(image, end, bytes([0xE8]), F), b"\xC3")
+    end = fake.put(image, 0x1180, NOPS + bytes([0x48, 0xB8, 0x11]))            # movabs rax,<11 E8 거리 22 33> / ret
+    fake.put(image, fake.rip(image, end, bytes([0xE8]), F), bytes([0x22, 0x33, 0xC3]))
+    fake.put(image, F, b"\xC3")
+    return bytes(image)
+
+
+def test_a_function_is_mined_from_the_calls_that_reach_it():
+    """call rel32 의 목표는 rip 상대 거리와 같은 셈이다 — 함수의 주소를 읽어 낼 서명이 된다."""
+    image = sigmine.Image(calls_image())
+    assert {A + 1, B + 1, C + 9, 0x1180 + 48 + 4} <= set(image.refs(F))    # 거리만 보면 넷째 자리도 F 를 가리킨다
+    assert {c.at: c.text for c in sigmine.mine_address(image, F)} == {
+        A: "E8 [rip] 41 B1 01 45 33 C0 33 D2", B: "E8 [rip] 4C 8B 7D B8 4C 8B 75 B0"}   # C 는 call 뒤가 바로 ret 다. 넷째는 call 이 아니다
+    assert all(sigmine.count(image, c.text) == 1 for c in sigmine.mine_address(image, F))
+
+
+def test_a_signature_can_start_before_the_instruction_that_points():
+    """back: 가리키는 명령보다 앞선 명령부터 — 함수를 부르기 전에 인자를 싣는 명령을 서명에 넣는다."""
+    image = sigmine.Image(calls_image())
+    found = {c.at: c.text for c in sigmine.mine_address(image, F, back=2)}
+    assert found[C - 0] == "BA FF FF FF FF 49 8B CC E8 [rip]"              # 서명의 자리는 그 앞선 명령이다
+    assert found[A - 2].startswith("90 90 E8 [rip]") and len(found) == 3
+    assert sigmine.mine_address(image, F, back=60) == []                   # 앞에 명령이 그만큼 없다
+
+
+def shapes_image() -> bytes:
+    """전역 G 를 읽는 자리 셋(mov rdx,[G]). X · Y 는 꼴의 상수 88h · 50h 를 든 명령이 뒤따르고, Z 는 50h 가 분기의 거리로만 나온다."""
+    image = fake.shell([(0x1000 + 0x80 * i, 0x1080 + 0x80 * i) for i in range(3)])
+    for at, code in [
+            (0x1000, "48 69 F0 88 00 00 00  4C 89 74 24 48  48 8D 7A 50  C3"),      # X: imul rsi,rax,88h / mov [rsp+48h],r14 / lea rdi,[rdx+50h]
+            (0x1080, "48 63 C7  48 83 C3 50  48 69 C8 88 00 00 00  C3"),             # Y: movsxd rax,edi / add rbx,50h / imul rcx,rax,88h
+            (0x1100, "48 69 C8 88 00 00 00  48 85 C0  74 50  48 8B C8  C3")]:        # Z: imul rcx,rax,88h / test rax,rax / je +50h / mov rcx,rax
+        end = fake.rip(image, fake.put(image, at, NOPS), bytes([0x48, 0x8B, 0x15]), G)
+        fake.put(image, end, bytes.fromhex(code))
+    return bytes(image)
+
+
+def test_holding_grows_the_signature_over_the_shape_constants():
+    """holding: 서명 안의 명령이 그 상수들을 정해진 바이트로 들 때까지 늘린다 — 꼴이 바뀐 빌드에서는 서명이 맞지 않는다."""
+    image = sigmine.Image(shapes_image())
+    plain = {c.at: c.text for c in sigmine.mine_address(image, G)}
+    assert plain[A] == "48 8B 15 [rip] 48 69 F0 88 00 00 00 4C 89 74 24 48" and len(plain) == 3     # 한 번만 맞으면 거기서 멈춘다
+    assert {c.at: c.text for c in sigmine.mine_address(image, G, holding=[0x88, 0x50])} == {
+        A: "48 8B 15 [rip] 48 69 F0 88 00 00 00 4C 89 74 24 48 48 8D 7A 50",
+        B: "48 8B 15 [rip] 48 63 C7 48 83 C3 50 48 69 C8 88 00 00 00"}     # Z 의 50h 는 je 의 거리다 — 든 것이 아니다
+    assert sigmine.mine_address(image, G, holding=[0x99]) == []
+
+
+def walk_image() -> bytes:
+    """목록을 훑는 코드의 꼴: lea rcx,[rax+rax*2] / mov rdx,[rdi+rcx*8+3568C0h] / test rdx,rdx / je / cmp byte ptr [rdx+1Ch],1 /
+    jmp(다음 명령으로) / mov rax,[rdx+10h] / ret"""
+    image = fake.shell([(0x1000, 0x1080)])
+    fake.put(image, 0x1000, NOPS + bytes.fromhex("48 8D 0C 40  48 8B 94 CF C0 68 35 00  48 85 D2  74 0B  80 7A 1C 01  EB 00  48 8B 42 10  C3"))
+    return bytes(image)
+
+
+def test_constants_can_hold_shape_constants_pass_jumps_and_start_earlier():
+    image = sigmine.Image(walk_image())
+    assert sigmine.mine_constants(image, [0x3568C0], holding=[0x1C, 0x10]) == []            # jmp 에서 멈춘다 — 10h 에 닿지 못한다
+    found = sigmine.mine_constants(image, [0x3568C0], holding=[0x1C, 0x10], through_jumps=True)
+    assert [(c.at, c.text) for c in found] == [(A + 4, "48 8B 94 CF [u32] 48 85 D2 74 0B 80 7A 1C 01 EB 00 48 8B 42 10")]
+    found = sigmine.mine_constants(image, [0x3568C0], holding=[0x1C], back=1)
+    assert [(c.at, c.text, c.length) for c in found] == [(A, "48 8D 0C 40 48 8B 94 CF [u32] 48 85 D2 74 0B 80 7A 1C 01", 21)]
+    assert sigmine.mine_constants(image, [0x3568C0], holding=[0x0B]) == []                  # je 의 거리 0Bh 는 든 것이 아니다
+
+
 def installed(game_dir) -> bytes:
     exe = (game_dir / toybox.EXE_NAME).read_bytes()
     stamp = struct.unpack_from("<I", exe, struct.unpack_from("<I", exe, 0x3C)[0] + 8)[0]
@@ -179,3 +258,17 @@ def test_srkit_sig_mine_prints_candidates(cfg, game_dir, capsys):
     out = capsys.readouterr().out
     assert out.count("[u32]") == 6 and "imul" in out                       # 후보 셋(상수 둘씩)과 그 명령
     assert cli.cmd_sig_mine(cfg, argparse.Namespace(values=["1", "2", "3"], offset=True, limit=3, sites=40)) == 1
+
+
+def test_srkit_sig_mine_finds_functions_and_shape_constants(cfg, game_dir, capsys):
+    """build 21347933: 함수의 목표(앞의 명령부터), 꼴의 상수를 든 서명, 서명의 길이 한도."""
+    installed(game_dir)
+    base = dict(offset=False, limit=3, sites=400, holding=None, back=0, most=None, longest=None, through_jumps=False)
+    assert cli.cmd_sig_mine(cfg, argparse.Namespace(values=["bdd380"], **{**base, "back": 2})) == 0
+    out = capsys.readouterr().out
+    assert out.count("E8 [rip]") == 3 and out.count("call 0xbdd380") == 3  # 지역의 효과를 다시 셈하는 함수를 부르는 자리 셋
+    assert cli.cmd_sig_mine(cfg, argparse.Namespace(values=["1829620"], **{**base, "holding": ["88", "50"], "most": 14})) == 0
+    out = capsys.readouterr().out
+    assert "상수 0x88 · 0x50 을 든 것만" in out and out.count("88 00 00 00") == 3     # 기술 표: 레코드의 크기와 보유 묶음의 자리가 박힌 것
+    assert cli.cmd_sig_mine(cfg, argparse.Namespace(values=["1829620"], **{**base, "longest": 65})) == 1
+    assert "64바이트" in capsys.readouterr().out

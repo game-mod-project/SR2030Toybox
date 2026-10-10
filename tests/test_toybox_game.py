@@ -1,5 +1,6 @@
 """ToyBox: 주소 찾기(새 찾기 = 서명, 옛 찾기 = 치트 닻) · 게임 상태 읽기 · 나라 이름표 (native/srtoybox 의 locate · game · regions)."""
 import ctypes
+import re
 import struct
 from ctypes import wintypes
 
@@ -9,6 +10,7 @@ import toybox_fake_exe
 from toybox_fake_game import INDEX, MODE, MULTIPLAYER, OPTIONS, POINTER, PROGRAM, TABLE, FakeGame
 from srkit import toybox
 
+FAKE = toybox_fake_exe
 # build 21347933 (게임 12.1.1360, PE TimeDateStamp 0x695377b6) 의 주소. docs/11-game-internals.md 의 표와 같다.
 BUILD_21347933 = {"handler": 0x522330, "context": 0x1764310, "multiplayer": 0xF19634, "options": 0x1EB556C,
                   "program_state": 0x1EED11C, "mode_state": 0xE7BE30, "player_index": 0x18294E0, "player_pointer": 0x18295F8,
@@ -20,7 +22,64 @@ BUILD_VALUES = {"world_pointer": 0x1AF5868, "treasury": 0x14B88, "stock_first": 
                 "used_first": 0x18, "used_step": 0x84}
 BUILD_MORE = {"tech": 0x14CD0, "opinion0": 0x14AF4, "opinion1": 0x14AF8, "opinion2": 0x14B10, "relation0": 0x15F10,
               "relation1": 0x16F10, "casus": 0x17F10}
-GARBAGE = [b"", b"MZ", bytes(0x1000), b"MZ" + bytes(0x3A) + struct.pack("<I", 0x7FFFFFF0) + bytes(0x100)]
+BUILD_RESEARCH = {"tech_table": 0x1829620, "tech_count": 0x1829098, "design_table": 0x1829610, "design_count": 0x182909C,
+                  "world": 0x17A9020, "lists": 0x3568C0, "recompute": 0xBDD380}
+# 연구의 표와 목록의 꼴(native/srtoybox/locate.h 의 상수)이 박힌 서명: (찾을 것, 몇째 서명, 그 명령의 바이트).
+# {이름:b} · {이름:d} 자리에 DLL 이 아는 그 상수가 1바이트 · 4바이트로 들어간다({이름+2:b} 는 2 를 더한 값).
+# 게임이 업데이트되어 서명을 다시 뽑을 때 이 표도 함께 고친다 — 꼴의 상수가 서명에서 빠지면 여기서 걸린다.
+RESEARCH_PINS = [
+    ("tech_table", 0, "48 69 F0 {tech_size:d}"),                       # imul rsi,rax,<기술 레코드>
+    ("tech_table", 0, "48 8D 7A {tech_owners:b}"),                     # lea rdi,[rdx+<보유 묶음>]
+    ("tech_table", 0, "B9 {owners_bytes:d}"),                          # mov ecx,<묶음의 크기> (게임이 새 묶음을 받는 곳)
+    ("tech_table", 1, "4C 69 CE {tech_size:d} 48 83 C1 {tech_owners:b}"),
+    ("tech_table", 2, "44 38 24 03"),                                  # cmp byte ptr [rbx+rax],r12b — 빈 자리는 +0 의 바이트로 가린다
+    ("tech_table", 2, "0F B6 4C 03 {tech_level:b}"),                   # movzx ecx,byte ptr [rbx+rax+<수준>]
+    ("tech_count", 0, "80 39 00"),                                     # cmp byte ptr [rcx],0
+    ("tech_count", 0, "0F BF 41 {tech_needs:b} 3B C6 74 08 0F BF 41 {tech_needs+2:b}"),   # movsx eax,word ptr [rcx+<선행>] 둘
+    ("tech_count", 1, "0F BF 44 39 {tech_needs:b}"),
+    ("tech_count", 1, "0F BF 44 39 {tech_needs+2:b}"),
+    ("tech_count", 2, "49 69 D6 {tech_size:d}"),
+    ("tech_count", 2, "0F BF 42 {tech_needs:b} 89 44 24 60 0F BF 42 {tech_needs+2:b}"),
+    ("design_table", 0, "49 8D 9F {design_owners:d}"),                 # lea rbx,[r15+<보유 묶음>]
+    ("design_table", 0, "48 69 C8 {design_size:d}"),                   # imul rcx,rax,<부대 설계 레코드>
+    ("design_table", 0, "B9 {owners_bytes:d}"),
+    ("design_table", 1, "49 39 38"),                                   # cmp qword ptr [r8],rdi — 빈 자리는 +0 의 포인터로 가린다
+    ("design_table", 1, "41 F7 80 {design_hold_b:d} {design_hold_b_bit:d}"),     # test dword ptr [r8+<깃발 B>],<비트>
+    ("design_table", 1, "41 F6 80 {design_hold_a:d} {design_hold_a_bit:b}"),     # test byte ptr [r8+<깃발 A>],<비트>
+    ("design_table", 1, "66 41 39 78 {design_open:b}"),                # cmp word ptr [r8+<연구 대상>],di
+    ("design_table", 2, "48 83 3C 2B 00"),                             # cmp qword ptr [rbx+rbp],0
+    ("design_table", 2, "F7 84 2B {design_hold_b:d} {design_hold_b_bit:d}"),
+    ("design_table", 2, "F6 84 2B {design_hold_a:d} {design_hold_a_bit:b}"),
+    ("design_table", 2, "66 83 7C 2B {design_open:b} 00"),
+    ("design_count", 0, "48 69 CB {design_size:d}"),
+    ("design_count", 0, "66 42 83 7C 39 {design_open:b} 00"),
+    ("design_count", 0, "4D 8D 4F {design_needs:b}"),                  # lea r9,[r15+<선행>]
+    ("design_count", 1, "49 69 DE {design_size:d}"),
+    ("design_count", 1, "0F B7 44 0B {design_needs:b}"),               # movzx eax,word ptr [rbx+rcx+<선행>]
+    ("design_count", 2, "49 81 C2 {design_size:d}"),                   # add r10,<부대 설계 레코드>
+    ("lists", 0, "48 8D 0C 40 48 8B 94 CA"),                           # lea rcx,[rax+rax*2] / mov rdx,[rdx+rcx*8+…] — 칸 하나가 24바이트
+    ("lists", 0, "80 79 {node_kind:b} 02"),                            # cmp byte ptr [rcx+<종류>],2
+    ("lists", 0, "44 3B 59 {node_id:b}"),                              # cmp r11d,[rcx+<번호>]
+    ("lists", 0, "48 8B 41 {node_next:b}"),                            # mov rax,[rcx+<다음>]
+    ("lists", 0, "F7 41 {node_flags:b} 00 00 00 88"),                  # test dword ptr [rcx+<깃발>],88000000h
+    ("lists", 1, "80 79 {node_kind:b} 01"),
+    ("lists", 1, "44 3B 49 {node_id:b}"),
+    ("lists", 1, "48 8B 40 {node_next:b}"),
+    ("lists", 1, "F7 41 {node_flags+4:b} 00 00 00 88"),                # 둘째 쪽의 깃발
+    ("lists", 2, "48 8D 0C 40 49 8B 94 CC"),
+    ("lists", 2, "80 7B {node_kind:b} 01"),
+    ("lists", 2, "3B 7B {node_id:b}"),
+    ("lists", 2, "48 8B 40 {node_next:b}"),
+    ("recompute", 0, "BA FF FF FF FF 49 8B C9 E8"),                    # mov edx,-1 / mov rcx,r9 / call — 인자는 (세계 객체, 지역 인덱스)
+    ("recompute", 1, "BA FF FF FF FF 49 8B CA E8"),
+    ("recompute", 2, "BA FF FF FF FF 49 8B CC E8"),
+]
+# 서명에 박혀 있어야 하는 상수(쓰기를 가른다). 박지 못한 것: design_class · design_year(표시에만 쓴다), 선행의 개수(tech_need_count 는
+# 선행 둘의 자리로 드러난다. design_need_count 는 드러나지 않는다), tech_kind · design_name(자리가 0 이라 명령에 상수가 없다 — 명령의 꼴로 박았다)
+RESEARCH_PINNED = {"tech_size", "tech_level", "tech_needs", "tech_owners", "design_size", "design_open", "design_needs", "design_hold_a",
+                   "design_hold_a_bit", "design_hold_b", "design_hold_b_bit", "design_owners", "owners_bytes", "node_next", "node_id",
+                   "node_kind", "node_flags"}
+GARBAGE =[b"", b"MZ", bytes(0x1000), b"MZ" + bytes(0x3A) + struct.pack("<I", 0x7FFFFFF0) + bytes(0x100)]
 GARBAGE_IDS = ["empty", "two-bytes", "zeros", "header-far-outside"]
 
 
@@ -54,6 +113,12 @@ def value_sigs(lib):
 def more_sigs(lib):
     """DLL 에 든 "더 쓰는 값"의 서명 표: [(찾을 것, 서명 글)] — 찾을 것마다 셋, 표의 순서대로."""
     return [(row.name, row.text) for row in toybox.more_of(lib, b"")[2]]
+
+
+@pytest.fixture(scope="module")
+def research_sigs(lib):
+    """DLL 에 든 연구의 서명 표: [(찾을 것, 서명 글)] — 찾을 것마다 셋, 표의 순서대로."""
+    return [(row.name, row.text) for row in toybox.research_of(lib, b"", None)[2]]
 
 
 def installed_image(game_dir) -> bytes:
@@ -151,13 +216,15 @@ def test_signatures_lie_outside_the_cheat_code(lib, game_dir):
     image = installed_image(game_dir)
     cheats = sigmine.cheat_ranges(sigmine.Image(image))
     assert len(cheats) == 12
-    for row in toybox.state_of(lib, image)[2] + toybox.values_of(lib, image)[2] + toybox.more_of(lib, image)[2]:
+    for row in (toybox.state_of(lib, image)[2] + toybox.values_of(lib, image)[2] + toybox.more_of(lib, image)[2]
+                + toybox.research_of(lib, image, BUILD_STATE)[2]):
         assert not any(begin <= row.at < end for begin, end in cheats), row
 
 
 def test_each_item_takes_its_signatures_from_different_functions(lib, game_dir):
     image = installed_image(game_dir)
-    rows = toybox.state_of(lib, image)[2] + toybox.values_of(lib, image)[2] + toybox.more_of(lib, image)[2]
+    rows = (toybox.state_of(lib, image)[2] + toybox.values_of(lib, image)[2] + toybox.more_of(lib, image)[2]
+            + toybox.research_of(lib, image, BUILD_STATE)[2])
     for i in range(0, len(rows), 3):
         roots = {lib.srtoybox_function_root(image, len(image), row.at) or -row.at for row in rows[i:i + 3]}   # 함수 표에 없으면 0
         assert len(roots) == 3, rows[i].name
@@ -380,6 +447,147 @@ def test_more_agrees_with_what_the_cheat_code_says(lib, game_dir):
     assert toybox.more_of(lib, image)[0] == oracle.more(image)
 
 
+def research(lib, image: bytes, state: dict | None = toybox_fake_exe.STATE):
+    """연구의 찾기를 그 이미지에 돌린다. state 는 이미 찾은 상태 묶음(가짜 이미지의 것) — 서명을 심지 않아도 값만 넘기면 된다."""
+    return toybox.research_of(lib, image, state)
+
+
+def test_the_research_table_has_three_signatures_per_item(research_sigs):
+    assert [name for name, _ in research_sigs] == [name for name in toybox.RESEARCH_FIELDS for _ in range(3)]
+    assert len({text for _, text in research_sigs}) == 21
+
+
+def test_research_is_found_in_an_image_without_any_cheat_string(lib, research_sigs):
+    """연구의 표 · 목록 · 다시 셈 함수도 치트 문자열에 기대지 않고 찾는다."""
+    image = toybox_fake_exe.sig_image(research_sigs)
+    assert b"cheat" not in image
+    found, why, rows = research(lib, image)
+    assert found == toybox_fake_exe.RESEARCH_LAYOUT, why
+    assert [row.count for row in rows] == [1] * 21
+    assert [(row.value, row.value2) for row in rows if row.name == "world"] == [toybox_fake_exe.RESEARCH["world"]] * 3   # 주소 · 지역 표까지의 거리
+    assert all(row.value == toybox_fake_exe.RESEARCH_LAYOUT[row.name] for row in rows)
+
+
+@pytest.mark.parametrize("which", range(21))
+def test_research_needs_all_three_signatures_of_every_item(lib, research_sigs, which):
+    """다른 묶음과 다르다: 서명 하나만 깨져도 못 찾은 것이다 — 표와 목록의 꼴(레코드의 크기 · 칸의 자리)이 서명마다 박혀 있어,
+    하나라도 맞지 않으면 꼴이 바뀐 것일 수 있다. 틀린 꼴로 모든 나라가 함께 쓰는 표에 쓰느니 쓰지 않는다."""
+    found, why, rows = research(lib, toybox_fake_exe.sig_image(research_sigs, broken={which}))
+    assert found is None and "3개 가운데 2개" in why
+    assert rows[which].count == 0 and sum(row.count for row in rows) == 20
+
+
+def test_a_research_signature_that_matches_twice_does_not_count(lib, research_sigs):
+    found, why, rows = research(lib, toybox_fake_exe.sig_image(research_sigs, twice={6}))     # 부대 설계 표의 첫 서명
+    assert found is None and rows[6].count == 2 and "부대 설계 표: 서명 3개 가운데 2개" in why
+
+
+def test_research_signatures_that_disagree_are_refused(lib, research_sigs):
+    found, why, _ = research(lib, toybox_fake_exe.sig_image(research_sigs, stray={13}))       # 세계 객체의 둘째 서명
+    assert found is None and why == "세계 객체: 서명들이 서로 다른 값을 냅니다"
+
+
+
+@pytest.mark.parametrize("targets, reason", [
+    ({"tech_table": FAKE.DATA + 0x4C}, "기술 표: 찾은 주소가 8 의 배수가 아닙니다"),
+    ({"tech_table": FAKE.SIZE + 0x100}, "기술 표: 찾은 주소가 실행 파일 밖입니다"),
+    ({"design_table": FAKE.RDATA + 0x100}, "부대 설계 표: 찾은 주소가 쓸 수 있는 자료 구역이 아닙니다"),
+    ({"tech_count": FAKE.DATA + 0x48}, "기술 수: 찾은 주소가 기술 표 의 자리와 겹칩니다"),
+    ({"design_count": FAKE.STATE["player_index"]}, "부대 설계 수: 찾은 주소가 플레이어 인덱스 의 자리와 겹칩니다"),
+    ({"world": (FAKE.WORLD, 0x88)}, "세계 객체: 지역 표까지의 거리가 맞지 않습니다"),
+    ({"world": (FAKE.RDATA + 0x100, FAKE.STATE["region_table"] - FAKE.RDATA - 0x100)}, "세계 객체: 찾은 주소가 쓸 수 있는 자료 구역이 아닙니다"),
+    ({"lists": 0x2104}, "연구 목록: 찾은 자리가 범위 밖입니다"),                           # 포인터가 든 칸은 8 의 배수 자리다
+    ({"lists": 0x9000}, "연구 목록: 찾은 자리가 범위 밖입니다"),                           # 24바이트 × 1024칸이 자료 구역을 넘는다
+    ({"lists": 0x1000}, "연구 목록: 찾은 자리가 지역 표 의 자리와 겹칩니다"),
+    ({"recompute": FAKE.RECOMPUTE + 4}, "다시 셈 함수: 찾은 주소가 함수의 시작이 아닙니다"),
+    ({"recompute": FAKE.DATA + 0x400}, "다시 셈 함수: 찾은 주소가 함수의 시작이 아닙니다"),   # 코드가 아니다
+], ids=["unaligned", "outside", "read-only", "on-another-item", "on-a-state-global", "wrong-distance", "world-not-data",
+        "list-unaligned", "list-runs-out", "list-on-the-region-table", "inside-a-function", "not-code"])
+def test_research_that_does_not_add_up_is_refused(lib, research_sigs, targets, reason):
+    """서명 셋이 모두 맞아도 읽어 낸 값이 말이 안 되면 못 찾은 것이다."""
+    found, why, _ = research(lib, toybox_fake_exe.sig_image(research_sigs, targets=targets))
+    assert found is None and why == reason
+
+
+def test_research_checks_the_world_object_against_the_region_table_found_elsewhere(lib, research_sigs):
+    """세계 객체의 서명은 "지역 표까지의 거리"도 읽는다. 세계 객체 + 그 거리가 상태 묶음이 따로 찾은 지역 표가 아니면 엉뚱한 객체다."""
+    image = toybox_fake_exe.sig_image(research_sigs)
+    moved = {**toybox_fake_exe.STATE, "region_table": toybox_fake_exe.STATE["region_table"] + 8}
+    assert research(lib, image, moved)[:2] == (None, "세계 객체: 지역 표까지의 거리가 맞지 않습니다")
+    assert research(lib, image, None)[:2] == (None, "세계 객체: 지역 표까지의 거리가 맞지 않습니다")     # 상태 묶음을 못 찾았다
+
+
+def test_research_is_found_beside_the_state_table(lib, sigs, research_sigs):
+    """상태의 서명과 한 이미지에 있어도 저마다 찾는다. 연구의 서명 하나가 깨지면 연구만 못 찾는다."""
+    image = toybox_fake_exe.sig_image(sigs + research_sigs)
+    state = toybox.state_of(lib, image)[0]
+    assert state == toybox_fake_exe.STATE and research(lib, image, state)[0] == toybox_fake_exe.RESEARCH_LAYOUT
+    image = toybox_fake_exe.sig_image(sigs + research_sigs, broken={21 + 20})
+    assert toybox.state_of(lib, image)[0] == toybox_fake_exe.STATE and research(lib, image)[0] is None
+
+
+def test_research_must_not_sit_on_the_world_pointer_of_the_values(lib):
+    """연구 묶음과 값 묶음을 저마다 찾았어도, 연구의 전역이 세계 자료 포인터와 겹치면 어느 쪽이 엉뚱한 것을 읽었는지 알 수 없다 —
+    연구 묶음을 버린다(값 묶음은 그대로 쓴다). 바로 옆은 겹침이 아니다."""
+    found, values = toybox_fake_exe.RESEARCH_LAYOUT, toybox_fake_exe.VALUE_LAYOUT
+    assert toybox.research_fits(lib, found, values) == ""
+    for name, label in (("tech_table", "기술 표"), ("tech_count", "기술 수"), ("design_table", "부대 설계 표")):
+        clash = {**values, "world_pointer": found[name]}
+        assert toybox.research_fits(lib, found, clash) == f"{label}: 찾은 주소가 세계 자료 포인터 의 자리와 겹칩니다"
+    # 가짜 이미지에서 부대 설계 수(4바이트) 바로 뒤가 부대 설계 표다 — 8바이트 포인터는 둘에 걸치고, 표의 순서로 먼저인 것을 든다
+    assert toybox.research_fits(lib, found, {**values, "world_pointer": found["design_count"]}).endswith("세계 자료 포인터 의 자리와 겹칩니다")
+    assert toybox.research_fits(lib, found, {**values, "world_pointer": found["tech_table"] - 4}) != ""          # 끝이 걸친다
+    assert toybox.research_fits(lib, found, {**values, "world_pointer": found["tech_table"] + 0x100}) == ""
+
+
+@pytest.mark.parametrize("image", GARBAGE, ids=GARBAGE_IDS)
+def test_research_survives_garbage(lib, image):
+    found, why, _ = research(lib, image)
+    assert found is None and why
+
+
+def test_research_on_the_installed_game(lib, game_dir):
+    """build 21347933: 서명 21개가 저마다 실행 구역에 정확히 한 번 맞고, 읽어 낸 값이 docs/11 의 표와 같다."""
+    found, why, rows = toybox.research_of(lib, installed_image(game_dir), BUILD_STATE)
+    assert found == BUILD_RESEARCH, why
+    assert [row.count for row in rows] == [1] * 21
+    assert all(row.value == BUILD_RESEARCH[row.name] for row in rows)
+    assert {row.value2 for row in rows if row.name == "world"} == {BUILD_STATE["region_table"] - BUILD_RESEARCH["world"]}
+
+
+def test_the_shape_of_the_research_tables_is_pinned_in_the_signatures(lib, research_sigs):
+    """표와 목록의 꼴은 읽어 내지 않고 상수로 둔다(locate.h). 그 상수가 서명의 명령에 그대로 박혀 있어야 한다 —
+    꼴이 바뀐 빌드에서 서명이 맞지 않게. DLL 의 상수를 고치면서 서명을 그대로 두면 여기서 걸린다."""
+    shape = toybox.research_shape(lib)
+    assert shape["need"] == 3 and shape["list_step"] == 24 and shape["tech_kind"] == 0 and shape["design_name"] == 0
+    assert shape["tech_need_count"] == 2 and shape["node_gone"] | shape["node_ended"] == 0x88000000
+    texts = {(name, i % 3): text for i, (name, text) in enumerate(research_sigs)}
+    pinned = set()
+
+    def fill(m) -> str:
+        pinned.add(m[1])
+        value = shape[m[1]] + int(m[2] or 0)
+        return " ".join(f"{b:02X}" for b in value.to_bytes(1 if m[3] == "b" else 4, "little"))
+
+    for item, which, template in RESEARCH_PINS:
+        wanted = re.sub(r"\{([a-z_]+)(\+\d+)?:([bd])\}", fill, template)
+        assert wanted in texts[item, which], (item, which, wanted)
+    assert pinned == RESEARCH_PINNED
+    assert {item for item, _, _ in RESEARCH_PINS} == set(toybox.RESEARCH_FIELDS) - {"world"}     # 세계 객체는 거리를 읽어 견준다
+
+
+def test_research_agrees_with_what_the_cheat_code_says(lib, game_dir):
+    """치트 코드가 남아 있는 빌드에서의 대조: 서명으로 찾은 것과 DLL 이 아는 꼴 == 치트 technology 의 본문이 쓰는 것."""
+    oracle = pytest.importorskip("toybox_cheat_oracle", reason="capstone 이 없다 (uv sync)")
+    image = installed_image(game_dir)
+    said = oracle.research(image)
+    found, shape = toybox.research_of(lib, image, BUILD_STATE)[0], toybox.research_shape(lib)
+    assert {name: found[name] for name in ("world", "tech_count", "tech_table", "lists", "recompute")} == \
+        {name: said[name] for name in ("world", "tech_count", "tech_table", "lists", "recompute")}
+    names = ("tech_size", "tech_level", "tech_owners", "owners_bytes", "node_kind", "node_id", "node_next")
+    assert {name: shape[name] for name in names} == {name: said[name] for name in names}
+
+
 def test_legacy_finds_the_handler_from_the_cheat_anchor(lib, sigs):
     """옛 찾기(전환 기간): 아직 내장 치트로 도는 기능이 쓰는 셋만 치트 문자열을 닻으로 찾는다."""
     assert toybox.legacy_of(lib, toybox_fake_exe.build(sigs)) == (toybox_fake_exe.LEGACY, "")
@@ -449,6 +657,8 @@ def test_srkit_locate_reports_every_search(lib, cfg, game_dir):
     assert located.legacy is not None and set(located.legacy) == set(toybox.LEGACY_FIELDS), located.legacy_why
     assert set(located.more) == set(toybox.MORE_FIELDS) and all(located.more.values()) and located.more_why == ["", "", ""]
     assert len(located.more_rows) == 21
+    assert located.research is not None and set(located.research) == set(toybox.RESEARCH_FIELDS), located.research_why
+    assert len(located.research_rows) == 21
 
 
 def state(lib, fake: FakeGame) -> dict[str, str]:

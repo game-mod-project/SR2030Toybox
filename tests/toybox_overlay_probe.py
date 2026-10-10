@@ -72,6 +72,15 @@ ToyBox 가 부른 함수 안에서 난 예외를 위에서 잡을 때 (출력 "c
     more_fail        고른 나라의 객체가 읽기 전용 쪽에 있다 — 쓰기가 실패하고, 값 쓰기 전체가 꺼진다
     more_reenter     옮기지 않은 기능의 직접 실행이 게임의 함수 안에 있는 동안 타이머가 다시 온다 — 그 안에서는 쓰지 않는다
     more_fault       옮기지 않은 기능의 직접 실행이 죽는다(오류 가드) — 함께 대기열에 있던 요청을 쓰지 않는다
+연구의 두 줄 — 내장 치트를 거치지 않고 기술 · 부대 설계의 보유를 고친다 (출력은 JSON 한 줄. 연구의 판은 toybox_fake_game.standard_lab):
+    research           게임 안에서 "대기열의 연구 즉시 완료", 그리고 "기술 수준 N 이하 전부 보유"(입력란은 처음 값 120)
+    research_menu      메뉴에 있다 — 단추가 꺼져 있다
+    research_leave     단추를 누른 뒤 쓰기 전에 게임에서 나간다 — 쓰지 않고 버린다. 돌아오면 다시 된다
+    research_notfound  연구의 자리를 찾지 못한 게임 — 두 줄에만 까닭이 보이고 "지식 순위 올리기"는 그대로다
+    research_write_off SRTOYBOX_WRITE=0 — 세 줄 모두 까닭만 보인다
+    research_unread    SRTOYBOX_READ=0 — 〃
+    research_fault     게임의 "효과를 다시 셈"이 죽는다 — ToyBox 가 잡고 빨간 경고를 띄운다. 그 뒤로는 아무것도 쓰지 않는다
+    research_reenter   "효과를 다시 셈" 안에서 타이머가 다시 온다 — 그 안에서는 대기열의 내장 치트를 시작하지 않는다
 물자 탭이 창 안에 들어오는가 (출력은 JSON 한 줄):
     layout_full      처음 여는 창에서, 물자 열하나를 쓰는 판 — 바닥에 "마지막으로 쓴 값" 줄이 생긴 뒤에도 모든 줄이 보인다
     layout_saved     이미 써 본 사용자의 창(저장된 크기 500x460) — 최소 유지의 긴 안내 글이 창 밖으로 나가지 않는다
@@ -99,7 +108,7 @@ from ctypes import wintypes
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
-from toybox_fake_game import MORE, MULTIPLAYER, OPTIONS, FakeGame  # noqa: E402  (이 파일과 같은 폴더)
+from toybox_fake_game import DESIGN, MORE, MULTIPLAYER, OPTIONS, TECH, FakeGame, standard_lab  # noqa: E402  (이 파일과 같은 폴더)
 
 SLOT_PRESENT, SLOT_RESIZE, SLOT_PRESENT1 = 8, 13, 22
 LIMIT = 50      # 가짜 훅이 이만큼 불리면 맴도는 것이다. 여기서 끊어 프로세스가 죽지 않게 한다
@@ -139,6 +148,7 @@ PRESENT1 = ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p, ctypes.c_uint, cty
 RESIZE = ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint, ctypes.c_uint, ctypes.c_uint, ctypes.c_uint)
 WNDPROC = ctypes.WINFUNCTYPE(LRESULT, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)
 HANDLER = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_char_p)    # 게임의 명령 처리 함수: void f(void *context, const char *line)
+RECOMPUTE = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int)     # 게임의 "효과를 다시 셈": void f(void *world, int index)
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 user32 = ctypes.WinDLL("user32", use_last_error=True)
 user32.CreateWindowExW.restype = wintypes.HWND
@@ -543,7 +553,8 @@ def start_game(hook: str, buffer: tuple[int, int] | None = None, ansi: bool = Fa
     return game
 
 
-def fake_game(hook: str, handler: int | None = None, values: bool = True, more: dict | None = MORE) -> FakeGame:
+def fake_game(hook: str, handler: int | None = None, values: bool = True, more: dict | None = MORE, research: bool = True,
+              recompute: int | None = None) -> FakeGame:
     """ToyBox 가 보는 "게임"을 가짜 메모리로 바꾼다. 폴란드(141, 1106. 국고 $5 B)와 독일(176, 1499. 국고 $14.43 B)이 있고 메뉴 상태다.
     기술 수준은 독일 130 · 폴란드 128, 독일의 여론 세 칸은 0.5 · 0.25 · 0.75, 독일 → 폴란드의 관계는 0.25 · -0.5(전쟁 명분 0.75),
     폴란드 → 독일은 0.125 · 0.5(전쟁 명분 1).
@@ -551,6 +562,8 @@ def fake_game(hook: str, handler: int | None = None, values: bool = True, more: 
     handler 는 명령 처리 함수 자리에 둘 함수의 주소(없으면 직접 실행을 쓰는 테스트가 아니다).
     values 가 False 면 값의 자리를 찾지 못한 게임이다(돈 탭이 꺼진다).
     more 는 더 쓰는 값의 자리다 — 자리를 0 으로 둔 묶음은 못 찾은 것이 된다. None 이면 모두 못 찾은 게임이다.
+    research 가 False 면 연구의 자리를 찾지 못한 게임이다. 아니면 연구의 판(standard_lab)이 fake.lab 에 붙는다.
+    recompute 는 "효과를 다시 셈" 자리에 둘 함수의 주소다 — 주지 않으면 불린 지역 인덱스를 fake.recomputed 에 적는 함수를 둔다.
     """
     toybox = ctypes.WinDLL(str(Path(hook).with_name("srtoybox.dll")))
     toybox.srtoybox_test_game.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
@@ -571,6 +584,13 @@ def fake_game(hook: str, handler: int | None = None, values: bool = True, more: 
         toybox.srtoybox_test_values(ctypes.byref(fake.layout))
     if more is not None:
         toybox.srtoybox_test_more(ctypes.byref(type(fake.more)(**more)))
+    fake.recomputed = []
+    fake.recompute = RECOMPUTE(lambda _world, index: fake.recomputed.append(index))     # 게임이 살아 있는 동안 붙들어 둔다
+    if research:
+        toybox.srtoybox_test_research.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+        fake.lab = standard_lab(fake)
+        toybox.srtoybox_test_research(ctypes.byref(fake.lab.layout),
+                                      recompute if recompute is not None else ctypes.cast(fake.recompute, ctypes.c_void_p))
     return fake
 
 
@@ -1219,6 +1239,87 @@ def run_more(hook: str, mode: str) -> int:
     return 0
 
 
+def run_research(hook: str, mode: str) -> int:
+    """연구의 두 줄: 내장 치트를 거치지 않고 기술 · 부대 설계의 보유를 고친다. 출력은 JSON 한 줄(보이지 않는 글은 "-").
+
+    held 는 [독일의 기술, 독일의 부대 설계, 폴란드의 기술, 폴란드의 부대 설계] — 처음에는 [[1, 4, 6], [10, 13, 14], [1, 2], [11, 13]].
+    """
+    game = start_game(hook)
+    if game is None:
+        return 0
+    lines: list[str] = []
+    inside: list[int] = []
+    box: dict[str, FakeGame] = {}
+
+    def body(_context, line):
+        lines.append(line.decode())
+        if line == b"cheat allowcheats":
+            box["fake"].poke(OPTIONS, "<I", box["fake"].peek(OPTIONS, "<I") | 0x40)
+
+    def recompute(_world, index):
+        box["fake"].recomputed.append(index)
+        if mode == "research_reenter":                        # 게임의 함수가 일하는 도중에 ToyBox 의 타이머가 다시 온다
+            inside.append(len(lines))
+            user32.SendMessageW(game.hwnd, WM_TIMER, TIMER_ID, 0)
+            inside.append(len(lines))
+
+    game.handler, game.recompute = HANDLER(body), RECOMPUTE(recompute)      # 게임이 살아 있는 동안 붙들어 둔다
+    fake = box["fake"] = fake_game(hook, ctypes.cast(game.handler, ctypes.c_void_p).value, research=mode != "research_notfound",
+                                   recompute=crash_stub() if mode == "research_fault" else ctypes.cast(game.recompute, ctypes.c_void_p))
+    if mode != "research_menu":
+        fake.play(176)
+    game.hotkey()
+    game.got.clear()
+    out: dict[str, object] = {}
+
+    def held() -> list[list[int]]:
+        lab = fake.lab
+        return [lab.held(TECH, 64, 176), lab.held(DESIGN, 64, 176), lab.held(TECH, 64, 141), lab.held(DESIGN, 64, 141)]
+
+    def press(name: str) -> None:
+        game.click(name)
+        game.wait(0.2)                                        # 쓰는 것은 다음 타이머에서다
+
+    game.click(RESEARCH)
+    facts = game.facts()
+    out["rows"] = {name: facts[name][3] for name in facts if name.startswith(("run:", "off:", "value:"))}
+    if mode in ("research", "research_menu"):
+        press("run:e=mc2")
+        out["after_queue"], out["wrote_queue"] = held(), game.shown("wrote")
+        press("run:technology")
+        out["wrote_level"] = game.shown("wrote")
+        press("run:e=mc2")                                    # 한 번 더 — 대기열이 비었다
+        out["unwritten"] = game.shown("unwritten")
+    elif mode == "research_leave":
+        game.click("run:e=mc2")                               # 눌렀다. 쓰는 것은 다음 타이머에서다(메시지를 돌릴 때 온다)
+        fake.menu()                                           # 그 전에 게임에서 나갔다
+        game.wait(0.3)
+        out["dropped"], out["unwritten"] = held(), game.shown("unwritten")
+        fake.play(176)
+        press("run:e=mc2")                                    # 돌아오면 다시 된다
+        out["unwritten_after"] = game.shown("unwritten")
+    elif mode == "research_fault":
+        press("run:e=mc2")
+        out["fault"] = game.shown("fault")
+        out["after_fault"] = held()
+        press("run:technology")                               # 오류 가드가 걸렸다 — 단추가 꺼져 있다
+    elif mode == "research_reenter":
+        game.click(CHEAT_TAB)
+        game.click(BUTTON)
+        game.click(BUTTON)                                    # 내장 치트로 도는 기능 둘이 실행기의 대기열에 든다
+        game.click(RESEARCH)
+        game.click("run:e=mc2")                               # 연구 요청도 든다
+        game.wait(1.0)
+        out["inside"] = inside
+    if mode != "research_notfound":
+        out["held"] = held()
+        out["days"] = sorted({struct.unpack_from("<f", fake.lab.techs, n * 0x88 + 0x30)[0] for n in (1, 2, 3, 4, 6, 7)})
+    out["hint"], out["status"] = game.shown("hint"), game.shown("status")
+    out["recomputed"], out["lines"], out["text"], out["options"] = fake.recomputed, lines, game.text(), fake.peek(OPTIONS, "<I")
+    print(json.dumps(out, ensure_ascii=False))
+    return 0
+
+
 def run_layout(hook: str, mode: str) -> int:
     """물자 탭이 창 안에 들어오는가. 독일은 물자 열하나를 모두 쓴다. 출력은 JSON 한 줄(보이지 않는 글은 "-").
 
@@ -1357,6 +1458,8 @@ def main() -> int:
         return run_money(hook, mode)
     if mode.startswith("more"):
         return run_more(hook, mode)
+    if mode.startswith("research"):
+        return run_research(hook, mode)
     if mode.startswith("stock"):
         return run_stock(hook, mode)
     if mode.startswith("keep"):

@@ -2,7 +2,7 @@
 
 게임 안에서 도는 DLL 은 이 방식을 쓰지 않는다(docs/superpowers/specs/2026-10-09-toybox-stage3-1-design.md 의 요구 3).
 치트 코드가 남아 있는 빌드에서 "새 찾기(서명)가 낸 값이 치트 코드에서 읽은 값과 같은가"를 보는 데만 쓴다.
-(3단계 2 의 "더 쓰는 값"은 치트 finalexam · shelovesme · love · neutral 의 본문과 댄다.)
+(3단계 2 의 "더 쓰는 값"은 치트 finalexam · shelovesme · love · neutral 의 본문과, 3단계 3 의 연구는 치트 technology 의 본문과 댄다.)
 pytest 가 직접 모으는 테스트 파일이 아니다(tests/test_toybox_game.py 가 쓴다).
 """
 import re
@@ -135,4 +135,38 @@ def more(image_bytes: bytes) -> dict[str, int]:
     assert neutral == {"mine_one": [], "mine_zero": six, "theirs_one": [], "theirs_zero": six}, neutral   # 중립은 같은 칸들에 0
     out["relation0"], out["relation1"] = love["mine_one"]
     out["casus"] = love["mine_zero"][0]
+    return out
+
+
+def research(image_bytes: bytes) -> dict[str, int]:
+    """연구 묶음 가운데 치트 technology 의 본문에서 읽을 수 있는 것: 세계 객체 · 기술 수 · 기술 표 · 연구 목록의 자리 · 다시 셈 함수,
+    그리고 꼴의 상수(tech_size · tech_level · tech_owners · owners_bytes · node_kind · node_id · node_next).
+    부대 설계의 표는 이 치트가 건드리지 않는다 — 여기에 없다."""
+    image = sigmine.Image(image_bytes)
+    data = image.data
+    use = _uses(image, "cheat technology")[0]
+    body = _body(image, "cheat technology")
+
+    def find(pattern: bytes) -> re.Match:
+        m = re.search(pattern, body, re.S)
+        assert m is not None, pattern
+        return m
+
+    out = {}
+    m = find(rb"\x4c\x8d\x3d....\x44\x39\x35....")                          # lea r15,[세계 객체] / cmp [기술 수],r14d
+    out["world"] = _target(data, use + m.start(), 3, 7)
+    out["tech_count"] = _target(data, use + m.start() + 7, 3, 7)
+    m = find(rb"\x48\x8d\x0c\x52\x49\x8b\x94\xcf(....)")                    # lea rcx,[rdx+rdx*2] / mov rdx,[r15+rcx*8+연구 목록]
+    out["lists"] = struct.unpack("<I", m.group(1))[0]
+    m = find(rb"\x80\x7f(.)\x01\x75.\x44\x3b\x77(.)")                       # cmp byte ptr [rdi+종류],1 / jne / cmp r14d,[rdi+번호]
+    out["node_kind"], out["node_id"] = m.group(1)[0], m.group(2)[0]
+    out["node_next"] = find(rb"\x48\x8b\x40(.)\x48\x8b\xf8").group(1)[0]     # mov rax,[rax+다음] / mov rdi,rax
+    m = find(rb"\x48\x8b\x0d....\x41\x0f\xb6\x44\x0c(.)")                    # mov rcx,[기술 표] / movzx eax,byte ptr [r12+rcx+수준]
+    out["tech_table"] = _target(data, use + m.start(), 3, 7)
+    out["tech_level"] = m.group(1)[0]
+    out["tech_owners"] = find(rb"\x48\x8d\x79(.)\x49\x03\xfc").group(1)[0]   # lea rdi,[rcx+보유 묶음] / add rdi,r12
+    out["owners_bytes"] = struct.unpack("<I", find(rb"\xb9(....)\xe8....\x4c\x8b\xc8").group(1))[0]   # mov ecx,묶음의 크기 / call / mov r9,rax
+    out["tech_size"] = struct.unpack("<I", find(rb"\x49\x81\xc4(....)").group(1))[0]                  # add r12,레코드의 크기
+    m = find(rb"\xba\xff\xff\xff\xff\x49\x8b\xcf\xe8....")                  # mov edx,-1 / mov rcx,r15 / call 다시 셈
+    out["recompute"] = _target(data, use + m.start() + 8, 1, 5)
     return out

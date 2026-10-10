@@ -70,22 +70,47 @@ std::string asking_label(const Feature &f, int region)
     return what + " — 한 번 더 누르면 실행합니다";
 }
 
-// 직접 쓰는 줄(3단계 2): 내장 치트를 거치지 않는다 — 누르면 값 쓰기 요청을 대기열에 넣고, 쓰는 것은 게임 창의 타이머에서다(keeper.h).
+// 직접 쓰는 줄(3단계 2 · 3): 내장 치트를 거치지 않는다 — 누르면 요청을 대기열에 넣고, 쓰는 것은 게임 창의 타이머에서다(keeper.h).
 // 쓸 수 없으면 단추 자리에 까닭 한 줄만 그린다(그 줄에만. 같은 탭의 다른 줄은 그대로다). 내장 치트로 되돌아가지 않는다.
-void direct_row(const Feature &f, const GameState &game)
+// 단추를 그렸으면(쓸 수 있으면) true.
+bool direct_row(const Feature &f, const GameState &game)
 {
+    const bool research = f.direct == Direct::TechLevel || f.direct == Direct::QueueDone;   // 연구의 두 줄은 제 묶음(연구)을 본다
     const int group = f.direct == Direct::TechUp ? MORE_TECH : f.direct == Direct::OpinionBest ? MORE_OPINION : MORE_RELATIONS;
-    const std::string off = game.known ? game_more_off(group) : std::string("게임 상태를 읽을 수 있을 때만 씁니다.");
+    const std::string off = !game.known ? std::string("게임 상태를 읽을 수 있을 때만 씁니다.")
+        : research ? game_research_off() : game_more_off(group);
     ImGui::PushID(f.id);
     if (!off.empty()) {
         const std::string line = std::string(f.label) + " — " + off;
         ImGui::TextWrapped("%s", line.c_str());
         note(std::string("off:") + f.id, line);
     } else {
+        long long value = 0;
+        if (f.has_value) {                                                   // 기술 수준. 쓸 수 없을 때는 입력란도 그리지 않는다
+            long long &stored = g_settings.values[f.id];
+            ImGui::SetNextItemWidth(150.0f);
+            if (ImGui::InputScalar("##value", ImGuiDataType_S64, &stored)) {
+                stored = stored < f.min ? f.min : stored > f.max ? f.max : stored;
+                save_settings(g_settings);
+            }
+            note(std::string("value:") + f.id, std::to_string(stored));
+            value = stored;
+            ImGui::SameLine();
+        }
         ImGui::BeginDisabled(f.target == Target::Picked && g_picked <= 0);   // 나라를 고르지 않았다
         const bool pressed = ImGui::Button((std::string(f.label) + "###run").c_str());
         note(std::string("run:") + f.id, f.label);
-        if (pressed) {
+        if (pressed && research) {
+            ResearchRequest request = {Research::Complete, ResearchWhat(), "대기열"};
+            request.what.kind = ResearchWhat::Queue;
+            if (f.direct == Direct::TechLevel) {
+                request.what.kind = ResearchWhat::Level;
+                request.what.level = static_cast<int>(value);
+                request.label = "기술 수준 " + std::to_string(value) + " 이하";
+            }
+            g_confirm.clear();
+            g_notice = keeper_enqueue_research(request) ? "" : "대기 중인 요청이 많아 받지 못했습니다.";
+        } else if (pressed) {
             Request request = {TECH, Change::Set, 0.0, 0};
             if (f.direct == Direct::OpinionBest)
                 request.slot = OPINION;
@@ -99,14 +124,12 @@ void direct_row(const Feature &f, const GameState &game)
     ImGui::TextDisabled("%s", f.help);
     ImGui::Spacing();
     ImGui::PopID();
+    return off.empty();
 }
 
+// 아직 내장 치트로 도는 줄: 누르면 명령을 실행기의 대기열에 넣는다.
 void row(const Feature &f, const GameState &game)
 {
-    if (f.direct != Direct::None) {
-        direct_row(f, game);
-        return;
-    }
     ImGui::PushID(f.id);
     long long value = 0;
     if (f.has_value) {
@@ -522,7 +545,8 @@ void ui_draw()
         if (g_footer <= 0.0f)
             g_footer = 3.0f * ImGui::GetTextLineHeightWithSpacing();   // 첫 프레임의 어림. 그 뒤로는 지난 프레임에 잰 값
         const ImVec2 body(0.0f, -g_footer);
-        bool values_tab = false, values_ok = false;         // 지금 보이는 탭이 값을 직접 쓰는 탭(돈 · 물자)인가, 그 탭을 쓸 수 있는가
+        // 지금 보이는 탭이 내장 치트로 도는 줄이 없는 탭(돈 · 물자, 그리고 줄이 모두 직접 쓰는 줄인 연구)인가, 그 탭을 쓸 수 있는가
+        bool values_tab = false, values_ok = false;
         if (ImGui::BeginTabBar("tabs")) {
             const bool money = ImGui::BeginTabItem("돈");   // 첫 탭. 기능 표에 없다 — 내장 치트 없이 직접 한다
             note("tab:돈", "돈");
@@ -563,9 +587,20 @@ void ui_draw()
                         ImGui::BeginDisabled(blocked);
                         if (diplomacy)
                             picker(view);
-                        for (int j = i; j < FEATURE_COUNT && strcmp(FEATURES[j].tab, tab) == 0; j++)
-                            row(FEATURES[j], game);
+                        bool cheats = false, direct_ok = false;
+                        for (int j = i; j < FEATURE_COUNT && strcmp(FEATURES[j].tab, tab) == 0; j++) {
+                            if (FEATURES[j].direct == Direct::None) {
+                                cheats = true;
+                                row(FEATURES[j], game);
+                            } else if (direct_row(FEATURES[j], game)) {
+                                direct_ok = true;
+                            }
+                        }
                         ImGui::EndDisabled();
+                        if (!cheats) {                   // 이 탭의 바닥 안내는 글쇠 방식과 상관없다
+                            values_tab = true;
+                            values_ok = direct_ok;
+                        }
                     }
                 }
                 ImGui::EndChild();
@@ -608,7 +643,7 @@ void ui_draw()
         // 게임 화면에 무슨 일이 생기는지. 게임을 읽을 수 있으면 게임 밖에서는 단추가 꺼져 있으므로(상태 줄이 그렇게 말한다) 띄우지 않는다.
         // 직접 실행에서는 게임의 설정 창이 뜨지 않는 대신, 열려 있던 패널이 스스로 다시 그려지지 않는다 — 일시 정지 중에도,
         // 시간이 흐르는 중에도(같은 날 안에서) [확인: 게임]
-        // 값을 직접 쓰는 탭(돈 · 물자)은 글쇠 방식과 상관없다 — 쓸 수 있으면 늘 바로 바뀌고, 쓸 수 없으면 탭의 까닭 한 줄이 전부다.
+        // 내장 치트로 도는 줄이 없는 탭(돈 · 물자 · 연구)은 글쇠 방식과 상관없다 — 쓸 수 있으면 늘 바로 바뀌고, 쓸 수 없으면 까닭의 줄이 전부다.
         const char *const direct = "값은 바로 바뀝니다. 게임 화면의 숫자는 그 패널을 누르거나 다시 열 때 따라옵니다.";
         const char *const hint = game.known && blocked ? nullptr
             : values_tab ? (values_ok ? direct : nullptr)

@@ -5,6 +5,7 @@
 //   새 찾기 locate_state   게임 상태를 읽는 전역 일곱. 내장 치트와 무관한 코드의 서명으로(sigs.h) — 게임이 치트를 없애도 된다.
 //           locate_values  값을 읽고 쓰는 자리(국고 칸, 재고 칸 …). 같은 규칙의 서명으로.
 //           locate_more    더 쓰는 값의 자리(기술 수준, 세계 시장 여론, 관계). 기능마다 한 묶음 — 따로 찾고 따로 실패한다.
+//           locate_research 연구: 기술 · 부대 설계의 표, 지역별 연구 목록, 지역의 효과를 다시 셈하는 게임의 함수.
 //   옛 찾기 locate_legacy  치트 명령 처리 함수와 그 둘레의 셋. "cheat allowcheats" 문자열을 닻으로. 아직 내장 치트로 도는
 //                          기능이 쓴다 — 모든 기능을 옮긴 뒤(3단계의 마지막 묶음) 직접 실행 · 글쇠 방식과 함께 지운다.
 #pragma once
@@ -95,6 +96,64 @@ const size_t MORE_WHY = 160;    // 까닭 한 줄의 크기
 int locate_more(const uint8_t *image, size_t size, const ValueLayout *values, MoreLayout *out, SigRow *rows, char (*why)[MORE_WHY]);
 // 찾을 것(표의 wanted 째. rows 의 칸 번호 / STATE_SIGS)이 든 묶음: 0 지식, 1 여론, 2 관계.
 int locate_more_group(int wanted);
+
+// 연구(3단계 3). 앞의 넷은 전역의 RVA, world 는 전역 객체의 RVA, lists 는 그 객체 안의 자리, recompute 는 함수의 RVA 다.
+struct ResearchLayout {
+    uint32_t tech_table;       // qword. 기술 표(레코드 TECH_SIZE 바이트 × 자리 수)의 포인터
+    uint32_t tech_count;       // dword. 기술 표의 자리 수
+    uint32_t design_table;     // qword. 부대 설계 표(레코드 DESIGN_SIZE 바이트 × 자리 수)의 포인터
+    uint32_t design_count;     // dword. 설계 표의 자리 수
+    uint32_t world;            // 세계 객체(큰 전역 구조체)의 시작. 지역 표와 연구 목록이 그 안에 있다
+    uint32_t lists;            // 세계 객체 안. 지역 인덱스마다 LIST_STEP 바이트 — 그 지역의 연구 목록(맨 앞이 머리 노드의 포인터)
+    uint32_t recompute;        // void f(void *세계 객체, int 지역 인덱스): 그 지역의 효과를 다시 셈한다(-1 이면 모든 지역)
+};
+
+const int RESEARCH_WANTED = 7;  // 찾을 것의 수(ResearchLayout 의 필드 순서와 같다)
+const int RESEARCH_NEED = 3;    // 찾을 것마다 서명 셋이 모두 정확히 한 번 맞아야 한다 — 한 서명에만 박힌 꼴의 상수도 지켜지게
+
+// 표와 목록의 꼴. 읽어 내지 않고 상수로 둔다 — 대신 이 상수가 박힌 명령을 서명에 넣었다(locate.cpp 의 표 RESEARCH,
+// docs/11-game-internals.md). 꼴이 바뀐 빌드에서는 서명이 맞지 않아 묶음을 못 찾는다.
+const uint32_t TECH_SIZE = 0x88;            // 기술 레코드. 번호가 곧 자리다
+const uint32_t TECH_KIND = 0x00;            // byte. 분류(1 … 6). 0 이면 빈 자리
+const uint32_t TECH_LEVEL = 0x01;           // byte. 기술 수준
+const uint32_t TECH_NEEDS = 0x04;           // word × TECH_NEED_COUNT. 선행 기술의 번호(0 이면 없다)
+const int TECH_NEED_COUNT = 2;
+const uint32_t TECH_OWNERS = 0x50;          // qword. 보유 비트 묶음의 포인터(아무도 보유하지 않았으면 0)
+const uint32_t DESIGN_SIZE = 0x168;         // 부대 설계 레코드. 번호가 곧 자리다
+const uint32_t DESIGN_NAME = 0x00;          // qword. 이름 글의 포인터. 0 이면 빈 자리
+const uint32_t DESIGN_CLASS = 0x08;         // byte. 병과 번호 — 표시에만 쓴다(서명에 박지 못했다)
+const uint32_t DESIGN_YEAR = 0x0A;          // byte. 등장 연도 - 1900 — 〃
+const uint32_t DESIGN_OPEN = 0x20;          // word. 0 이면 연구 대상이 아니다
+const uint32_t DESIGN_NEEDS = 0x34;         // word × DESIGN_NEED_COUNT. 선행 기술의 번호
+const int DESIGN_NEED_COUNT = 4;
+const uint32_t DESIGN_HOLD_A = 0xEC;        // dword. DESIGN_HOLD_A_BIT 이 켜진 설계는 게임이 "기술을 뺄 때" 건드리지 않는다
+const uint32_t DESIGN_HOLD_A_BIT = 0x1;
+const uint32_t DESIGN_HOLD_B = 0xF0;        // dword. DESIGN_HOLD_B_BIT 〃
+const uint32_t DESIGN_HOLD_B_BIT = 0x1000000;
+const uint32_t DESIGN_OWNERS = 0xF8;        // qword. 보유 비트 묶음의 포인터
+const uint32_t OWNERS_BYTES = 128;          // 보유 비트 묶음 하나 = 지역 인덱스로 찾는 1024비트
+const uint32_t LIST_STEP = 24;              // 지역 하나의 연구 목록 칸
+const uint32_t NODE_NEXT = 0x10;            // qword. 다음 노드
+const uint32_t NODE_ID = 0x18;              // dword. 기술이나 설계의 번호
+const uint32_t NODE_KIND = 0x1C;            // byte. 1 기술, 2 부대 설계
+const uint32_t NODE_FLAGS = 0x20;           // dword × 2. 쪽마다의 깃발
+const uint32_t NODE_GONE = 0x80000000;      // 그 쪽에서 뺐다
+const uint32_t NODE_ENDED = 0x08000000;     // 내장 치트가 켜는 "끝냄"
+
+// 새 찾기(연구): 서명의 규칙은 locate_state 와 같되 찾을 것마다 **셋이 모두** 정확히 한 번 맞고 같은 값을 내야 한다(RESEARCH_NEED).
+// 일곱을 모두 찾아야 찾은 것이다(반쪽 묶음은 없다). state 는 이미 찾은 상태 묶음이다.
+// 읽어 낸 값이 말이 되는지도 본다: 전역 넷은 쓸 수 있는 자료 구역 안의 제 크기의 배수 자리이고 서로 · 상태 전역과 겹치지 않는다 /
+// 세계 객체 + (세계 객체의 서명이 함께 읽어 낸 거리) == 상태 묶음의 지역 표 / 연구 목록 전체가 쓸 수 있는 자료 구역 안이고 지역 표와
+// 겹치지 않는다 / 다시 셈 함수는 함수 표에서 함수의 시작이다.
+// 찾으면 true 와 out. 못 찾으면 false 와 why(UTF-8) — out 은 그대로다.
+// rows: RESEARCH_WANTED * STATE_SIGS 칸(서명마다의 결과. 세계 객체의 둘째 값은 지역 표까지의 거리)이거나 nullptr.
+bool locate_research(const uint8_t *image, size_t size, const GameAddresses &state, ResearchLayout *out, SigRow *rows, char *why,
+                     size_t why_size);
+// 꼴의 상수를 "이름\t값(16진수)" 줄로(테스트가 서명에 박힌 바이트와 댄다).
+const char *locate_research_shape();
+// 연구 묶음과 값 묶음을 함께 본다(둘 다 찾은 뒤에): 연구의 전역 넷이 세계 자료 포인터와 겹치지 않아야 한다.
+// 겹치면 false 와 why(UTF-8) — 연구 묶음을 못 찾은 것으로 친다(값 묶음은 그대로 쓴다).
+bool locate_research_fits(const ResearchLayout &research, const ValueLayout &values, char *why, size_t why_size);
 
 // 옛 찾기(전환 기간에만): 찾으면 nullptr 과 out 의 handler · context · options(다른 필드는 건드리지 않는다).
 // 못 찾으면 까닭(UTF-8, 정적 문자열)이고 out 은 그대로다.

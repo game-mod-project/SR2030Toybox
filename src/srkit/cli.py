@@ -196,6 +196,15 @@ def cmd_locate(cfg, _args) -> int:
                 print(f"  {found.more[name]:#010x}  {toybox.MORE_NAMES[name]}")
     if any(found.more_why):
         print("ToyBox 에서 그 묶음의 단추만 꺼집니다. uv run srkit sig-mine --offset 으로 서명을 다시 뽑습니다(docs/11).")
+    print("새 찾기 — 연구(서명. 셋이 모두 맞아야 한다 — 표와 목록의 꼴이 서명에 박혀 있다. 세계 객체는 주소 · 지역 표까지의 거리):")
+    _print_sig_rows(found.research_rows)
+    if found.research is None:
+        print(f"찾지 못했습니다: {found.research_why}")
+        print("ToyBox 의 연구 기능이 이 빌드에서 꺼집니다. uv run srkit sig-mine [--with · --back · --through-jumps] 로 서명을 다시 "
+              "뽑고 꼴의 상수를 확인합니다(docs/11).")
+    else:
+        for name in toybox.RESEARCH_FIELDS:
+            print(f"  {found.research[name]:#010x}  {toybox.RESEARCH_NAMES[name]}")
     print("옛 찾기 — 아직 내장 치트로 도는 기능이 쓰는 주소(치트 문자열이 닻이다. 전환 기간에만):")
     if found.legacy is None:
         print(f"  찾지 못했습니다: {found.legacy_why}")
@@ -203,9 +212,10 @@ def cmd_locate(cfg, _args) -> int:
     else:
         for name in toybox.LEGACY_FIELDS:
             print(f"  {found.legacy[name]:#010x}  {toybox.ADDRESS_NAMES[name]}")
-    if found.state is not None and found.values is not None and found.legacy is not None and not any(found.more_why):
+    new = found.state is not None and found.values is not None and not any(found.more_why) and found.research is not None
+    if new and found.legacy is not None:
         print("모두 찾았습니다. docs/11 의 표와 다르면 게임이 바뀐 것입니다.")
-    return 0 if found.state is not None and found.values is not None and not any(found.more_why) else 1
+    return 0 if new else 1
 
 
 def cmd_sig_mine(cfg, args) -> int:
@@ -222,12 +232,22 @@ def cmd_sig_mine(cfg, args) -> int:
     except LookupError as error:
         print(error)
         return 1
+    shape = dict(holding=[int(value, 16) for value in getattr(args, "holding", None) or []], back=getattr(args, "back", 0),
+                 through_jumps=getattr(args, "through_jumps", False))
+    for name in ("most", "longest"):                   # 주지 않으면 뽑는 쪽의 기본값(주소 8 · 상수 9 명령, 60바이트)
+        if getattr(args, name, None):
+            shape[name] = getattr(args, name)
+    if shape.get("longest", 0) > 64:
+        print("서명 하나는 64바이트까지입니다(native/srtoybox/sigs.h 의 SIG_MAX).")
+        return 1
     if args.offset:
-        found = sigmine.mine_constants(image, values, exclude=cheats, sites=args.sites)
+        found = sigmine.mine_constants(image, values, exclude=cheats, sites=args.sites, **shape)
         what = "상수 " + " · ".join(f"{value:#x}" for value in values) + " 을 차례로 든 코드에서"
     else:
-        found = sigmine.mine_address(image, values[0], exclude=cheats, sites=args.sites)
+        found = sigmine.mine_address(image, values[0], exclude=cheats, sites=args.sites, **shape)
         what = f"{values[0]:#x} 를 가리키는 코드에서"
+    if shape["holding"]:
+        what += ", 상수 " + " · ".join(f"{value:#x}" for value in shape["holding"]) + " 을 든 것만"
     picks = sigmine.best_per_function(found)
     left_out = (f"치트 코드 {len(cheats)}곳은 뺐다 — 명령 처리 함수 {cheats[0][0]:#x} – {cheats[0][1]:#x} 와 치트 코드에서만 불리는 함수"
                 if cheats else "치트 명령 처리 함수가 없는 빌드다")
@@ -336,6 +356,12 @@ def main(argv: list[str] | None = None) -> int:
     m.add_argument("--offset", action="store_true", help="값이 주소가 아니라 구조체 안의 자리 · 간격(상수)이다")
     m.add_argument("--limit", type=int, default=12, help="보여 줄 후보의 수")
     m.add_argument("--sites", type=int, default=400, help="살펴볼 자리의 수(많으면 오래 걸린다)")
+    m.add_argument("--with", dest="holding", nargs="+", metavar="상수", help="서명 안의 명령이 들고 있어야 하는 상수들(16진수. 구조체의 "
+                   "크기 · 칸의 자리) — 꼴이 바뀐 빌드에서 서명이 맞지 않게 한다")
+    m.add_argument("--back", type=int, default=0, help="가리키는 명령보다 이만큼 앞선 명령부터 서명을 시작한다")
+    m.add_argument("--most", type=int, help="서명의 최대 명령 수(기본: 주소 8, 상수 9)")
+    m.add_argument("--longest", type=int, help="서명의 최대 바이트 수(기본 60. 서명 하나는 64바이트까지다)")
+    m.add_argument("--through-jumps", action="store_true", help="무조건 jmp 를 지나서도 서명을 늘린다(목록을 훑는 코드처럼 갈래가 많은 곳)")
     m.set_defaults(fn=cmd_sig_mine)
     sub.add_parser("inventory", help="게임 데이터의 섹션·키·열 목록을 build/inventory 에 CSV 로").set_defaults(fn=cmd_inventory)
     sub.add_parser("cheats-check", help="게임의 내장 치트가 docs/07 과 같은지 대조(게임 업데이트 감지)") \

@@ -75,18 +75,22 @@ def test_feature_table(dll):
     # 국고와 물자는 내장 치트를 거치지 않는다(돈 탭 · 물자 탭)
     assert not {"treasury", "georgew", "georgeww", "products", "branson", "bezos"} & {f["id"] for f in fs}
     assert [t for i, t in enumerate(f["tab"] for f in fs) if i == 0 or fs[i - 1]["tab"] != t] == TABS   # 탭끼리 모여 있고 이 순서다
-    # 네 줄은 ToyBox 가 값을 직접 쓴다(3단계 2) — 자리와 이름은 그대로이고 게임에 넣는 글이 없다. 나머지 열다섯이 내장 치트로 돈다
-    assert {f["id"]: f["how"] for f in fs if f["how"] != "cheat"} == {"finalexam": "tech_up", "shelovesme": "opinion_best",
-                                                                     "love": "relation_best", "neutral": "relation_neutral"}
+    # 여섯 줄은 ToyBox 가 직접 쓴다(3단계 2 의 넷, 3단계 3 의 연구 둘) — 자리와 이름은 그대로이고 게임에 넣는 글이 없다.
+    # 나머지 열셋이 내장 치트로 돈다
+    assert {f["id"]: f["how"] for f in fs if f["how"] != "cheat"} == {
+        "technology": "tech_level", "e=mc2": "queue_done", "finalexam": "tech_up", "shelovesme": "opinion_best",
+        "love": "relation_best", "neutral": "relation_neutral"}
     cheats = [f for f in fs if f["how"] == "cheat"]
-    assert len(cheats) == 15 == dll.srtoybox_cheat_feature_count() and len({f["command"] for f in cheats}) == 15
+    assert len(cheats) == 13 == dll.srtoybox_cheat_feature_count() and len({f["command"] for f in cheats}) == 13
     assert [f["id"] for f in fs][:3] == ["technology", "e=mc2", "finalexam"]            # 줄의 자리는 옮기기 전과 같다
+    assert [(f["label"], f["default"], f["min"], f["max"]) for f in fs[:2]] == [("기술 수준 N 이하 전부 보유", 120, 1, 255),
+                                                                              ("대기열의 연구 즉시 완료", 0, 0, 0)]
     for f in fs:
         assert f["label"] and f["help"]
         if f["how"] == "cheat":
             assert f["command"] == "cheat " + f["id"]
         else:
-            assert f["command"] == "" and not f["has_value"] and not f["confirm"]
+            assert f["command"] == "" and not f["confirm"]
         assert not (f["has_value"] and f["target"] != "none")           # 한 기능의 인자는 하나다
         if f["has_value"]:
             assert f["min"] <= f["default"] <= f["max"]
@@ -116,22 +120,22 @@ def test_only_cheats_that_were_seen_working_and_reach_what_the_user_chose(dll, c
 
 
 def test_command_text(dll):
-    assert text(dll.srtoybox_command, b"technology", 140, 0) == "cheat technology 140"
-    assert text(dll.srtoybox_command, b"technology", 0, 0) == "cheat technology 1"             # 범위로 잘라 맞춘다
-    assert text(dll.srtoybox_command, b"technology", -5, 0) == "cheat technology 1"
-    assert text(dll.srtoybox_command, b"technology", 10**12, 0) == "cheat technology 999"
-    assert text(dll.srtoybox_command, b"e=mc2", 999, 1106) == "cheat e=mc2"                    # 값도 대상도 없는 기능은 둘 다 무시한다
+    assert text(dll.srtoybox_command, b"spawnunit", 140, 0) == "cheat spawnunit 140"
+    assert text(dll.srtoybox_command, b"spawnunit", 0, 0) == "cheat spawnunit 1"               # 범위로 잘라 맞춘다
+    assert text(dll.srtoybox_command, b"spawnunit", -5, 0) == "cheat spawnunit 1"
+    assert text(dll.srtoybox_command, b"spawnunit", 10**12, 0) == "cheat spawnunit 99999"
+    assert text(dll.srtoybox_command, b"populate", 999, 1106) == "cheat populate"              # 값도 대상도 없는 기능은 둘 다 무시한다
     assert text(dll.srtoybox_command, b"approval", 0, 1499) == "cheat approval 1499"           # 대상이 있는 기능은 지역 번호가 붙는다
     assert text(dll.srtoybox_command, b"annex", 0, 1106) == "cheat annex 1106"
     assert text(dll.srtoybox_command, b"treaty", 0, 1106) == "cheat treaty"                    # 게임이 지도에서 고른 나라를 쓴다
     assert text(dll.srtoybox_command, b"annex", 0, 0) is None                                  # 나라를 고르지 않았으면 만들지 않는다
-    for moved in (b"finalexam", b"shelovesme", b"love", b"neutral"):                           # 직접 쓰는 줄은 게임에 넣을 글이 없다
-        assert text(dll.srtoybox_command, moved, 0, 1106) is None
+    for moved in (b"technology", b"e=mc2", b"finalexam", b"shelovesme", b"love", b"neutral"):   # 직접 쓰는 줄은 게임에 넣을 글이 없다
+        assert text(dll.srtoybox_command, moved, 120, 1106) is None
     assert text(dll.srtoybox_command, b"approval", 0, -1) is None
     assert text(dll.srtoybox_command, b"depopulate", 0, 0) is None                             # 표에 없는 것은 만들지 않는다
     assert text(dll.srtoybox_command, b"treasury", 1, 0) is None                               # 지운 기능 — 국고는 돈 탭이 직접 한다
     assert text(dll.srtoybox_command, b"products", 1, 0) is None                               # 〃 — 물자는 물자 탭이
-    assert text(dll.srtoybox_command, b"technology", 1, 0, size=4) is None                     # 버퍼가 작으면 넘치지 않고 -1
+    assert text(dll.srtoybox_command, b"spawnunit", 1, 0, size=4) is None                      # 버퍼가 작으면 넘치지 않고 -1
 
 
 def expected_plan(command: str) -> list[str]:
@@ -860,7 +864,7 @@ def test_a_group_that_was_not_found_turns_off_only_its_own_button(dll, cfg, tmp_
 def test_the_moved_buttons_say_why_they_are_off_and_offer_no_cheat(dll, cfg, tmp_path, mode, env, why):
     """쓸 수 없을 때 내장 치트로 되돌아가지 않는다 — 그 줄의 단추 자리에 까닭 한 줄만 보인다. 내장 치트로 도는 줄은 그대로다."""
     got = json.loads(_probe(cfg, tmp_path, mode, env=env))
-    assert list(got["research"]) == ["run:technology", "run:e=mc2", "off:finalexam"]
+    assert list(got["research"]) == ["off:technology", "off:e=mc2", "off:finalexam"]          # 연구 탭의 세 줄은 모두 직접 쓰는 줄이다
     assert got["research"]["off:finalexam"] == "지식 순위 올리기 — " + why
     assert list(got["people"]) == ["run:populate", "off:shelovesme", "run:approval"]
     assert got["people"]["off:shelovesme"] == "세계 시장 여론 최고 — " + why
@@ -896,6 +900,84 @@ def test_moved_buttons_do_not_write_after_the_fault_guard_trips(dll, cfg, tmp_pa
     assert got["fault"] == FAULT_WARNING and got["state"] == MORE_START
     log = (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8")
     assert "값 쓰기: " not in log
+
+
+# 연구의 판(toybox_fake_game.standard_lab)에서 [독일의 기술, 독일의 부대 설계, 폴란드의 기술, 폴란드의 부대 설계]
+HELD_START = [[1, 4, 6], [10, 13, 14], [1, 2], [11, 13]]
+HELD_QUEUE = [[1, 2, 3, 4, 6], [10, 11, 13, 14], [1, 2], [11, 13]]          # 대기열의 기술 2(+ 선행은 이미 보유) · 부대 설계 11(+ 선행 3)
+HELD_LEVEL = [[1, 2, 3, 4, 6, 7], [10, 11, 13, 14], [1, 2], [11, 13]]       # 거기에 수준 120 이하의 남은 기술 7
+RESEARCH_BUTTONS = {"value:technology": "120", "run:technology": "기술 수준 N 이하 전부 보유", "run:e=mc2": "대기열의 연구 즉시 완료",
+                    "run:finalexam": "지식 순위 올리기"}
+RESEARCH_FAULT = "효과를 다시 셈하는 중 오류가 났습니다. 저장하지 말고 게임을 다시 시작하십시오."
+
+
+@pytest.mark.parametrize("env", [{}, {"SRTOYBOX_DIRECT": "0"}], ids=["direct", "typing"])
+def test_the_two_research_buttons_write_without_any_cheat(dll, cfg, tmp_path, env):
+    """요구 3: "대기열의 연구 즉시 완료"와 "기술 수준 N 이하 전부 보유"는 내장 치트를 거치지 않는다 — 명령 처리 함수를 부르지 않고,
+    글쇠를 넣지 않고, 치트 허용 비트를 건드리지 않는다. 단추의 이름과 자리는 그대로다.
+    사용자가 알린 문제: 내장 치트는 대기열의 부대 설계를 끝내지 않았다 — 이제 설계 11 도 끝난다.
+    내장 치트는 모든 기술의 연구 기간을 1일로 바꿨다(모든 나라의 표) — 이제 그대로다. 다른 나라의 보유도 그대로다.
+    게임의 함수는 "효과를 다시 셈" 하나만, 플레이어의 지역 인덱스로만 부른다. 내장 치트가 글쇠 방식이어도 이 탭은 상관없다."""
+    got = json.loads(_probe(cfg, tmp_path, "research", env=env))
+    assert got["rows"] == RESEARCH_BUTTONS and list(got["rows"]) == list(RESEARCH_BUTTONS)
+    assert got["after_queue"] == HELD_QUEUE and got["wrote_queue"] == "기술 2개(선행 1개 포함) · 부대 설계 1개를 완료로 — 대기열"
+    assert got["held"] == HELD_LEVEL and got["wrote_level"] == "기술 1개를 완료로 — 기술 수준 120 이하"
+    assert got["unwritten"] == "바꿀 것이 없습니다 — 대기열"                 # 세 번째 누름: 대기열이 비었다
+    assert got["days"] == [100.0] and got["recomputed"] == [176, 176]
+    assert got["lines"] == [] and got["text"] == "" and got["options"] == 0
+    assert got["hint"] == DIRECT_HINT and got["status"] == "플레이 중: 독일 (1499)"
+    log = (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8")
+    assert "연구 완료 (대기열): 기술 2개(선행 1개 포함) · 부대 설계 1개 · 대기열에서 2개 · 새 묶음 1개" in log
+    assert "연구 완료 (기술 수준 120 이하): 기술 1개" in log and "연구 완료 (대기열): 바꿀 것이 없습니다" in log
+    assert "직접 실행" not in log and "실패" not in log
+
+
+def test_the_research_buttons_are_off_outside_a_game(dll, cfg, tmp_path):
+    got = json.loads(_probe(cfg, tmp_path, "research_menu"))
+    assert got["rows"] == RESEARCH_BUTTONS                      # 단추는 보이지만 꺼져 있다
+    assert got["held"] == HELD_START and got["wrote_level"] == "-" and got["recomputed"] == []
+    assert got["lines"] == [] and got["text"] == "" and got["status"] == "게임을 진행 중이 아닙니다 — 단추가 꺼져 있습니다"
+
+
+def test_a_research_request_is_dropped_when_the_game_ends_first(dll, cfg, tmp_path):
+    """단추를 누른 뒤 쓰기 전에 게임에서 나가면 쓰지 않고 버린다. 돌아온 뒤에 뒤늦게 쓰이지 않고, 새로 누르면 된다."""
+    got = json.loads(_probe(cfg, tmp_path, "research_leave"))
+    assert got["dropped"] == HELD_START and got["unwritten"] == "게임이 진행 중이 아니어서 쓰지 않았습니다."
+    assert got["held"] == HELD_QUEUE and got["unwritten_after"] == "-" and got["recomputed"] == [176]
+
+
+@pytest.mark.parametrize("mode, env, why, third", [
+    ("research_notfound", {}, "이 게임 판에서는 쓸 수 없습니다 (연구의 자리를 주지 않았습니다)", None),
+    ("research_write_off", {"SRTOYBOX_WRITE": "0"}, "값 쓰기를 껐습니다 (SRTOYBOX_WRITE=0)", "off"),
+    ("research_unread", {"SRTOYBOX_READ": "0"}, "게임 상태를 읽을 수 있을 때만 씁니다.", "off"),
+], ids=["not-found", "write-off", "unread"])
+def test_the_research_buttons_say_why_they_are_off_and_offer_no_cheat(dll, cfg, tmp_path, mode, env, why, third):
+    """쓸 수 없을 때 내장 치트로 되돌아가지 않는다 — 단추 자리에 까닭 한 줄만 보인다(입력란도 없다).
+    연구의 자리만 못 찾은 게임에서는 두 줄만 꺼지고 "지식 순위 올리기"는 제 묶음대로 남는다."""
+    got = json.loads(_probe(cfg, tmp_path, mode, env=env))
+    rows = got["rows"]
+    assert list(rows) == ["off:technology", "off:e=mc2", "run:finalexam" if third is None else "off:finalexam"]
+    assert rows["off:technology"] == "기술 수준 N 이하 전부 보유 — " + why and rows["off:e=mc2"] == "대기열의 연구 즉시 완료 — " + why
+    assert got["lines"] == [] and got["text"] == "" and got["recomputed"] == []
+    if mode != "research_notfound":
+        assert got["held"] == HELD_START and got["hint"] == "-"      # 쓸 수 있는 줄이 없다 — 바닥의 안내도 없다
+
+
+def test_a_fault_while_recomputing_stops_toybox_and_says_so(dll, cfg, tmp_path):
+    """게임의 "효과를 다시 셈"에서 예외가 나면 ToyBox 가 잡는다: 게임은 죽지 않고, 빨간 경고가 뜨고, 그 뒤로는 아무것도 쓰지 않는다."""
+    got = json.loads(_probe(cfg, tmp_path, "research_fault"))
+    assert got["fault"] == RESEARCH_FAULT
+    assert got["after_fault"] == HELD_QUEUE == got["held"]      # 비트는 예외 전에 썼다. 그 뒤의 "기술 수준" 단추는 듣지 않는다
+    log = (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8")
+    assert "효과를 다시 셈하는 중 예외 0xC0000005 — ToyBox 를 멈춥니다" in log and "기술 수준 120 이하" not in log
+
+
+def test_no_cheat_starts_while_the_game_is_recomputing(dll, cfg, tmp_path):
+    """"효과를 다시 셈" 안에서 타이머가 다시 와도 그 안에서는 대기열의 내장 치트를 시작하지 않는다 — 직접 실행과 한 쌍의 깃발을 쓴다."""
+    got = json.loads(_probe(cfg, tmp_path, "research_reenter"))
+    assert len(got["inside"]) == 2 and got["inside"][0] == got["inside"][1]      # 그 안에서 다시 온 타이머의 앞뒤로 명령 처리 함수가 불린 수
+    assert got["lines"] == ["cheat allowcheats", "cheat fullmapshow", "cheat fullmapshow"]      # 둘째 치트는 그 뒤에 돈다
+    assert got["held"] == HELD_QUEUE and got["recomputed"] == [176]
 
 
 def test_prologue_length_knows_only_plain_function_heads(dll):

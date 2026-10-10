@@ -125,8 +125,14 @@ _md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64)
 _md.detail = True
 
 
+def _branch(ins) -> bool:
+    """4바이트 목표를 가진 call · jmp 다(목표는 명령의 마지막 4바이트)."""
+    return bool((ins.id == X.X86_INS_CALL or ins.group(X.X86_GRP_JUMP)) and ins.size >= 5 and ins.operands
+                and ins.operands[0].type == X.X86_OP_IMM)
+
+
 def _first_instruction(image: Image, pos: int, target: int):
-    """4바이트 rip 상대 거리가 pos 에 있고 target 을 가리키는 명령."""
+    """4바이트 rip 상대 거리가 pos 에 있고 target 을 가리키는 명령. call · jmp rel32 의 목표도 같은 셈이다(함수를 찾을 때)."""
     for back in (3, 4, 5, 2, 6, 7, 1):                 # 흔한 꼴부터: REX + 연산 + ModRM, 0F 가 낀 것, 접두 없는 것
         start = pos - back
         ins = next(_md.disasm(image.data[start:start + 16], start), None)
@@ -135,32 +141,60 @@ def _first_instruction(image: Image, pos: int, target: int):
         if any(op.type == X.X86_OP_MEM and op.mem.base == X.X86_REG_RIP and ins.address + ins.size + op.mem.disp == target
                for op in ins.operands):
             return ins
+    if image.data[pos - 1] in (0xE8, 0xE9) and _boundary(image, pos) == pos - 1:     # 앞의 바이트가 우연히 E8 인 자리는 거른다
+        ins = next(_md.disasm(image.data[pos - 1:pos + 15], pos - 1), None)
+        if ins is not None and ins.size == 5 and _branch(ins) and ins.operands[0].imm == target:
+            return ins
     return None
 
 
 def _words(ins, first: bool) -> list[str] | None:
-    """명령 하나의 서명 글. 첫 명령의 rip 상대 거리는 읽어 낼 자리, 그 밖의 rip 상대 거리와 call · jmp 의 4바이트 목표는 구멍."""
+    """명령 하나의 서명 글. 첫 명령의 rip 상대 거리(call · jmp 면 목표)는 읽어 낼 자리, 그 밖의 rip 상대 거리와 목표는 구멍."""
     out = [f"{b:02X}" for b in ins.bytes]
     rip = ins.disp_size == 4 and any(op.type == X.X86_OP_MEM and op.mem.base == X.X86_REG_RIP for op in ins.operands)
-    if first:
+    if first and _branch(ins):
+        out[ins.size - 4:] = ["[rip]"]
+    elif first:
         tail = ins.size - (ins.disp_offset + 4)
         if tail not in (0, 1, 4):
             return None
         out[ins.disp_offset:ins.disp_offset + 4] = ["[rip]" if tail == 0 else f"[rip+{tail}]"]
     elif rip:
         out[ins.disp_offset:ins.disp_offset + 4] = ["?"] * 4
-    elif (ins.id == X.X86_INS_CALL or ins.group(X.X86_GRP_JUMP)) and ins.size >= 5 and ins.operands \
-            and ins.operands[0].type == X.X86_OP_IMM:
+    elif _branch(ins):
         out[ins.size - 4:] = ["?"] * 4
     return out
 
 
+def _back(image: Image, address: int, n: int) -> int | None:
+    """address 의 명령보다 n 개 앞선 명령의 시작. 그 함수 조각을 처음부터 풀어 내려와 찾는다 — 조각이 함수 표에 없거나,
+    풀이가 address 에 닿지 않거나, 앞에 명령이 n 개가 안 되면 None."""
+    i = bisect.bisect_right(image._starts, address) - 1
+    if i < 0 or not (image.funcs[i][0] <= address < image.funcs[i][1]):
+        return None
+    begin = image.funcs[i][0]
+    starts: list[int] = []
+    for at, _size, _mnemonic, _operands in _lite.disasm_lite(image.data[begin:address + 16], begin):
+        if at >= address:
+            return starts[-n] if at == address and len(starts) >= n else None
+        starts.append(at)
+    return None
+
+
+def _stops(ins, through_jumps: bool) -> bool:
+    """이 명령 뒤로는 서명을 늘리지 않는다: 함수의 끝. 무조건 jmp 는 through_jumps 가 아니면 끝으로 친다."""
+    return ins.id in (X.X86_INS_RET, X.X86_INS_INT3) or (ins.id == X.X86_INS_JMP and not through_jumps)
+
+
 def mine_address(image: Image, target: int, *, exclude: Sequence[tuple[int, int]] = (), fewest: int = 3, most: int = 8,
-                 fixed: int = 8, longest: int = 60, sites: int = 400) -> list[Candidate]:
+                 fixed: int = 8, longest: int = 60, sites: int = 400, holding: Sequence[int] = (), back: int = 0,
+                 through_jumps: bool = False) -> list[Candidate]:
     """target 을 가리키는 명령에서 시작해 실행 구역 전체에서 한 번만 맞는 가장 짧은 서명을, 쓰는 자리마다 하나씩.
 
     exclude 의 범위들 안의 자리는 보지 않는다(치트 코드 — cheat_ranges). 명령 fewest 개 · 정해진 바이트 fixed 개 이상이어야
     서명으로 친다. 쓰는 자리가 sites 보다 많으면 고르게 골라 그만큼만 본다.
+    holding: 서명 안의 명령이 정해진 바이트로 들고 있어야 하는 상수들(구조체의 크기 · 칸의 자리 — 꼴이 바뀐 빌드에서 서명이
+    맞지 않게 한다). back: 가리키는 명령보다 그만큼 앞선 명령부터 시작한다. through_jumps: 무조건 jmp 를 지나서도 늘린다.
     """
     found: list[Candidate] = []
     places = [p for p in image.refs(target) if not any(a <= p < z for a, z in exclude)]
@@ -168,20 +202,25 @@ def mine_address(image: Image, target: int, *, exclude: Sequence[tuple[int, int]
         first = _first_instruction(image, pos, target)
         if first is None:
             continue
+        start = _back(image, first.address, back) if back else first.address
+        if start is None:
+            continue
         words: list[str] = []
         length = 0
-        for n, ins in enumerate(_md.disasm(image.data[first.address:first.address + 160], first.address), start=1):
-            more = _words(ins, first=n == 1)
+        missing = list(holding)
+        for n, ins in enumerate(_md.disasm(image.data[start:start + 200], start), start=1):
+            more = _words(ins, first=ins.address == first.address)
             if more is None or length + ins.size > longest:
                 break
             words += more
             length += ins.size
+            missing = [value for value in missing if _holds(ins, value) is None]
             text = " ".join(words)
-            if n >= fewest and sum(len(w) == 2 for w in words) >= fixed and count(image, text, exact=False) == 1 \
-                    and count(image, text) == 1:
-                found.append(Candidate(image.root(first.address), first.address, length, text))
+            if ins.address >= first.address and not missing and n >= fewest and sum(len(w) == 2 for w in words) >= fixed \
+                    and count(image, text, exact=False) == 1 and count(image, text) == 1:
+                found.append(Candidate(image.root(start), start, length, text))
                 break
-            if n >= most or ins.id in (X.X86_INS_RET, X.X86_INS_INT3, X.X86_INS_JMP):
+            if n >= most or _stops(ins, through_jumps):
                 break
     return found
 
@@ -245,7 +284,12 @@ def _boundary(image: Image, pos: int) -> int | None:
 
 
 def _holds(ins, value: int) -> tuple[int, int] | None:
-    """명령이 value 를 상수(imm)나 메모리 자리(disp. rip 상대는 아니다)로 들고 있으면 (명령 안의 자리, 크기 1 또는 4)."""
+    """명령이 value 를 상수(imm)나 메모리 자리(disp. rip 상대는 아니다)로 들고 있으면 (명령 안의 자리, 크기 1 또는 4).
+
+    call · jmp · 조건 분기의 거리는 상수가 아니다(`je +0x24` 는 0x24 를 "들고" 있지 않다).
+    """
+    if ins.id == X.X86_INS_CALL or ins.group(X.X86_GRP_JUMP):
+        return None
     rip = any(op.type == X.X86_OP_MEM and op.mem.base == X.X86_REG_RIP for op in ins.operands)
     for offset, size in ((ins.imm_offset, ins.imm_size), (ins.disp_offset, 0 if rip else ins.disp_size)):
         if size in (1, 4) and offset and (size == 4 or value < 0x80) \
@@ -270,16 +314,22 @@ def _constant_words(ins, held: tuple[int, int] | None) -> list[str]:
     return out
 
 
-def _grow(image: Image, start: int, constants: list[int], *, fewest: int, most: int, fixed: int, longest: int, within: int,
-          unique: bool) -> str | None:
-    """start 의 명령부터 constants 를 차례로 든 명령들을 지나, (unique 면) 실행 구역에서 한 번만 맞을 때까지 늘린 서명 글."""
+def _grow(image: Image, first: int, constants: list[int], *, fewest: int, most: int, fixed: int, longest: int, within: int,
+          unique: bool, holding: Sequence[int] = (), back: int = 0, through_jumps: bool = False) -> tuple[int, str] | None:
+    """first 의 명령부터 constants 를 차례로 든 명령들을 지나, (unique 면) holding 의 상수를 든 명령들도 지나고 실행 구역에서
+    한 번만 맞을 때까지 늘린 서명의 (시작, 글). back 이면 first 보다 그만큼 앞선 명령부터 시작한다."""
+    start = _back(image, first, back) if back else first
+    if start is None:
+        return None
     words: list[str] = []
     length, wanted, since = 0, 0, 0
+    missing = list(holding)
     for n, ins in enumerate(_md.disasm(image.data[start:start + 200], start), start=1):
-        held = _holds(ins, constants[wanted]) if wanted < len(constants) else None
-        if n == 1 and (held is None or held[1] != 4):
+        reached = ins.address >= first
+        held = _holds(ins, constants[wanted]) if reached and wanted < len(constants) else None
+        if ins.address == first and (held is None or held[1] != 4):
             return None                        # 첫 명령이 첫 상수를 4바이트로 들고 있어야 한다
-        if wanted < len(constants) and held is None:
+        if reached and wanted < len(constants) and held is None:
             since += 1
             if since > within:
                 return None                    # 다음 상수가 가까이에 없다
@@ -289,25 +339,28 @@ def _grow(image: Image, start: int, constants: list[int], *, fewest: int, most: 
         length += ins.size
         if held:
             wanted, since = wanted + 1, 0
+        else:
+            missing = [value for value in missing if _holds(ins, value) is None]
         if wanted == len(constants):
             text = " ".join(words)
             if not unique:
-                return text
-            if n >= fewest and sum(len(w) == 2 for w in words) >= fixed and count(image, text, exact=False) == 1 \
+                return start, text
+            if not missing and n >= fewest and sum(len(w) == 2 for w in words) >= fixed and count(image, text, exact=False) == 1 \
                     and count(image, text) == 1:
-                return text
-        if n >= most or ins.id in (X.X86_INS_RET, X.X86_INS_INT3, X.X86_INS_JMP):
+                return start, text
+        if n >= most or _stops(ins, through_jumps):
             return None
     return None
 
 
 def mine_constants(image: Image, constants: list[int], *, exclude: Sequence[tuple[int, int]] = (), fewest: int = 3, most: int = 9,
-                   fixed: int = 8, longest: int = 60, within: int = 4, sites: int = 400) -> list[Candidate]:
+                   fixed: int = 8, longest: int = 60, within: int = 4, sites: int = 400, holding: Sequence[int] = (),
+                   back: int = 0, through_jumps: bool = False) -> list[Candidate]:
     """constants(하나 또는 둘 — 구조체 안의 자리 · 간격)를 차례로 든 명령들에서 시작해, 한 번만 맞는 가장 짧은 서명을 자리마다.
 
     첫 상수는 4바이트로 든 것만 찾는다(imul r,r,간격 · [r+자리]). 다음 상수는 그 뒤 명령 within 개 안에 있어야 한다.
     상수의 자리는 읽어 낼 자리([u32] · [u8])가 된다. 뜻이 같은 코드인지는 사람이 본다(srkit sig-mine 이 명령을 함께 보인다) —
-    값만 우연히 같은 코드도 후보로 나온다.
+    값만 우연히 같은 코드도 후보로 나온다. holding · back · through_jumps 는 mine_address 의 것과 같다.
     """
     options = dict(fewest=fewest, most=most, fixed=fixed, longest=longest, within=within)
     needle = struct.pack("<I", constants[0])
@@ -327,9 +380,10 @@ def mine_constants(image: Image, constants: list[int], *, exclude: Sequence[tupl
             if held == (pos - start, 4) and _grow(image, start, constants, unique=False, **options):
                 starts.append(start)                   # 상수를 모두 든 자리만 남긴다 — 고르게 고르는 것은 그 뒤다
     found: list[Candidate] = []
-    for start in starts[::max(1, len(starts) // sites)]:
-        text = _grow(image, start, constants, unique=True, **options)
-        if text:
+    for first in starts[::max(1, len(starts) // sites)]:
+        grown = _grow(image, first, constants, unique=True, holding=holding, back=back, through_jumps=through_jumps, **options)
+        if grown:
+            start, text = grown
             length = sum(4 if w.startswith("[rip") or w == "[u32]" else 1 for w in text.split())
             found.append(Candidate(image.root(start), start, length, text))
     return found
