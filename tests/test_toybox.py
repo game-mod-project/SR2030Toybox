@@ -419,7 +419,25 @@ def test_keys_and_clicks_reach_only_the_side_they_are_meant_for(dll, cfg, tmp_pa
     assert got["text"] == typed_keys("cheat fullmapshow")
     assert got["hotkey_busy"] == "toybox"           # 넣는 동안에도 단축키는 ToyBox 의 것이고
     assert got["title_after"] == "press+release"    # 그래서 창이 닫혔다
-    assert got["mods_left"] == "0"                  # Ctrl · Shift 가 눌린 채로 남지 않는다
+    assert got["mods_left"] == "0"                  # (넣는 중의 단축키가 수정키를 떼므로, 남기는지는 아래 테스트가 가린다)
+
+
+def test_typing_does_not_leave_the_modifiers_down(dll, cfg, tmp_path):
+    """글쇠를 다 넣은 뒤 Ctrl · Shift 가 눌린 채로 남지 않는다. 사용자가 실제로 쥐고 있는 수정키는 남은 것으로 치지 않는다."""
+    got = _fields(_probe(cfg, tmp_path, "input_quiet"))
+    assert got["typing"] == "1" and got["done"] == "1", got
+    assert got["text"] == typed_keys("cheat fullmapshow")
+    assert got["mods_left"] == "0"
+
+
+def test_modifiers_held_before_typing_are_left_as_they_were(dll, cfg, tmp_path):
+    """넣기 전부터 눌려 있던 Ctrl · Shift(사용자가 쥐고 있다)는 넣은 뒤에도 눌린 채다 — 그것은 "남은 것"이 아니다.
+    테스트가 도는 동안 사용자가 같은 PC 에서 수정키를 쓰면 이 스레드의 키 상태표에 그것이 들어온다."""
+    got = _fields(_probe(cfg, tmp_path, "input_held"))
+    assert got["typing"] == "1" and got["done"] == "1", got
+    assert got["text"] == typed_keys("cheat fullmapshow")
+    assert got["mods_before"] == "1" and got["mods_now"] == "1"    # 넣기 전의 상태로 되돌렸다
+    assert got["mods_left"] == "0"                                  # 그러니 넣기가 남긴 것은 없다
 
 
 def test_mouse_follows_the_size_the_game_draws_at(dll, cfg, tmp_path):
