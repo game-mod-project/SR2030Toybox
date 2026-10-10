@@ -1,5 +1,7 @@
 #include "keeper.h"
 
+#include <windows.h>
+
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -24,7 +26,13 @@ std::string g_last, g_notice;
 Keep g_keep;                        // 최소 유지의 설정(창이 넘긴 것)
 bool g_keep_due;                    // 설정이 바뀌었다 — 0.5초를 기다리지 않고 다음 틱에 본다
 unsigned long long g_keep_at;       // 마지막으로 유지를 본 때
-bool g_kept[1 + STOCK_SLOTS];       // 그 항목을 올린 것을 이번 실행의 로그에 적었다([0] 국고, [1 + 칸] 물자)
+bool g_kept[1 + STOCK_SLOTS];
+std::shared_ptr<const ResearchShot> g_shot; // 연구 목록의 스냅숏(창에 넘긴다)
+bool g_watch_seen, g_watch_dirty;           // 지난 스냅숏 뒤에 연구 탭이 그려졌다 / 연구를 썼다 — 기다리지 않고 다시 뜬다
+int g_watch_picked;                         // 창이 고른 나라
+unsigned long long g_shot_at, g_shot_serial;
+bool g_shot_timed;                          // 스냅숏에 걸린 시간을 이번 실행의 로그에 적었다
+       // 그 항목을 올린 것을 이번 실행의 로그에 적었다([0] 국고, [1 + 칸] 물자)
 
 std::string target_name(int slot)
 {
@@ -319,15 +327,71 @@ bool keeper_enqueue_research(const ResearchRequest &request)
     return true;
 }
 
+namespace {
+
+// 연구 탭이 보이는 동안의 스냅숏. g_lock 을 쥐지 않은 채로 부른다(읽는 동안 그리는 스레드를 세우지 않는다).
+void watch_tick(unsigned long long now_ms)
+{
+    int picked = 0;
+    {
+        std::lock_guard<std::mutex> lock(g_lock);
+        const bool due = g_watch_dirty || g_shot == nullptr || g_shot->picked != g_watch_picked || now_ms - g_shot_at >= RESEARCH_EVERY_MS;
+        if (!g_watch_seen || !due || runner_calling())
+            return;
+        g_watch_seen = g_watch_dirty = false;
+        g_shot_at = now_ms;
+        picked = g_watch_picked;
+    }
+    std::shared_ptr<ResearchShot> shot = std::make_shared<ResearchShot>();
+    const GameState game = game_state();
+    const unsigned long long began = GetTickCount64();
+    shot->picked = picked;
+    shot->player = game.player;
+    if (!game.known || !game.in_game)
+        shot->why = "게임이 진행 중이 아닙니다";
+    else if (game.multiplayer)
+        shot->why = "멀티플레이에서는 연구를 읽지 않습니다";
+    else
+        shot->ok = game_research(picked, &shot->tables, &shot->why);
+    std::lock_guard<std::mutex> lock(g_lock);
+    if (shot->ok && !g_shot_timed) {           // 큰 판에서 얼마나 걸리는지 한 번 적어 둔다(첫 스냅숏은 부대 설계의 이름도 읽는다)
+        g_shot_timed = true;
+        log_line("연구 목록: 기술 %d개 · 부대 설계 %d개 · 노드 %d개를 %llu ms 에 읽음", static_cast<int>(shot->tables.techs.size()),
+                 static_cast<int>(shot->tables.designs.size()), static_cast<int>(shot->tables.queue.size()), GetTickCount64() - began);
+    }
+    shot->serial = ++g_shot_serial;
+    g_shot = shot;
+}
+
+}  // namespace
+
+void keeper_watch_research(int picked)
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    g_watch_seen = true;
+    g_watch_picked = picked;
+}
+
+std::shared_ptr<const ResearchShot> keeper_research_shot()
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    return g_shot;
+}
+
 void keeper_tick(unsigned long long now_ms)
 {
     ResearchRequest research;
+    bool write = false;
     {
         std::lock_guard<std::mutex> lock(g_lock);
-        if (!tick_locked(now_ms, &research))
-            return;
+        write = tick_locked(now_ms, &research);
     }
-    run_research(research);
+    if (write) {
+        run_research(research);
+        std::lock_guard<std::mutex> lock(g_lock);
+        g_watch_dirty = true;                  // 쓴 것이 목록에 바로 보이게
+    }
+    watch_tick(now_ms);
 }
 
 std::string keeper_last()
@@ -404,4 +468,8 @@ void keeper_reset_for_test()
     g_keep_due = false;
     g_keep_at = 0;
     memset(g_kept, 0, sizeof(g_kept));
+    g_shot.reset();
+    g_watch_seen = g_watch_dirty = g_shot_timed = false;
+    g_watch_picked = 0;
+    g_shot_at = 0;
 }

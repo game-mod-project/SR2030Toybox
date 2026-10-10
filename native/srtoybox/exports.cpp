@@ -19,6 +19,7 @@
 #include "prologue.h"
 #include "regions.h"
 #include "research.h"
+#include "techs.h"
 #include "runner.h"
 #include "runner_win.h"
 #include "settings.h"
@@ -67,6 +68,8 @@ struct RecordingSink : Sink {
 //   t <번호> <분류> <수준> <선행 0> <선행 1> <보유> <묶음이 있다>
 //   d <번호> <연구 대상> <게임이 건너뛰는 설계> <보유> <묶음이 있다> <선행 0> <선행 1> <선행 2> <선행 3>
 //   q <종류> <번호> <깃발 0(16진수)> <깃발 1(16진수)>
+// t 와 d 의 줄 끝에는 목록의 것을 더 줄 수 있다(없으면 0 · 빈 글): t 는 <다른 나라의 수> <고른 나라가 보유>,
+// d 는 <다른 나라의 수> <고른 나라가 보유> <병과> <연도> <이름(빈칸 없이)>.
 ResearchTables tables_from(const std::string &text)
 {
     ResearchTables t;
@@ -74,19 +77,25 @@ ResearchTables tables_from(const std::string &text)
     std::string line, word;
     while (std::getline(lines, line)) {
         std::istringstream in(line);
-        int mine = 0, housed = 0, open = 0, held = 0;
+        int mine = 0, housed = 0, open = 0, held = 0, picked = 0;
         in >> word;
         if (word == "slots") {
             in >> t.tech_slots >> t.design_slots;
         } else if (word == "t") {
             TechRow row;
             in >> row.id >> row.kind >> row.level >> row.needs[0] >> row.needs[1] >> mine >> housed;
+            if (in >> row.others >> picked)
+                row.picked = picked != 0;
             row.mine = mine != 0;
             row.housed = housed != 0;
             t.techs.push_back(row);
         } else if (word == "d") {
             DesignRow row;
             in >> row.id >> open >> held >> mine >> housed >> row.needs[0] >> row.needs[1] >> row.needs[2] >> row.needs[3];
+            if (in >> row.others >> picked >> row.cls >> row.year) {
+                row.picked = picked != 0;
+                in >> row.name;
+            }
             row.open = open != 0;
             row.held = held != 0;
             row.mine = mine != 0;
@@ -366,6 +375,30 @@ EXPORT int srtoybox_locate_research_fits(const ResearchLayout *research, const V
         return 0;
     put(why, error, error_size);
     return -1;
+}
+
+// 테스트: 연구 목록의 줄(research_rows)을 글로 준 표(tables_from)에 돌린다. show 는 Show 의 번호, kind 는 분류 · 병과(-1 이면 전체).
+// 한 줄에 "번호|이름|분류 · 병과의 이름|수준 · 연도|상태|다른 나라의 수|고른 나라가 보유(0/1)".
+EXPORT int srtoybox_research_rows(const char *tables, int designs, int show, int kind, const char *find, char *out, int size)
+{
+    ListFilter filter;
+    filter.designs = designs != 0;
+    filter.show = static_cast<Show>(show);
+    filter.kind = kind;
+    filter.find = find != nullptr ? find : "";
+    std::string text;
+    for (const ListRow &row : research_rows(tables_from(tables != nullptr ? tables : ""), filter))
+        text += std::to_string(row.id) + '|' + row.name + '|' + (filter.designs ? design_class_label(row.kind) : tech_kind_label(row.kind)) + '|'
+            + std::to_string(row.level) + '|' + state_label(row.state) + '|' + std::to_string(row.others) + '|' + (row.picked ? "1" : "0") + '\n';
+    return put(text, out, size);
+}
+
+// 테스트: 이름표. "기술의 이름\n분류의 이름\n병과의 이름\nraw(CP1252)를 UTF-8 로 바꾼 글".
+EXPORT int srtoybox_tech_names(int tech, int kind, int cls, const char *raw, char *out, int size)
+{
+    const std::string text = raw != nullptr ? raw : "";
+    return put(tech_label(tech) + '\n' + tech_kind_label(kind) + '\n' + design_class_label(cls) + '\n' + cp1252_to_utf8(text.data(), text.size()),
+               out, size);
 }
 
 // 연구의 표와 목록의 꼴(locate.h 의 상수): 한 줄에 "이름\t값(16진수)". 테스트가 서명에 박힌 바이트와 댄다.

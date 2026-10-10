@@ -4,6 +4,7 @@
 // 연구 요청(3단계 3)은 따로 줄을 선다 — 기술 · 부대 설계를 완료 · 미완료로 바꾸고, 게임의 "효과를 다시 셈"을 부른다.
 #pragma once
 
+#include <memory>
 #include <string>
 
 #include "locate.h"
@@ -60,6 +61,22 @@ void keeper_tick(unsigned long long now_ms);
 // "대기열에서 2개를 뺌 — 대기열". 없으면 빈 글
 std::string keeper_last();
 std::string keeper_notice();                   // 쓰지 못한 까닭(창에 보인다). 없으면 빈 글
+
+// 연구 목록의 스냅숏. 창의 연구 탭이 보이는 동안 창 스레드의 틱이 뜬다(쓰기와 같은 스레드): RESEARCH_EVERY_MS 마다,
+// 연구를 쓴 직후, 고른 나라가 바뀌었을 때. 탭이 보이지 않으면(keeper_watch_research 가 불리지 않으면) 뜨지 않는다.
+struct ResearchShot {
+    unsigned long long serial = 0;             // 뜰 때마다 커진다 — 창은 이것이 바뀌었을 때만 줄을 다시 만든다
+    bool ok = false;
+    std::string why;                           // 읽지 못한 까닭(ok 가 거짓일 때)
+    int picked = 0;                            // 그때의 고른 나라(행의 picked 가 이 나라의 보유다)
+    int player = 0;                            // 그때의 플레이어(지역 번호)
+    ResearchTables tables;
+};
+
+const unsigned long long RESEARCH_EVERY_MS = 500;
+
+void keeper_watch_research(int picked);        // 창: 연구 탭이 보인다(프레임마다 부른다). picked 는 고른 나라(없으면 0)
+std::shared_ptr<const ResearchShot> keeper_research_shot();   // 마지막으로 뜬 것. 아직 없으면 nullptr
 
 void keeper_set_keep(const Keep &keep);        // 창이 설정을 읽었거나 고쳤다. 다음 틱에 바로 본다
 Keep keeper_keep();

@@ -3,7 +3,9 @@
 #include <algorithm>
 #include <cfloat>
 #include <cstring>
+#include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -18,12 +20,15 @@
 #include "regions.h"
 #include "runner_win.h"
 #include "settings.h"
+#include "techs.h"
 
 namespace {
 
 typedef std::lock_guard<std::recursive_mutex> Lock;
 
 const char *const DIPLOMACY_TAB = "외교·영토";   // features.cpp 의 탭 이름과 같아야 한다
+const char *const RESEARCH_TAB = "연구";         // 〃
+const char *const LIST_UNDO_ALL = "list:all_undo";   // g_confirm: "보이는 것 전부 미완료"가 둘째 누름을 기다린다
 
 Settings g_settings;
 bool g_visible, g_capturing;
@@ -38,6 +43,13 @@ bool g_reporting;             // 테스트가 그린 것의 목록을 청했다(
 std::string g_report, g_drawing;   // 지난 프레임의 목록 / 지금 모으는 것
 float g_footer;               // 바닥 줄들(알림 · 안내)의 높이 — 지난 프레임에 잰 것
 Keep g_keep_sent;             // keeper 에 마지막으로 넘긴 최소 유지(저장한 설정과 같다)
+ListFilter g_list;            // 연구 목록의 거르개
+char g_find[64];              // 연구 목록의 찾기란
+std::set<int> g_chosen;       // 연구 목록에서 고른 번호(지금 목록 — 기술이나 부대 설계 — 의 것)
+int g_chosen_player;          // 그것을 고를 때의 플레이어. 나라가 바뀌면 고른 것을 푼다
+std::vector<ListRow> g_rows;  // 거르개를 지난 줄 — 스냅숏이나 거르개가 바뀌었을 때만 다시 만든다
+unsigned long long g_rows_serial;
+ListFilter g_rows_filter;
 
 // 방금 그린 항목을 적는다: "이름\t가운데 x\t가운데 y\t보이는가(0/1)\t글". 테스트가 단추의 자리와 글을 여기서 읽는다.
 void note(const std::string &name, const std::string &text)
@@ -73,7 +85,8 @@ std::string asking_label(const Feature &f, int region)
 // 직접 쓰는 줄(3단계 2 · 3): 내장 치트를 거치지 않는다 — 누르면 요청을 대기열에 넣고, 쓰는 것은 게임 창의 타이머에서다(keeper.h).
 // 쓸 수 없으면 단추 자리에 까닭 한 줄만 그린다(그 줄에만. 같은 탭의 다른 줄은 그대로다). 내장 치트로 되돌아가지 않는다.
 // 단추를 그렸으면(쓸 수 있으면) true.
-bool direct_row(const Feature &f, const GameState &game)
+// compact: 설명 글을 줄로 그리지 않고 단추의 풍선말로 보인다(연구 탭 — 단추 셋이 한 줄에 놓인다).
+bool direct_row(const Feature &f, const GameState &game, bool compact)
 {
     const bool research = f.direct == Direct::TechLevel || f.direct == Direct::QueueDone;   // 연구의 두 줄은 제 묶음(연구)을 본다
     const int group = f.direct == Direct::TechUp ? MORE_TECH : f.direct == Direct::OpinionBest ? MORE_OPINION : MORE_RELATIONS;
@@ -100,6 +113,8 @@ bool direct_row(const Feature &f, const GameState &game)
         ImGui::BeginDisabled(f.target == Target::Picked && g_picked <= 0);   // 나라를 고르지 않았다
         const bool pressed = ImGui::Button((std::string(f.label) + "###run").c_str());
         note(std::string("run:") + f.id, f.label);
+        if (compact && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+            ImGui::SetTooltip("%s", f.help);
         if (pressed && research) {
             ResearchRequest request = {Research::Complete, ResearchWhat(), "대기열"};
             request.what.kind = ResearchWhat::Queue;
@@ -121,8 +136,10 @@ bool direct_row(const Feature &f, const GameState &game)
         }
         ImGui::EndDisabled();
     }
-    ImGui::TextDisabled("%s", f.help);
-    ImGui::Spacing();
+    if (!compact) {
+        ImGui::TextDisabled("%s", f.help);
+        ImGui::Spacing();
+    }
     ImGui::PopID();
     return off.empty();
 }
@@ -164,7 +181,8 @@ void row(const Feature &f, const GameState &game)
 }
 
 // 이번 게임에 있는 나라의 목록과 지금 고른 나라. "고른 나라" 줄을 그린다 — 탭의 구르는 내용 밖에.
-RegionView choose(const GameState &game)
+// none: 고른 나라가 없을 때의 글(탭마다 다르다 — 고르는 목록은 "외교·영토" 탭에만 있다).
+RegionView choose(const GameState &game, const char *none)
 {
     if (ImGui::GetTime() - g_regions_at > 1.0) {   // 지역 수백 개를 읽는다 — 프레임마다 하지 않는다
         g_regions = game_regions();
@@ -176,7 +194,7 @@ RegionView choose(const GameState &game)
         g_confirm.clear();
     }
     const std::string chosen = g_picked != 0 ? "고른 나라: " + region_label(g_picked) + " (" + std::to_string(g_picked) + ")"
-                                             : std::string("고른 나라: 없음 — 아래 목록에서 고르십시오");
+                                             : std::string("고른 나라: 없음 — ") + none;
     if (g_picked != 0)
         ImGui::TextUnformatted(chosen.c_str());
     else
@@ -439,6 +457,210 @@ bool stock_tab(const GameState &game, bool blocked)
     return true;
 }
 
+// 연구 목록의 단추 하나: 그 번호들을 완료 · 미완료로 바꾸는 요청을 넣는다. 쓰는 것은 게임 창의 타이머에서다(keeper.h).
+void list_request(Research action, const std::vector<int> &ids, const char *label)
+{
+    ResearchRequest request = {action, ResearchWhat(), label};
+    (g_list.designs ? request.what.designs : request.what.techs) = ids;
+    g_confirm.clear();
+    g_notice = keeper_enqueue_research(request) ? "" : "대기 중인 요청이 많아 받지 못했습니다.";
+}
+
+bool same(const ListFilter &a, const ListFilter &b)
+{
+    return a.designs == b.designs && a.show == b.show && a.kind == b.kind && a.find == b.find;
+}
+
+// 연구 탭의 목록: 기술이나 부대 설계를 거르개로 걸러 보이고, 고른 것 · 보이는 것 전부를 완료 · 미완료로 바꾼다.
+// 표는 keeper 가 창 스레드에서 뜬 스냅숏이다(탭이 보이는 동안 0.5초마다). 게임 밖 · 멀티플레이에서는 그리지 않는다(상태 줄이 말한다).
+void research_list(const GameState &game, bool blocked)
+{
+    static const char *const SHOWS[] = {"전체", "자국 보유", "자국 미보유", "타국만 보유", "고른 나라의 보유", "고른 나라에서 가져올 것"};
+    if (!game.known || blocked) {
+        g_chosen.clear();                        // 게임에서 나가면 고른 것은 풀린다
+        return;
+    }
+    ImGui::Separator();
+    keeper_watch_research(g_picked);
+    const std::shared_ptr<const ResearchShot> shot = keeper_research_shot();
+    if (shot == nullptr || !shot->ok) {
+        const std::string line = shot == nullptr ? std::string("연구의 표를 읽는 중입니다.") : "연구의 표를 읽을 수 없습니다 (" + shot->why + ")";
+        ImGui::TextWrapped("%s", line.c_str());
+        note("list:off", line);
+        return;
+    }
+    if (shot->player != g_chosen_player) {       // 다른 나라로 플레이하게 됐다
+        g_chosen.clear();
+        g_chosen_player = shot->player;
+    }
+
+    bool designs = g_list.designs;
+    if (ImGui::RadioButton("기술", !designs))
+        designs = false;
+    note("list:techs", designs ? "0" : "1");
+    ImGui::SameLine();
+    if (ImGui::RadioButton("부대 설계", designs))
+        designs = true;
+    note("list:designs", designs ? "1" : "0");
+    if (designs != g_list.designs) {             // 목록을 바꾸면 분류와 고른 것은 풀린다(번호가 다른 표의 것이다)
+        g_list.designs = designs;
+        g_list.kind = -1;
+        g_chosen.clear();
+        g_confirm.clear();
+    }
+    if (g_picked == 0 && (g_list.show == Show::Picked || g_list.show == Show::FromPicked))
+        g_list.show = Show::NotMine;             // 고른 나라가 없어졌다
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(190.0f);
+    if (ImGui::BeginCombo("##show", SHOWS[static_cast<int>(g_list.show)])) {
+        for (int i = 0; i < 6; i++) {
+            ImGui::BeginDisabled(i >= static_cast<int>(Show::Picked) && g_picked == 0);   // 뒤의 둘은 나라를 골라야 한다
+            if (ImGui::Selectable(SHOWS[i], i == static_cast<int>(g_list.show))) {
+                g_list.show = static_cast<Show>(i);
+                g_confirm.clear();
+            }
+            note("show:" + std::to_string(i), SHOWS[i]);
+            ImGui::EndDisabled();
+        }
+        ImGui::EndCombo();
+    }
+    note("list:show", SHOWS[static_cast<int>(g_list.show)]);
+    const auto kind_label = [&](int kind) {
+        return kind < 0 ? std::string("전체") : designs ? design_class_label(kind) : tech_kind_label(kind);
+    };
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(120.0f);
+    if (ImGui::BeginCombo("##kind", kind_label(g_list.kind).c_str())) {
+        for (int kind = -1; kind < (designs ? DESIGN_CLASSES : TECH_KINDS + 1); kind++) {
+            if (!designs && kind == 0)
+                continue;                        // 기술의 분류는 1 부터다
+            if (ImGui::Selectable(kind_label(kind).c_str(), kind == g_list.kind)) {
+                g_list.kind = kind;
+                g_confirm.clear();
+            }
+            note("kind:" + std::to_string(kind), kind_label(kind));
+        }
+        ImGui::EndCombo();
+    }
+    note("list:kind", kind_label(g_list.kind));
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    if (ImGui::InputTextWithHint("##find", "찾기 (이름 · 번호)", g_find, sizeof(g_find)))
+        g_confirm.clear();
+    note("list:find", g_find);
+    g_list.find = g_find;
+
+    if (shot->serial != g_rows_serial || !same(g_list, g_rows_filter)) {
+        g_rows = research_rows(shot->tables, g_list);
+        g_rows_serial = shot->serial;
+        g_rows_filter = g_list;
+    }
+    const bool with_picked = shot->picked != 0 && shot->picked == g_picked;   // 고른 나라의 열 — 그 나라로 뜬 스냅숏일 때만
+    const float below = 2.0f * ImGui::GetFrameHeightWithSpacing();           // 표 아래의 두 줄(수 · 단추)
+    const float height = std::max(6.0f * ImGui::GetFrameHeightWithSpacing(), ImGui::GetContentRegionAvail().y - below);
+    const ImGuiTableFlags flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_ScrollY;
+    if (ImGui::BeginTable(with_picked ? "list7" : "list6", with_picked ? 7 : 6, flags, ImVec2(0.0f, height))) {
+        ImGui::TableSetupScrollFreeze(0, 1);
+        ImGui::TableSetupColumn("##on");
+        ImGui::TableSetupColumn("이름", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn(designs ? "병과" : "분류");
+        ImGui::TableSetupColumn(designs ? "연도" : "수준");
+        ImGui::TableSetupColumn("상태");
+        ImGui::TableSetupColumn("타국");
+        if (with_picked)
+            ImGui::TableSetupColumn(region_label(shot->picked).c_str());
+        ImGui::TableHeadersRow();
+        ImGuiListClipper clipper;                // 줄이 많다(부대 설계 수천) — 보이는 줄만 그린다
+        clipper.Begin(static_cast<int>(g_rows.size()));
+        while (clipper.Step())
+            for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
+                const ListRow &r = g_rows[static_cast<size_t>(i)];
+                const std::string cells[5] = {r.name, kind_label(r.kind), std::to_string(r.level), state_label(r.state), std::to_string(r.others)};
+                ImGui::PushID(r.id);
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                bool on = g_chosen.count(r.id) != 0;
+                if (ImGui::Checkbox("##on", &on)) {
+                    if (on)
+                        g_chosen.insert(r.id);
+                    else
+                        g_chosen.erase(r.id);
+                    g_confirm.clear();
+                }
+                std::string line = on ? "1" : "0";
+                for (const std::string &cell : cells)
+                    line += "|" + cell;
+                if (with_picked)
+                    line += r.picked ? "|보유" : "|";
+                note("item:" + std::to_string(r.id), line);   // 고르는 칸의 자리와, 그 줄의 글
+                for (const std::string &cell : cells) {
+                    ImGui::TableNextColumn();
+                    ImGui::AlignTextToFramePadding();
+                    ImGui::TextUnformatted(cell.c_str());
+                }
+                if (with_picked) {
+                    ImGui::TableNextColumn();
+                    ImGui::AlignTextToFramePadding();
+                    ImGui::TextUnformatted(r.picked ? "보유" : "");
+                }
+                ImGui::PopID();
+            }
+        ImGui::EndTable();
+    }
+
+    std::vector<int> visible;
+    size_t chosen_visible = 0;
+    visible.reserve(g_rows.size());
+    for (const ListRow &r : g_rows) {
+        visible.push_back(r.id);
+        chosen_visible += g_chosen.count(r.id);
+    }
+    std::sort(visible.begin(), visible.end());
+    const size_t hidden = g_chosen.size() - std::min(g_chosen.size(), chosen_visible);
+    const std::string count = "보이는 것 " + std::to_string(g_rows.size()) + "개 · 고른 것 " + std::to_string(g_chosen.size()) + "개"
+        + (hidden > 0 ? "(보이지 않는 것 " + std::to_string(hidden) + "개)" : std::string());
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted(count.c_str());
+    note("list:count", count);
+    ImGui::SameLine();
+    ImGui::BeginDisabled(g_chosen.empty());
+    if (ImGui::Button("고르기 풀기")) {
+        g_chosen.clear();
+        g_confirm.clear();
+    }
+    note("list:clear", "고르기 풀기");
+    ImGui::EndDisabled();
+
+    // 단추 넷. "고른 것"은 지금 보이지 않는 줄이라도 고른 것 모두에 한다. 쓸 수 없는 까닭은 위의 단추 자리에 적혀 있다
+    const bool off = !game_research_off().empty();
+    const std::vector<int> chosen(g_chosen.begin(), g_chosen.end());
+    ImGui::BeginDisabled(off || chosen.empty());
+    if (ImGui::Button("고른 것 완료"))
+        list_request(Research::Complete, chosen, "고른 것");
+    note("list:done", "고른 것 완료");
+    ImGui::SameLine();
+    if (ImGui::Button("고른 것 미완료"))
+        list_request(Research::Revoke, chosen, "고른 것");
+    note("list:undo", "고른 것 미완료");
+    ImGui::EndDisabled();
+    ImGui::SameLine(0.0f, 24.0f);
+    ImGui::BeginDisabled(off || visible.empty());
+    if (ImGui::Button("보이는 것 전부 완료"))
+        list_request(Research::Complete, visible, "보이는 것");
+    note("list:all_done", "보이는 것 전부 완료");
+    ImGui::SameLine();
+    const bool asking = g_confirm == LIST_UNDO_ALL;   // 되돌리기 어렵다 — 한 번 더 눌러야 한다
+    const std::string undo_all = asking ? "보이는 것 전부 미완료 — 한 번 더 누르면 실행합니다" : "보이는 것 전부 미완료";
+    if (ImGui::Button((undo_all + "###undoall").c_str())) {
+        if (asking)
+            list_request(Research::Revoke, visible, "보이는 것");
+        else
+            g_confirm = LIST_UNDO_ALL;
+    }
+    note(LIST_UNDO_ALL, undo_all);
+    ImGui::EndDisabled();
+}
+
 void settings_tab()
 {
     ImGui::Text("창 여닫기: %s", hotkey_name(g_settings.hotkey_vk, g_settings.hotkey_mods).c_str());
@@ -575,11 +797,13 @@ void ui_draw()
                 note(std::string("tab:") + tab, tab);
                 if (!open)
                     continue;
-                const bool diplomacy = strcmp(tab, DIPLOMACY_TAB) == 0;
+                const bool diplomacy = strcmp(tab, DIPLOMACY_TAB) == 0, research = strcmp(tab, RESEARCH_TAB) == 0;
                 const bool usable = !diplomacy || game.known;   // 이번 게임의 나라 목록을 모르면 이 탭은 쓰지 못한다
                 RegionView view;
                 if (diplomacy && usable)
-                    view = choose(game);   // "고른 나라" 줄은 구르는 내용 밖에 둔다
+                    view = choose(game, "아래 목록에서 고르십시오");   // "고른 나라" 줄은 구르는 내용 밖에 둔다
+                else if (research && game.known && game.in_game)
+                    choose(game, "외교·영토 탭에서 고릅니다");         // 목록의 "고른 나라" 열과 보기가 이 나라다
                 if (ImGui::BeginChild("body", body)) {
                     if (!usable) {
                         ImGui::TextWrapped("게임 상태를 읽을 수 있을 때만 씁니다.");
@@ -592,11 +816,15 @@ void ui_draw()
                             if (FEATURES[j].direct == Direct::None) {
                                 cheats = true;
                                 row(FEATURES[j], game);
-                            } else if (direct_row(FEATURES[j], game)) {
+                            } else if (direct_row(FEATURES[j], game, research)) {
                                 direct_ok = true;
+                                if (research && j + 1 < FEATURE_COUNT && strcmp(FEATURES[j + 1].tab, tab) == 0)
+                                    ImGui::SameLine();   // 연구 탭의 단추들은 한 줄에 — 아래는 목록의 자리다
                             }
                         }
                         ImGui::EndDisabled();
+                        if (research)
+                            research_list(game, blocked);
                         if (!cheats) {                   // 이 탭의 바닥 안내는 글쇠 방식과 상관없다
                             values_tab = true;
                             values_ok = direct_ok;

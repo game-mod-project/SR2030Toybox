@@ -12,6 +12,7 @@
 #include "log.h"
 #include "products.h"
 #include "regions.h"
+#include "techs.h"
 
 namespace {
 
@@ -406,6 +407,51 @@ Wrote write(int slot, double value)
     return wrote;
 }
 
+// 읽을 수 있다고 물어 둔 구역 [lo, hi).
+struct Span {
+    uint64_t lo = 0, hi = 0;
+};
+
+bool copy_guarded(const void *from, void *to, size_t size)
+{
+    __try {
+        memcpy(to, from, size);
+        return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+}
+
+// 작은 블록 수천 개(보유 묶음 · 부대 설계의 이름)를 읽을 때의 peek. ReadProcessMemory 를 블록마다 부르면 스냅숏 한 번이 수십 ms 다 —
+// 그 구역이 읽을 수 있는 쪽인지 VirtualQuery 로 한 번 물어 두고, 그 안의 블록은 바로 읽는다(예외 가드 안에서 — 그사이 풀린 쪽이면 실패다).
+// 묻지 않고 바로 읽지는 않는다: 가드 쪽(PAGE_GUARD)을 건드리면 가드가 지워진다. 그런 구역과 구역에 걸친 블록은 peek 으로 읽는다.
+bool peek_near(Span *span, uint64_t address, void *out, size_t size)
+{
+    const void *const from = reinterpret_cast<const void *>(address);
+    if (address < span->lo || address + size > span->hi) {
+        MEMORY_BASIC_INFORMATION info;
+        span->lo = span->hi = 0;
+        if (VirtualQuery(from, &info, sizeof(info)) == 0 || info.State != MEM_COMMIT
+            || (info.Protect != PAGE_READWRITE && info.Protect != PAGE_READONLY))
+            return peek(from, out, size);
+        const uint64_t lo = reinterpret_cast<uint64_t>(info.BaseAddress), hi = lo + info.RegionSize;
+        if (address < lo || address + size > hi)
+            return peek(from, out, size);
+        span->lo = lo;
+        span->hi = hi;
+    }
+    return copy_guarded(from, out, size);
+}
+
+// 부대 설계의 이름(UTF-8)을 번호마다 기억해 둔다 — 이름은 판이 도는 동안 바뀌지 않고, 스냅숏은 0.5초마다 뜬다.
+// 이름의 포인터가 달라졌으면 다시 읽고, 표가 달라졌거나 스냅숏이 한동안(NAMES_STALE_MS) 없었으면 모두 버린다(다른 판일 수 있다).
+const int NAME_BYTES = 48;                        // 이름은 47자까지 읽는다
+const unsigned long long NAMES_STALE_MS = 2000;
+std::mutex g_names_lock;
+std::vector<std::pair<uint64_t, std::string>> g_names;
+uint64_t g_names_table;
+unsigned long long g_names_at;
+
 // 연구의 스냅숏과, 그것을 쓸 때 필요한 주소들.
 struct Shot {
     ResearchTables tables;
@@ -427,14 +473,14 @@ T field(const uint8_t *record, uint32_t offset)
 }
 
 // 보유 묶음에서 플레이어(me)와 고른 나라(them. 없으면 0)의 비트, 그리고 플레이어를 뺀 보유 나라의 수. 묶음이 없으면(0) 아무도 없다.
-bool owners_of(uint64_t owners, int me, int them, bool *mine, bool *picked, int *others)
+bool owners_of(Span *span, uint64_t owners, int me, int them, bool *mine, bool *picked, int *others)
 {
     *mine = *picked = false;
     *others = 0;
     if (owners == 0)
         return true;
     uint8_t bits[OWNERS_BYTES];
-    if (!peek(reinterpret_cast<const void *>(owners), bits, sizeof(bits)))
+    if (!peek_near(span, owners, bits, sizeof(bits)))
         return false;
     int count = 0;
     for (uint8_t byte : bits)
@@ -470,6 +516,7 @@ bool shoot(const uint8_t *base, const GameAddresses &at, const ResearchLayout &r
         *why = "표가 없거나 자리 수가 범위 밖입니다";
         return false;
     }
+    Span span;
     shot->me = me;
     shot->multiplayer = s.multiplayer;
     shot->world = reinterpret_cast<uint64_t>(base) + r.world;
@@ -493,7 +540,7 @@ bool shoot(const uint8_t *base, const GameAddresses &at, const ResearchLayout &r
         for (int n = 0; n < TECH_NEED_COUNT; n++)
             row.needs[n] = field<uint16_t>(record, TECH_NEEDS + 2 * static_cast<uint32_t>(n));
         const uint64_t owners = field<uint64_t>(record, TECH_OWNERS);
-        if (!owners_of(owners, me, them, &row.mine, &row.picked, &row.others)) {
+        if (!owners_of(&span, owners, me, them, &row.mine, &row.picked, &row.others)) {
             *why = "기술 " + std::to_string(i) + " 의 보유 묶음을 읽을 수 없습니다";
             return false;
         }
@@ -508,12 +555,26 @@ bool shoot(const uint8_t *base, const GameAddresses &at, const ResearchLayout &r
         *why = "부대 설계 표를 읽을 수 없습니다";
         return false;
     }
+    std::lock_guard<std::mutex> names_lock(g_names_lock);
+    const unsigned long long now = GetTickCount64();
+    if (g_names_table != design_table || g_names.size() != static_cast<size_t>(design_count) || now - g_names_at > NAMES_STALE_MS)
+        g_names.assign(static_cast<size_t>(design_count), std::pair<uint64_t, std::string>());
+    g_names_table = design_table;
+    g_names_at = now;
     for (int i = 1; i < design_count; i++) {
         const uint8_t *record = raw.data() + static_cast<size_t>(i) * DESIGN_SIZE;
-        if (field<uint64_t>(record, DESIGN_NAME) == 0)
+        const uint64_t name = field<uint64_t>(record, DESIGN_NAME);
+        if (name == 0)
             continue;                           // 빈 자리
         DesignRow row;
         row.id = i;
+        std::pair<uint64_t, std::string> &known = g_names[static_cast<size_t>(i)];
+        if (known.first != name) {              // 읽지 못하면 빈 글로 둔다(창이 "#번호"로 적는다) — 다음 스냅숏에 다시 읽지는 않는다
+            char text[NAME_BYTES] = {};
+            known.first = name;
+            known.second = peek_near(&span, name, text, sizeof(text) - 1) ? cp1252_to_utf8(text, sizeof(text) - 1) : std::string();
+        }
+        row.name = known.second;
         row.cls = record[DESIGN_CLASS];
         row.year = record[DESIGN_YEAR];
         row.open = field<uint16_t>(record, DESIGN_OPEN) != 0;
@@ -522,7 +583,7 @@ bool shoot(const uint8_t *base, const GameAddresses &at, const ResearchLayout &r
         for (int n = 0; n < DESIGN_NEED_COUNT; n++)
             row.needs[n] = field<uint16_t>(record, DESIGN_NEEDS + 2 * static_cast<uint32_t>(n));
         const uint64_t owners = field<uint64_t>(record, DESIGN_OWNERS);
-        if (!owners_of(owners, me, them, &row.mine, &row.picked, &row.others)) {
+        if (!owners_of(&span, owners, me, them, &row.mine, &row.picked, &row.others)) {
             *why = "부대 설계 " + std::to_string(i) + " 의 보유 묶음을 읽을 수 없습니다";
             return false;
         }

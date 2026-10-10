@@ -15,7 +15,7 @@ from .config import Config
 
 DLL_NAME = "srtoybox.dll"
 SOURCES = ["features.cpp", "command.cpp", "runner.cpp", "settings.cpp", "exports.cpp",
-           "log.cpp", "runner_win.cpp", "ui.cpp", "input.cpp", "prologue.cpp", "sigs.cpp", "locate.cpp", "values.cpp", "research.cpp", "game.cpp", "keeper.cpp", "regions.cpp", "products.cpp",
+           "log.cpp", "runner_win.cpp", "ui.cpp", "input.cpp", "prologue.cpp", "sigs.cpp", "locate.cpp", "values.cpp", "research.cpp", "game.cpp", "keeper.cpp", "regions.cpp", "products.cpp", "techs.cpp",
            "overlay.cpp"]
 LIBS = ["kernel32.lib", "user32.lib", "gdi32.lib", "imm32.lib", "dwmapi.lib", "d3d11.lib", "dxgi.lib", "d3dcompiler.lib"]
 FLAGS = "/nologo /c /utf-8 /std:c++17 /O2 /MT /EHsc /DNDEBUG /DNOMINMAX"   # NDEBUG: 게임 안에서 assert 로 죽지 않게. NOMINMAX: windows.h 의 min · max 매크로를 끈다
@@ -159,6 +159,21 @@ def product_rows(cfg: Config) -> list[tuple[int, str, str]]:
     return [(slot, *rows[slot]) for slot in sorted(rows)]
 
 
+TECH_TABLE = "mods/korean/translation/localtext-ttr.csv"
+
+
+def tech_rows(cfg: Config) -> list[tuple[int, str, str]]:
+    """번역 테이블에서 (기술 번호, 한글 이름, 영문 이름)을 번호순으로. TTRTEXT|<번호>|0 행이 이름이다. 번역이 빈 행은 영문 이름을 쓴다."""
+    rows: dict[int, tuple[str, str]] = {}
+    with (cfg.root / TECH_TABLE).open(encoding="utf-8-sig", newline="") as f:
+        for row in csv.DictReader(f):
+            m = re.fullmatch(r"TTRTEXT\|(\d+)\|0", row["key"])
+            en = row["en"].strip()
+            if m and en:
+                rows[int(m[1])] = (row["ko"].strip() or en, en)
+    return [(number, *rows[number]) for number in sorted(rows)]
+
+
 def products_inc(rows: list[tuple[int, str, str]]) -> str:
     """native/srtoybox/products.cpp 가 끼워 넣는 초기화 목록(한 줄에 물자 하나). 꼴은 지역 이름표와 같다."""
     return regions_inc(rows)
@@ -175,6 +190,7 @@ def build(cfg: Config) -> Path:
     objs = [obj / (p.stem + ".obj") for p in ours + theirs]
     (obj / "regions_table.inc").write_text(regions_inc(region_rows(cfg)), encoding="utf-8", newline="\n")
     (obj / "products_table.inc").write_text(products_inc(product_rows(cfg)), encoding="utf-8", newline="\n")
+    (obj / "techs_table.inc").write_text(regions_inc(tech_rows(cfg)), encoding="utf-8", newline="\n")
     include = f'/I"{imgui}" /I"{imgui / "backends"}" /I"{obj}" {IMGUI_DEFINES}'
     script = obj / "build.cmd"
     script.write_text(
