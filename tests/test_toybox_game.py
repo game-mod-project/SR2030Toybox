@@ -21,7 +21,7 @@ BUILD_LEGACY = {name: BUILD_21347933[name] for name in toybox.LEGACY_FIELDS}
 BUILD_VALUES = {"world_pointer": 0x1AF5868, "treasury": 0x14B88, "stock_first": 0x14DA4, "stock_step": 0x150,
                 "used_first": 0x18, "used_step": 0x84}
 BUILD_MORE = {"tech": 0x14CD0, "opinion0": 0x14AF4, "opinion1": 0x14AF8, "opinion2": 0x14B10, "relation0": 0x15F10,
-              "relation1": 0x16F10, "casus": 0x17F10}
+              "relation1": 0x16F10, "casus": 0x17F10, "people0": 0x14B48, "people1": 0x14B60, "people2": 0x14B64, "approval": 0x14B04}
 BUILD_RESEARCH = {"tech_table": 0x1829620, "tech_count": 0x1829098, "design_table": 0x1829610, "design_count": 0x182909C,
                   "world": 0x17A9020, "lists": 0x3568C0, "recompute": 0xBDD380}
 # 연구의 표와 목록의 꼴(native/srtoybox/locate.h 의 상수)이 박힌 서명: (찾을 것, 몇째 서명, 그 명령의 바이트).
@@ -350,7 +350,7 @@ def more_without(group: int) -> dict[str, int]:
 
 def test_the_more_table_has_three_signatures_per_item(more_sigs):
     assert [name for name, _ in more_sigs] == [name for name in toybox.MORE_FIELDS for _ in range(3)]
-    assert len({text for _, text in more_sigs}) == 21
+    assert len({text for _, text in more_sigs}) == 33
     assert [field for _, fields in toybox.MORE_GROUPS for field in fields] == toybox.MORE_FIELDS
 
 
@@ -359,15 +359,15 @@ def test_more_is_found_in_an_image_without_any_cheat_string(lib, more_sigs):
     image = toybox_fake_exe.sig_image(more_sigs)
     assert b"cheat" not in image
     found, why, rows = toybox.more_of(lib, image)
-    assert found == toybox_fake_exe.MORE and why == ["", "", ""]
-    assert [row.count for row in rows] == [1] * 21
+    assert found == toybox_fake_exe.MORE and why == [""] * 5
+    assert [row.count for row in rows] == [1] * 33
     assert all(row.value == toybox_fake_exe.MORE[row.name] for row in rows)
 
 
 @pytest.mark.parametrize("which", range(7))
 def test_more_survives_one_broken_signature_per_item(lib, more_sigs, which):
     found, why, rows = toybox.more_of(lib, toybox_fake_exe.sig_image(more_sigs, broken={3 * which + 2}))
-    assert found == toybox_fake_exe.MORE and why == ["", "", ""]
+    assert found == toybox_fake_exe.MORE and why == [""] * 5
     assert rows[3 * which + 2].count == 0
 
 
@@ -377,7 +377,7 @@ def test_a_group_that_cannot_find_one_of_its_items_is_dropped_alone(lib, more_si
     """묶음마다 따로 찾는다: 한 묶음의 한 자리를 못 찾으면 그 묶음만 통째로 버리고(반쪽 묶음은 없다) 나머지 묶음은 그대로 찾는다."""
     found, why, _ = toybox.more_of(lib, toybox_fake_exe.sig_image(more_sigs, broken={3 * item, 3 * item + 1}))
     assert found == more_without(group)
-    assert [bool(text) for text in why] == [g == group for g in range(3)]
+    assert [bool(text) for text in why] == [g == group for g in range(5)]
     assert label in why[group] and "3개 가운데 1개" in why[group]
 
 
@@ -403,7 +403,7 @@ def test_more_that_does_not_add_up_is_dropped(lib, more_sigs, targets, dropped, 
     for group in dropped:
         expected.update(dict.fromkeys(toybox.MORE_GROUPS[group][1], 0))
     assert found == expected
-    assert [text for text in why if text] == [reason] * len(dropped) and [bool(text) for text in why] == [g in dropped for g in range(3)]
+    assert [text for text in why if text] == [reason] * len(dropped) and [bool(text) for text in why] == [g in dropped for g in range(5)]
 
 
 def test_more_must_not_sit_on_the_treasury_or_a_stock_slot(lib, more_sigs):
@@ -411,11 +411,11 @@ def test_more_must_not_sit_on_the_treasury_or_a_stock_slot(lib, more_sigs):
     targets = {"tech": 0x1234, "opinion0": 0x2040}         # 국고 칸(0x1230, 8바이트)의 뒤쪽 절반 / 재고의 셋째 칸
     image = toybox_fake_exe.sig_image(more_sigs, targets=targets)
     found, why, _ = toybox.more_of(lib, image)
-    assert found == {**toybox_fake_exe.MORE, **targets} and why == ["", "", ""]      # 값 묶음을 모르면 저마다는 말이 된다
+    assert found == {**toybox_fake_exe.MORE, **targets} and why == [""] * 5      # 값 묶음을 모르면 저마다는 말이 된다
     found, why, _ = toybox.more_of(lib, image, toybox_fake_exe.VALUE_LAYOUT)
     assert found == {**more_without(0), **dict.fromkeys(toybox.MORE_GROUPS[1][1], 0)}
-    assert why == ["기술 수준 칸: 찾은 자리가 국고 칸이나 재고 칸과 겹칩니다", "여론 칸 1: 찾은 자리가 국고 칸이나 재고 칸과 겹칩니다", ""]
-    assert toybox.more_of(lib, toybox_fake_exe.sig_image(more_sigs), toybox_fake_exe.VALUE_LAYOUT)[1] == ["", "", ""]
+    assert why == ["기술 수준 칸: 찾은 자리가 국고 칸이나 재고 칸과 겹칩니다", "여론 칸 1: 찾은 자리가 국고 칸이나 재고 칸과 겹칩니다", "", "", ""]
+    assert toybox.more_of(lib, toybox_fake_exe.sig_image(more_sigs), toybox_fake_exe.VALUE_LAYOUT)[1] == [""] * 5
 
 
 def test_more_is_found_beside_the_other_tables(lib, sigs, value_sigs, more_sigs):
@@ -423,7 +423,7 @@ def test_more_is_found_beside_the_other_tables(lib, sigs, value_sigs, more_sigs)
     image = toybox_fake_exe.sig_image(sigs + value_sigs + more_sigs)
     assert toybox.state_of(lib, image)[0] == toybox_fake_exe.STATE
     assert toybox.values_of(lib, image)[0] == toybox_fake_exe.VALUE_LAYOUT
-    assert toybox.more_of(lib, image, toybox_fake_exe.VALUE_LAYOUT)[:2] == (toybox_fake_exe.MORE, ["", "", ""])
+    assert toybox.more_of(lib, image, toybox_fake_exe.VALUE_LAYOUT)[:2] == (toybox_fake_exe.MORE, [""] * 5)
 
 
 @pytest.mark.parametrize("image", GARBAGE, ids=GARBAGE_IDS)
@@ -433,10 +433,10 @@ def test_more_survives_garbage(lib, image):
 
 
 def test_more_on_the_installed_game(lib, game_dir):
-    """build 21347933: 서명 21개가 저마다 실행 구역에 정확히 한 번 맞고, 읽어 낸 자리가 docs/11 의 표와 같다."""
+    """build 21347933: 서명 33개가 저마다 실행 구역에 정확히 한 번 맞고, 읽어 낸 자리가 docs/11 의 표와 같다."""
     found, why, rows = toybox.more_of(lib, installed_image(game_dir), BUILD_VALUES)
-    assert found == BUILD_MORE and why == ["", "", ""]
-    assert [row.count for row in rows] == [1] * 21
+    assert found == BUILD_MORE and why == [""] * 5
+    assert [row.count for row in rows] == [1] * 33
     assert all(row.value == BUILD_MORE[row.name] for row in rows)
 
 
@@ -655,8 +655,8 @@ def test_srkit_locate_reports_every_search(lib, cfg, game_dir):
     assert located.values is not None and set(located.values) == set(toybox.VALUE_FIELDS), located.values_why
     assert len(located.value_rows) == 12
     assert located.legacy is not None and set(located.legacy) == set(toybox.LEGACY_FIELDS), located.legacy_why
-    assert set(located.more) == set(toybox.MORE_FIELDS) and all(located.more.values()) and located.more_why == ["", "", ""]
-    assert len(located.more_rows) == 21
+    assert set(located.more) == set(toybox.MORE_FIELDS) and all(located.more.values()) and located.more_why == [""] * 5
+    assert len(located.more_rows) == 33
     assert located.research is not None and set(located.research) == set(toybox.RESEARCH_FIELDS), located.research_why
     assert len(located.research_rows) == 21
 

@@ -395,6 +395,10 @@ def peek_more(read, more: dict[str, int], player: int, me: int, who: int) -> dic
         out["tech"] = read(who + more["tech"], "<f")
     if more["opinion0"]:
         out["opinion"] = [read(who + more[name], "<f") for name in ("opinion0", "opinion1", "opinion2")]
+    if more.get("people0"):                                             # 인구와, 내장 치트 populate 가 함께 올리던 두 칸
+        out["people"] = [read(who + more[name], "<f") for name in ("people0", "people1", "people2")]
+    if more.get("approval"):
+        out["approval"] = read(who + more["approval"], "<f")
     if more["relation0"] and who != player:
         them = read(who + 4, "<H")
         tables = ("relation0", "relation1", "casus")

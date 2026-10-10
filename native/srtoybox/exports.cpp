@@ -160,7 +160,8 @@ EXPORT int srtoybox_feature_info(int index, char *out, int size)
         return -1;
     const Feature &f = FEATURES[index];
     static const char *const targets[] = {"none", "player", "picked"};
-    static const char *const how[] = {"cheat", "tech_up", "opinion_best", "relation_best", "relation_neutral", "tech_level", "queue_done"};
+    static const char *const how[] = {"cheat", "tech_up", "opinion_best", "relation_best", "relation_neutral", "tech_level", "queue_done",
+                                      "people_add", "approval_best"};
     const std::string line = std::string(f.id) + '\t' + f.tab + '\t' + f.label + '\t' + f.command + '\t' + (f.has_value ? "1" : "0")
         + '\t' + std::to_string(f.def) + '\t' + std::to_string(f.min) + '\t' + std::to_string(f.max) + '\t'
         + (f.confirm ? "1" : "0") + '\t' + f.help + '\t' + targets[static_cast<int>(f.target)] + '\t'
@@ -510,9 +511,11 @@ EXPORT int srtoybox_more_read(const unsigned char *base, const GameAddresses *at
     if (at == nullptr || more == nullptr)
         return -1;
     const GameMore v = read_more(base, *at, *more);
-    char line[160];
-    snprintf(line, sizeof(line), "ok=%d tech=%.9g opinion=%.9g,%.9g,%.9g", v.ok ? 1 : 0, static_cast<double>(v.tech),
-             static_cast<double>(v.opinion[0]), static_cast<double>(v.opinion[1]), static_cast<double>(v.opinion[2]));
+    char line[320];
+    snprintf(line, sizeof(line), "ok=%d tech=%.9g opinion=%.9g,%.9g,%.9g people=%.9g,%.9g,%.9g approval=%.9g", v.ok ? 1 : 0,
+             static_cast<double>(v.tech), static_cast<double>(v.opinion[0]), static_cast<double>(v.opinion[1]),
+             static_cast<double>(v.opinion[2]), static_cast<double>(v.people[0]), static_cast<double>(v.people[1]),
+             static_cast<double>(v.people[2]), static_cast<double>(v.approval));
     return put(line, out, size);
 }
 
@@ -537,13 +540,18 @@ EXPORT int srtoybox_more_write(const unsigned char *base, const GameAddresses *a
 {
     int cells = 0;
     Wrote wrote = Wrote::BadValue;
-    if (at == nullptr || more == nullptr || what < 0 || what > 2)
+    if (at == nullptr || more == nullptr || what < 0 || what > 4)
         return -1;
     if (what == 0) {
         wrote = write_tech(base, *at, *more, static_cast<float>(value));
         cells = wrote == Wrote::Done ? 1 : 0;
     } else if (what == 1) {
         wrote = write_opinion(base, *at, *more, &cells);
+    } else if (what == 3) {                    // 인구의 세 칸에 value 를 더한다
+        wrote = write_people(base, *at, *more, static_cast<float>(value), &cells);
+    } else if (what == 4) {                    // 지지율 100%
+        wrote = write_approval(base, *at, *more);
+        cells = wrote == Wrote::Done ? 1 : 0;
     } else {
         wrote = write_relation(base, *at, *more, number, static_cast<float>(value), &cells);
     }
@@ -648,7 +656,8 @@ EXPORT int srtoybox_game_flags(void)
 {
     return (game_reads() ? 1 : 0) | (game_can_call() ? 2 : 0) | (game_values_off().empty() ? 4 : 0)
         | (game_more_off(MORE_TECH).empty() ? 8 : 0) | (game_more_off(MORE_OPINION).empty() ? 16 : 0)
-        | (game_more_off(MORE_RELATIONS).empty() ? 32 : 0) | (game_research_off().empty() ? 64 : 0);
+        | (game_more_off(MORE_RELATIONS).empty() ? 32 : 0) | (game_research_off().empty() ? 64 : 0)
+        | (game_more_off(MORE_PEOPLE).empty() ? 128 : 0) | (game_more_off(MORE_APPROVAL).empty() ? 256 : 0);   // 인구 · 지지율
 }
 
 EXPORT int srtoybox_values_off(char *out, int size)
@@ -668,7 +677,7 @@ EXPORT int srtoybox_keeper_request(int slot, int change, double amount)
 // 받았으면 1. 그런 요청이 없으면 -1.
 EXPORT int srtoybox_keeper_more(int slot, int region, double amount)
 {
-    if (slot != TECH && slot != OPINION && slot != RELATION)
+    if (slot != TECH && slot != OPINION && slot != RELATION && slot != PEOPLE && slot != APPROVAL)
         return -1;
     return keeper_enqueue({slot, Change::Set, amount, region}) ? 1 : 0;
 }

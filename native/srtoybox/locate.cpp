@@ -305,6 +305,15 @@ const struct MoreWanted {
      {"41 0F 2F 84 84 [u32] 76 7A 48 85 D2", "F3 0F 11 84 88 [u32] 45 85 DB 79 2A", "F3 0F 10 9C 81 [u32] 8B D0 0F 2F FB"}},
     {"casus", "전쟁 명분 표", 2, 4 * REGION_SLOTS,
      {"F3 0F 10 9C 8A [u32] 0F 2F FB 76 35", "F3 41 0F 5C 8C 82 [u32] 0F 2F C1 76 02", "F3 0F 11 84 88 [u32] 0F 28 C2 48 8B 07"}},
+    // 인구와 지지율(3단계 4). 인구의 둘째 · 셋째 칸은 내장 치트 populate 가 인구와 함께 올리던 칸이다(무엇인지는 docs/11)
+    {"people0", "인구 칸", 3, 4,
+     {"F3 0F 11 81 [u32] 45 84 ED 74 3C", "F3 0F 10 9A [u32] 0F 28 CB 0F 28 C4", "F3 0F 10 90 [u32] 44 0F 2F D2 76 2A"}},
+    {"people1", "인구 칸 2", 3, 4,
+     {"48 81 C1 [u32] 0F 2F 31 48 0F 46 C1", "89 85 [u32] 0F B7 85 52 5E 01 00 03 D7", "44 89 82 [u32] F3 0F 10 A1 48 4B 01 00 0F 28 C4"}},
+    {"people2", "인구 칸 3", 3, 4,
+     {"F3 0F 11 81 [u32] 40 84 F6 75 11", "F3 0F 10 81 [u32] 0F 2F C1 72 3C", "F3 0F 10 87 [u32] 0F 2E C6 7A 1A"}},
+    {"approval", "지지율 칸", 4, 4,
+     {"F3 0F 10 89 [u32] 0F 2F C1 76 33", "F3 0F 10 83 [u32] F3 0F 59 C7 0F 5A D0", "F3 0F 11 83 [u32] 48 8B 47 10 0F B7 08"}},
 };
 
 // 연구의 일곱. 같은 규칙으로 뽑되(uv run srkit sig-mine …) 꼴의 상수가 박힌 명령까지 늘렸다(--with · --back · --through-jumps).
@@ -357,10 +366,10 @@ const struct ResearchWanted {
       "BA FF FF FF FF 49 8B CC E8 [rip] 4C 63 84 24 50 41 00 00"}},
 };
 
-const int MAX_TABLE = STATE_WANTED * STATE_SIGS;    // 한 표의 서명 수의 상한(상태 21개, 값 12개, 더 쓰는 값 21개, 연구 21개)
-static_assert(VALUE_WANTED <= STATE_WANTED && MORE_WANTED <= STATE_WANTED && RESEARCH_WANTED <= STATE_WANTED,
-              "서명을 맞추는 배열은 상태 묶음의 크기로 잡았다 — 더 큰 표를 더하면 MAX_TABLE 을 키운다");
-static_assert(sizeof(MoreLayout) == MORE_WANTED * sizeof(uint32_t), "MoreLayout 의 필드는 표 MORE 의 순서대로 uint32_t 일곱이다");
+const int MAX_TABLE = MORE_WANTED * STATE_SIGS;     // 한 표의 서명 수의 상한(상태 21개, 값 12개, 더 쓰는 값 33개, 연구 21개)
+static_assert(VALUE_WANTED <= MORE_WANTED && STATE_WANTED <= MORE_WANTED && RESEARCH_WANTED <= MORE_WANTED,
+              "서명을 맞추는 배열은 가장 큰 표(더 쓰는 값)의 크기로 잡았다 — 더 큰 표를 더하면 MAX_TABLE 을 키운다");
+static_assert(sizeof(MoreLayout) == MORE_WANTED * sizeof(uint32_t), "MoreLayout 의 필드는 표 MORE 의 순서대로 uint32_t 열하나다");
 static_assert(sizeof(ResearchLayout) == RESEARCH_WANTED * sizeof(uint32_t),
               "ResearchLayout 의 필드는 표 RESEARCH 의 순서대로 uint32_t 일곱이다");
 static_assert(RESEARCH_NEED <= STATE_SIGS, "모두 맞아야 한다는 것은 서명의 수까지다");

@@ -75,13 +75,13 @@ def test_feature_table(dll):
     # 국고와 물자는 내장 치트를 거치지 않는다(돈 탭 · 물자 탭)
     assert not {"treasury", "georgew", "georgeww", "products", "branson", "bezos"} & {f["id"] for f in fs}
     assert [t for i, t in enumerate(f["tab"] for f in fs) if i == 0 or fs[i - 1]["tab"] != t] == TABS   # 탭끼리 모여 있고 이 순서다
-    # 여섯 줄은 ToyBox 가 직접 쓴다(3단계 2 의 넷, 3단계 3 의 연구 둘) — 자리와 이름은 그대로이고 게임에 넣는 글이 없다.
-    # 나머지 열셋이 내장 치트로 돈다
+    # 여덟 줄은 ToyBox 가 직접 쓴다(3단계 2 의 넷, 3단계 3 의 연구 둘, 3단계 4 의 인구 · 지지율) — 자리와 이름은 그대로이고
+    # 게임에 넣는 글이 없다. 나머지 열하나가 내장 치트로 돈다
     assert {f["id"]: f["how"] for f in fs if f["how"] != "cheat"} == {
         "technology": "tech_level", "e=mc2": "queue_done", "finalexam": "tech_up", "shelovesme": "opinion_best",
-        "love": "relation_best", "neutral": "relation_neutral"}
+        "love": "relation_best", "neutral": "relation_neutral", "populate": "people_add", "approval": "approval_best"}
     cheats = [f for f in fs if f["how"] == "cheat"]
-    assert len(cheats) == 13 == dll.srtoybox_cheat_feature_count() and len({f["command"] for f in cheats}) == 13
+    assert len(cheats) == 11 == dll.srtoybox_cheat_feature_count() and len({f["command"] for f in cheats}) == 11
     assert [f["id"] for f in fs][:3] == ["technology", "e=mc2", "finalexam"]            # 줄의 자리는 옮기기 전과 같다
     assert [(f["label"], f["default"], f["min"], f["max"]) for f in fs[:2]] == [("기술 수준 N 이하 전부 보유", 120, 1, 255),
                                                                               ("대기열의 연구 즉시 완료", 0, 0, 0)]
@@ -124,14 +124,12 @@ def test_command_text(dll):
     assert text(dll.srtoybox_command, b"spawnunit", 0, 0) == "cheat spawnunit 1"               # 범위로 잘라 맞춘다
     assert text(dll.srtoybox_command, b"spawnunit", -5, 0) == "cheat spawnunit 1"
     assert text(dll.srtoybox_command, b"spawnunit", 10**12, 0) == "cheat spawnunit 99999"
-    assert text(dll.srtoybox_command, b"populate", 999, 1106) == "cheat populate"              # 값도 대상도 없는 기능은 둘 다 무시한다
-    assert text(dll.srtoybox_command, b"approval", 0, 1499) == "cheat approval 1499"           # 대상이 있는 기능은 지역 번호가 붙는다
+    assert text(dll.srtoybox_command, b"darran", 999, 1106) == "cheat darran"                  # 값도 대상도 없는 기능은 둘 다 무시한다
     assert text(dll.srtoybox_command, b"annex", 0, 1106) == "cheat annex 1106"
     assert text(dll.srtoybox_command, b"treaty", 0, 1106) == "cheat treaty"                    # 게임이 지도에서 고른 나라를 쓴다
     assert text(dll.srtoybox_command, b"annex", 0, 0) is None                                  # 나라를 고르지 않았으면 만들지 않는다
-    for moved in (b"technology", b"e=mc2", b"finalexam", b"shelovesme", b"love", b"neutral"):   # 직접 쓰는 줄은 게임에 넣을 글이 없다
+    for moved in (b"technology", b"e=mc2", b"finalexam", b"shelovesme", b"love", b"neutral", b"populate", b"approval"):   # 직접 쓰는 줄은 게임에 넣을 글이 없다
         assert text(dll.srtoybox_command, moved, 120, 1106) is None
-    assert text(dll.srtoybox_command, b"approval", 0, -1) is None
     assert text(dll.srtoybox_command, b"depopulate", 0, 0) is None                             # 표에 없는 것은 만들지 않는다
     assert text(dll.srtoybox_command, b"treasury", 1, 0) is None                               # 지운 기능 — 국고는 돈 탭이 직접 한다
     assert text(dll.srtoybox_command, b"products", 1, 0) is None                               # 〃 — 물자는 물자 탭이
@@ -834,13 +832,16 @@ def test_the_four_moved_buttons_write_without_any_cheat(dll, cfg, tmp_path, mode
     assert list(got["diplomacy"]) == DIPLOMACY_ROWS
     assert (got["diplomacy"]["run:love"], got["diplomacy"]["run:neutral"]) == ("관계 최고", "관계 중립")
     assert got["wrote_tech"] == "기술 수준 131 -> 132" and got["wrote_opinion"] == "세계 시장 여론 최고"
+    # 3단계 4: 인구 +100만은 플레이어의 세 칸에 같은 수를 더하고, 지지율은 1.0 이 된다. 폴란드는 그대로다
+    assert got["wrote_people"] == "인구 82.6 M -> 83.6 M" and got["wrote_approval"] == "지지율 100%"
+    assert got["people_now"] == [[83615760.0, 51e6, 31e6, 1.0], [38e6, 2e7, 1e7, 0.5]]
     assert got["unpicked"] == {**MORE_START, "tech": 132.0, "opinion": [1.0, 1.0, 1.0]}       # 나라를 고르기 전의 누름은 쓰지 않는다
     assert got["after_love"] == {**got["unpicked"], "poland": [[1.0, 1.0, 0.0], [1.0, 1.0, 0.0]]}
     assert got["wrote_love"] == "관계 최고 — 폴란드 (1106)" and got["wrote_neutral"] == "관계 중립 — 폴란드 (1106)"
     assert got["state"] == MORE_DONE and got["status"] == "플레이 중: 독일 (1499)"
     assert got["lines"] == [] and got["text"] == "" and got["options"] == 0 and got["treasury"] == 14.43e9
     log = (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8")
-    assert log.count("값 쓰기: ") == 5 and "직접 실행" not in log and "값 쓰기 실패" not in log
+    assert log.count("값 쓰기: ") == 7 and "직접 실행" not in log and "값 쓰기 실패" not in log
 
 
 def test_the_moved_buttons_are_off_outside_a_game(dll, cfg, tmp_path):
@@ -885,7 +886,7 @@ def test_the_moved_buttons_say_why_they_are_off_and_offer_no_cheat(dll, cfg, tmp
     got = json.loads(_probe(cfg, tmp_path, mode, env=env))
     assert list(got["research"]) == ["off:technology", "off:e=mc2", "off:finalexam"]          # 연구 탭의 세 줄은 모두 직접 쓰는 줄이다
     assert got["research"]["off:finalexam"] == "지식 순위 올리기 — " + why
-    assert list(got["people"]) == ["run:populate", "off:shelovesme", "run:approval"]
+    assert list(got["people"]) == ["off:populate", "off:shelovesme", "off:approval"]         # 인구·여론 탭의 세 줄도 모두 직접 쓰는 줄이다
     assert got["people"]["off:shelovesme"] == "세계 시장 여론 최고 — " + why
     if mode == "more_unread":
         assert got["diplomacy"] == {}                           # 게임을 읽지 못하면 이 탭은 통째로 쓸 수 없다(나라 목록이 없다)
