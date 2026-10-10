@@ -636,6 +636,11 @@ int locate_more(const uint8_t *image, size_t size, const ValueLayout *values, Mo
     }
 }
 
+int locate_more_group(int wanted)
+{
+    return wanted >= 0 && wanted < MORE_WANTED ? MORE[wanted].group : -1;
+}
+
 bool locate_fits(const GameAddresses &state, const ValueLayout &values, char *why, size_t why_size)
 {
     const uint64_t world = values.world_pointer;

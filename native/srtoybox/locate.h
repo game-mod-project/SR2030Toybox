@@ -93,6 +93,8 @@ const size_t MORE_WHY = 160;    // 까닭 한 줄의 크기
 // values 를 주면(값 묶음을 찾았을 때) 국고 칸 · 재고 칸들과 겹치는 묶음도 버린다(값 묶음은 그대로 둔다).
 // rows: MORE_WANTED * STATE_SIGS 칸(서명마다의 결과)이거나 nullptr.
 int locate_more(const uint8_t *image, size_t size, const ValueLayout *values, MoreLayout *out, SigRow *rows, char (*why)[MORE_WHY]);
+// 찾을 것(표의 wanted 째. rows 의 칸 번호 / STATE_SIGS)이 든 묶음: 0 지식, 1 여론, 2 관계.
+int locate_more_group(int wanted);
 
 // 옛 찾기(전환 기간에만): 찾으면 nullptr 과 out 의 handler · context · options(다른 필드는 건드리지 않는다).
 // 못 찾으면 까닭(UTF-8, 정적 문자열)이고 out 은 그대로다.
