@@ -196,6 +196,15 @@ def cmd_locate(cfg, _args) -> int:
                 print(f"  {found.more[name]:#010x}  {toybox.MORE_NAMES[name]}")
     if any(found.more_why):
         print("ToyBox 에서 그 묶음의 단추만 꺼집니다. uv run srkit sig-mine --offset 으로 서명을 다시 뽑습니다(docs/11).")
+    print("새 찾기 — 연구(서명. 셋이 모두 맞아야 한다 — 표와 목록의 꼴이 서명에 박혀 있다. 세계 객체는 주소 · 지역 표까지의 거리):")
+    _print_sig_rows(found.research_rows)
+    if found.research is None:
+        print(f"찾지 못했습니다: {found.research_why}")
+        print("ToyBox 의 연구 기능이 이 빌드에서 꺼집니다. uv run srkit sig-mine [--with · --back · --through-jumps] 로 서명을 다시 "
+              "뽑고 꼴의 상수를 확인합니다(docs/11).")
+    else:
+        for name in toybox.RESEARCH_FIELDS:
+            print(f"  {found.research[name]:#010x}  {toybox.RESEARCH_NAMES[name]}")
     print("옛 찾기 — 아직 내장 치트로 도는 기능이 쓰는 주소(치트 문자열이 닻이다. 전환 기간에만):")
     if found.legacy is None:
         print(f"  찾지 못했습니다: {found.legacy_why}")
@@ -203,9 +212,10 @@ def cmd_locate(cfg, _args) -> int:
     else:
         for name in toybox.LEGACY_FIELDS:
             print(f"  {found.legacy[name]:#010x}  {toybox.ADDRESS_NAMES[name]}")
-    if found.state is not None and found.values is not None and found.legacy is not None and not any(found.more_why):
+    new = found.state is not None and found.values is not None and not any(found.more_why) and found.research is not None
+    if new and found.legacy is not None:
         print("모두 찾았습니다. docs/11 의 표와 다르면 게임이 바뀐 것입니다.")
-    return 0 if found.state is not None and found.values is not None and not any(found.more_why) else 1
+    return 0 if new else 1
 
 
 def cmd_sig_mine(cfg, args) -> int:

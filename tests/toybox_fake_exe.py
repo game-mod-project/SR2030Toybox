@@ -1,14 +1,15 @@
 """주소 찾기(native/srtoybox/locate.cpp) 테스트용: 작은 가짜 실행 파일 이미지(RVA 대로 펼친 것).
 
-게임의 코드를 옮긴 것이 아니다. 새 찾기가 보는 서명(DLL 의 서명 표에서 받아 심는다 — 상태 묶음, 값 묶음, 더 쓰는 값)과, 옛 찾기가 보는
+게임의 코드를 옮긴 것이 아니다. 새 찾기가 보는 서명(DLL 의 서명 표에서 받아 심는다 — 상태 묶음, 값 묶음, 더 쓰는 값, 연구)과, 옛 찾기가 보는
 닻(치트 문자열)과 명령의 바이트 꼴만 같은 자리 관계로 놓았다. pytest 가 직접 모으는 테스트 파일이 아니다.
 """
 import re
 import struct
 
-SIZE = 0x8000                                 # 지역 표(8바이트 × 1024칸)가 DATA + 0x200 부터 들어갈 만큼
+SIZE = 0x10000                                # 지역 표(8바이트 × 1024칸)와 그 뒤의 연구 목록(24바이트 × 1024칸)이 들어갈 만큼
 TEXT, RDATA, PDATA, DATA = 0x1000, 0x3000, 0x4000, 0x5000
 HANDLER, CALLER = 0x1000, 0x1800
+RECOMPUTE = TEXT + 0xC00                      # 가짜 "다시 셈 함수" — 함수 표에 그 시작으로 들어 있다
 WORLD = DATA + 0x180                          # 지역 표 = WORLD + 0x80
 ANCHOR = RDATA                                # "cheat allowcheats"
 # 새 찾기(상태 묶음)의 가짜 주소
@@ -24,6 +25,11 @@ VALUE_LAYOUT = {"world_pointer": DATA + 0x40, "treasury": 0x1230, "stock_first":
 # 새 찾기(더 쓰는 값)의 가짜 자리 — 지역 객체 안의 자리다(이미지 안이 아니다). 표 셋은 저마다 0x1000(4바이트 × 1024칸)을 차지한다
 MORE = {"tech": 0x3120, "opinion0": 0x3004, "opinion1": 0x3008, "opinion2": 0x3020, "relation0": 0x4000, "relation1": 0x5000,
         "casus": 0x6000}
+# 새 찾기(연구)의 가짜 값. 세계 객체의 서명은 (주소, 지역 표까지의 거리)를 함께 읽는다. 연구 목록은 세계 객체 안의 자리다 —
+# 지역 표(WORLD + 0x80 부터 0x2000 바이트)의 뒤, 0x6000 바이트
+RESEARCH = {"tech_table": DATA + 0x48, "tech_count": DATA + 0x50, "design_table": DATA + 0x58, "design_count": DATA + 0x54,
+            "world": (WORLD, 0x80), "lists": 0x2100, "recompute": RECOMPUTE}
+RESEARCH_LAYOUT = {**RESEARCH, "world": WORLD}
 PLANT, AGAIN = TEXT + 0x1000, TEXT + 0x1800     # 서명을 심는 곳, 같은 서명을 한 번 더 심는 곳
 TOKEN = re.compile(r"\[rip(?:\+([14]))?\]|\[u(?:8|32)\]|\?|[0-9A-Fa-f]{2}")   # 서명 글의 낱말(native/srtoybox/sigs.h)
 
@@ -102,10 +108,10 @@ def sig_image(sigs: list[tuple[str, str]], *, broken=(), twice=(), stray=(), tar
     """DLL 의 서명 표(sigs: [(찾을 것, 서명 글)])를 심은 이미지. into 가 없으면 치트 문자열이 하나도 없는 빈 틀에 심는다.
 
     broken · twice · stray 는 sigs 의 칸 번호들이다: 심지 않는다 / 한 번 더 심는다(두 번 맞는다) / 옆의 값을 가리키게 심는다.
-    targets 로 가짜 주소 · 값을 바꾼다(STATE · VALUES · MORE 의 이름으로).
+    targets 로 가짜 주소 · 값을 바꾼다(STATE · VALUES · MORE · RESEARCH 의 이름으로).
     """
-    image = into if into is not None else shell([(PLANT, TEXT + 0x2000)])
-    at = {**STATE, **VALUES, **MORE, **(targets or {})}
+    image = into if into is not None else shell([(RECOMPUTE, RECOMPUTE + 0x40), (PLANT, TEXT + 0x2000)])
+    at = {**STATE, **VALUES, **MORE, **RESEARCH, **(targets or {})}
     places: dict[str, int] = {}
     for i, (name, text) in enumerate(sigs):
         if i in broken:
@@ -123,7 +129,8 @@ def build(sigs: list[tuple[str, str]] | None = None, *, extra_anchor: bool = Fal
 
     나머지 인자는 옛 찾기가 거부해야 하는 흠을 하나씩 낸다.
     """
-    image = shell([(HANDLER, HANDLER + 0x200), (CALLER, CALLER + 0x20), (CALLER + 0x20, CALLER + 0x100), (PLANT, TEXT + 0x2000)])
+    image = shell([(HANDLER, HANDLER + 0x200), (CALLER, CALLER + 0x20), (CALLER + 0x20, CALLER + 0x100), (RECOMPUTE, RECOMPUTE + 0x40),
+                   (PLANT, TEXT + 0x2000)])
     unwind = RDATA + 0x800
     put(image, unwind + 0x10, bytes([0x21, 0, 0, 0]) + struct.pack("<III", CALLER, CALLER + 0x20, unwind))   # UNW_FLAG_CHAININFO
     struct.pack_into("<I", image, PDATA + 12 * 2 + 8, unwind + 0x10)           # 부르는 함수의 뒤 조각은 앞 조각에 묶인다

@@ -263,6 +263,45 @@ EXPORT int srtoybox_locate_more(const unsigned char *image, unsigned long long s
     return groups;
 }
 
+// 새 찾기(연구, 서명으로). state 는 이미 찾은 상태 묶음이다(지역 표를 견준다. nullptr 이면 못 찾은 것으로 친다).
+// 0 이면 out 을 채웠다. -1 이면 error 에 까닭. rows 는 srtoybox_locate_state 와 같다.
+EXPORT int srtoybox_locate_research(const unsigned char *image, unsigned long long size, const GameAddresses *state,
+                                    ResearchLayout *out, char *error, int error_size, char *rows, int rows_size)
+{
+    ResearchLayout found = {};
+    SigRow table[RESEARCH_WANTED * STATE_SIGS];
+    char why[160] = "";
+    const bool ok = locate_research(image, static_cast<size_t>(size), state != nullptr ? *state : GameAddresses(), &found, table, why,
+                                    sizeof(why));
+    if (rows != nullptr)
+        put(rows_text(table, RESEARCH_WANTED * STATE_SIGS), rows, rows_size);
+    if (!ok) {
+        put(why, error, error_size);
+        return -1;
+    }
+    if (out != nullptr)
+        *out = found;
+    return 0;
+}
+
+// 연구 묶음과 값 묶음의 대조(locate_research_fits). 0 이면 맞는다. -1 이면 error 에 까닭.
+EXPORT int srtoybox_locate_research_fits(const ResearchLayout *research, const ValueLayout *values, char *error, int error_size)
+{
+    char why[160] = "";
+    if (research == nullptr || values == nullptr)
+        return -1;
+    if (locate_research_fits(*research, *values, why, sizeof(why)))
+        return 0;
+    put(why, error, error_size);
+    return -1;
+}
+
+// 연구의 표와 목록의 꼴(locate.h 의 상수): 한 줄에 "이름\t값(16진수)". 테스트가 서명에 박힌 바이트와 댄다.
+EXPORT int srtoybox_research_shape(char *out, int size)
+{
+    return put(locate_research_shape(), out, size);
+}
+
 // 두 묶음의 대조(locate_fits). 0 이면 맞는다. -1 이면 error 에 까닭.
 EXPORT int srtoybox_locate_fits(const GameAddresses *state, const ValueLayout *values, char *error, int error_size)
 {
