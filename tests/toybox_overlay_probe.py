@@ -149,6 +149,7 @@ RESIZE = ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p, ctypes.c_uint, ctype
 WNDPROC = ctypes.WINFUNCTYPE(LRESULT, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)
 HANDLER = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_char_p)    # 게임의 명령 처리 함수: void f(void *context, const char *line)
 RECOMPUTE = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int)     # 게임의 "효과를 다시 셈": void f(void *world, int index)
+COLONIZE = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int, ctypes.c_bool)   # 게임의 "식민지화": void f(void *region, int other, bool)
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 user32 = ctypes.WinDLL("user32", use_last_error=True)
 user32.CreateWindowExW.restype = wintypes.HWND
@@ -599,6 +600,12 @@ def fake_game(hook: str, handler: int | None = None, values: bool = True, more: 
         toybox.srtoybox_test_values(ctypes.byref(fake.layout))
     if more is not None:
         toybox.srtoybox_test_more(ctypes.byref(type(fake.more)(**more)))
+    fake.colonized = []                                        # 가짜 "식민지화"가 불린 인자들: [종주국의 지역 번호, 대상의 인덱스, 깃발]
+    fake.colonize = COLONIZE(lambda region, other, flag: fake.colonized.append(
+        [struct.unpack("<H", ctypes.string_at(region + 8, 2))[0], other, int(flag)]))
+    toybox.srtoybox_test_acts.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+    if os.environ.get("PROBE_NO_ACTS") != "1":
+        toybox.srtoybox_test_acts(ctypes.byref(ctypes.c_uint32(1)), ctypes.cast(fake.colonize, ctypes.c_void_p))
     fake.recomputed = []
     fake.recompute = RECOMPUTE(lambda _world, index: fake.recomputed.append(index))     # 게임이 살아 있는 동안 붙들어 둔다
     if research:
@@ -1222,6 +1229,12 @@ def run_more(hook: str, mode: str) -> int:
             out["after_love"], out["wrote_love"] = state(), game.shown("wrote")
             press("run:neutral")
             out["wrote_neutral"] = game.shown("wrote")
+            if "run:colonize" in out["diplomacy"] and mode == "more":   # 식민지화(3단계 4): 게임의 함수를 부른다. 한 번 더 눌러야 한다
+                press("run:colonize")
+                out["colonize_asking"], out["colonized_first"] = game.shown("run:colonize"), list(fake.colonized)
+                press("run:colonize")
+                out["wrote_colonize"] = game.shown("wrote")
+            out["colonized"] = fake.colonized
         out["hint"], out["status"] = game.shown("hint"), game.shown("status")
     elif mode == "more_leave":
         game.click(RESEARCH)

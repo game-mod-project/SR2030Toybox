@@ -315,6 +315,17 @@ const struct MoreWanted {
      {"F3 0F 10 89 [u32] 0F 2F C1 76 33", "F3 0F 10 83 [u32] F3 0F 59 C7 0F 5A D0", "F3 0F 11 83 [u32] 48 8B 47 10 0F B7 08"}},
 };
 
+// 부르는 게임의 함수. 그 함수를 부르는 자리의 서명이다(uv run srkit sig-mine <함수의 RVA> --back 2) — 인자를 싣는 명령까지 넣었다.
+const struct ActWanted {
+    const char *name;                       // srkit locate 와 테스트가 본다(ActLayout 의 필드 순서와 같다)
+    const char *label;                      // 로그와 창에 나오는 이름
+    const char *sigs[STATE_SIGS];
+} ACTS[ACT_WANTED] = {
+    {"colonize", "식민지화 함수",
+     {"41 B0 01 49 8B CE E8 [rip] 33 D2", "49 8B C9 41 B0 01 E8 [rip] FF C7", "45 33 C0 8B D7 E8 [rip] 48 63 CF"}},
+};
+static_assert(sizeof(ActLayout) == ACT_WANTED * sizeof(uint32_t), "ActLayout 의 필드는 표 ACTS 의 순서대로 uint32_t 다");
+
 // 연구의 일곱. 같은 규칙으로 뽑되(uv run srkit sig-mine …) 꼴의 상수가 박힌 명령까지 늘렸다(--with · --back · --through-jumps).
 // 서명마다 무엇이 박혀 있는지는 docs/11-game-internals.md 의 표와 tests/test_toybox_game.py 의 RESEARCH_PINS 에 있다:
 //   기술 표        레코드 88h · 보유 묶음 +50h · 묶음 80h 바이트 / 수준 +1 · 빈 자리(+0 이 0)
@@ -724,6 +735,38 @@ void name_rows(const Row *table, int n, SigRow *rows)
 }  // namespace
 
 // 올라와 있는 실행 파일에는 읽을 수 없는 쪽이 있을 수 있다(보호된 구역). 그때도 죽지 않는다 — 여기서 예외가 새면 게임이 뜨다가 죽는다.
+int search_acts(const uint8_t *image, size_t size, ActLayout *out, SigRow *rows, char (*why)[MORE_WHY])
+{
+    Image im = {};
+    im.p = image;
+    im.size = size;
+    char broken[MORE_WHY] = "";
+    Sig sigs[MAX_TABLE];
+    SigHit hits[MAX_TABLE];
+    if (image == nullptr || !parse(im))
+        snprintf(broken, sizeof(broken), "실행 파일의 머리말을 읽을 수 없습니다");
+    if (broken[0] != '\0' || !scan_table(im, ACTS, ACT_WANTED, rows, sigs, hits, broken, sizeof(broken))) {
+        for (int w = 0; w < ACT_WANTED; w++)
+            snprintf(why[w], MORE_WHY, "%s", broken);
+        return 0;
+    }
+    int found = 0;
+    uint32_t *const fields = &out->colonize;
+    for (int w = 0; w < ACT_WANTED; w++) {
+        uint64_t value[SIG_CAPTURES] = {};
+        why[w][0] = '\0';
+        if (!vote_item(ACTS, w, "주소를", sigs, hits, value, why[w], MORE_WHY, STATE_SIGS))   // 셋이 모두 맞아야 한다 — 엉뚱한 함수를 부르지 않는다
+            continue;
+        if (value[0] == 0 || value[0] >= size || function_root(im, static_cast<uint32_t>(value[0])) != value[0]) {
+            snprintf(why[w], MORE_WHY, "%s: 찾은 주소가 함수의 시작이 아닙니다", ACTS[w].label);
+            continue;
+        }
+        fields[w] = static_cast<uint32_t>(value[0]);
+        found |= 1 << w;
+    }
+    return found;
+}
+
 // __try 가 든 함수에는 소멸자가 있는 지역 변수를 둘 수 없어 찾는 일(search_legacy · search_state · search_values · search_more)과 따로 뗐다.
 const char *locate_legacy(const uint8_t *image, size_t size, GameAddresses *out)
 {
@@ -766,6 +809,20 @@ int locate_more(const uint8_t *image, size_t size, const ValueLayout *values, Mo
         *out = MoreLayout();
         for (int g = 0; g < MORE_GROUPS; g++)
             snprintf(why[g], MORE_WHY, "실행 파일에 읽을 수 없는 곳이 있습니다");
+        return 0;
+    }
+}
+
+int locate_acts(const uint8_t *image, size_t size, ActLayout *out, SigRow *rows, char (*why)[MORE_WHY])
+{
+    name_rows(ACTS, ACT_WANTED, rows);
+    *out = ActLayout();
+    __try {
+        return search_acts(image, size, out, rows, why);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        *out = ActLayout();
+        for (int w = 0; w < ACT_WANTED; w++)
+            snprintf(why[w], MORE_WHY, "실행 파일에 읽을 수 없는 곳이 있습니다");
         return 0;
     }
 }

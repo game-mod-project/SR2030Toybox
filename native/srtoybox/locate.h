@@ -88,6 +88,19 @@ const int MORE_WANTED = 10;     // 찾을 것의 수: 기술 수준 칸, 여론 
 const int REGION_SLOTS = 1024;  // 지역 표의 칸 수 = 관계 표 하나의 칸 수
 const size_t MORE_WHY = 160;    // 까닭 한 줄의 크기
 
+// 부르는 게임의 함수(3단계 4): 게임이 스스로도 부르는 함수를, 그것을 부르는 자리(치트 함수 밖)의 서명으로 찾는다. 필드는 함수의 RVA.
+struct ActLayout {
+    uint32_t colonize;         // void f(void *지역 객체, int 다른 지역의 인덱스, bool): 그 지역이 다른 지역을 식민지로 삼는다
+};
+
+const int ACT_COLONIZE = 1;     // 함수의 비트
+const int ACT_WANTED = 1;       // 찾을 것의 수(ActLayout 의 필드 순서와 같다)
+
+// 새 찾기(부르는 함수): 함수마다 서명 셋이 모두 정확히 한 번 맞고 같은 주소를 내야 하며, 그 주소가 함수 표에 있는 함수의 시작이어야 한다.
+// 돌려주는 값은 찾은 함수의 비트. 못 찾은 것의 필드는 0, why 의 그 줄에 까닭(UTF-8).
+// rows: ACT_WANTED * STATE_SIGS 칸이거나 nullptr.
+int locate_acts(const uint8_t *image, size_t size, ActLayout *out, SigRow *rows, char (*why)[MORE_WHY]);
+
 // 새 찾기(더 쓰는 값): 서명의 규칙은 locate_state 와 같다. 돌려주는 값은 찾은 묶음의 비트다 — 찾은 묶음의 필드만 채우고
 // 못 찾은 묶음의 필드는 0 으로 둔다. 한 묶음은 그 안의 것을 모두 찾아야 찾은 것이다(반쪽 묶음은 없다).
 // why 는 MORE_GROUPS 줄: 못 찾은 묶음의 까닭(UTF-8). 찾은 묶음은 빈 글.

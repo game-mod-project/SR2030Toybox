@@ -161,7 +161,7 @@ EXPORT int srtoybox_feature_info(int index, char *out, int size)
     const Feature &f = FEATURES[index];
     static const char *const targets[] = {"none", "player", "picked"};
     static const char *const how[] = {"cheat", "tech_up", "opinion_best", "relation_best", "relation_neutral", "tech_level", "queue_done",
-                                      "people_add", "approval_best"};
+                                      "people_add", "approval_best", "colonize"};
     const std::string line = std::string(f.id) + '\t' + f.tab + '\t' + f.label + '\t' + f.command + '\t' + (f.has_value ? "1" : "0")
         + '\t' + std::to_string(f.def) + '\t' + std::to_string(f.min) + '\t' + std::to_string(f.max) + '\t'
         + (f.confirm ? "1" : "0") + '\t' + f.help + '\t' + targets[static_cast<int>(f.target)] + '\t'
@@ -400,6 +400,43 @@ EXPORT int srtoybox_tech_names(int tech, int kind, int cls, const char *raw, cha
     const std::string text = raw != nullptr ? raw : "";
     return put(tech_label(tech) + '\n' + tech_kind_label(kind) + '\n' + design_class_label(cls) + '\n' + game_text_to_utf8(text.data(), text.size()),
                out, size);
+}
+
+// 새 찾기(부르는 함수)를 그 이미지에 돌린다. 돌려주는 값은 찾은 함수의 비트. error 에는 함수마다 한 줄(찾았으면 빈 줄), rows 는 서명마다의 결과.
+EXPORT int srtoybox_locate_acts(const unsigned char *image, unsigned long long size, ActLayout *out, char *error, int error_size,
+                                char *rows, int rows_size)
+{
+    ActLayout found = {};
+    SigRow table[ACT_WANTED * STATE_SIGS];
+    char why[ACT_WANTED][MORE_WHY] = {};
+    const int acts = locate_acts(image, static_cast<size_t>(size), &found, table, why);
+    if (rows != nullptr)
+        put(rows_text(table, ACT_WANTED * STATE_SIGS), rows, rows_size);
+    std::string lines;
+    for (int w = 0; w < ACT_WANTED; w++)
+        lines += std::string(why[w]) + '\n';
+    if (error != nullptr)
+        put(lines, error, error_size);
+    if (out != nullptr)
+        *out = found;
+    return acts;
+}
+
+// 테스트: 이 프로세스의 "게임"에 부르는 함수의 자리를 준다(srtoybox_test_game 다음에 부른다). colonize 는 그 자리에 둘 함수.
+EXPORT void srtoybox_test_acts(const ActLayout *layout, void *colonize)
+{
+    game_set_acts_for_test(layout, colonize);
+}
+
+// 테스트: 고른 나라를 식민지로 삼는 요청. 받았으면 1.
+EXPORT int srtoybox_keeper_colonize(int region)
+{
+    return keeper_enqueue_colonize(region) ? 1 : 0;
+}
+
+EXPORT int srtoybox_act_off(int act, char *out, int size)
+{
+    return put(game_act_off(act), out, size);
 }
 
 // 연구의 표와 목록의 꼴(locate.h 의 상수): 한 줄에 "이름\t값(16진수)". 테스트가 서명에 박힌 바이트와 댄다.
@@ -657,7 +694,8 @@ EXPORT int srtoybox_game_flags(void)
     return (game_reads() ? 1 : 0) | (game_can_call() ? 2 : 0) | (game_values_off().empty() ? 4 : 0)
         | (game_more_off(MORE_TECH).empty() ? 8 : 0) | (game_more_off(MORE_OPINION).empty() ? 16 : 0)
         | (game_more_off(MORE_RELATIONS).empty() ? 32 : 0) | (game_research_off().empty() ? 64 : 0)
-        | (game_more_off(MORE_PEOPLE).empty() ? 128 : 0) | (game_more_off(MORE_APPROVAL).empty() ? 256 : 0);   // 인구 · 지지율
+        | (game_more_off(MORE_PEOPLE).empty() ? 128 : 0) | (game_more_off(MORE_APPROVAL).empty() ? 256 : 0)    // 인구 · 지지율
+        | (game_act_off(ACT_COLONIZE).empty() ? 512 : 0);                                                      // 식민지화(게임의 함수)
 }
 
 EXPORT int srtoybox_values_off(char *out, int size)

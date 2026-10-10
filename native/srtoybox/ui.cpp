@@ -94,8 +94,9 @@ bool direct_row(const Feature &f, const GameState &game, bool compact)
     const bool research = f.direct == Direct::TechLevel || f.direct == Direct::QueueDone;   // 연구의 두 줄은 제 묶음(연구)을 본다
     const int group = f.direct == Direct::TechUp ? MORE_TECH : f.direct == Direct::OpinionBest ? MORE_OPINION
         : f.direct == Direct::PeopleAdd ? MORE_PEOPLE : f.direct == Direct::ApprovalBest ? MORE_APPROVAL : MORE_RELATIONS;
+    const bool act = f.direct == Direct::Colonize;                                          // 게임의 함수를 부르는 줄
     const std::string off = !game.known ? std::string("게임 상태를 읽을 수 있을 때만 씁니다.")
-        : research ? game_research_off() : game_more_off(group);
+        : research ? game_research_off() : act ? game_act_off(ACT_COLONIZE) : game_more_off(group);
     ImGui::PushID(f.id);
     if (!off.empty()) {
         const std::string line = std::string(f.label) + " — " + off;
@@ -115,11 +116,20 @@ bool direct_row(const Feature &f, const GameState &game, bool compact)
             ImGui::SameLine();
         }
         ImGui::BeginDisabled(f.target == Target::Picked && g_picked <= 0);   // 나라를 고르지 않았다
-        const bool pressed = ImGui::Button((std::string(f.label) + "###run").c_str());
-        note(std::string("run:") + f.id, f.label);
+        const bool asking = f.confirm && g_confirm == f.id;                   // 되돌릴 수 없는 줄은 한 번 더 눌러야 한다
+        const std::string label = asking ? asking_label(f, g_picked) : std::string(f.label);
+        bool pressed = ImGui::Button((label + "###run").c_str());
+        note(std::string("run:") + f.id, label);
+        if (pressed && f.confirm && !asking) {
+            g_confirm = f.id;
+            pressed = false;
+        }
         if (compact && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
             ImGui::SetTooltip("%s", f.help);
-        if (pressed && research) {
+        if (pressed && act) {
+            g_confirm.clear();
+            g_notice = keeper_enqueue_colonize(g_picked) ? "" : "대기 중인 요청이 많아 받지 못했습니다.";
+        } else if (pressed && research) {
             ResearchRequest request = {Research::Complete, ResearchWhat(), "대기열"};
             request.what.kind = ResearchWhat::Queue;
             if (f.direct == Direct::TechLevel) {

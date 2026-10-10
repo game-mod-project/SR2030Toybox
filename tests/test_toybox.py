@@ -79,9 +79,9 @@ def test_feature_table(dll):
     # 게임에 넣는 글이 없다. 나머지 열하나가 내장 치트로 돈다
     assert {f["id"]: f["how"] for f in fs if f["how"] != "cheat"} == {
         "technology": "tech_level", "e=mc2": "queue_done", "finalexam": "tech_up", "shelovesme": "opinion_best",
-        "love": "relation_best", "neutral": "relation_neutral", "populate": "people_add", "approval": "approval_best"}
+        "love": "relation_best", "neutral": "relation_neutral", "populate": "people_add", "approval": "approval_best", "colonize": "colonize"}
     cheats = [f for f in fs if f["how"] == "cheat"]
-    assert len(cheats) == 11 == dll.srtoybox_cheat_feature_count() and len({f["command"] for f in cheats}) == 11
+    assert len(cheats) == 10 == dll.srtoybox_cheat_feature_count() and len({f["command"] for f in cheats}) == 10
     assert [f["id"] for f in fs][:3] == ["technology", "e=mc2", "finalexam"]            # 줄의 자리는 옮기기 전과 같다
     assert [(f["label"], f["default"], f["min"], f["max"]) for f in fs[:2]] == [("기술 수준 N 이하 전부 보유", 120, 1, 255),
                                                                               ("대기열의 연구 즉시 완료", 0, 0, 0)]
@@ -90,7 +90,7 @@ def test_feature_table(dll):
         if f["how"] == "cheat":
             assert f["command"] == "cheat " + f["id"]
         else:
-            assert f["command"] == "" and not f["confirm"]
+            assert f["command"] == "" and f["confirm"] == (f["id"] == "colonize")   # 게임의 함수를 부르는 줄은 한 번 더 누른다
         assert not (f["has_value"] and f["target"] != "none")           # 한 기능의 인자는 하나다
         if f["has_value"]:
             assert f["min"] <= f["default"] <= f["max"]
@@ -128,7 +128,7 @@ def test_command_text(dll):
     assert text(dll.srtoybox_command, b"annex", 0, 1106) == "cheat annex 1106"
     assert text(dll.srtoybox_command, b"treaty", 0, 1106) == "cheat treaty"                    # 게임이 지도에서 고른 나라를 쓴다
     assert text(dll.srtoybox_command, b"annex", 0, 0) is None                                  # 나라를 고르지 않았으면 만들지 않는다
-    for moved in (b"technology", b"e=mc2", b"finalexam", b"shelovesme", b"love", b"neutral", b"populate", b"approval"):   # 직접 쓰는 줄은 게임에 넣을 글이 없다
+    for moved in (b"technology", b"e=mc2", b"finalexam", b"shelovesme", b"love", b"neutral", b"populate", b"approval", b"colonize"):   # 직접 쓰는 줄은 게임에 넣을 글이 없다
         assert text(dll.srtoybox_command, moved, 120, 1106) is None
     assert text(dll.srtoybox_command, b"depopulate", 0, 0) is None                             # 표에 없는 것은 만들지 않는다
     assert text(dll.srtoybox_command, b"treasury", 1, 0) is None                               # 지운 기능 — 국고는 돈 탭이 직접 한다
@@ -838,6 +838,10 @@ def test_the_four_moved_buttons_write_without_any_cheat(dll, cfg, tmp_path, mode
     assert got["unpicked"] == {**MORE_START, "tech": 132.0, "opinion": [1.0, 1.0, 1.0]}       # 나라를 고르기 전의 누름은 쓰지 않는다
     assert got["after_love"] == {**got["unpicked"], "poland": [[1.0, 1.0, 0.0], [1.0, 1.0, 0.0]]}
     assert got["wrote_love"] == "관계 최고 — 폴란드 (1106)" and got["wrote_neutral"] == "관계 중립 — 폴란드 (1106)"
+    if mode == "more":
+        # 3단계 4: 식민지화는 게임의 함수를 (플레이어의 지역 객체, 고른 나라의 인덱스, 1) 로 한 번 부른다 — 둘째 누름에만
+        assert got["colonize_asking"] == "식민지화: 폴란드 (1106) — 한 번 더 누르면 실행합니다" and got["colonized_first"] == []
+        assert got["colonized"] == [[1499, 141, 1]] and got["wrote_colonize"] == "식민지화 — 폴란드 (1106)"
     assert got["state"] == MORE_DONE and got["status"] == "플레이 중: 독일 (1499)"
     assert got["lines"] == [] and got["text"] == "" and got["options"] == 0 and got["treasury"] == 14.43e9
     log = (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8")
@@ -891,7 +895,9 @@ def test_the_moved_buttons_say_why_they_are_off_and_offer_no_cheat(dll, cfg, tmp
     if mode == "more_unread":
         assert got["diplomacy"] == {}                           # 게임을 읽지 못하면 이 탭은 통째로 쓸 수 없다(나라 목록이 없다)
     else:
-        assert list(got["diplomacy"]) == ["off:love", "off:neutral"] + DIPLOMACY_ROWS[2:]
+        rows = ["off:love", "off:neutral"] + DIPLOMACY_ROWS[2:]
+        rows[rows.index("run:colonize")] = "off:colonize"      # 게임의 함수를 부르는 줄도 값 쓰기를 끄면 꺼진다
+        assert list(got["diplomacy"]) == rows and got["diplomacy"]["off:colonize"] == "식민지화 — " + why
         assert got["diplomacy"]["off:love"] == "관계 최고 — " + why and got["diplomacy"]["off:neutral"] == "관계 중립 — " + why
     assert got["state"] == MORE_START and got["lines"] == [] and got["text"] == ""
 

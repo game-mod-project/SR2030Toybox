@@ -41,6 +41,8 @@ ResearchLayout g_research;    // 연구의 자리
 bool g_research_found;        // 그것을 찾았다
 char g_research_why[200];     // 못 찾은 까닭
 void *g_recompute;            // 게임의 "지역의 효과를 다시 셈"
+void *g_colonize;             // 게임의 "식민지화"(못 찾았으면 nullptr)
+char g_act_why[ACT_WANTED][MORE_WHY];   // 부르는 함수마다 못 찾은 까닭
 
 typedef void (*Handler)(void *context, const char *line);
 
@@ -82,6 +84,20 @@ bool guarded_recompute(Recompute recompute, void *world, int index, unsigned lon
 {
     __try {
         recompute(world, index);
+        return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        *code = GetExceptionCode();
+        return false;
+    }
+}
+
+typedef void (*Colonize)(void *region, int other, bool flag);
+
+// 게임의 "식민지화"를 부른다. 예외는 잡아 code 에 적는다.
+bool guarded_colonize(Colonize colonize, void *region, int other, unsigned long *code)
+{
+    __try {
+        colonize(region, other, true);
         return true;
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         *code = GetExceptionCode();
@@ -1040,6 +1056,9 @@ void game_init_from(const uint8_t *base, size_t size)
     // 값 묶음을 찾았으면 그 세계 자료 포인터와 겹치지 않아야 한다(겹치면 연구 묶음만 버린다)
     ResearchLayout research = {};
     char research_why[160] = "";
+    ActLayout acts = {};
+    char act_why[ACT_WANTED][MORE_WHY] = {};
+    const int acting = state ? locate_acts(base, size, &acts, nullptr, act_why) : 0;
     const bool researching = state && locate_research(base, size, at, &research, nullptr, research_why, sizeof(research_why))
         && (!values || locate_research_fits(research, layout, research_why, sizeof(research_why)));
     const unsigned long long took = GetTickCount64() - started;
@@ -1066,6 +1085,14 @@ void game_init_from(const uint8_t *base, size_t size)
         g_research_found = researching;
         snprintf(g_research_why, sizeof(g_research_why), "%s", research_why);
         g_recompute = researching ? const_cast<uint8_t *>(base) + research.recompute : nullptr;
+        g_colonize = (acting & ACT_COLONIZE) != 0 ? const_cast<uint8_t *>(base) + acts.colonize : nullptr;
+        memcpy(g_act_why, act_why, sizeof(g_act_why));
+    }
+    if (state) {
+        if ((acting & ACT_COLONIZE) != 0)
+            log_line("게임의 함수를 부릅니다 (식민지화 +0x%X)", acts.colonize);
+        else
+            log_line("식민지화를 쓸 수 없습니다 (%s)", act_why[0]);
     }
     if (!state) {
         log_line("게임 상태를 읽을 수 없습니다 (%s) — 글쇠 방식", why);
@@ -1173,6 +1200,8 @@ void game_set_for_test(const uint8_t *base, const GameAddresses *at, void *handl
     g_research = ResearchLayout();
     g_research_found = false;
     g_recompute = nullptr;
+    g_colonize = nullptr;
+    snprintf(g_act_why[0], MORE_WHY, "%s", "함수의 자리를 주지 않았습니다");
     snprintf(g_research_why, sizeof(g_research_why), "연구의 자리를 주지 않았습니다");
 }
 
@@ -1383,6 +1412,43 @@ bool game_research(int picked, ResearchTables *out, std::string *why)
         research = g_research;
     }
     return read_research(base, at, research, picked, out, why);
+}
+
+std::string game_act_off(int act)
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    if (act != ACT_COLONIZE)
+        return "없는 기능입니다";
+    return off_text(g_colonize != nullptr, g_act_why[0]);
+}
+
+Wrote game_colonize(int number, unsigned long *code)
+{
+    *code = 0;
+    if (!game_act_off(ACT_COLONIZE).empty())
+        return Wrote::Off;
+    const uint8_t *base = nullptr;
+    GameAddresses at = {};
+    Colonize colonize = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(g_lock);
+        base = g_base;
+        at = g_at;
+        colonize = reinterpret_cast<Colonize>(g_colonize);
+    }
+    uint64_t mine = 0, theirs = 0;
+    int me = 0, them = 0;
+    const Wrote found = find_pair(base, at, number, true, &mine, &me, &theirs, &them);
+    if (found != Wrote::Done)
+        return found;
+    return guarded_colonize(colonize, reinterpret_cast<void *>(mine), them, code) ? Wrote::Done : Wrote::Crashed;
+}
+
+void game_set_acts_for_test(const ActLayout *layout, void *colonize)
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    g_colonize = layout != nullptr ? colonize : nullptr;
+    snprintf(g_act_why[0], MORE_WHY, "%s", layout != nullptr ? "" : "함수의 자리를 주지 않았습니다");
 }
 
 Wrote game_write_research(Research action, const ResearchWhat &what, ResearchDone *done)
