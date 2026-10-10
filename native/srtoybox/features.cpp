@@ -6,10 +6,14 @@
 // 돈 탭과 물자 탭이 내장 치트 없이 직접 한다(ui.cpp 의 money_tab · stock_tab).
 // 네 줄(finalexam · shelovesme · love · neutral)은 3단계 2 에서 직접 쓰기로 바꿨다 — 자리와 이름은 그대로이고
 // 게임에 넣는 글이 없다(ui.cpp 의 direct_row).
+// 두 줄(technology · e=mc2)은 3단계 3 에서 직접 쓰기로 바꿨다. 내장 치트는 부대 설계를 건드리지 않았고, e=mc2 는 모든 기술의
+// 연구 기간을 1일로 바꿨다(모든 나라가 함께 쓰는 표) — 이제 플레이어의 보유 비트만 쓴다. 기술 수준은 한 바이트라 255 까지다.
 // 나머지 줄은 아직 내장 치트로 돈다. 묶음마다 옮긴다(docs/10-toybox.md 의 "다음 단계").
 const Feature FEATURES[] = {
-    {"technology", "연구", "기술 수준 N 이하 전부 보유", "입력한 기술 수준 이하의 기술을 모두 연구한 것으로 만든다", "cheat technology", true, 120, 1, 999, false},
-    {"e=mc2", "연구", "대기열의 연구 즉시 완료", "대기열에 건 연구가 바로 끝난다. 대기열이 비어 있으면 아무 일도 없다", "cheat e=mc2", false, 0, 0, 0, false},
+    {"technology", "연구", "기술 수준 N 이하 전부 보유", "입력한 기술 수준 이하의 기술을 모두 연구한 것으로 만든다(선행 기술 포함)", "", true, 120, 1, 255, false,
+     Target::None, Direct::TechLevel},
+    {"e=mc2", "연구", "대기열의 연구 즉시 완료", "대기열에 건 기술과 부대 설계가 바로 끝난다. 대기열이 비어 있으면 아무 일도 없다", "", false, 0, 0, 0, false,
+     Target::None, Direct::QueueDone},
     {"finalexam", "연구", "지식 순위 올리기", "지식 지수 순위가 오른다", "", false, 0, 0, 0, false, Target::None, Direct::TechUp},
     {"populate", "인구·여론", "인구 +100만", "인구가 100만 늘어난다", "cheat populate", false, 0, 0, 0, false},
     {"shelovesme", "인구·여론", "세계 시장 여론 최고", "세계 시장 여론과 보조금률이 최고가 된다", "", false, 0, 0, 0, false, Target::None,
