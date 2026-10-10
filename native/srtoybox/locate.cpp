@@ -316,10 +316,11 @@ const struct MoreWanted {
 };
 
 // 부르는 게임의 함수. 그 함수를 부르는 자리의 서명이다(uv run srkit sig-mine <함수의 RVA> --back 2) — 인자를 싣는 명령까지 넣었다.
+const uint32_t ACT_CONSTANT = 0xFFFF;
 const struct ActWanted {
     const char *name;                       // srkit locate 와 테스트가 본다(ActLayout 의 필드 순서와 같다)
     const char *label;                      // 로그와 창에 나오는 이름
-    uint32_t bytes;                         // 자료면 그 크기(4 · 8). 함수면 0
+    uint32_t bytes;                         // 자료면 그 크기(4 · 8). 함수면 0, 상수(구조체 안의 자리)면 ACT_CONSTANT
     const char *sigs[STATE_SIGS];
 } ACTS[ACT_WANTED] = {
     {"colonize", "식민지화 함수", 0,
@@ -328,6 +329,12 @@ const struct ActWanted {
      {"88 5C 24 20 49 8B CA E8 [rip]", "40 0F B6 D6 49 8B CD E8 [rip]", "B2 01 C6 44 24 20 00 E8 [rip] 8B 4E 38"}},
     {"become", "플레이 지역을 바꾸는 함수", 0,
      {"33 D2 48 8B CB E8 [rip] 0F B7 43 04", "49 8B 8C C4 A0 E8 34 00 33 D2 E8 [rip]", "49 8B F0 48 8B 0C D8 E8 [rip]"}},
+    // 지도자 제거: 게임이 지도자가 죽은 날 스스로 하는 일(0x768A00 안)과 같은 두 함수
+    {"elect", "새 지도자를 세우는 함수", 0,
+     {"83 4C 01 28 02 48 8B CB E8 [rip]", "33 D2 48 8B CE E8 [rip] 0F B7 4E 04", "0F 97 C2 45 33 C0 E8 [rip] 49 8B 06"}},
+    {"news", "알림 함수", 0,
+     {"4C 89 74 24 30 C6 44 24 28 01 C7 44 24 20 5C 06 00 00 E8 [rip]", "44 8B CA 44 8B C2 E8 [rip] 0F B7 47 04",
+      "44 8B C2 C7 44 24 20 51 01 00 00 E8 [rip]"}},
     // 자료: 그 포인터를 읽고 곧바로 가리키는 word(지역의 인덱스)를 읽는 자리들
     {"map_pick", "지도에서 고른 지역", 8,
      {"48 8B 0D [rip] 44 8B CF 0F B7 11", "48 8B 05 [rip] 0F B7 08 41 3B CB", "48 8B 05 [rip] 0F B7 08 0F 28 C1"}},
@@ -335,6 +342,14 @@ const struct ActWanted {
      {"48 63 05 [rip] 44 3B C0 74 68", "48 63 05 [rip] 44 3B F8 74 60", "48 63 05 [rip] 44 3B C8 74 69"}},
     {"player_pointer2", "플레이어 포인터의 둘째 사본", 8,
      {"48 89 0D [rip] 83 39 02 74 48", "48 89 05 [rip] 8B 86 50 05 00 00 8B D0", "48 89 05 [rip] 75 5F 0F B7 05 ? ? ? ?"}},
+    // 지도자 표: 레코드의 크기(C8)와 깃발의 자리(+28)가 박힌 자리들
+    {"leader_table", "지도자 표", 8,
+     {"48 8B 05 [rip] 48 69 C9 C8 00 00 00 83 4C 01 28 04", "48 8B 05 [rip] 48 69 D1 C8 00 00 00 83 4C 02 28 04",
+      "48 8B 05 [rip] 48 69 CA C8 00 00 00 83 4C 01 28 04"}},
+    // 상수: 지역 객체에서 지도자 번호를 읽어 곧바로 레코드의 크기를 곱하는 자리들
+    {"leader_id", "지도자 번호의 자리", ACT_CONSTANT,
+     {"0F B7 87 [u32] 48 69 E8 C8 00 00 00 49 8B 5C 2E 20", "0F B7 81 [u32] 4C 8D 0D ? ? ? ? 4C 69 D0 C8 00 00 00",
+      "0F B7 81 [u32] 48 8D 2D ? ? ? ? 48 69 F0 C8 00 00 00"}},
 };
 static_assert(sizeof(ActLayout) == ACT_WANTED * sizeof(uint32_t), "ActLayout 의 필드는 표 ACTS 의 순서대로 uint32_t 다");
 
@@ -774,8 +789,13 @@ int search_acts(const uint8_t *image, size_t size, ActLayout *out, SigRow *rows,
             snprintf(why[w], MORE_WHY, "%s: 찾은 주소가 함수의 시작이 아닙니다", ACTS[w].label);
             continue;
         }
-        if (w >= ACT_FUNCTIONS && (value[0] == 0 || value[0] + ACTS[w].bytes > size || value[0] % ACTS[w].bytes != 0
-                                   || !in_data(im, static_cast<uint32_t>(value[0]), ACTS[w].bytes))) {
+        if (ACTS[w].bytes == ACT_CONSTANT) {
+            if (!offset_ok(value[0])) {
+                snprintf(why[w], MORE_WHY, "%s: 찾은 자리가 범위 밖입니다", ACTS[w].label);
+                continue;
+            }
+        } else if (w >= ACT_FUNCTIONS && (value[0] == 0 || value[0] + ACTS[w].bytes > size || value[0] % ACTS[w].bytes != 0
+                                          || !in_data(im, static_cast<uint32_t>(value[0]), ACTS[w].bytes))) {
             snprintf(why[w], MORE_WHY, "%s: 찾은 주소가 쓸 수 있는 자료 구역이 아닙니다", ACTS[w].label);
             continue;
         }
