@@ -103,24 +103,80 @@ std::string design_class_label(int cls)
     return cls >= 0 && cls < DESIGN_CLASSES ? std::string(CLASSES[cls]) : std::to_string(cls);
 }
 
-std::string cp1252_to_utf8(const char *text, size_t size)
+namespace {
+
+void put_utf8(std::string *out, unsigned code)
+{
+    if (code < 0x80) {
+        *out += static_cast<char>(code);
+    } else if (code < 0x800) {
+        *out += static_cast<char>(0xC0 | (code >> 6));
+        *out += static_cast<char>(0x80 | (code & 0x3F));
+    } else {
+        *out += static_cast<char>(0xE0 | (code >> 12));
+        *out += static_cast<char>(0x80 | ((code >> 6) & 0x3F));
+        *out += static_cast<char>(0x80 | (code & 0x3F));
+    }
+}
+
+// SR-UTF8 의 연속 바이트인가: 0x80 … 0xBF(줄바꿈 기호 0xB6 은 빼고)와, 바꿔 쓴 셋(0xFF · 0xF7 · 0xFE).
+bool is_cont(unsigned char b)
+{
+    return (b >= 0x80 && b <= 0xBF && b != 0xB6) || b == 0xFF || b == 0xF7 || b == 0xFE;
+}
+
+unsigned cont(unsigned char b)
+{
+    return (b == 0xFF ? 0xB6u : b == 0xF7 ? 0x9Au : b == 0xFE ? 0x9Eu : b) & 0x3F;
+}
+
+// 바꿔 쓴 선두 바이트 → 실제 UTF-8 의 선두 바이트.
+unsigned lead(unsigned char b)
+{
+    return b == 0xE5 ? 0xEAu : b == 0xE6 ? 0xEBu : b == 0xE8 ? 0xEDu : b == 0xE0 ? 0xE2u : b;
+}
+
+}  // namespace
+
+std::string game_text_to_utf8(const char *text, size_t size)
 {
     std::string out;
-    for (size_t i = 0; i < size && text[i] != '\0'; i++) {
-        const unsigned char c = static_cast<unsigned char>(text[i]);
-        unsigned code = c >= 0x80 && c < 0xA0 ? HIGH[c - 0x80] : c;
-        if (code == 0)
-            code = '?';
-        if (code < 0x80) {
-            out += static_cast<char>(code);
-        } else if (code < 0x800) {
-            out += static_cast<char>(0xC0 | (code >> 6));
-            out += static_cast<char>(0x80 | (code & 0x3F));
-        } else {
-            out += static_cast<char>(0xE0 | (code >> 12));
-            out += static_cast<char>(0x80 | ((code >> 6) & 0x3F));
-            out += static_cast<char>(0x80 | (code & 0x3F));
+    size_t n = 0;
+    while (n < size && text[n] != '\0')
+        n++;
+    const unsigned char *const s = reinterpret_cast<const unsigned char *>(text);
+    bool multibyte = false;                      // 앞에서 여러 바이트 글자가 나왔다(= 한글이 섞인 글이다)
+    for (size_t i = 0; i < n;) {
+        const unsigned char b = s[i];
+        if (b < 0x80 || b == 0xB6) {
+            put_utf8(&out, b);
+            i++;
+            continue;
         }
+        if (b >= 0xC2 && b <= 0xDF && i + 1 < n && is_cont(s[i + 1])) {
+            put_utf8(&out, ((b & 0x1Fu) << 6) | cont(s[i + 1]));
+            i += 2;
+            multibyte = true;
+            continue;
+        }
+        if (b >= 0xE0 && b <= 0xEF) {
+            if (i + 2 < n && is_cont(s[i + 1]) && is_cont(s[i + 2])) {
+                const unsigned code = ((lead(b) & 0x0F) << 12) | (cont(s[i + 1]) << 6) | cont(s[i + 2]);
+                if (code >= 0x800 && !(code >= 0xD800 && code <= 0xDFFF)) {
+                    put_utf8(&out, code);
+                    i += 3;
+                    multibyte = true;
+                    continue;
+                }
+            } else if (i + 2 == n && is_cont(s[i + 1])) {
+                break;                           // 글자의 중간에서 잘렸다 — 깨진 꼬리는 버린다
+            } else if (i + 1 == n && multibyte) {
+                break;                           // 한글이 든 글의 끝에 선두 바이트만 남았다(원본의 'Bogotá' 같은 끝 글자는 아래에서 살린다)
+            }
+        }
+        unsigned code = b >= 0x80 && b < 0xA0 ? HIGH[b - 0x80] : b;   // 유효한 시퀀스가 아니다 — CP1252 의 글자다
+        put_utf8(&out, code == 0 ? '?' : code);
+        i++;
     }
     return out;
 }

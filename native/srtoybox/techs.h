@@ -14,8 +14,10 @@ std::string design_class_label(int cls);     // 부대 설계의 병과(0 … 21
 const int TECH_KINDS = 6;                    // 분류는 1 … 6
 const int DESIGN_CLASSES = 22;               // 병과는 0 … 21
 
-// 게임 메모리의 글(CP1252)을 UTF-8 로. size 는 바이트 수(0 을 만나면 거기서 끝난다).
-std::string cp1252_to_utf8(const char *text, size_t size);
+// 게임 메모리의 글을 UTF-8 로. size 는 바이트 수(0 을 만나면 거기서 끝난다).
+// 한글화가 옮긴 이름은 SR-UTF8(src/srkit/srutf8.py · native/srhook/srdecode.c 와 같은 규칙)이고, 원본의 이름은 CP1252 다 —
+// SR-UTF8 의 유효한 시퀀스가 아닌 바이트는 CP1252 글자로 읽는다. 칸에 맞춰 잘린 한글의 꼬리(끝의 반쪽 글자)는 버린다.
+std::string game_text_to_utf8(const char *text, size_t size);
 
 // 목록의 보기.
 enum class Show {

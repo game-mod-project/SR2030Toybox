@@ -393,11 +393,11 @@ EXPORT int srtoybox_research_rows(const char *tables, int designs, int show, int
     return put(text, out, size);
 }
 
-// 테스트: 이름표. "기술의 이름\n분류의 이름\n병과의 이름\nraw(CP1252)를 UTF-8 로 바꾼 글".
+// 테스트: 이름표. "기술의 이름\n분류의 이름\n병과의 이름\nraw(게임 메모리의 글)를 UTF-8 로 바꾼 글".
 EXPORT int srtoybox_tech_names(int tech, int kind, int cls, const char *raw, char *out, int size)
 {
     const std::string text = raw != nullptr ? raw : "";
-    return put(tech_label(tech) + '\n' + tech_kind_label(kind) + '\n' + design_class_label(cls) + '\n' + cp1252_to_utf8(text.data(), text.size()),
+    return put(tech_label(tech) + '\n' + tech_kind_label(kind) + '\n' + design_class_label(cls) + '\n' + game_text_to_utf8(text.data(), text.size()),
                out, size);
 }
 
