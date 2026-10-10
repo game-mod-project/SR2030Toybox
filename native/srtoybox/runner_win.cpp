@@ -168,3 +168,34 @@ bool runner_direct()
 {
     return direct_wanted() && game_can_call();
 }
+
+bool runner_enter_call()
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    if (g_faulted || g_calling)
+        return false;
+    g_calling = true;
+    return true;
+}
+
+void runner_leave_call(const char *what, unsigned long code)
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    g_calling = false;
+    if (what == nullptr)
+        return;
+    // 게임의 상태가 어긋났을 수 있다. 더 실행하지도 쓰지도 않는다 — 직접 실행의 오류와 같다
+    g_faulted = true;
+    g_runner.clear();
+    g_notice = std::string(what) + " 중 오류가 났습니다. 저장하지 말고 게임을 다시 시작하십시오.";
+    log_line("%s 중 예외 0x%08lX — ToyBox 를 멈춥니다", what, code);
+}
+
+void runner_reset_for_test()
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    g_runner.clear();
+    g_notice.clear();
+    g_faulted = false;
+    g_calling = false;
+}

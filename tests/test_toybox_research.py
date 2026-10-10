@@ -633,3 +633,231 @@ def test_startup_without_the_state_does_not_look_for_research(lib, sigs, tmp_pat
     _, _, research_ = sigs
     flags, off, log = startup(lib, toybox_fake_exe.sig_image(research_), tmp_path, monkeypatch)
     assert flags == 0 and off == "게임 상태를 읽을 수 있을 때만 씁니다." and not any("연구" in line for line in log)
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# 연구 요청의 줄(keeper): 창의 단추가 넣고, 게임 창의 타이머가 하나씩 쓴다
+
+LEFT_GAME = "게임이 진행 중이 아니어서 쓰지 않았습니다."
+FAULT = "효과를 다시 셈하는 중 오류가 났습니다. 저장하지 말고 게임을 다시 시작하십시오."
+
+
+class Playing:
+    """이 프로세스의 "게임"이 lab() 인 동안. "다시 셈" 자리의 함수는 불린 인자를 calls 에 적고, inside 에 든 일을 그 안에서 한다."""
+
+    def __init__(self, lib, home):
+        self.lib, self.home = lib, home
+        self.fake, self.lab = lab()
+        self.calls: list[tuple[int, int]] = []
+        self.inside: list = []
+        self.hook = RECOMPUTE(self._recompute)
+
+    def _recompute(self, world: int, index: int) -> None:
+        self.calls.append((world, index))
+        for act in self.inside:
+            act()
+
+    def ask(self, what: str, label: str, action: int = COMPLETE) -> int:
+        return self.lib.srtoybox_keeper_research(action, what.encode(), label.encode())
+
+    def tick(self) -> None:
+        self.lib.srtoybox_keeper_tick()
+
+    def told(self) -> tuple[str, str]:
+        """(창 바닥의 "마지막으로 쓴 값", 알림)."""
+        last, notice = text(self.lib.srtoybox_keeper_text).split("\t")
+        return last, notice
+
+    def runner(self) -> tuple[str, str, str]:
+        """(오류 가드가 걸렸는가, 게임의 함수 안인가, 빨간 경고의 글)."""
+        faulted, calling, notice = text(self.lib.srtoybox_runner_text).split("\t")
+        return faulted, calling, notice
+
+    def log(self) -> list[str]:
+        path = self.home / "toybox.log"
+        return [line.split(" ", 2)[2] for line in path.read_text(encoding="utf-8").splitlines()] if path.is_file() else []
+
+    def mine(self) -> tuple[list[int], list[int]]:
+        """독일이 보유한 (기술, 부대 설계)."""
+        return self.lab.held(TECH, 64, GERMANY), self.lab.held(DESIGN, 64, GERMANY)
+
+
+@pytest.fixture
+def playing(lib, tmp_path, monkeypatch):
+    monkeypatch.setenv("SRTOYBOX_HOME", str(tmp_path))
+    lib.srtoybox_test_game.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
+    lib.srtoybox_test_research.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+    lib.srtoybox_research_off.argtypes = [ctypes.c_char_p, ctypes.c_int]
+    lib.srtoybox_keeper_research.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p]
+    lib.srtoybox_keeper_text.argtypes = lib.srtoybox_runner_text.argtypes = [ctypes.c_char_p, ctypes.c_int]
+    game = Playing(lib, tmp_path)
+    lib.srtoybox_test_game(game.fake.base, ctypes.byref(game.fake.at), None)
+    lib.srtoybox_test_research(ctypes.byref(game.lab.layout), ctypes.cast(game.hook, ctypes.c_void_p))
+    lib.srtoybox_keeper_reset()
+    yield game
+    lib.srtoybox_keeper_reset()                              # 오류 가드도 지운다 — 다음 테스트는 멈추지 않은 ToyBox 에서 시작한다
+    lib.srtoybox_test_game(None, None, None)
+
+
+MINE = ([1, 4, 6], [10, 13, 14])                             # lab() 에서 독일이 보유한 것
+
+
+def test_research_requests_are_written_one_per_tick_in_order(playing):
+    assert playing.ask("queue", "대기열") == 1 and playing.ask("level 70", "기술 수준 70 이하") == 1
+    assert playing.mine() == MINE and playing.calls == []     # 누른 것만으로는 쓰지 않는다 — 창 스레드의 틱에서 쓴다
+    playing.tick()
+    assert playing.mine() == ([1, 2, 3, 4, 6], [10, 11, 13, 14])
+    assert playing.told() == ("기술 2개(선행 1개 포함) · 부대 설계 1개를 완료로 — 대기열", "")
+    assert playing.calls == [(playing.lab.world, GERMANY)]
+    playing.tick()                                            # 다음 요청은 다음 틱에
+    assert playing.mine() == ([1, 2, 3, 4, 6, 7], [10, 11, 13, 14])
+    assert playing.told() == ("기술 1개를 완료로 — 기술 수준 70 이하", "")
+    playing.tick()
+    assert len(playing.calls) == 2 and playing.runner() == ("0", "0", "")
+    assert playing.log() == ["연구 완료 (대기열): 기술 2개(선행 1개 포함) · 부대 설계 1개 · 대기열에서 2개 · 새 묶음 1개",
+                             "연구 완료 (기술 수준 70 이하): 기술 1개"]
+    assert playing.lab.owners(TECH, 7) == {DENMARK, GERMANY} and playing.lab.owners(DESIGN, 11) == {POLAND, GERMANY}   # 다른 나라는 그대로다
+
+
+def test_a_request_that_changes_nothing_says_so(playing):
+    """대기열이 비었을 때의 "대기열의 연구 즉시 완료": 한 칸도 쓰지 않고, 게임의 함수도 부르지 않고, 그렇다고 알린다."""
+    assert playing.ask("items t1 d10", "고른 것") == 1
+    before = playing.lab.everything()
+    playing.tick()
+    assert playing.told() == ("", "바꿀 것이 없습니다 — 고른 것") and playing.calls == [] and playing.lab.everything() == before
+    assert playing.log() == ["연구 완료 (고른 것): 바꿀 것이 없습니다"]
+
+
+def test_a_queued_item_that_is_already_held_is_only_cleared_from_the_queue(playing):
+    """내장 치트로 "끝낸" 판에는 보유한 기술의 노드가 대기열에 남아 있다 — 그 노드만 뺀다. 비트를 바꾸지 않았으니 다시 셈도 없다."""
+    head = RESEARCH["world"] + RESEARCH["lists"] + GERMANY * 24
+    playing.lab.nodes.clear()
+    playing.fake.poke(head, "<Q", 0)                          # 독일의 대기열을 비우고
+    playing.fake.poke(head + 8, "<Q", 0)
+    held = playing.lab.queue(GERMANY, TECH, 1, flags=(1, ENDED))
+    assert playing.ask("queue", "대기열") == 1
+    playing.tick()
+    assert playing.told() == ("대기열에서 1개를 뺌 — 대기열", "") and playing.calls == [] and playing.mine() == MINE
+    assert playing.lab.flags(held) == (GONE | 1, GONE | ENDED) and playing.log() == ["연구 완료 (대기열): 대기열에서 1개"]
+
+
+def test_revoking_is_requested_the_same_way(playing):
+    assert playing.ask("items t4", "고른 것", REVOKE) == 1
+    playing.tick()
+    assert playing.mine() == ([1], [10, 14])
+    assert playing.told() == ("기술 2개(딸린 것 1개 포함) · 부대 설계 1개(딸린 것 1개 포함)를 미완료로 — 고른 것", "")
+    assert playing.log() == ["연구 미완료 (고른 것): 기술 2개(딸린 것 1개 포함) · 부대 설계 1개(딸린 것 1개 포함)"]
+    assert playing.lab.owners(TECH, 4) == {DENMARK} and playing.lab.owners(DESIGN, 13) == {POLAND}
+
+
+def test_value_requests_of_the_tick_are_written_before_its_research_request(lib, playing):
+    """틱마다 값 요청을 먼저 비우고, 그 뒤에 연구 요청을 하나 쓴다."""
+    lib.srtoybox_test_values.argtypes = [ctypes.c_void_p]
+    lib.srtoybox_keeper_request.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_double]
+    lib.srtoybox_test_values(ctypes.byref(playing.fake.layout))
+    seen: list[float] = []
+    playing.inside.append(lambda: seen.append(playing.fake.treasury(GERMANY)))
+    assert playing.ask("queue", "대기열") == 1 and lib.srtoybox_keeper_request(-1, 1, 100.0) == 1      # 국고를 100 으로
+    playing.tick()
+    assert seen == [100.0]                                    # 게임의 함수가 불렸을 때 국고는 이미 쓰여 있었다
+    assert playing.log() == ["값 쓰기: 국고 0 -> 100", "연구 완료 (대기열): 기술 2개(선행 1개 포함) · 부대 설계 1개 · 대기열에서 2개 · 새 묶음 1개"]
+    assert playing.told() == ("기술 2개(선행 1개 포함) · 부대 설계 1개를 완료로 — 대기열", "")
+
+
+def test_only_four_research_requests_wait(playing):
+    assert [playing.ask("queue", "대기열") for _ in range(5)] == [1, 1, 1, 1, 0]
+    playing.tick()
+    assert playing.ask("queue", "대기열") == 1                 # 하나가 처리됐다
+    assert playing.ask("bogus", "대기열", action=2) == -1
+
+
+@pytest.mark.parametrize("leave", ["menu", "multiplayer"])
+def test_research_requests_are_dropped_outside_a_game(playing, leave):
+    """누른 뒤 쓰기 전에 게임에서 나갔다 — 돌아온 뒤에 쓰이지 않게 버린다."""
+    assert playing.ask("queue", "대기열") == 1 and playing.ask("level 70", "기술 수준 70 이하") == 1
+    before = playing.lab.everything()
+    if leave == "menu":
+        playing.fake.menu()
+    else:
+        playing.fake.poke(MULTIPLAYER, "<B", 1)
+    playing.tick()
+    assert playing.told() == ("", LEFT_GAME) and playing.calls == []
+    if leave == "menu":
+        playing.fake.play(GERMANY)
+    else:
+        playing.fake.poke(MULTIPLAYER, "<B", 0)
+    playing.tick()
+    assert playing.lab.everything() == before and playing.calls == [] and playing.log() == []
+
+
+def test_a_tick_that_comes_back_inside_the_games_function_does_nothing(playing):
+    """게임의 함수가 일하는 동안 ToyBox 의 타이머가 다시 올 수 있다(게임이 메시지를 돌릴 때) — 그 안에서는 쓰지도 부르지도 않는다.
+    그 안에서 누른 단추의 요청은 받아 두었다가 다음 틱에 쓴다."""
+    seen: list = []
+
+    def reenter() -> None:
+        seen.append(playing.runner()[1])
+        playing.tick()                                        # 그 안에서 다시 온 틱
+        seen.append((playing.mine(), len(playing.calls)))
+        seen.append(playing.ask("items d12", "고른 것"))
+
+    playing.inside.append(reenter)
+    assert playing.ask("queue", "대기열") == 1 and playing.ask("level 70", "기술 수준 70 이하") == 1
+    playing.tick()
+    assert seen == ["1", (([1, 2, 3, 4, 6], [10, 11, 13, 14]), 1), 1]      # 수준 70 의 요청은 그 안에서 쓰이지 않았다
+    assert playing.runner() == ("0", "0", "")
+    playing.inside.clear()
+    playing.tick()
+    playing.tick()
+    assert playing.mine() == ([1, 2, 3, 4, 6, 7], [10, 11, 12, 13, 14]) and len(playing.calls) == 2      # 설계 12 만으로는 부르지 않는다
+
+
+def test_a_fault_in_the_games_function_stops_toybox(lib, playing):
+    """"효과를 다시 셈"에서 예외가 나면 게임의 상태를 믿을 수 없다 — 직접 실행의 오류와 같이 ToyBox 를 멈춘다:
+    빨간 경고를 띄우고, 그 뒤로는 아무것도 쓰지도 부르지도 않는다."""
+    lib.srtoybox_test_research(ctypes.byref(playing.lab.layout), ctypes.c_void_p(8))      # 부를 수 없는 주소
+    assert playing.ask("queue", "대기열") == 1 and playing.ask("level 70", "기술 수준 70 이하") == 1
+    playing.tick()
+    assert playing.runner() == ("1", "0", FAULT)
+    assert playing.log() == ["효과를 다시 셈하는 중 예외 0xC0000005 — ToyBox 를 멈춥니다"]
+    after = playing.lab.everything()
+    playing.tick()
+    playing.ask("level 70", "기술 수준 70 이하")
+    playing.tick()
+    assert playing.lab.everything() == after and playing.told() == ("", "")
+    assert playing.lab.held(TECH, 64, GERMANY) == [1, 2, 3, 4, 6]      # 비트는 예외가 나기 전에 썼다. 수준 70 의 요청은 버려졌다
+
+
+def test_a_table_that_cannot_be_read_is_reported_and_nothing_is_written(playing):
+    assert playing.ask("queue", "대기열") == 1
+    playing.fake.poke(RESEARCH["tech_count"], "<i", 1)        # 표의 꼴이 다른 게임
+    before = playing.lab.everything()
+    playing.tick()
+    why = "연구의 표를 읽을 수 없습니다 (표가 없거나 자리 수가 범위 밖입니다)"
+    assert playing.told() == ("", why) and playing.log() == [why] and playing.calls == [] and playing.lab.everything() == before
+
+
+def test_a_failed_write_turns_writing_off(lib, playing):
+    """쓸 수 없는 칸을 만나면 한 칸도 쓰지 않고, 그 뒤로는 값 쓰기 전체를 끈다 — 까닭은 단추의 자리에 보인다."""
+    playing.lab.house(TECH, 2, block=locked_page())           # 기술 2 의 묶음이 읽기 전용 쪽에 있다
+    assert playing.ask("items t3", "고른 것") == 1 and playing.ask("level 70", "기술 수준 70 이하") == 1
+    before = playing.lab.everything()
+    playing.tick()
+    playing.tick()
+    assert playing.lab.everything() == before and playing.calls == [] and playing.told() == ("", "")
+    assert playing.log() == ["연구 쓰기 실패 (기술 2 의 보유 묶음) — 값 쓰기를 끕니다"]
+    assert not lib.srtoybox_game_flags() & CAN_RESEARCH and text(lib.srtoybox_research_off) != ""
+    assert playing.ask("level 70", "기술 수준 70 이하") == 0     # 더 받지 않는다
+
+
+def test_items_nobody_holds_are_skipped_and_counted_when_a_set_cannot_be_made(playing):
+    pool = (ctypes.c_ubyte * 0x4000)()
+    used = iter(range(0, 0x4000, 0x100))
+    rehouse(playing.lab, lambda: ctypes.addressof(pool) + next(used))      # 게임의 묶음이 프로세스 힙의 것이 아니다
+    skipped = "묶음을 만들 수 없는 게임 판입니다 — 보유한 나라가 없는 항목 {}개를 건너뜁니다"
+    assert playing.ask("items t3 d12 t7", "고른 것") == 1 and playing.ask("items t3", "보이는 것") == 1
+    playing.tick()
+    assert playing.told() == ("기술 1개를 완료로 — 고른 것", skipped.format(2)) and playing.mine() == ([1, 4, 6, 7], MINE[1])
+    playing.tick()
+    assert playing.told() == ("기술 1개를 완료로 — 고른 것", skipped.format(1))
+    assert playing.log() == [skipped.format(2), "연구 완료 (고른 것): 기술 1개", skipped.format(1)]

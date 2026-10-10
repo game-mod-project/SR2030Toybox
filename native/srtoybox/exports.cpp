@@ -20,6 +20,7 @@
 #include "regions.h"
 #include "research.h"
 #include "runner.h"
+#include "runner_win.h"
 #include "settings.h"
 #include "sigs.h"
 #include "ui.h"
@@ -628,6 +629,15 @@ EXPORT int srtoybox_keeper_more(int slot, int region, double amount)
     return keeper_enqueue({slot, Change::Set, amount, region}) ? 1 : 0;
 }
 
+// 테스트: 연구 요청(keeper.h). action: 0 완료, 1 미완료. what: "items t1 d5" · "level 120" · "queue"(what_from).
+// label: 알림과 로그에 적을 이름. 받았으면 1, 받지 못했으면 0(가득 찼다 · 연구를 쓸 수 없다). 그런 요청이 없으면 -1.
+EXPORT int srtoybox_keeper_research(int action, const char *what, const char *label)
+{
+    if (action < 0 || action > 1 || what == nullptr || label == nullptr)
+        return -1;
+    return keeper_enqueue_research({action == 0 ? Research::Complete : Research::Revoke, what_from(what), label}) ? 1 : 0;
+}
+
 EXPORT void srtoybox_keeper_tick(void)
 {
     keeper_tick(GetTickCount64());
@@ -674,9 +684,17 @@ EXPORT int srtoybox_keeper_text(char *out, int size)
     return put(keeper_last() + '\t' + keeper_notice(), out, size);
 }
 
+// 테스트: keeper 와, 그것이 함께 쓰는 실행기의 오류 가드 · "게임의 함수 안" 깃발을 지운다.
 EXPORT void srtoybox_keeper_reset(void)
 {
     keeper_reset_for_test();
+    runner_reset_for_test();
+}
+
+// 테스트: "<오류 가드가 걸렸는가 0/1>\t<게임의 함수 안인가 0/1>\t<실행기의 알림>".
+EXPORT int srtoybox_runner_text(char *out, int size)
+{
+    return put(std::string(runner_faulted() ? "1" : "0") + '\t' + (runner_calling() ? "1" : "0") + '\t' + runner_notice(), out, size);
 }
 
 EXPORT int srtoybox_product_label(int slot, char *out, int size)

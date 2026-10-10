@@ -19,6 +19,7 @@ const char *const LEFT_GAME = "게임이 진행 중이 아니어서 쓰지 않�
 
 std::mutex g_lock;          // 단추(그리는 스레드)와 틱(창 스레드)이 함께 만진다
 std::deque<Request> g_queue;
+std::deque<ResearchRequest> g_research;     // 연구 요청은 따로 줄을 선다 — 틱마다 값 요청을 비운 뒤 하나
 std::string g_last, g_notice;
 Keep g_keep;                        // 최소 유지의 설정(창이 넘긴 것)
 bool g_keep_due;                    // 설정이 바뀌었다 — 0.5초를 기다리지 않고 다음 틱에 본다
@@ -208,6 +209,96 @@ void keep_check()
             return;
 }
 
+// 틱의 앞쪽: 값 요청을 비우고, 때가 됐으면 유지를 본다. 이번 틱에 처리할 연구 요청이 있으면 *next 에 꺼내고 true —
+// 그때는 "게임의 함수 안" 깃발을 세워 둔다(부른 쪽이 runner_leave_call 로 내린다). g_lock 을 쥔 채로 부른다.
+bool tick_locked(unsigned long long now_ms, ResearchRequest *next)
+{
+    if (runner_calling())
+        return false;                          // 게임의 함수 안에서 다시 온 틱이면 기다린다 — 그 함수가 읽고 있는 값을 바꾸지 않는다
+    const bool due = keep_count(g_keep) > 0 && (g_keep_due || now_ms - g_keep_at >= KEEP_EVERY_MS);
+    if (g_queue.empty() && g_research.empty() && !due)
+        return false;
+    if (due) {                                 // 쓰든 쉬든, 다음에 보는 것은 지금부터 0.5초 뒤다
+        g_keep_due = false;
+        g_keep_at = now_ms;
+    }
+    const GameState game = game_state();
+    if (runner_faulted() || !game_writes()) {
+        g_queue.clear();                       // 까닭은 창이 보인다(빨간 경고, 탭의 한 줄). 유지도 쉰다
+        g_research.clear();
+        return false;
+    }
+    if (!game.known || !game.in_game || game.multiplayer) {
+        if (!g_queue.empty() || !g_research.empty()) {
+            g_queue.clear();                   // 누른 뒤 게임에서 나갔다 — 돌아온 뒤에 쓰이지 않게 버린다
+            g_research.clear();
+            g_notice = LEFT_GAME;
+        }
+        return false;                          // 유지는 게임 밖 · 멀티플레이에서 쉰다
+    }
+    const bool values = !g_queue.empty();
+    if (values && !drain()) {
+        g_research.clear();                    // 값 쓰기가 꺼졌다 — 연구도 쓰지 않는다
+        return false;
+    }
+    if (due && game_values_off().empty())      // 유지는 국고와 물자다 — 그 자리를 못 찾은 게임에서는 쉰다
+        keep_check();                          // 단추의 요청을 쓴 뒤에 본다 — 방금 내린 값도 바닥 아래면 올린다
+    if (g_research.empty() || !runner_enter_call())
+        return false;
+    if (!values)
+        g_notice.clear();                      // 이번 틱에 쓴 값 요청의 알림은 남긴다 — 연구의 알림이 생기면 그것이 덮는다
+    *next = g_research.front();
+    g_research.pop_front();
+    return true;
+}
+
+// 연구 요청 하나를 쓴다. g_lock 을 쥐지 않은 채로 부른다 — 끝에 게임의 "효과를 다시 셈"이 불리고, 그 함수가 안에서
+// ToyBox 로 되돌아오면(타이머 · 단추) 그것들이 g_lock 을 잡는다. "게임의 함수 안" 깃발은 tick_locked 가 세워 뒀다.
+void run_research(const ResearchRequest &r)
+{
+    ResearchDone done;
+    const Wrote wrote = game_write_research(r.action, r.what, &done);
+    runner_leave_call(wrote == Wrote::Crashed ? "효과를 다시 셈하는" : nullptr, done.code);
+
+    std::lock_guard<std::mutex> lock(g_lock);
+    const char *const verb = r.action == Research::Complete ? "완료" : "미완료";
+    if (wrote == Wrote::NotInGame) {           // 읽은 뒤 쓰기 전에 게임이 바뀌었다
+        g_notice = LEFT_GAME;
+        return;
+    }
+    if (wrote == Wrote::Unreadable) {
+        g_notice = "연구의 표를 읽을 수 없습니다 (" + done.why + ")";
+        log_line("%s", g_notice.c_str());
+        return;
+    }
+    if (wrote != Wrote::Done) {                // 실패 · 꺼짐 · 예외: 까닭은 그 단추의 자리와 빨간 경고에 보인다. 남은 요청을 버린다
+        g_queue.clear();
+        g_research.clear();
+        return;
+    }
+    const std::string skipped = done.skipped == 0 ? std::string()
+        : "묶음을 만들 수 없는 게임 판입니다 — 보유한 나라가 없는 항목 " + std::to_string(done.skipped) + "개를 건너뜁니다";
+    if (!skipped.empty()) {
+        g_notice = skipped;
+        log_line("%s", skipped.c_str());
+    }
+    const std::string summary = research_summary(done.plan, r.action);
+    if (summary.empty()) {
+        if (skipped.empty()) {
+            g_notice = "바꿀 것이 없습니다 — " + r.label;
+            log_line("연구 %s (%s): 바꿀 것이 없습니다", verb, r.label.c_str());
+        }
+        return;
+    }
+    ResearchPlan bits = done.plan;             // 창의 한 줄에는 바뀐 기술 · 부대 설계만 적는다
+    bits.nodes.clear();
+    const std::string changed = research_summary(bits, r.action);
+    g_last = (changed.empty() ? "대기열에서 " + std::to_string(done.plan.nodes.size()) + "개를 뺌" : changed + "를 " + verb + "로")
+        + " — " + r.label;
+    log_line("연구 %s (%s): %s%s", verb, r.label.c_str(), summary.c_str(),
+             done.housed > 0 ? (" · 새 묶음 " + std::to_string(done.housed) + "개").c_str() : "");
+}
+
 }  // namespace
 
 bool keeper_enqueue(const Request &request)
@@ -219,34 +310,24 @@ bool keeper_enqueue(const Request &request)
     return true;
 }
 
-void keeper_tick(unsigned long long now_ms)
+bool keeper_enqueue_research(const ResearchRequest &request)
 {
     std::lock_guard<std::mutex> lock(g_lock);
-    if (runner_calling())
-        return;                                // 게임의 함수 안에서 다시 온 틱이면 기다린다 — 그 함수가 읽고 있는 값을 바꾸지 않는다
-    const bool due = keep_count(g_keep) > 0 && (g_keep_due || now_ms - g_keep_at >= KEEP_EVERY_MS);
-    if (g_queue.empty() && !due)
-        return;
-    if (due) {                                 // 쓰든 쉬든, 다음에 보는 것은 지금부터 0.5초 뒤다
-        g_keep_due = false;
-        g_keep_at = now_ms;
+    if (g_research.size() >= RESEARCH_QUEUE || !game_research_off().empty())
+        return false;
+    g_research.push_back(request);
+    return true;
+}
+
+void keeper_tick(unsigned long long now_ms)
+{
+    ResearchRequest research;
+    {
+        std::lock_guard<std::mutex> lock(g_lock);
+        if (!tick_locked(now_ms, &research))
+            return;
     }
-    const GameState game = game_state();
-    if (runner_faulted() || !game_writes()) {
-        g_queue.clear();                       // 까닭은 창이 보인다(빨간 경고, 탭의 한 줄). 유지도 쉰다
-        return;
-    }
-    if (!game.known || !game.in_game || game.multiplayer) {
-        if (!g_queue.empty()) {
-            g_queue.clear();                   // 누른 뒤 게임에서 나갔다 — 돌아온 뒤에 쓰이지 않게 버린다
-            g_notice = LEFT_GAME;
-        }
-        return;                                // 유지는 게임 밖 · 멀티플레이에서 쉰다
-    }
-    if (!g_queue.empty() && !drain())
-        return;
-    if (due && game_values_off().empty())      // 유지는 국고와 물자다 — 그 자리를 못 찾은 게임에서는 쉰다
-        keep_check();                          // 단추의 요청을 쓴 뒤에 본다 — 방금 내린 값도 바닥 아래면 올린다
+    run_research(research);
 }
 
 std::string keeper_last()
@@ -316,6 +397,7 @@ void keeper_reset_for_test()
 {
     std::lock_guard<std::mutex> lock(g_lock);
     g_queue.clear();
+    g_research.clear();
     g_last.clear();
     g_notice.clear();
     g_keep = Keep();
