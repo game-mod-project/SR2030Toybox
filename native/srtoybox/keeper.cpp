@@ -49,7 +49,8 @@ std::string shown(int slot, double value)
 std::string request_off(const Request &r)
 {
     return r.slot == TECH ? game_more_off(MORE_TECH) : r.slot == OPINION ? game_more_off(MORE_OPINION)
-        : r.slot == RELATION ? game_more_off(MORE_RELATIONS) : game_values_off();
+        : r.slot == RELATION ? game_more_off(MORE_RELATIONS) : r.slot == PEOPLE ? game_more_off(MORE_PEOPLE)
+        : r.slot == APPROVAL ? game_more_off(MORE_APPROVAL) : game_values_off();
 }
 
 // 수를 있는 그대로 적는다: 130, 130.5
@@ -81,6 +82,21 @@ bool apply_more(const Request &r)
     } else if (r.slot == OPINION) {
         what = "세계 시장 여론 최고";
         wrote = game_write_opinion();
+    } else if (r.slot == PEOPLE) {
+        const GameMore now = game_more();
+        if (!now.ok || !std::isfinite(now.people[0]) || now.people[0] < 0.0f) {
+            g_notice = "인구를 읽을 수 없어 쓰지 않았습니다.";
+            return true;
+        }
+        what = "인구 " + short_amount(now.people[0]) + " -> " + short_amount(static_cast<double>(now.people[0]) + r.amount);
+        wrote = game_write_people(static_cast<float>(r.amount));
+        if (wrote == Wrote::BadValue) {
+            g_notice = "인구의 칸이 수가 아니어서 쓰지 않았습니다.";
+            return true;
+        }
+    } else if (r.slot == APPROVAL) {
+        what = "지지율 100%";
+        wrote = game_write_approval();
     } else {
         what = std::string(r.amount > 0.5 ? "관계 최고" : "관계 중립") + " — " + region_label(r.region) + " (" + std::to_string(r.region) + ")";
         wrote = game_write_relation(r.region, static_cast<float>(r.amount));

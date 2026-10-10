@@ -14,8 +14,8 @@ NAN, INF = float("nan"), float("inf")
 DONE, NOT_IN_GAME, NOT_USED, BAD_VALUE, FAILED, OFF, NO_TARGET = range(7)   # native/srtoybox/game.h 의 Wrote
 TREASURY, ALL_STOCK = -1, -2                                        # 쓰기의 대상: 국고 / 쓰는 물자 모두. 0 … 11 은 그 칸의 재고
 READS, CALLS, WRITES = 1, 2, 4                                      # srtoybox_game_flags 의 비트
-CAN_TECH, CAN_OPINION, CAN_RELATIONS = 8, 16, 32                    # 〃 더 쓰는 값의 묶음마다
-TECH_TO, OPINION_BEST, RELATION_TO = 0, 1, 2                        # srtoybox_more_write 의 what
+CAN_TECH, CAN_OPINION, CAN_RELATIONS, CAN_PEOPLE, CAN_APPROVAL = 8, 16, 32, 128, 256   # 〃 더 쓰는 값의 묶음마다(64 는 연구)
+TECH_TO, OPINION_BEST, RELATION_TO, PEOPLE_ADD, APPROVAL_BEST = 0, 1, 2, 3, 4   # srtoybox_more_write 의 what
 MORE_TECH, MORE_OPINION, MORE_RELATIONS = 1, 2, 4                   # native/srtoybox/locate.h 의 묶음의 비트
 TECH, OPINION, RELATION = -3, -4, -5                                # native/srtoybox/keeper.h 의 Request.slot(더 쓰는 값의 요청)
 BEST, NEUTRAL = 1.0, 0.0                                            # 관계의 수준
@@ -302,7 +302,7 @@ def with_denmark() -> FakeGame:
 
 def test_more_is_read_from_the_players_region(lib):
     fake = germany()
-    assert more(lib, fake) == {"ok": "1", "tech": "130", "opinion": "0.5,0.25,0.75"}
+    assert more(lib, fake) == {"ok": "1", "tech": "130", "opinion": "0.5,0.25,0.75", "people": "0,0,0", "approval": "0"}
     assert relation(lib, fake, 1106) == {"ok": "1", "mine": "0.25,-0.5,0.75", "theirs": "0.125,0.5,1"}
     assert relation(lib, fake, 1499)["ok"] == "0" and relation(lib, fake, 9999)["ok"] == "0"      # 자기 자신, 없는 번호
     fake.menu()
@@ -402,7 +402,7 @@ def test_a_group_whose_place_is_not_known_is_not_written(lib):
     assert write_more(lib, fake, RELATION_TO, 1106, 1.0, layout=toybox.MoreLayout(**{**MORE, "casus": 0})) == (OFF, 0)
     assert everything(fake) == before
     no_tech = toybox.MoreLayout(**{**MORE, "tech": 0})
-    assert more(lib, fake, no_tech) == {"ok": "1", "tech": "0", "opinion": "0.5,0.25,0.75"}
+    assert more(lib, fake, no_tech) == {"ok": "1", "tech": "0", "opinion": "0.5,0.25,0.75", "people": "0,0,0", "approval": "0"}
     assert write_more(lib, fake, OPINION_BEST, layout=no_tech) == (DONE, 3)
 
 
@@ -475,13 +475,14 @@ def init_more(lib, image: bytes, tmp_path, monkeypatch) -> tuple[int, list[str],
     return flags, off, log.read_text(encoding="utf-8") if log.is_file() else ""
 
 
-FOUND_MORE = "기술 수준 +0x3120 · 세계 시장 여론 +0x3004 +0x3008 +0x3020 · 관계 +0x4000 +0x5000 전쟁 명분 +0x6000"
+FOUND_MORE = ("기술 수준 +0x3120 · 세계 시장 여론 +0x3004 +0x3008 +0x3020 · 관계 +0x4000 +0x5000 전쟁 명분 +0x6000"
+              " · 인구 +0x3200 +0x3218 +0x321C · 지지율 +0x31F0")
 
 
 def test_startup_finds_more_without_any_cheat(lib, all_sigs, more_sigs, tmp_path, monkeypatch):
     state, values = all_sigs
     flags, off, log = init_more(lib, toybox_fake_exe.sig_image(state + values + more_sigs), tmp_path, monkeypatch)
-    assert flags == READS | WRITES | CAN_TECH | CAN_OPINION | CAN_RELATIONS and off == ["", "", ""]
+    assert flags == READS | WRITES | CAN_TECH | CAN_OPINION | CAN_RELATIONS | CAN_PEOPLE | CAN_APPROVAL and off == ["", "", ""]
     assert f"값을 더 씁니다 ({FOUND_MORE})" in log
     unwritable = [line.split(" ", 2)[2] for line in log.splitlines() if "쓸 수 없습니다" in line]
     assert unwritable == ["연구를 쓸 수 없습니다 (기술 표: 서명 3개 가운데 0개)"]      # 이 이미지에 연구의 서명은 넣지 않았다
@@ -494,9 +495,9 @@ def test_startup_drops_only_the_group_it_cannot_find(lib, all_sigs, more_sigs, t
     first = len(state) + len(values) + 3 * 4                  # 관계 표 1 의 서명 셋 가운데 앞의 둘
     image = toybox_fake_exe.sig_image(state + values + more_sigs, broken={first, first + 1})
     flags, off, log = init_more(lib, image, tmp_path, monkeypatch)
-    assert flags == READS | WRITES | CAN_TECH | CAN_OPINION
+    assert flags == READS | WRITES | CAN_TECH | CAN_OPINION | CAN_PEOPLE | CAN_APPROVAL
     assert off == ["", "", "이 게임 판에서는 쓸 수 없습니다 (관계 표 1: 서명 3개 가운데 1개)"]
-    assert "값을 더 씁니다 (기술 수준 +0x3120 · 세계 시장 여론 +0x3004 +0x3008 +0x3020)" in log
+    assert "값을 더 씁니다 (기술 수준 +0x3120 · 세계 시장 여론 +0x3004 +0x3008 +0x3020 · 인구 +0x3200 +0x3218 +0x321C · 지지율 +0x31F0)" in log
     assert "관계를 쓸 수 없습니다 (관계 표 1: 서명 3개 가운데 1개)" in log
     assert "맞지 않은 서명" not in log                         # 못 찾은 묶음의 서명을 줄줄이 적지 않는다
 
@@ -515,7 +516,7 @@ def test_startup_finds_more_when_money_and_stock_are_not_found(lib, all_sigs, mo
     """묶음은 서로 기대지 않는다: 값 묶음(돈 · 물자)을 못 찾아도 더 쓰는 값은 찾아서 쓴다."""
     state, _values = all_sigs
     flags, off, log = init_more(lib, toybox_fake_exe.sig_image(state + more_sigs), tmp_path, monkeypatch)
-    assert flags == READS | CAN_TECH | CAN_OPINION | CAN_RELATIONS and off == ["", "", ""]
+    assert flags == READS | CAN_TECH | CAN_OPINION | CAN_RELATIONS | CAN_PEOPLE | CAN_APPROVAL and off == ["", "", ""]
     assert "값을 쓸 수 없습니다 (세계 자료 포인터" in log and f"값을 더 씁니다 ({FOUND_MORE})" in log
 
 
@@ -531,7 +532,7 @@ def test_startup_drops_a_group_that_sits_on_the_treasury(lib, all_sigs, more_sig
     state, values = all_sigs
     image = toybox_fake_exe.sig_image(state + values + more_sigs, targets={"tech": 0x1234})
     flags, off, log = init_more(lib, image, tmp_path, monkeypatch)
-    assert flags == READS | WRITES | CAN_OPINION | CAN_RELATIONS
+    assert flags == READS | WRITES | CAN_OPINION | CAN_RELATIONS | CAN_PEOPLE | CAN_APPROVAL
     assert off[0] == "이 게임 판에서는 쓸 수 없습니다 (기술 수준 칸: 찾은 자리가 국고 칸이나 재고 칸과 겹칩니다)"
     assert "기술 수준을 쓸 수 없습니다 (기술 수준 칸: 찾은 자리가 국고 칸이나 재고 칸과 겹칩니다)" in log
 
@@ -992,3 +993,28 @@ def test_a_failed_tech_write_says_so(lib, game, tmp_path):
     lib.srtoybox_keeper_tick()
     assert game.tech(176) == 130.0 and game.opinion(176) == [0.5, 0.25, 0.75]
     assert logged(tmp_path) == ["값 쓰기 실패 (기술 수준) — 값 쓰기를 끕니다"] and told(lib)[0] == ""
+
+
+def test_people_and_approval_are_written_to_the_players_region_only(lib):
+    """3단계 4: 인구 +100만은 플레이어의 세 칸(내장 치트 populate 가 올리던 칸)에 같은 수를 더하고, 지지율은 한 칸에 1.0 을 쓴다.
+    다른 나라의 객체 · 플레이어의 다른 칸은 한 바이트도 바뀌지 않는다."""
+    fake = germany()
+    fake.set_people(176, (82615760.0, 5e7, 3e7), 0.387)
+    fake.set_people(141, (38e6, 2e7, 1e7), 0.5)
+    before = everything(fake)
+    assert write_more(lib, fake, PEOPLE_ADD, value=1e6) == (DONE, 3)
+    assert more(lib, fake)["people"] == "83615760,51000000,31000000"
+    assert write_more(lib, fake, APPROVAL_BEST) == (DONE, 1)
+    assert more(lib, fake)["approval"] == "1"
+    cells = set().union(*(where(fake, 176, MORE[name]) for name in ("people0", "people1", "people2", "approval")))
+    assert changed(before, everything(fake)) <= cells
+
+
+def test_people_are_not_written_when_a_cell_is_not_a_number_or_the_place_is_unknown(lib):
+    fake = germany()
+    fake.set_people(176, (82615760.0, float("nan"), 3e7), 0.387)
+    before = everything(fake)
+    assert write_more(lib, fake, PEOPLE_ADD, value=1e6) == (BAD_VALUE, 0)                   # 세 칸 가운데 하나가 수가 아니다 — 하나도 쓰지 않는다
+    assert write_more(lib, fake, PEOPLE_ADD, value=1e6, layout=toybox.MoreLayout(**{**MORE, "people2": 0})) == (OFF, 0)
+    assert write_more(lib, fake, APPROVAL_BEST, layout=toybox.MoreLayout(**{**MORE, "approval": 0})) == (OFF, 0)
+    assert everything(fake) == before

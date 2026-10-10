@@ -264,6 +264,7 @@ def test_peek_reads_tech_opinion_and_the_relation_with_one_region(gd):
     fake.set_tech(176, 130.0)
     fake.set_tech(141, 128.0)
     fake.set_opinion(176, (0.5, 0.25, 0.75))
+    fake.set_people(176, (82615760.0, 5e7, 3e7), 0.375)
     fake.set_relation(176, 141, (0.25, -0.5, 0.75))           # 독일 객체의 표에서 폴란드의 칸
     fake.set_relation(141, 176, (0.125, 0.5, 1.0))            # 폴란드 객체의 표에서 독일의 칸
     before = fake.snapshot(176) + fake.snapshot(141)
@@ -272,10 +273,13 @@ def test_peek_reads_tech_opinion_and_the_relation_with_one_region(gd):
         return struct.unpack(fmt, ctypes.string_at(address, struct.calcsize(fmt)))[0]
 
     germany, poland = fake.where[176], fake.where[141]
-    assert gd.peek_more(read, MORE, germany, 176, germany) == {"tech": 130.0, "opinion": [0.5, 0.25, 0.75]}
+    assert gd.peek_more(read, MORE, germany, 176, germany) == {
+        "tech": 130.0, "opinion": [0.5, 0.25, 0.75], "people": [82615760.0, 5e7, 3e7], "approval": 0.375}
     assert gd.peek_more(read, MORE, germany, 176, poland) == {
-        "tech": 128.0, "opinion": [0.0, 0.0, 0.0], "relations": {"mine": [0.25, -0.5, 0.75], "theirs": [0.125, 0.5, 1.0]}}
-    assert gd.peek_more(read, {**MORE, "tech": 0, "relation0": 0}, germany, 176, poland) == {"opinion": [0.0, 0.0, 0.0]}
+        "tech": 128.0, "opinion": [0.0, 0.0, 0.0], "people": [0.0, 0.0, 0.0], "approval": 0.0,
+        "relations": {"mine": [0.25, -0.5, 0.75], "theirs": [0.125, 0.5, 1.0]}}
+    assert gd.peek_more(read, {**MORE, "tech": 0, "relation0": 0, "people0": 0, "approval": 0}, germany, 176, poland) == {
+        "opinion": [0.0, 0.0, 0.0]}
     assert gd.peek_more(read, dict.fromkeys(MORE, 0), germany, 176, poland) == {}
     assert fake.snapshot(176) + fake.snapshot(141) == before
 

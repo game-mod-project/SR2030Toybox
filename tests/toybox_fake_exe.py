@@ -24,7 +24,7 @@ VALUE_LAYOUT = {"world_pointer": DATA + 0x40, "treasury": 0x1230, "stock_first":
                 "used_first": 0x28, "used_step": 0x44}
 # 새 찾기(더 쓰는 값)의 가짜 자리 — 지역 객체 안의 자리다(이미지 안이 아니다). 표 셋은 저마다 0x1000(4바이트 × 1024칸)을 차지한다
 MORE = {"tech": 0x3120, "opinion0": 0x3004, "opinion1": 0x3008, "opinion2": 0x3020, "relation0": 0x4000, "relation1": 0x5000,
-        "casus": 0x6000}
+        "casus": 0x6000, "people0": 0x3200, "people1": 0x3218, "people2": 0x321C, "approval": 0x31F0}
 # 새 찾기(연구)의 가짜 값. 세계 객체의 서명은 (주소, 지역 표까지의 거리)를 함께 읽는다. 연구 목록은 세계 객체 안의 자리다 —
 # 지역 표(WORLD + 0x80 부터 0x2000 바이트)의 뒤, 0x6000 바이트
 RESEARCH = {"tech_table": DATA + 0x48, "tech_count": DATA + 0x50, "design_table": DATA + 0x58, "design_count": DATA + 0x54,
@@ -116,7 +116,9 @@ def sig_image(sigs: list[tuple[str, str]], *, broken=(), twice=(), stray=(), tar
     for i, (name, text) in enumerate(sigs):
         if i in broken:
             continue
-        place = places.setdefault(shape(text), PLANT + 0x40 * len(places))
+        # 심는 곳은 64칸(0x40 바이트씩)이다. 그것을 넘는 서명은 명령 처리 함수와 부르는 함수 사이의 빈 곳(TEXT + 0x200 부터 24칸)에 심는다
+        place = places.setdefault(shape(text), PLANT + 0x40 * len(places) if len(places) < 64 else TEXT + 0x200 + 0x40 * (len(places) - 64))
+        assert place < PLANT + 0x1000 and (place >= PLANT or place + 0x40 <= CALLER), "서명을 심을 자리가 모자란다"
         plant(image, place, text, beside(at[name]) if i in stray else at[name])
         if i in twice:
             plant(image, AGAIN + 0x40 * i, text, at[name])

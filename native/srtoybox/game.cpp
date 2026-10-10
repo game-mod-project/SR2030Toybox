@@ -350,10 +350,13 @@ std::string off_text(bool found, const char *why)
     return std::string();
 }
 
-// 묶음의 비트 → 까닭이 든 줄(0 지식, 1 여론, 2 관계). 묶음이 아니면 -1.
+// 묶음의 비트 → 까닭이 든 줄(0 지식, 1 여론, 2 관계, 3 인구, 4 지지율). 묶음이 아니면 -1.
 int more_index(int group)
 {
-    return group == MORE_TECH ? 0 : group == MORE_OPINION ? 1 : group == MORE_RELATIONS ? 2 : -1;
+    for (int g = 0; g < MORE_GROUPS; g++)
+        if (group == 1 << g)
+            return g;
+    return -1;
 }
 
 // 지금의 "게임"과 더 쓰는 값의 자리. 그 묶음을 쓸 수 없으면 false.
@@ -754,8 +757,11 @@ GameMore read_more(const uint8_t *base, const GameAddresses &at, const MoreLayou
     if (!read_player(base, at, &object).in_game || (more.tech != 0 && !peek_in(object, more.tech, &v.tech)))
         return v;
     for (int i = 0; i < 3; i++)
-        if (more.opinion[i] != 0 && !peek_in(object, more.opinion[i], &v.opinion[i]))
+        if ((more.opinion[i] != 0 && !peek_in(object, more.opinion[i], &v.opinion[i]))
+            || (more.people[i] != 0 && !peek_in(object, more.people[i], &v.people[i])))
             return v;
+    if (more.approval != 0 && !peek_in(object, more.approval, &v.approval))
+        return v;
     v.ok = true;
     return v;
 }
@@ -788,6 +794,38 @@ Wrote write_tech(const uint8_t *base, const GameAddresses &at, const MoreLayout 
     if (!s.in_game || s.multiplayer)
         return Wrote::NotInGame;
     return poke(object + more.tech, &value, sizeof(value)) ? Wrote::Done : Wrote::Failed;
+}
+
+Wrote write_people(const uint8_t *base, const GameAddresses &at, const MoreLayout &more, float add, int *done)
+{
+    uint64_t object = 0, cells[3];
+    float values[3];
+    *done = 0;
+    if (more.people[0] == 0 || more.people[1] == 0 || more.people[2] == 0)
+        return Wrote::Off;
+    const GameState s = read_player(base, at, &object);
+    if (!s.in_game || s.multiplayer)
+        return Wrote::NotInGame;
+    for (int i = 0; i < 3; i++) {
+        cells[i] = object + more.people[i];
+        if (!peek(reinterpret_cast<const void *>(cells[i]), &values[i], sizeof(float)) || !std::isfinite(values[i]) || values[i] < 0.0f
+            || !std::isfinite(values[i] + add))
+            return Wrote::BadValue;
+        values[i] += add;
+    }
+    return poke_floats(cells, values, 3, done);
+}
+
+Wrote write_approval(const uint8_t *base, const GameAddresses &at, const MoreLayout &more)
+{
+    uint64_t object = 0;
+    const float best = 1.0f;
+    if (more.approval == 0)
+        return Wrote::Off;
+    const GameState s = read_player(base, at, &object);
+    if (!s.in_game || s.multiplayer)
+        return Wrote::NotInGame;
+    return poke(object + more.approval, &best, sizeof(best)) ? Wrote::Done : Wrote::Failed;
 }
 
 Wrote write_opinion(const uint8_t *base, const GameAddresses &at, const MoreLayout &more, int *done)
@@ -1045,9 +1083,10 @@ void game_init_from(const uint8_t *base, size_t size)
         log_unmatched(value_rows, VALUE_WANTED * STATE_SIGS);
     }
     static const char *const MISSING[MORE_GROUPS] = {"기술 수준을 쓸 수 없습니다 (%s)", "세계 시장 여론을 쓸 수 없습니다 (%s)",
-                                                     "관계를 쓸 수 없습니다 (%s)"};
+                                                     "관계를 쓸 수 없습니다 (%s)", "인구를 쓸 수 없습니다 (%s)",
+                                                     "지지율을 쓸 수 없습니다 (%s)"};
     if (groups != 0) {
-        char found[160] = "";
+        char found[256] = "";
         size_t used = 0;
         const auto add = [&](const char *format, uint32_t a, uint32_t b, uint32_t c) {
             used += static_cast<size_t>(snprintf(found + used, sizeof(found) - used, format, used == 0 ? "" : " · ", a, b, c));
@@ -1058,6 +1097,10 @@ void game_init_from(const uint8_t *base, size_t size)
             add("%s세계 시장 여론 +0x%X +0x%X +0x%X", more.opinion[0], more.opinion[1], more.opinion[2]);
         if (groups & MORE_RELATIONS)
             add("%s관계 +0x%X +0x%X 전쟁 명분 +0x%X", more.relation[0], more.relation[1], more.casus);
+        if (groups & MORE_PEOPLE)
+            add("%s인구 +0x%X +0x%X +0x%X", more.people[0], more.people[1], more.people[2]);
+        if (groups & MORE_APPROVAL)
+            add("%s지지율 +0x%X", more.approval, 0, 0);
         log_line(write_wanted() ? "값을 더 씁니다 (%s)" : "값을 더 쓰지 않습니다 (SRTOYBOX_WRITE=0. %s)", found);
     }
     for (int g = 0; g < MORE_GROUPS; g++)
@@ -1154,7 +1197,9 @@ void game_set_more_for_test(const MoreLayout *layout)
     g_more = layout != nullptr ? *layout : MoreLayout();
     g_more_groups = (g_more.tech != 0 ? MORE_TECH : 0)
         | (g_more.opinion[0] != 0 && g_more.opinion[1] != 0 && g_more.opinion[2] != 0 ? MORE_OPINION : 0)
-        | (g_more.relation[0] != 0 && g_more.relation[1] != 0 && g_more.casus != 0 ? MORE_RELATIONS : 0);
+        | (g_more.relation[0] != 0 && g_more.relation[1] != 0 && g_more.casus != 0 ? MORE_RELATIONS : 0)
+        | (g_more.people[0] != 0 && g_more.people[1] != 0 && g_more.people[2] != 0 ? MORE_PEOPLE : 0)
+        | (g_more.approval != 0 ? MORE_APPROVAL : 0);
     g_write_failed = false;
 }
 
@@ -1249,6 +1294,29 @@ Wrote game_write_opinion()
         return Wrote::Off;
     const Wrote wrote = write_opinion(base, at, more, &done);
     return wrote == Wrote::Failed ? write_failed("세계 시장 여론", 3, done) : wrote;
+}
+
+Wrote game_write_people(float add)
+{
+    const uint8_t *base = nullptr;
+    GameAddresses at = {};
+    MoreLayout more = {};
+    int done = 0;
+    if (!more_ready(MORE_PEOPLE, &base, &at, &more))
+        return Wrote::Off;
+    const Wrote wrote = write_people(base, at, more, add, &done);
+    return wrote == Wrote::Failed ? write_failed("인구", 3, done) : wrote;
+}
+
+Wrote game_write_approval()
+{
+    const uint8_t *base = nullptr;
+    GameAddresses at = {};
+    MoreLayout more = {};
+    if (!more_ready(MORE_APPROVAL, &base, &at, &more))
+        return Wrote::Off;
+    const Wrote wrote = write_approval(base, at, more);
+    return wrote == Wrote::Failed ? write_failed("지지율", 1, 0) : wrote;
 }
 
 Wrote game_write_relation(int number, float level)

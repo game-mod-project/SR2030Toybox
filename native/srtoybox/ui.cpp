@@ -92,7 +92,8 @@ std::string asking_label(const Feature &f, int region)
 bool direct_row(const Feature &f, const GameState &game, bool compact)
 {
     const bool research = f.direct == Direct::TechLevel || f.direct == Direct::QueueDone;   // 연구의 두 줄은 제 묶음(연구)을 본다
-    const int group = f.direct == Direct::TechUp ? MORE_TECH : f.direct == Direct::OpinionBest ? MORE_OPINION : MORE_RELATIONS;
+    const int group = f.direct == Direct::TechUp ? MORE_TECH : f.direct == Direct::OpinionBest ? MORE_OPINION
+        : f.direct == Direct::PeopleAdd ? MORE_PEOPLE : f.direct == Direct::ApprovalBest ? MORE_APPROVAL : MORE_RELATIONS;
     const std::string off = !game.known ? std::string("게임 상태를 읽을 수 있을 때만 씁니다.")
         : research ? game_research_off() : game_more_off(group);
     ImGui::PushID(f.id);
@@ -132,6 +133,10 @@ bool direct_row(const Feature &f, const GameState &game, bool compact)
             Request request = {TECH, Change::Set, 0.0, 0};
             if (f.direct == Direct::OpinionBest)
                 request.slot = OPINION;
+            else if (f.direct == Direct::PeopleAdd)
+                request = {PEOPLE, Change::Add, 1e6, 0};
+            else if (f.direct == Direct::ApprovalBest)
+                request.slot = APPROVAL;
             else if (f.direct != Direct::TechUp)
                 request = {RELATION, Change::Set, f.direct == Direct::RelationBest ? 1.0 : 0.0, g_picked};
             g_confirm.clear();

@@ -72,17 +72,19 @@ bool locate_values(const uint8_t *image, size_t size, ValueLayout *out, SigRow *
 // 겹치면 false 와 why(UTF-8) — 값 묶음을 못 찾은 것으로 친다(상태 묶음은 그대로 쓴다).
 bool locate_fits(const GameAddresses &state, const ValueLayout &values, char *why, size_t why_size);
 
-// 더 쓰는 값(3단계 2): 모두 지역 객체 안의 자리(float)다. 필드는 서명 표의 순서대로 uint32_t 일곱이다.
+// 더 쓰는 값(3단계 2 · 4): 모두 지역 객체 안의 자리(float)다. 필드는 서명 표의 순서대로 uint32_t 열하나다.
 struct MoreLayout {
     uint32_t tech;             // [지식] 기술 수준
     uint32_t opinion[3];       // [여론] 세계 시장 여론과 그 둘레의 세 칸
     uint32_t relation[2];      // [관계] 지역 인덱스로 찾는 표 둘의 첫 칸: 그 지역과의 관계(-1 … 1)
     uint32_t casus;            // [관계] 같은 꼴의 표: 그 지역에 대한 전쟁 명분(0 … 1)
+    uint32_t people[3];        // [인구] 인구와, 내장 치트(populate)가 함께 올리던 두 칸
+    uint32_t approval;         // [지지율] 국내 지지율(0 … 1)
 };
 
-const int MORE_TECH = 1, MORE_OPINION = 2, MORE_RELATIONS = 4;   // 묶음의 비트
-const int MORE_GROUPS = 3;      // 묶음의 수(지식 · 여론 · 관계 순)
-const int MORE_WANTED = 7;      // 찾을 것의 수: 기술 수준 칸, 여론 칸 셋, 관계 표 둘, 전쟁 명분 표
+const int MORE_TECH = 1, MORE_OPINION = 2, MORE_RELATIONS = 4, MORE_PEOPLE = 8, MORE_APPROVAL = 16;   // 묶음의 비트
+const int MORE_GROUPS = 5;      // 묶음의 수(지식 · 여론 · 관계 · 인구 · 지지율 순)
+const int MORE_WANTED = 11;     // 찾을 것의 수: 기술 수준 칸, 여론 칸 셋, 관계 표 둘, 전쟁 명분 표, 인구 칸 셋, 지지율 칸
 const int REGION_SLOTS = 1024;  // 지역 표의 칸 수 = 관계 표 하나의 칸 수
 const size_t MORE_WHY = 160;    // 까닭 한 줄의 크기
 

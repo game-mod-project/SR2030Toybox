@@ -23,6 +23,8 @@ enum class Direct {
     RelationNeutral,   // 고른 나라와의 관계 중립, 전쟁 명분 0(〃)
     TechLevel,         // 입력한 수준 이하의 기술을 모두 플레이어의 보유로(선행 기술 포함)
     QueueDone,         // 플레이어의 대기열에 있는 기술 · 부대 설계를 모두 보유로 만들고 대기열에서 뺀다
+    PeopleAdd,         // 플레이어의 인구 +100만(3단계 4)
+    ApprovalBest,      // 플레이어의 국내 지지율 100%(3단계 4)
 };
 
 struct Feature {

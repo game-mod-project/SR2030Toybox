@@ -15,6 +15,8 @@ const int TREASURY = -1;                       // Request.slot: 국고. 0 … ST
 const int ALL_STOCK = -2;                      // Request.slot: 이번 판에서 쓰는 물자 모두 — 쓸 때 칸마다의 요청으로 풀린다
 const int TECH = -3;                           // Request.slot: 기술 수준에 1 을 더한다(change · amount 는 보지 않는다)
 const int OPINION = -4;                        // Request.slot: 세계 시장 여론의 세 칸을 최고(1.0)로(〃)
+const int PEOPLE = -6;                         // Request.slot: 인구의 세 칸에 amount(명)를 더한다(change 는 보지 않는다)
+const int APPROVAL = -7;                       // Request.slot: 국내 지지율을 100% 로(change · amount 는 보지 않는다)
 const int RELATION = -5;                       // Request.slot: region 의 나라와의 관계를 amount 로, 전쟁 명분을 0 으로(change 는 보지 않는다)
 
 struct Request {

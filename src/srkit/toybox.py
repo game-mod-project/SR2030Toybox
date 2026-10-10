@@ -48,13 +48,14 @@ VALUE_NAMES = {"world_pointer": "세계 자료 객체의 포인터(qword. 이것
                "used_first": "\"쓰는 물자\" 표의 첫 칸 — 세계 자료 객체 안의 자리(float. 0 보다 크면 쓴다)", "used_step": "그 표의 간격"}
 STOCK_SLOTS = 12        # 재고의 칸 수(native/srtoybox/locate.h 의 STOCK_SLOTS)
 # 새 찾기(서명)가 채우는 "더 쓰는 값" — native/srtoybox/locate.h 의 MoreLayout 과 같은 순서다. 모두 지역 객체 안의 자리(float)
-MORE_FIELDS = ["tech", "opinion0", "opinion1", "opinion2", "relation0", "relation1", "casus"]
+MORE_FIELDS = ["tech", "opinion0", "opinion1", "opinion2", "relation0", "relation1", "casus", "people0", "people1", "people2", "approval"]
 MORE_NAMES = {"tech": "기술 수준 칸", "opinion0": "세계 시장 여론의 칸 1", "opinion1": "세계 시장 여론의 칸 2",
               "opinion2": "세계 시장 여론의 칸 3", "relation0": "관계 표 1 의 첫 칸(지역 인덱스 × 4 를 더한다)",
-              "relation1": "관계 표 2 의 첫 칸", "casus": "전쟁 명분 표의 첫 칸"}
+              "relation1": "관계 표 2 의 첫 칸", "casus": "전쟁 명분 표의 첫 칸",
+              "people0": "인구", "people1": "인구 칸 2", "people2": "인구 칸 3", "approval": "국내 지지율"}
 # 묶음: 기능마다 따로 찾고 따로 꺼진다 — (이름, 그 묶음의 필드들). locate.h 의 MORE_TECH · MORE_OPINION · MORE_RELATIONS 순서다
 MORE_GROUPS = [("기술 수준", ["tech"]), ("세계 시장 여론", ["opinion0", "opinion1", "opinion2"]),
-               ("관계", ["relation0", "relation1", "casus"])]
+               ("관계", ["relation0", "relation1", "casus"]), ("인구", ["people0", "people1", "people2"]), ("지지율", ["approval"])]
 # 새 찾기(서명)가 채우는 연구 묶음 — native/srtoybox/locate.h 의 ResearchLayout 과 같은 순서다
 RESEARCH_FIELDS = ["tech_table", "tech_count", "design_table", "design_count", "world", "lists", "recompute"]
 RESEARCH_NAMES = {"tech_table": "기술 표의 포인터(qword)", "tech_count": "기술 표의 자리 수(dword)",
