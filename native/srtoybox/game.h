@@ -7,9 +7,12 @@
 //   플레이어의 연구 목록 노드의 깃발 두 칸.
 // 그 밖의 지역 · 다른 칸 · 전역 · 치트 허용 비트에는 쓰지 않는다. 기술 표와 부대 설계 표는 모든 나라가 함께 쓰는 표다 — 거기에 쓰는 것은
 // 플레이어의 비트와, 플레이어의 비트 하나만 켜질 빈 묶음을 거는 것뿐이다(다른 나라의 비트 · 연구 기간 · 비용은 건드리지 않는다).
-// 게임의 함수는 둘만 부른다(둘 다 치트가 아니다 — 게임이 스스로도 부르는 함수):
+// 게임의 함수는 셋만 부른다(모두 치트가 아니다 — 게임이 스스로도 부르는 함수):
 //   "지역의 효과를 다시 셈" — 플레이어 지역에 대해서만(연구가 끝날 때 게임이 부르는 것).
 //   "식민지화"(3단계 4) — (플레이어의 지역 객체, 고른 나라의 인덱스, 1) 로 한 번. 사용자가 정했다(2026-10-10).
+//   "전쟁"(3단계 4) — (지도에서 고른 나라의 지역 객체, 1, 목록에서 고른 나라의 인덱스, 0, 0) 로 한 번. 사용자가 정했다(2026-10-10).
+//   플레이어가 두 나라 가운데 하나여도 막지 않는다(내장 치트와 같다 — 사용자가 정했다).
+// 읽기만 하는 전역이 하나 더 있다: "지도에서 고른 지역"(전쟁의 첫째 나라).
 #pragma once
 
 #include <cstdint>
@@ -155,14 +158,20 @@ Wrote game_write_people(float add);
 Wrote game_write_approval();
 Wrote game_write_relation(int number, float level);
 
-// 게임의 함수를 부르는 기능(ACT_COLONIZE)을 쓸 수 없는 까닭(창에 그대로 보인다). 쓸 수 있으면 빈 글. 다른 묶음과 따로다.
+// 게임의 함수를 부르는 기능(ACT_COLONIZE · ACT_FIGHT)을 쓸 수 없는 까닭(창에 그대로 보인다). 쓸 수 있으면 빈 글. 다른 묶음과 따로다.
 std::string game_act_off(int act);
 // 고른 나라(지역 번호)를 플레이어의 식민지로: 게임의 함수를 (플레이어의 지역 객체, 그 나라의 인덱스, 1) 로 한 번 부른다 — 구조적 예외 가드 안에서.
 // 부르기 전에 본다: 진행 중 · 멀티플레이가 아니다 · 그 나라가 이번 판에 있고 플레이어가 아니다(NotInGame · NoTarget).
 // 함수 안에서 예외가 나면 Wrote::Crashed 와 code — 부른 쪽이 오류 가드를 건다(runner_win.h).
 Wrote game_colonize(int number, unsigned long *code);
-// 테스트: 부르는 함수의 자리를 준다(colonize 는 그 자리에 둘 함수). nullptr 이면 못 찾은 것으로.
-void game_set_acts_for_test(const ActLayout *layout, void *colonize);
+// 게임의 지도에서 고른 지역의 번호(읽기만). 고른 것이 없거나 이번 판에 없는 지역이거나 읽을 수 없으면 0.
+int game_map_pick();
+// 지도에서 고른 나라(attacker)와 목록에서 고른 나라(target)를 싸움 붙인다: 게임의 함수를
+// (attacker 의 지역 객체, 1, target 의 인덱스, 0, 0) 로 한 번 부른다 — 구조적 예외 가드 안에서.
+// 부르기 전에 본다: 진행 중 · 멀티플레이가 아니다 · 두 나라가 이번 판에 있고 서로 다르다(NotInGame · NoTarget). 플레이어여도 막지 않는다.
+Wrote game_fight(int attacker, int target, unsigned long *code);
+// 테스트: 부르는 함수의 자리를 준다(colonize · fight 는 그 자리에 둘 함수, layout->map_pick 은 "게임"의 그 자리). nullptr 이면 못 찾은 것으로.
+void game_set_acts_for_test(const ActLayout *layout, void *colonize, void *fight);
 
 // 연구를 쓸 수 없는 까닭(창에 그대로 보인다). 쓸 수 있으면 빈 글. 다른 묶음과 따로다.
 std::string game_research_off();

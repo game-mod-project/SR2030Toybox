@@ -42,6 +42,8 @@ bool g_research_found;        // 그것을 찾았다
 char g_research_why[200];     // 못 찾은 까닭
 void *g_recompute;            // 게임의 "지역의 효과를 다시 셈"
 void *g_colonize;             // 게임의 "식민지화"(못 찾았으면 nullptr)
+void *g_fight;                // 게임의 "전쟁"(〃)
+uint32_t g_map_pick;          // "지도에서 고른 지역"의 포인터가 든 전역(RVA. 못 찾았으면 0)
 char g_act_why[ACT_WANTED][MORE_WHY];   // 부르는 함수마다 못 찾은 까닭
 
 typedef void (*Handler)(void *context, const char *line);
@@ -98,6 +100,20 @@ bool guarded_colonize(Colonize colonize, void *region, int other, unsigned long 
 {
     __try {
         colonize(region, other, true);
+        return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        *code = GetExceptionCode();
+        return false;
+    }
+}
+
+typedef void (*Fight)(void *region, bool a, int other, bool b, bool c);
+
+// 게임의 "전쟁"을 부른다. 예외는 잡아 code 에 적는다.
+bool guarded_fight(Fight fight, void *region, int other, unsigned long *code)
+{
+    __try {
+        fight(region, true, other, false, false);
         return true;
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         *code = GetExceptionCode();
@@ -1086,6 +1102,8 @@ void game_init_from(const uint8_t *base, size_t size)
         snprintf(g_research_why, sizeof(g_research_why), "%s", research_why);
         g_recompute = researching ? const_cast<uint8_t *>(base) + research.recompute : nullptr;
         g_colonize = (acting & ACT_COLONIZE) != 0 ? const_cast<uint8_t *>(base) + acts.colonize : nullptr;
+        g_fight = (acting & ACT_FIGHT) != 0 ? const_cast<uint8_t *>(base) + acts.fight : nullptr;
+        g_map_pick = (acting & ACT_MAP_PICK) != 0 ? acts.map_pick : 0;
         memcpy(g_act_why, act_why, sizeof(g_act_why));
     }
     if (state) {
@@ -1093,6 +1111,10 @@ void game_init_from(const uint8_t *base, size_t size)
             log_line("게임의 함수를 부릅니다 (식민지화 +0x%X)", acts.colonize);
         else
             log_line("식민지화를 쓸 수 없습니다 (%s)", act_why[0]);
+        if ((acting & ACT_FIGHT) != 0 && (acting & ACT_MAP_PICK) != 0)
+            log_line("게임의 함수를 부릅니다 (전쟁 +0x%X, 지도에서 고른 지역 +0x%X)", acts.fight, acts.map_pick);
+        else
+            log_line("전쟁 붙이기를 쓸 수 없습니다 (%s)", (acting & ACT_FIGHT) == 0 ? act_why[1] : act_why[2]);
     }
     if (!state) {
         log_line("게임 상태를 읽을 수 없습니다 (%s) — 글쇠 방식", why);
@@ -1200,8 +1222,10 @@ void game_set_for_test(const uint8_t *base, const GameAddresses *at, void *handl
     g_research = ResearchLayout();
     g_research_found = false;
     g_recompute = nullptr;
-    g_colonize = nullptr;
-    snprintf(g_act_why[0], MORE_WHY, "%s", "함수의 자리를 주지 않았습니다");
+    g_colonize = g_fight = nullptr;
+    g_map_pick = 0;
+    for (int w = 0; w < ACT_WANTED; w++)
+        snprintf(g_act_why[w], MORE_WHY, "%s", "함수의 자리를 주지 않았습니다");
     snprintf(g_research_why, sizeof(g_research_why), "연구의 자리를 주지 않았습니다");
 }
 
@@ -1417,9 +1441,59 @@ bool game_research(int picked, ResearchTables *out, std::string *why)
 std::string game_act_off(int act)
 {
     std::lock_guard<std::mutex> lock(g_lock);
-    if (act != ACT_COLONIZE)
-        return "없는 기능입니다";
-    return off_text(g_colonize != nullptr, g_act_why[0]);
+    if (act == ACT_COLONIZE)
+        return off_text(g_colonize != nullptr, g_act_why[0]);
+    if (act == ACT_FIGHT)                      // 함수와 "지도에서 고른 지역"을 둘 다 찾아야 한다
+        return off_text(g_fight != nullptr && g_map_pick != 0, g_fight == nullptr ? g_act_why[1] : g_act_why[2]);
+    return "없는 기능입니다";
+}
+
+int game_map_pick()
+{
+    const uint8_t *base = nullptr;
+    GameAddresses at = {};
+    uint32_t where = 0;
+    {
+        std::lock_guard<std::mutex> lock(g_lock);
+        if (!g_located || !reading_wanted() || g_map_pick == 0)
+            return 0;
+        base = g_base;
+        at = g_at;
+        where = g_map_pick;
+    }
+    uint64_t player = 0, pointer = 0, slot = 0;
+    uint16_t index = 0;
+    Region region = {};
+    const GameState s = read_player(base, at, &player);
+    if (!s.in_game || !peek_at(base, where, &pointer) || pointer == 0 || !peek(reinterpret_cast<const void *>(pointer), &index, sizeof(index))
+        || index < 1 || index > s.regions || !peek_at(base, at.region_table + 8ull * index, &slot) || !peek_region(slot, &region)
+        || !usable(region, index) || !in_play(region))
+        return 0;
+    return region.number;
+}
+
+Wrote game_fight(int attacker, int target, unsigned long *code)
+{
+    *code = 0;
+    if (!game_act_off(ACT_FIGHT).empty())
+        return Wrote::Off;
+    const uint8_t *base = nullptr;
+    GameAddresses at = {};
+    Fight fight = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(g_lock);
+        base = g_base;
+        at = g_at;
+        fight = reinterpret_cast<Fight>(g_fight);
+    }
+    uint64_t player = 0, first = 0, second = 0;
+    int a = 0, b = 0;
+    const GameState s = read_player(base, at, &player);
+    if (!s.in_game || s.multiplayer)
+        return Wrote::NotInGame;
+    if (attacker == target || !find_region(base, at, attacker, &first, &a) || !find_region(base, at, target, &second, &b))
+        return Wrote::NoTarget;
+    return guarded_fight(fight, reinterpret_cast<void *>(first), b, code) ? Wrote::Done : Wrote::Crashed;
 }
 
 Wrote game_colonize(int number, unsigned long *code)
@@ -1444,11 +1518,15 @@ Wrote game_colonize(int number, unsigned long *code)
     return guarded_colonize(colonize, reinterpret_cast<void *>(mine), them, code) ? Wrote::Done : Wrote::Crashed;
 }
 
-void game_set_acts_for_test(const ActLayout *layout, void *colonize)
+void game_set_acts_for_test(const ActLayout *layout, void *colonize, void *fight)
 {
     std::lock_guard<std::mutex> lock(g_lock);
     g_colonize = layout != nullptr ? colonize : nullptr;
-    snprintf(g_act_why[0], MORE_WHY, "%s", layout != nullptr ? "" : "함수의 자리를 주지 않았습니다");
+    g_fight = layout != nullptr ? fight : nullptr;
+    g_map_pick = layout != nullptr ? layout->map_pick : 0;
+    snprintf(g_act_why[0], MORE_WHY, "%s", g_colonize != nullptr ? "" : "함수의 자리를 주지 않았습니다");
+    snprintf(g_act_why[1], MORE_WHY, "%s", g_fight != nullptr ? "" : "함수의 자리를 주지 않았습니다");
+    snprintf(g_act_why[2], MORE_WHY, "%s", g_map_pick != 0 ? "" : "함수의 자리를 주지 않았습니다");
 }
 
 Wrote game_write_research(Research action, const ResearchWhat &what, ResearchDone *done)

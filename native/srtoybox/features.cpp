@@ -27,7 +27,7 @@ const Feature FEATURES[] = {
     {"annex", "외교·영토", "병합", "고른 나라의 땅이 내 영토가 된다", "cheat annex", false, 0, 0, 0, true, Target::Picked},
     {"colonize", "외교·영토", "식민지화", "고른 나라가 내 식민지이자 동맹국이 된다", "", false, 0, 0, 0, true, Target::Picked, Direct::Colonize},
     {"novichok", "외교·영토", "지도자 제거", "고른 나라의 지도자가 죽는다", "cheat novichok", false, 0, 0, 0, true, Target::Picked},
-    {"fight", "외교·영토", "전쟁 붙이기", "지도에서 한 나라를 고른 뒤 누른다. 그 나라와 목록에서 고른 나라가 싸운다", "cheat fight", false, 0, 0, 0, true, Target::Picked},
+    {"fight", "외교·영토", "전쟁 붙이기", "지도에서 한 나라를 고른 뒤 누른다. 그 나라와 목록에서 고른 나라가 싸운다", "", false, 0, 0, 0, true, Target::Picked, Direct::Fight},
     {"becomeregion", "외교·영토", "이 나라로 플레이", "플레이하는 나라가 고른 나라로 바뀐다", "cheat becomeregion", false, 0, 0, 0, true, Target::Picked},
     {"spawnunit", "부대", "고른 칸에 부대 생성", "지도에서 칸을 고른 뒤 누른다. 입력한 장비 번호의 부대가 생긴다(보급은 빈 채)", "cheat spawnunit", true, 2413, 1, 99999, false},
     {"stranded", "부대", "고른 부대 보급 채우기/비우기", "부대를 고른 뒤 누른다. 연료·보급·탄약이 100% 가 되고, 다시 누르면 0% 가 된다", "cheat stranded", false, 0, 0, 0, false},

@@ -323,6 +323,11 @@ const struct ActWanted {
 } ACTS[ACT_WANTED] = {
     {"colonize", "식민지화 함수",
      {"41 B0 01 49 8B CE E8 [rip] 33 D2", "49 8B C9 41 B0 01 E8 [rip] FF C7", "45 33 C0 8B D7 E8 [rip] 48 63 CF"}},
+    {"fight", "전쟁 함수",
+     {"88 5C 24 20 49 8B CA E8 [rip]", "40 0F B6 D6 49 8B CD E8 [rip]", "B2 01 C6 44 24 20 00 E8 [rip] 8B 4E 38"}},
+    // 자료: 그 포인터를 읽고 곧바로 가리키는 word(지역의 인덱스)를 읽는 자리들
+    {"map_pick", "지도에서 고른 지역",
+     {"48 8B 0D [rip] 44 8B CF 0F B7 11", "48 8B 05 [rip] 0F B7 08 41 3B CB", "48 8B 05 [rip] 0F B7 08 0F 28 C1"}},
 };
 static_assert(sizeof(ActLayout) == ACT_WANTED * sizeof(uint32_t), "ActLayout 의 필드는 표 ACTS 의 순서대로 uint32_t 다");
 
@@ -757,8 +762,14 @@ int search_acts(const uint8_t *image, size_t size, ActLayout *out, SigRow *rows,
         why[w][0] = '\0';
         if (!vote_item(ACTS, w, "주소를", sigs, hits, value, why[w], MORE_WHY, STATE_SIGS))   // 셋이 모두 맞아야 한다 — 엉뚱한 함수를 부르지 않는다
             continue;
-        if (value[0] == 0 || value[0] >= size || function_root(im, static_cast<uint32_t>(value[0])) != value[0]) {
+        if (w < ACT_FUNCTIONS
+            && (value[0] == 0 || value[0] >= size || function_root(im, static_cast<uint32_t>(value[0])) != value[0])) {
             snprintf(why[w], MORE_WHY, "%s: 찾은 주소가 함수의 시작이 아닙니다", ACTS[w].label);
+            continue;
+        }
+        if (w >= ACT_FUNCTIONS && (value[0] == 0 || value[0] + 8 > size || value[0] % 8 != 0
+                                   || !in_data(im, static_cast<uint32_t>(value[0]), 8))) {
+            snprintf(why[w], MORE_WHY, "%s: 찾은 주소가 쓸 수 있는 자료 구역이 아닙니다", ACTS[w].label);
             continue;
         }
         fields[w] = static_cast<uint32_t>(value[0]);
