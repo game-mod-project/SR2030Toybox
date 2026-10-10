@@ -66,16 +66,24 @@ EXPORT int srtoybox_feature_count(void)
     return FEATURE_COUNT;
 }
 
-// 한 줄: id, 탭, 이름, 명령, 값 있음(0/1), 기본값, 최소, 최대, 확인(0/1), 설명, 대상(none/player/picked) — 탭 문자로 나눈다
+EXPORT int srtoybox_cheat_feature_count(void)
+{
+    return cheat_feature_count();
+}
+
+// 한 줄: id, 탭, 이름, 명령, 값 있음(0/1), 기본값, 최소, 최대, 확인(0/1), 설명, 대상(none/player/picked),
+// 하는 길(cheat = 내장 치트 / tech_up · opinion_best · relation_best · relation_neutral = 직접 쓴다) — 탭 문자로 나눈다
 EXPORT int srtoybox_feature_info(int index, char *out, int size)
 {
     if (index < 0 || index >= FEATURE_COUNT)
         return -1;
     const Feature &f = FEATURES[index];
     static const char *const targets[] = {"none", "player", "picked"};
+    static const char *const how[] = {"cheat", "tech_up", "opinion_best", "relation_best", "relation_neutral"};
     const std::string line = std::string(f.id) + '\t' + f.tab + '\t' + f.label + '\t' + f.command + '\t' + (f.has_value ? "1" : "0")
         + '\t' + std::to_string(f.def) + '\t' + std::to_string(f.min) + '\t' + std::to_string(f.max) + '\t'
-        + (f.confirm ? "1" : "0") + '\t' + f.help + '\t' + targets[static_cast<int>(f.target)];
+        + (f.confirm ? "1" : "0") + '\t' + f.help + '\t' + targets[static_cast<int>(f.target)] + '\t'
+        + how[static_cast<int>(f.direct)];
     return put(line, out, size);
 }
 

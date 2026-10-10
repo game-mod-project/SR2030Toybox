@@ -50,11 +50,11 @@ def text(call, *args, size: int = 1 << 17) -> str | None:
 def features(dll) -> list[dict]:
     out = []
     for i in range(dll.srtoybox_feature_count()):
-        ident, tab, label, command, has_value, default, low, high, confirm, help_, target = \
+        ident, tab, label, command, has_value, default, low, high, confirm, help_, target, how = \
             text(dll.srtoybox_feature_info, i).split("\t")
         out.append({"id": ident, "tab": tab, "label": label, "command": command, "has_value": has_value == "1",
                     "default": int(default), "min": int(low), "max": int(high), "confirm": confirm == "1", "help": help_,
-                    "target": target})
+                    "target": target, "how": how})
     return out
 
 
@@ -71,13 +71,22 @@ def documented(cfg) -> dict[str, tuple[str, str]]:
 
 def test_feature_table(dll):
     fs = features(dll)
-    assert len(fs) == 19
-    assert len({f["id"] for f in fs}) == 19 and len({f["command"] for f in fs}) == 19
+    assert len(fs) == 19 and len({f["id"] for f in fs}) == 19
     # 국고와 물자는 내장 치트를 거치지 않는다(돈 탭 · 물자 탭)
     assert not {"treasury", "georgew", "georgeww", "products", "branson", "bezos"} & {f["id"] for f in fs}
     assert [t for i, t in enumerate(f["tab"] for f in fs) if i == 0 or fs[i - 1]["tab"] != t] == TABS   # 탭끼리 모여 있고 이 순서다
+    # 네 줄은 ToyBox 가 값을 직접 쓴다(3단계 2) — 자리와 이름은 그대로이고 게임에 넣는 글이 없다. 나머지 열다섯이 내장 치트로 돈다
+    assert {f["id"]: f["how"] for f in fs if f["how"] != "cheat"} == {"finalexam": "tech_up", "shelovesme": "opinion_best",
+                                                                     "love": "relation_best", "neutral": "relation_neutral"}
+    cheats = [f for f in fs if f["how"] == "cheat"]
+    assert len(cheats) == 15 == dll.srtoybox_cheat_feature_count() and len({f["command"] for f in cheats}) == 15
+    assert [f["id"] for f in fs][:3] == ["technology", "e=mc2", "finalexam"]            # 줄의 자리는 옮기기 전과 같다
     for f in fs:
-        assert f["command"] == "cheat " + f["id"] and f["label"] and f["help"]
+        assert f["label"] and f["help"]
+        if f["how"] == "cheat":
+            assert f["command"] == "cheat " + f["id"]
+        else:
+            assert f["command"] == "" and not f["has_value"] and not f["confirm"]
         assert not (f["has_value"] and f["target"] != "none")           # 한 기능의 인자는 하나다
         if f["has_value"]:
             assert f["min"] <= f["default"] <= f["max"]
@@ -111,12 +120,13 @@ def test_command_text(dll):
     assert text(dll.srtoybox_command, b"technology", 0, 0) == "cheat technology 1"             # 범위로 잘라 맞춘다
     assert text(dll.srtoybox_command, b"technology", -5, 0) == "cheat technology 1"
     assert text(dll.srtoybox_command, b"technology", 10**12, 0) == "cheat technology 999"
-    assert text(dll.srtoybox_command, b"finalexam", 999, 1106) == "cheat finalexam"            # 값도 대상도 없는 기능은 둘 다 무시한다
-    assert text(dll.srtoybox_command, b"e=mc2", 0, 0) == "cheat e=mc2"
+    assert text(dll.srtoybox_command, b"e=mc2", 999, 1106) == "cheat e=mc2"                    # 값도 대상도 없는 기능은 둘 다 무시한다
     assert text(dll.srtoybox_command, b"approval", 0, 1499) == "cheat approval 1499"           # 대상이 있는 기능은 지역 번호가 붙는다
-    assert text(dll.srtoybox_command, b"love", 0, 1106) == "cheat love 1106"
+    assert text(dll.srtoybox_command, b"annex", 0, 1106) == "cheat annex 1106"
     assert text(dll.srtoybox_command, b"treaty", 0, 1106) == "cheat treaty"                    # 게임이 지도에서 고른 나라를 쓴다
-    assert text(dll.srtoybox_command, b"love", 0, 0) is None                                   # 나라를 고르지 않았으면 만들지 않는다
+    assert text(dll.srtoybox_command, b"annex", 0, 0) is None                                  # 나라를 고르지 않았으면 만들지 않는다
+    for moved in (b"finalexam", b"shelovesme", b"love", b"neutral"):                           # 직접 쓰는 줄은 게임에 넣을 글이 없다
+        assert text(dll.srtoybox_command, moved, 0, 1106) is None
     assert text(dll.srtoybox_command, b"approval", 0, -1) is None
     assert text(dll.srtoybox_command, b"depopulate", 0, 0) is None                             # 표에 없는 것은 만들지 않는다
     assert text(dll.srtoybox_command, b"treasury", 1, 0) is None                               # 지운 기능 — 국고는 돈 탭이 직접 한다
@@ -556,10 +566,11 @@ def test_the_pick_is_dropped_when_that_country_can_no_longer_be_a_target(dll, cf
     """고른 나라가 이번 판에서 없어지거나(다른 판을 불러왔다) 플레이하는 나라가 그 나라가 되면, 고른 것이 풀리고
     나라를 고르는 단추는 다시 고를 때까지 꺼진다."""
     got = json.loads(_probe(cfg, tmp_path, mode))
-    assert got["first"] == ["cheat allowcheats", "cheat love 1106"]
+    assert got["first"] == [[1.0, 1.0, 0.0], [1.0, 1.0, 0.0]]   # 고른 동안에는 "관계 최고"가 폴란드와의 관계를 쓴다(양쪽에)
     assert got["status"] == status and got["row"] == "-"
     assert got["picked"] == "고른 나라: 없음 — 아래 목록에서 고르십시오"
-    assert got["lines"] == got["first"]                         # 풀린 뒤의 누름은 아무것도 실행하지 않는다
+    assert got["later"] == [[0.25, -0.5, 0.75], [0.125, 0.5, 1.0]] and got["unwritten"] == "-"   # 풀린 뒤의 누름은 아무것도 쓰지 않는다
+    assert got["lines"] == []                                   # 이 단추는 게임의 함수를 부르지 않는다
 
 
 def test_picking_another_country_starts_the_confirmation_over(dll, cfg, tmp_path):
@@ -779,6 +790,112 @@ def test_a_typed_keep_amount_takes_effect_when_the_typing_is_done(dll, cfg, tmp_
     assert "keep.stock.3.value=9000000\n" in (tmp_path / "home" / "toybox.ini").read_text(encoding="utf-8")
     log = (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8")
     assert log.count("유지 켬: 석유") == 3                        # 뜰 때의 500만, 고친 700만 · 900만
+
+
+MORE_START = {"tech": 130.0, "opinion": [0.5, 0.25, 0.75], "poland": [[0.25, -0.5, 0.75], [0.125, 0.5, 1.0]],
+              "denmark": [[0.5, 0.5, 0.5], [0.5, 0.5, 0.5]]}
+MORE_DONE = {"tech": 132.0, "opinion": [1.0, 1.0, 1.0], "poland": [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], "denmark": MORE_START["denmark"]}
+RESEARCH_ROWS = ["run:technology", "run:e=mc2", "run:finalexam"]
+PEOPLE_ROWS = ["run:populate", "run:shelovesme", "run:approval"]
+DIPLOMACY_ROWS = ["run:love", "run:neutral", "run:treaty", "run:annex", "run:colonize", "run:novichok", "run:fight", "run:becomeregion"]
+
+
+@pytest.mark.parametrize("mode", ["more", "more_alone"], ids=["with-money-and-stock", "alone"])
+def test_the_four_moved_buttons_write_without_any_cheat(dll, cfg, tmp_path, mode):
+    """요구 3: 지식 순위 · 세계 시장 여론 · 관계 최고 · 관계 중립은 내장 치트를 거치지 않는다 — 명령 처리 함수를 부르지 않고,
+    글쇠를 넣지 않고, 치트 허용 비트를 건드리지 않는다. 단추의 이름과 자리는 그대로다. 쓰는 곳은 플레이어의 칸과,
+    관계라면 고른 나라의 "플레이어" 칸뿐이다(덴마크와의 관계는 그대로다). 국고 · 재고의 자리를 못 찾은 게임에서도 된다."""
+    got = json.loads(_probe(cfg, tmp_path, mode))
+    assert list(got["research"]) == RESEARCH_ROWS and got["research"]["run:finalexam"] == "지식 순위 올리기"
+    assert list(got["people"]) == PEOPLE_ROWS and got["people"]["run:shelovesme"] == "세계 시장 여론 최고"
+    assert list(got["diplomacy"]) == DIPLOMACY_ROWS
+    assert (got["diplomacy"]["run:love"], got["diplomacy"]["run:neutral"]) == ("관계 최고", "관계 중립")
+    assert got["wrote_tech"] == "기술 수준 131 -> 132" and got["wrote_opinion"] == "세계 시장 여론 최고"
+    assert got["unpicked"] == {**MORE_START, "tech": 132.0, "opinion": [1.0, 1.0, 1.0]}       # 나라를 고르기 전의 누름은 쓰지 않는다
+    assert got["after_love"] == {**got["unpicked"], "poland": [[1.0, 1.0, 0.0], [1.0, 1.0, 0.0]]}
+    assert got["wrote_love"] == "관계 최고 — 폴란드 (1106)" and got["wrote_neutral"] == "관계 중립 — 폴란드 (1106)"
+    assert got["state"] == MORE_DONE and got["status"] == "플레이 중: 독일 (1499)"
+    assert got["lines"] == [] and got["text"] == "" and got["options"] == 0 and got["treasury"] == 14.43e9
+    log = (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8")
+    assert log.count("값 쓰기: ") == 5 and "직접 실행" not in log and "값 쓰기 실패" not in log
+
+
+def test_the_moved_buttons_are_off_outside_a_game(dll, cfg, tmp_path):
+    got = json.loads(_probe(cfg, tmp_path, "more_menu"))
+    assert list(got["research"]) == RESEARCH_ROWS and list(got["people"]) == PEOPLE_ROWS    # 단추는 보이지만 꺼져 있다
+    assert got["state"] == MORE_START and got["wrote_neutral"] == "-"
+    assert got["lines"] == [] and got["text"] == "" and got["status"] == "게임을 진행 중이 아닙니다 — 단추가 꺼져 있습니다"
+
+
+def test_a_moved_request_is_dropped_when_the_game_ends_first(dll, cfg, tmp_path):
+    """단추를 누른 뒤 쓰기 전에 게임에서 나가면 쓰지 않고 버린다. 돌아온 뒤에 뒤늦게 쓰이지 않고, 새로 누르면 된다."""
+    got = json.loads(_probe(cfg, tmp_path, "more_leave"))
+    assert got["dropped"] == 130.0 and got["unwritten"] == "게임이 진행 중이 아니어서 쓰지 않았습니다."
+    assert got["state"]["tech"] == 131.0 and got["unwritten_after"] == "-"
+
+
+def test_a_relation_is_written_with_the_country_picked_when_the_button_was_pressed(dll, cfg, tmp_path):
+    """단추를 누른 뒤 쓰이기 전(다음 타이머 전)에 다른 나라를 골라도, 쓰는 것은 누른 때에 골라 둔 나라와의 관계다."""
+    got = json.loads(_probe(cfg, tmp_path, "more_repick"))
+    assert got["picked"] == "고른 나라: 덴마크 (1201)" and got["wrote"] == "관계 최고 — 폴란드 (1106)"
+    assert got["state"] == {**MORE_START, "poland": [[1.0, 1.0, 0.0], [1.0, 1.0, 0.0]]}     # 덴마크와의 관계는 그대로다
+    assert got["lines"] == []
+
+
+def test_a_group_that_was_not_found_turns_off_only_its_own_button(dll, cfg, tmp_path):
+    """묶음마다 따로 꺼진다: 기술 수준의 자리만 못 찾은 게임에서는 "지식 순위 올리기"의 자리에 까닭 한 줄만 보이고,
+    같은 탭의 다른 줄과 나머지 직접 쓰는 줄은 그대로 동작한다. 내장 치트로 되돌아가지 않는다."""
+    got = json.loads(_probe(cfg, tmp_path, "more_notfound"))
+    assert list(got["research"]) == ["run:technology", "run:e=mc2", "off:finalexam"]
+    assert got["research"]["off:finalexam"] == "지식 순위 올리기 — 이 게임 판에서는 쓸 수 없습니다 (값의 자리를 주지 않았습니다)"
+    assert list(got["people"]) == PEOPLE_ROWS and list(got["diplomacy"]) == DIPLOMACY_ROWS
+    assert got["state"] == {**MORE_DONE, "tech": 130.0}
+    assert got["lines"] == [] and got["text"] == ""
+
+
+@pytest.mark.parametrize("mode, env, why", [
+    ("more_write_off", {"SRTOYBOX_WRITE": "0"}, "값 쓰기를 껐습니다 (SRTOYBOX_WRITE=0)"),
+    ("more_unread", {"SRTOYBOX_READ": "0"}, "게임 상태를 읽을 수 있을 때만 씁니다."),
+], ids=["write-off", "unread"])
+def test_the_moved_buttons_say_why_they_are_off_and_offer_no_cheat(dll, cfg, tmp_path, mode, env, why):
+    """쓸 수 없을 때 내장 치트로 되돌아가지 않는다 — 그 줄의 단추 자리에 까닭 한 줄만 보인다. 내장 치트로 도는 줄은 그대로다."""
+    got = json.loads(_probe(cfg, tmp_path, mode, env=env))
+    assert list(got["research"]) == ["run:technology", "run:e=mc2", "off:finalexam"]
+    assert got["research"]["off:finalexam"] == "지식 순위 올리기 — " + why
+    assert list(got["people"]) == ["run:populate", "off:shelovesme", "run:approval"]
+    assert got["people"]["off:shelovesme"] == "세계 시장 여론 최고 — " + why
+    if mode == "more_unread":
+        assert got["diplomacy"] == {}                           # 게임을 읽지 못하면 이 탭은 통째로 쓸 수 없다(나라 목록이 없다)
+    else:
+        assert list(got["diplomacy"]) == ["off:love", "off:neutral"] + DIPLOMACY_ROWS[2:]
+        assert got["diplomacy"]["off:love"] == "관계 최고 — " + why and got["diplomacy"]["off:neutral"] == "관계 중립 — " + why
+    assert got["state"] == MORE_START and got["lines"] == [] and got["text"] == ""
+
+
+def test_a_failed_write_of_a_moved_button_turns_value_writing_off_and_says_why(dll, cfg, tmp_path):
+    """쓸 수 없는 곳을 만나면 죽지 않고, 이번 실행에서 값 쓰기 전체를 끄고 까닭을 보인다. 반쪽만 쓴 관계는 남지 않는다."""
+    got = json.loads(_probe(cfg, tmp_path, "more_fail"))
+    assert got["state"] == MORE_START
+    assert got["diplomacy"]["off:love"] == "관계 최고 — " + VALUES_FAILED and "run:love" not in got["diplomacy"]
+    assert got["research"]["off:finalexam"] == "지식 순위 올리기 — " + VALUES_FAILED and got["money_off"] == VALUES_FAILED
+    log = (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8")
+    assert log.count("값 쓰기 실패 (관계 — 폴란드 (1106)) — 값 쓰기를 끕니다") == 1 and "값 쓰기: " not in log
+
+
+def test_a_moved_button_does_not_write_while_the_games_handler_is_running(dll, cfg, tmp_path):
+    """옮기지 않은 기능의 직접 실행이 게임의 함수 안에 있는 동안 타이머가 다시 와도, 그 안에서는 게임의 메모리에 쓰지 않는다."""
+    got = json.loads(_probe(cfg, tmp_path, "more_reenter"))
+    assert got["lines"] == ["cheat allowcheats", "cheat fullmapshow"]
+    assert got["inside"] == [130.0, 130.0]                      # 그 함수 안에서 다시 온 타이머의 앞뒤
+    assert got["state"]["tech"] == 131.0                        # 함수가 끝난 뒤에 쓴다
+
+
+def test_moved_buttons_do_not_write_after_the_fault_guard_trips(dll, cfg, tmp_path):
+    """직접 실행의 오류 가드가 걸린 뒤에는 값 쓰기도 멈춘다 — 대기열에 먼저 들어와 있던 요청도 버린다."""
+    got = json.loads(_probe(cfg, tmp_path, "more_fault"))
+    assert got["fault"] == FAULT_WARNING and got["state"] == MORE_START
+    log = (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8")
+    assert "값 쓰기: " not in log
 
 
 def test_prologue_length_knows_only_plain_function_heads(dll):

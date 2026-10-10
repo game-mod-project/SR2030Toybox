@@ -588,7 +588,7 @@ void game_init_from(const uint8_t *base, size_t size)
         if ((groups & (1 << locate_more_group(i / STATE_SIGS))) != 0)
             log_unmatched(more_rows[i], i % STATE_SIGS + 1);
     if (can_call)
-        log_line("옛 방식(내장 치트)으로 도는 기능이 %d개 남아 있습니다 (명령 처리 함수 +0x%X)", FEATURE_COUNT, at.handler);
+        log_line("옛 방식(내장 치트)으로 도는 기능이 %d개 남아 있습니다 (명령 처리 함수 +0x%X)", cheat_feature_count(), at.handler);
     else
         log_line("명령 처리 함수를 찾지 못했습니다 (%s) — 내장 치트로 도는 기능은 글쇠 방식", legacy);
 }

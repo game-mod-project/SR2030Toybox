@@ -31,6 +31,8 @@ void enter_line(std::vector<Action> &plan, const std::string &text)
 
 std::string build_command(const Feature &f, long long value, int region)
 {
+    if (f.direct != Direct::None)
+        return std::string();
     std::string out = f.command;
     if (f.has_value) {
         const long long v = value < f.min ? f.min : value > f.max ? f.max : value;

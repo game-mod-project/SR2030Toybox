@@ -70,8 +70,43 @@ std::string asking_label(const Feature &f, int region)
     return what + " — 한 번 더 누르면 실행합니다";
 }
 
+// 직접 쓰는 줄(3단계 2): 내장 치트를 거치지 않는다 — 누르면 값 쓰기 요청을 대기열에 넣고, 쓰는 것은 게임 창의 타이머에서다(keeper.h).
+// 쓸 수 없으면 단추 자리에 까닭 한 줄만 그린다(그 줄에만. 같은 탭의 다른 줄은 그대로다). 내장 치트로 되돌아가지 않는다.
+void direct_row(const Feature &f, const GameState &game)
+{
+    const int group = f.direct == Direct::TechUp ? MORE_TECH : f.direct == Direct::OpinionBest ? MORE_OPINION : MORE_RELATIONS;
+    const std::string off = game.known ? game_more_off(group) : std::string("게임 상태를 읽을 수 있을 때만 씁니다.");
+    ImGui::PushID(f.id);
+    if (!off.empty()) {
+        const std::string line = std::string(f.label) + " — " + off;
+        ImGui::TextWrapped("%s", line.c_str());
+        note(std::string("off:") + f.id, line);
+    } else {
+        ImGui::BeginDisabled(f.target == Target::Picked && g_picked <= 0);   // 나라를 고르지 않았다
+        const bool pressed = ImGui::Button((std::string(f.label) + "###run").c_str());
+        note(std::string("run:") + f.id, f.label);
+        if (pressed) {
+            Request request = {TECH, Change::Set, 0.0, 0};
+            if (f.direct == Direct::OpinionBest)
+                request.slot = OPINION;
+            else if (f.direct != Direct::TechUp)
+                request = {RELATION, Change::Set, f.direct == Direct::RelationBest ? 1.0 : 0.0, g_picked};
+            g_confirm.clear();
+            g_notice = keeper_enqueue(request) ? "" : "대기 중인 요청이 많아 받지 못했습니다.";
+        }
+        ImGui::EndDisabled();
+    }
+    ImGui::TextDisabled("%s", f.help);
+    ImGui::Spacing();
+    ImGui::PopID();
+}
+
 void row(const Feature &f, const GameState &game)
 {
+    if (f.direct != Direct::None) {
+        direct_row(f, game);
+        return;
+    }
     ImGui::PushID(f.id);
     long long value = 0;
     if (f.has_value) {
