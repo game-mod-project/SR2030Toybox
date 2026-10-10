@@ -95,7 +95,8 @@ struct ActLayout {
     uint32_t become;           // void f(void *지역 객체, int 0): 플레이하는 나라를 바꾼 뒤 게임이 그 지역으로 화면을 맞춘다
     uint32_t map_pick;         // qword(자료). 그 포인터가 가리키는 word 가 "지도에서 고른 지역"의 인덱스다 — 읽기만 한다
     uint32_t player_index2;    // dword(자료). 플레이어의 인덱스의 둘째 사본 — "이 나라로 플레이"가 첫째(GameAddresses.player_index)와 함께 쓴다
-    uint32_t player_pointer2;  // qword(자료). 플레이어의 지역 객체 포인터의 둘째 사본 — 〃 (첫째는 GameAddresses.player_pointer)
+    uint32_t player_pointer2;  // qword(자료). 플레이어의 지역 객체를 가리키는 둘째 포인터 — 〃 (첫째는 GameAddresses.player_pointer).
+                               // 판을 시작한 날에는 첫째와 같고, 첫 자정부터는 게임이 그 지역의 전날 사본으로 돌린다
 };
 
 const int ACT_COLONIZE = 1, ACT_FIGHT = 2, ACT_BECOME = 4, ACT_MAP_PICK = 8, ACT_INDEX2 = 16, ACT_POINTER2 = 32;   // 찾을 것의 비트

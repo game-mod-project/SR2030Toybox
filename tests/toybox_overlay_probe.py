@@ -1292,6 +1292,7 @@ def run_more(hook: str, mode: str) -> int:
         press("run:becomeregion")
         out["mismatch"], out["became_mismatch"], out["index_mismatch"] = game.shown("unwritten"), list(fake.became), fake.peek(0x20, "<i")
         fake.poke(INDEX2, "<i", 176)                          # 이제 맞는다
+        fake.poke(POINTER2, "<Q", fake.where[150])            # 둘째 포인터는 달라도 된다(게임이 첫 자정부터 전날 사본으로 돌린다)
         scroll_to(game, "run:becomeregion")
         press("run:becomeregion")
         out["became_first"] = list(fake.became)

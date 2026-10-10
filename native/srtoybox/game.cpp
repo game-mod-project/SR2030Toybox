@@ -1513,8 +1513,10 @@ Wrote game_become(int number, unsigned long *code)
     for (int i = 0; i < 4; i++)
         if (!peek(reinterpret_cast<const void *>(cells[i]), &old[i], sizes[i]))
             return Wrote::BadValue;
-    if (old[0] != old[1] || old[2] != old[3] || old[2] != player)
-        return Wrote::BadValue;                // 둘째 사본이 첫째와 다르다 — 무엇인지 모르는 상태에서는 쓰지 않는다
+    // 인덱스 둘은 늘 같고, 첫째 포인터는 지금의 플레이어 객체다. 둘째 포인터는 같지 않아도 된다 — 게임이 첫 자정부터 그것을
+    // 플레이어 지역의 "전날 사본"으로 돌린다(게임에서 봤다 — 바꾸지 않은 판에서도). 치트는 그래도 새 나라의 객체를 쓰고, 다음 자정에 게임이 다시 돌린다.
+    if (old[0] != old[1] || old[2] != player || old[3] == 0)
+        return Wrote::BadValue;
     for (int i = 0; i < 4; i++)
         if (!writable(cells[i], sizes[i]))
             return write_failed("플레이하는 나라", 4, 0);
