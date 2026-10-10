@@ -117,7 +117,7 @@ def _relation_writes(body: bytes) -> dict[str, list[int]]:
 
 
 def more(image_bytes: bytes) -> dict[str, int]:
-    """더 쓰는 값의 자리 열하나 — 치트 finalexam · shelovesme · love · populate · approval 의 본문에서 읽은 것. neutral 이 love 와 같은 여섯 칸을 쓰는지도 본다."""
+    """더 쓰는 값의 자리 아홉(인구의 풀 칸은 치트가 쓰지 않아 없다) — 치트 finalexam · shelovesme · love · populate · approval 의 본문에서 읽은 것. neutral 이 love 와 같은 여섯 칸을 쓰는지도 본다."""
     image = sigmine.Image(image_bytes)
     data = image.data
     out = {}
@@ -138,7 +138,7 @@ def more(image_bytes: bytes) -> dict[str, int]:
     use = _uses(image, "cheat populate")[0]                                                     # movss [rcx+칸],xmm0 셋(같은 수를 더한다)
     people = [struct.unpack("<I", d)[0] for d in re.findall(rb"\xf3\x0f\x11\x81(....)", data[use:use + 0xA8], re.S)]
     assert len(people) == 3, people
-    out["people0"], out["people1"], out["people2"] = people
+    out["people0"] = people[0]                                                                # 첫 칸이 인구다(ToyBox 는 뒤의 둘에 쓰지 않는다)
     use = _uses(image, "cheat approval")[0]                                                     # movss [rdx+칸],xmm0 하나(1.0)
     approval = re.findall(rb"\xf3\x0f\x11\x82(....)", data[use:use + 0xC0], re.S)
     assert len(approval) == 1, approval

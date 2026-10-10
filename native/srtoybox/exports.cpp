@@ -512,10 +512,10 @@ EXPORT int srtoybox_more_read(const unsigned char *base, const GameAddresses *at
         return -1;
     const GameMore v = read_more(base, *at, *more);
     char line[320];
-    snprintf(line, sizeof(line), "ok=%d tech=%.9g opinion=%.9g,%.9g,%.9g people=%.9g,%.9g,%.9g approval=%.9g", v.ok ? 1 : 0,
+    snprintf(line, sizeof(line), "ok=%d tech=%.9g opinion=%.9g,%.9g,%.9g people=%.9g,%.9g approval=%.9g", v.ok ? 1 : 0,
              static_cast<double>(v.tech), static_cast<double>(v.opinion[0]), static_cast<double>(v.opinion[1]),
              static_cast<double>(v.opinion[2]), static_cast<double>(v.people[0]), static_cast<double>(v.people[1]),
-             static_cast<double>(v.people[2]), static_cast<double>(v.approval));
+             static_cast<double>(v.approval));
     return put(line, out, size);
 }
 
@@ -547,7 +547,7 @@ EXPORT int srtoybox_more_write(const unsigned char *base, const GameAddresses *a
         cells = wrote == Wrote::Done ? 1 : 0;
     } else if (what == 1) {
         wrote = write_opinion(base, *at, *more, &cells);
-    } else if (what == 3) {                    // 인구의 세 칸에 value 를 더한다
+    } else if (what == 3) {                    // 인구 칸과 풀 칸에 value 를 더한다
         wrote = write_people(base, *at, *more, static_cast<float>(value), &cells);
     } else if (what == 4) {                    // 지지율 100%
         wrote = write_approval(base, *at, *more);

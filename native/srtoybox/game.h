@@ -1,6 +1,6 @@
 // 찾은 주소(locate.h)로 게임의 상태와 값을 읽고 고친다. 내장 치트를 거치지 않는다.
 // 게임의 메모리에 쓰는 곳은 이것뿐이다:
-//   플레이어 지역 객체의 국고 1칸 · 재고 STOCK_SLOTS 칸 · 기술 수준 1칸 · 세계 시장 여론 3칸 · 인구 3칸 · 국내 지지율 1칸(3단계 4) ·
+//   플레이어 지역 객체의 국고 1칸 · 재고 STOCK_SLOTS 칸 · 기술 수준 1칸 · 세계 시장 여론 3칸 · 인구 2칸(인구 칸과 그 풀) · 국내 지지율 1칸(3단계 4) ·
 //   관계 표 셋에서 고른 나라의 칸,
 //   그리고 고른 나라의 지역 객체의 관계 표 셋에서 플레이어의 칸.
 //   연구(3단계 3): 기술 · 부대 설계의 보유 비트 묶음에서 플레이어의 비트, 묶음이 없는 항목의 포인터 칸(새 묶음을 걸 때),
@@ -40,7 +40,7 @@ struct GameMore {
     bool ok = false;         // 읽었다: 게임을 진행 중이다. 못 찾은 묶음의 값은 0 으로 둔다
     float tech = 0;          // 기술 수준. 유한한 수가 아닐 수 있다 — 쓰는 쪽(keeper)이 거른다
     float opinion[3] = {};
-    float people[3] = {};    // 인구와 그 둘레의 두 칸
+    float people[2] = {};    // 인구 칸과 인구의 풀 칸
     float approval = 0;      // 국내 지지율(0 … 1)
 };
 
@@ -92,8 +92,9 @@ Relation read_relation(const uint8_t *base, const GameAddresses &at, const MoreL
 // 여러 칸을 쓰는 것은 쓰기 전에 모든 칸이 읽기 · 쓰기 쪽인지 먼저 본다(반쪽만 쓰고 멈추지 않게). done 에 쓴 칸의 수.
 Wrote write_tech(const uint8_t *base, const GameAddresses &at, const MoreLayout &more, float value);   // 0 이상의 유한한 수
 Wrote write_opinion(const uint8_t *base, const GameAddresses &at, const MoreLayout &more, int *done);  // 세 칸에 1.0
-// 인구의 세 칸에 add 를 더한다(내장 치트 populate 가 쓰던 세 칸 그대로. 그 치트가 끝에 부르던 게임의 함수는 부르지 않는다).
-// 세 칸 가운데 하나라도 유한한 수가 아니거나 음수면 쓰지 않는다(BadValue).
+// 인구 칸과 인구의 풀 칸에 add 를 더한다. 풀에 더한 것이 자정의 셈("민간 인구 + 풀 + 현역 인력")에 남고, 인구 칸에 더한 것은 그때까지
+// 화면에 보이게 하는 것이다(내장 치트 populate 는 인구 칸 · 군 인력 칸 · 셋째 칸에 더했고 첫 자정에 되돌아갔다).
+// 두 칸 가운데 하나라도 유한한 수가 아니거나 음수면 쓰지 않는다(BadValue).
 Wrote write_people(const uint8_t *base, const GameAddresses &at, const MoreLayout &more, float add, int *done);
 Wrote write_approval(const uint8_t *base, const GameAddresses &at, const MoreLayout &more);            // 지지율 칸에 1.0
 // 그 번호의 나라와의 관계를 level(-1 … 1)로, 전쟁 명분을 0 으로: 플레이어 객체의 그 나라 칸 셋, 그 나라 객체의 플레이어 칸 셋.

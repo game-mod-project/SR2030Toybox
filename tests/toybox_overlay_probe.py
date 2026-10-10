@@ -1171,8 +1171,8 @@ def run_more(hook: str, mode: str) -> int:
     fake.region(150, 1201, alive=3)
     fake.set_relation(176, 150, (0.5, 0.5, 0.5))
     fake.set_relation(150, 176, (0.5, 0.5, 0.5))
-    fake.set_people(176, (82615760.0, 5e7, 3e7), 0.375)
-    fake.set_people(141, (38e6, 2e7, 1e7), 0.5)
+    fake.set_people(176, (82615760.0, 3632.0), 0.375)
+    fake.set_people(141, (38e6, 2500.0), 0.5)
     if mode == "more_fail":
         fake.lock(141)                                        # 폴란드의 객체가 읽기 전용 쪽에 있다(읽을 수는 있다)
     if mode != "more_menu":

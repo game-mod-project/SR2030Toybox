@@ -15,7 +15,7 @@ const Feature FEATURES[] = {
     {"e=mc2", "연구", "대기열의 연구 즉시 완료", "대기열에 건 기술과 부대 설계가 바로 끝난다. 대기열이 비어 있으면 아무 일도 없다", "", false, 0, 0, 0, false,
      Target::None, Direct::QueueDone},
     {"finalexam", "연구", "지식 순위 올리기", "지식 지수 순위가 오른다", "", false, 0, 0, 0, false, Target::None, Direct::TechUp},
-    {"populate", "인구·여론", "인구 +100만", "인구가 100만 늘어난다", "", false, 0, 0, 0, false, Target::None, Direct::PeopleAdd},
+    {"populate", "인구·여론", "인구 +100만", "인구가 100만 늘어난다(날이 바뀌어도 남는다)", "", false, 0, 0, 0, false, Target::None, Direct::PeopleAdd},
     {"shelovesme", "인구·여론", "세계 시장 여론 최고", "세계 시장 여론과 보조금률이 최고가 된다", "", false, 0, 0, 0, false, Target::None,
      Direct::OpinionBest},
     {"approval", "인구·여론", "내 나라 지지율 100%", "국내 지지율이 100% 가 된다", "", false, 0, 0, 0, false, Target::Player, Direct::ApprovalBest},
