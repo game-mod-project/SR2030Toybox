@@ -483,7 +483,9 @@ def test_startup_finds_more_without_any_cheat(lib, all_sigs, more_sigs, tmp_path
     flags, off, log = init_more(lib, toybox_fake_exe.sig_image(state + values + more_sigs), tmp_path, monkeypatch)
     assert flags == READS | WRITES | CAN_TECH | CAN_OPINION | CAN_RELATIONS and off == ["", "", ""]
     assert f"값을 더 씁니다 ({FOUND_MORE})" in log
-    assert "쓸 수 없습니다" not in log and "맞지 않은 서명" not in log
+    unwritable = [line.split(" ", 2)[2] for line in log.splitlines() if "쓸 수 없습니다" in line]
+    assert unwritable == ["연구를 쓸 수 없습니다 (기술 표: 서명 3개 가운데 0개)"]      # 이 이미지에 연구의 서명은 넣지 않았다
+    assert "맞지 않은 서명" not in log
 
 
 def test_startup_drops_only_the_group_it_cannot_find(lib, all_sigs, more_sigs, tmp_path, monkeypatch):

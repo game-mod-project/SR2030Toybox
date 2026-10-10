@@ -1,17 +1,22 @@
-"""ToyBox: 연구의 규칙(native/srtoybox/research.cpp) — 완료 · 미완료가 어느 기술 · 부대 설계의 보유를 바꾸는가.
+"""ToyBox 의 연구: 규칙(research) · 게임의 표 읽기와 쓰기(game). 게임은 띄우지 않는다.
 
-게임이 스스로 쓰는 규칙 그대로다(docs/11-game-internals.md): 기술을 주면 선행 기술도 주고, 빼면 그 기술에 기대는 기술 · 설계도 뺀다.
-여기서는 표를 글로 지어 규칙만 본다 — 게임의 메모리에서 표를 읽고 쓰는 것은 tests/test_toybox_values.py 가 본다.
+규칙은 게임이 스스로 쓰는 것 그대로다(docs/11-game-internals.md): 기술을 주면 선행 기술도 주고, 빼면 그 기술에 기대는 기술 · 설계도 뺀다.
+앞쪽은 표를 글로 지어 규칙만 보고, 뒤쪽은 가짜 게임 메모리(toybox_fake_game.Lab)에서 표를 읽고 비트를 쓰는 것을 본다.
 """
 import ctypes
+import struct
 
 import pytest
 
+import toybox_fake_exe
+from toybox_fake_game import DESIGN, DESIGN_SIZE, ENDED, GONE, INDEX, MULTIPLAYER, OWNERS_BYTES, RESEARCH, TECH, TECH_SIZE, FakeGame, \
+    Lab, kernel32, locked_page, standard_lab
 from srkit import toybox
 
 COMPLETE, REVOKE = 0, 1
-TECH, DESIGN = 1, 2          # 대기열 노드의 종류
-GONE, ENDED = 0x80000000, 0x08000000
+DONE, NOT_IN_GAME, NOT_USED, BAD_VALUE, FAILED, OFF, NO_TARGET, UNREADABLE, CRASHED = range(9)   # native/srtoybox/game.h 의 Wrote
+GERMANY, POLAND, DENMARK = 176, 141, 150                                                         # 지역 인덱스
+RECOMPUTE = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int)                                # "다시 셈" 자리에 두는 함수의 꼴
 
 
 @pytest.fixture(scope="module")
@@ -19,8 +24,13 @@ def lib(cfg):
     path = toybox.output(cfg)
     if not path.is_file():
         pytest.skip("ToyBox DLL 미빌드 (srkit toybox-build)")
-    lib = ctypes.CDLL(str(path))
+    lib = toybox.library(cfg)
+    pointer = ctypes.POINTER
     lib.srtoybox_research_plan.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
+    lib.srtoybox_research_read.argtypes = [ctypes.c_void_p, pointer(toybox.GameAddresses), pointer(toybox.ResearchLayout), ctypes.c_int,
+                                           ctypes.c_char_p, ctypes.c_int]
+    lib.srtoybox_research_write.argtypes = [ctypes.c_void_p, pointer(toybox.GameAddresses), pointer(toybox.ResearchLayout), ctypes.c_void_p,
+                                            ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int]
     return lib
 
 
@@ -232,3 +242,394 @@ def test_a_large_table_is_planned_in_one_go(lib):
     held = [tech(n, n - 1, mine=True) for n in range(1, 3000)] + [design(n, 2999, mine=True) for n in range(1, 22000, 7)]
     got = plan(lib, held, "items t1", REVOKE, slots=(3000, 22000))
     assert len(got["techs"]) == 2999 and len(got["designs"]) == len(range(1, 22000, 7))
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# 게임의 메모리에서: 표 읽기(read_research)와 쓰기(write_research)
+
+def lab() -> tuple[FakeGame, Lab]:
+    """독일(인덱스 176, 번호 1499)로 진행 중인 게임과 그 연구(toybox_fake_game.standard_lab — 기술 1 ~ 7, 부대 설계 10 ~ 14, 독일의 대기열).
+    폴란드(141, 1106) · 덴마크(150, 1201)가 함께 있다."""
+    fake = FakeGame()
+    fake.region(POLAND, 1106, alive=3)
+    fake.region(DENMARK, 1201, alive=3)
+    fake.region(GERMANY, 1499)
+    fake.play(GERMANY)
+    return fake, standard_lab(fake, GERMANY, POLAND, DENMARK)
+
+
+def read(lib, fake: FakeGame, lab: Lab, picked: int = 0):
+    """표를 읽는다. 읽었으면 {slots, techs: {번호: 행}, designs: {번호: 행}, queue: [(종류, 번호, 깃발 0, 깃발 1)]}, 못 읽었으면 까닭의 글."""
+    out = ctypes.create_string_buffer(1 << 16)
+    ok = lib.srtoybox_research_read(fake.base, ctypes.byref(fake.at), ctypes.byref(lab.layout), picked, out, len(out))
+    assert ok >= 0
+    if ok == 0:
+        return out.value.decode("utf-8")
+    table = {"techs": {}, "designs": {}, "queue": []}
+    for line in out.value.decode("utf-8").splitlines():
+        word, *rest = line.split()
+        if word == "slots":
+            table["slots"] = tuple(int(n) for n in rest)
+        elif word == "t":
+            number, kind, level, first, second, mine, chosen, others, queued, housed = (int(n) for n in rest)
+            table["techs"][number] = dict(kind=kind, level=level, needs=(first, second), mine=bool(mine), picked=bool(chosen),
+                                          others=others, queued=bool(queued), housed=bool(housed))
+        elif word == "d":
+            number, cls, year, is_open, held, mine, chosen, others, queued, housed, *needs = (int(n) for n in rest)
+            table["designs"][number] = dict(cls=cls, year=year, open=bool(is_open), held=bool(held), mine=bool(mine), picked=bool(chosen),
+                                            others=others, queued=bool(queued), housed=bool(housed), needs=tuple(needs))
+        else:
+            table["queue"].append((int(rest[0]), int(rest[1]), int(rest[2], 16), int(rest[3], 16)))
+    return table
+
+
+def write(lib, fake: FakeGame, lab: Lab, what: str, action: int = COMPLETE, recompute=None) -> tuple[int, dict]:
+    """연구를 바꾼다: (Wrote, 결과). 결과의 calls 는 "다시 셈" 자리의 함수가 불린 인자들 — [(세계 객체의 주소, 지역 인덱스)].
+    recompute 를 주면 그 주소를 함수로 넘긴다(잘못된 주소로 예외를 낼 때)."""
+    out = ctypes.create_string_buffer(1 << 16)
+    calls: list[tuple[int, int]] = []
+    hook = RECOMPUTE(lambda world, index: calls.append((world, index)))
+    wrote = lib.srtoybox_research_write(fake.base, ctypes.byref(fake.at), ctypes.byref(lab.layout),
+                                        recompute if recompute is not None else ctypes.cast(hook, ctypes.c_void_p), action,
+                                        what.encode(), out, len(out))
+    lines = dict(line.split(" ", 1) if " " in line else (line, "") for line in out.value.decode("utf-8").split("\n"))
+    done = {name: [int(n) for n in lines[name].split()] for name in ("techs", "designs", "nodes")}
+    done.update({name: int(lines[name]) for name in ("skipped", "housed", "cells", "written", "recomputed")})
+    done.update(asked=tuple(int(n) for n in lines["asked"].split()), code=int(lines["code"], 16), why=lines["why"], text=lines["text"],
+                calls=calls)
+    return wrote, done
+
+
+def differing(before: bytes, after: bytes) -> set[int]:
+    return {i for i in range(len(before)) if before[i] != after[i]}
+
+
+def test_the_tables_are_read_from_the_game(lib):
+    fake, lab_ = lab()
+    table = read(lib, fake, lab_)
+    assert table["slots"] == (64, 64)
+    assert sorted(table["techs"]) == [1, 2, 3, 4, 6, 7] and sorted(table["designs"]) == [10, 11, 12, 13, 14]     # 빈 자리는 없다
+    assert table["techs"][1] == dict(kind=1, level=10, needs=(0, 0), mine=True, picked=False, others=1, queued=False, housed=True)
+    assert table["techs"][2] == dict(kind=1, level=20, needs=(1, 0), mine=False, picked=False, others=1, queued=True, housed=True)
+    assert table["techs"][3] == dict(kind=1, level=30, needs=(2, 0), mine=False, picked=False, others=0, queued=False, housed=False)
+    assert table["designs"][11] == dict(cls=2, year=95, open=True, held=False, mine=False, picked=False, others=1, queued=True,
+                                        housed=True, needs=(3, 0, 0, 0))
+    assert table["designs"][12]["housed"] is False and table["designs"][14]["held"] is True and table["designs"][13]["others"] == 1
+    assert table["queue"] == [(DESIGN, 11, 1, 0x60000001), (TECH, 2, 1, 0)]
+
+
+def test_the_picked_country_is_marked(lib):
+    """고른 나라의 보유를 행마다 적는다 — "타국의 연구"를 목록에 보이는 데 쓴다. 이번 판에 없는 번호와 플레이어 자신은 아무것도 고르지 않은 것과 같다."""
+    fake, lab_ = lab()
+
+    def picked(number: int) -> tuple[list[int], list[int]]:
+        table = read(lib, fake, lab_, number)
+        return ([n for n, row in table["techs"].items() if row["picked"]], [n for n, row in table["designs"].items() if row["picked"]])
+
+    assert picked(1106) == ([1, 2], [11, 13])            # 폴란드
+    assert picked(1201) == ([4, 7], [])                  # 덴마크
+    assert picked(1499) == ([], []) and picked(9999) == ([], []) and picked(0) == ([], [])
+
+
+def broken(flaw: str) -> tuple[FakeGame, Lab]:
+    """lab() 에 흠 하나를 낸 것."""
+    fake, lab_ = lab()
+    tail = lab_.nodes[0]                                  # 먼저 건 노드가 목록의 끝이다
+    if flaw == "menu":
+        fake.menu()
+    elif flaw == "multiplayer":
+        fake.poke(MULTIPLAYER, "<B", 1)
+    elif flaw == "wrong-index":
+        fake.poke(INDEX, "<i", POLAND)                        # 전역의 인덱스가 플레이어의 객체가 아는 인덱스와 다르다
+    elif flaw == "no-table":
+        fake.poke(RESEARCH["tech_table"], "<Q", 0)
+    elif flaw == "one-slot":
+        fake.poke(RESEARCH["tech_count"], "<i", 1)
+    elif flaw == "too-many":
+        fake.poke(RESEARCH["design_count"], "<i", 70000)
+    elif flaw == "techs-gone":
+        fake.poke(RESEARCH["tech_table"], "<Q", 0x10)     # 읽을 수 없는 주소
+    elif flaw == "designs-gone":
+        fake.poke(RESEARCH["design_table"], "<Q", 0x10)
+    elif flaw == "owners-gone":
+        lab_.house(TECH, 3, block=0x10)
+    elif flaw == "node-gone":
+        ctypes.memmove(tail + 0x10, struct.pack("<Q", 0x10), 8)
+    elif flaw == "loop":
+        ctypes.memmove(tail + 0x10, struct.pack("<Q", lab_.nodes[1]), 8)     # 끝이 머리를 가리킨다
+    return fake, lab_
+
+
+@pytest.mark.parametrize("flaw, why, wrote", [
+    ("menu", "게임이 진행 중이 아닙니다", NOT_IN_GAME),
+    ("multiplayer", "멀티플레이에서는 연구를 읽지 않습니다", NOT_IN_GAME),
+    ("wrong-index", "게임이 진행 중이 아닙니다", NOT_IN_GAME),
+    ("no-table", "표가 없거나 자리 수가 범위 밖입니다", UNREADABLE),
+    ("one-slot", "표가 없거나 자리 수가 범위 밖입니다", UNREADABLE),
+    ("too-many", "표가 없거나 자리 수가 범위 밖입니다", UNREADABLE),
+    ("techs-gone", "기술 표를 읽을 수 없습니다", UNREADABLE),
+    ("designs-gone", "부대 설계 표를 읽을 수 없습니다", UNREADABLE),
+    ("owners-gone", "기술 3 의 보유 묶음을 읽을 수 없습니다", UNREADABLE),
+    ("node-gone", "연구 목록의 노드를 읽을 수 없습니다", UNREADABLE),
+    ("loop", "연구 목록이 끝나지 않습니다", UNREADABLE),
+])
+def test_a_game_that_does_not_add_up_is_neither_read_nor_written(lib, flaw, why, wrote):
+    """표의 꼴이 다른 게임일 수 있다 — 읽지 않고, 한 칸도 쓰지 않고, 게임의 함수도 부르지 않는다."""
+    fake, lab_ = broken(flaw)
+    assert read(lib, fake, lab_) == why
+    before = lab_.everything()
+    result, done = write(lib, fake, lab_, "items t3 d11")
+    assert result == wrote and done["written"] == 0 and done["calls"] == []
+    assert lab_.everything() == before
+
+
+def test_completing_a_tech_sets_the_players_bit_on_it_and_on_what_it_needs(lib):
+    """기술 3 을 완료로: 3 과 그 선행 2 의 독일 비트가 켜진다(1 은 이미 보유했다). 3 에는 묶음이 없었다 — 게임처럼 프로세스 힙에서
+    128바이트를 받아 건다. 대기열에 있던 2 는 대기열에서 빠진다. 끝에 독일의 효과를 한 번 다시 셈하게 한다."""
+    fake, lab_ = lab()
+    before = lab_.everything()
+    wrote, done = write(lib, fake, lab_, "items t3")
+    assert wrote == DONE and done["techs"] == [2, 3] and done["designs"] == [] and done["asked"] == (1, 0)
+    assert done["nodes"] == [1] and done["housed"] == 1 and done["skipped"] == 0
+    assert done["cells"] == done["written"] == 5                                     # 비트 둘, 새 묶음의 포인터 하나, 노드의 깃발 둘
+    assert done["recomputed"] == 1 and done["calls"] == [(lab_.world, GERMANY)]      # 플레이어 지역만. -1(모든 지역)이 아니다
+    assert done["text"] == "기술 2개(선행 1개 포함) · 대기열에서 1개"
+    assert lab_.owners(TECH, 2) == {POLAND, GERMANY} and lab_.owners(TECH, 3) == {GERMANY} and lab_.owners(TECH, 1) == {GERMANY, POLAND}
+    heap, block = kernel32.GetProcessHeap(), lab_.block(TECH, 3)
+    assert kernel32.HeapValidate(heap, 0, block) and kernel32.HeapSize(heap, 0, block) == OWNERS_BYTES
+    assert lab_.flags(lab_.nodes[0]) == (GONE | 1, GONE) and lab_.flags(lab_.nodes[1]) == (1, 0x60000001)   # 기술 2 의 노드만
+
+    after = lab_.everything()
+    assert set(after) - set(before) == {"t3"}                                         # 새 묶음 하나
+    same = set(before) - {"techs", "t2", "n0"}
+    assert all(after[name] == before[name] for name in same)                          # 전역 · 부대 설계 표 · 다른 묶음 · 다른 노드는 그대로다
+    cell = 3 * TECH_SIZE + 0x50
+    assert differing(before["techs"], after["techs"]) <= set(range(cell, cell + 8))   # 기술 표에서는 3 의 묶음 칸만(연구 기간은 그대로다)
+    assert differing(before["t2"], after["t2"]) == {GERMANY // 8}
+    assert differing(before["n0"], after["n0"]) == {0x23, 0x27}                       # 깃발 둘의 맨 위 비트
+
+
+def test_only_the_players_bit_in_its_byte_changes(lib):
+    """같은 바이트에 든 다른 나라 일곱의 비트는 읽은 그대로 쓴다."""
+    fake, lab_ = lab()
+    for index in (177, 183, 168, 175):                    # 176 과 같은 바이트(176 … 183), 그 앞 바이트
+        lab_.own(TECH, 2, index)
+    assert write(lib, fake, lab_, "items t2")[0] == DONE
+    assert lab_.owners(TECH, 2) == {POLAND, GERMANY, 177, 183, 168, 175}
+    assert write(lib, fake, lab_, "items t2", REVOKE)[0] == DONE
+    assert lab_.owners(TECH, 2) == {POLAND, 177, 183, 168, 175}
+
+
+def test_completing_a_design_sets_its_bit_and_brings_the_techs_it_needs(lib):
+    """부대 설계 11(선행 3 ← 2 ← 1)을 완료로: 설계의 비트와 기술 2 · 3. 내장 치트의 연구 단추들은 부대 설계를 건드리지 않았다."""
+    fake, lab_ = lab()
+    wrote, done = write(lib, fake, lab_, "items d11")
+    assert wrote == DONE and done["designs"] == [11] and done["techs"] == [2, 3] and done["asked"] == (0, 1) and done["nodes"] == [0, 1]
+    assert done["text"] == "기술 2개(선행 2개 포함) · 부대 설계 1개 · 대기열에서 2개"
+    assert lab_.owners(DESIGN, 11) == {POLAND, GERMANY} and lab_.owners(TECH, 3) == {GERMANY} and len(done["calls"]) == 1
+    assert lab_.flags(lab_.nodes[1]) == (GONE | 1, GONE | 0x60000001)                 # 다른 비트는 그대로 두고 "뺐다"만 켠다
+
+
+def test_a_design_alone_does_not_ask_the_game_to_recompute(lib):
+    """부대 설계 12 는 선행(4)을 이미 보유했다 — 설계의 비트만 켠다. 효과의 표는 기술에서만 나온다: 다시 셈을 부르지 않는다."""
+    fake, lab_ = lab()
+    wrote, done = write(lib, fake, lab_, "items d12")
+    assert wrote == DONE and done["designs"] == [12] and done["techs"] == [] and done["housed"] == 1
+    assert done["recomputed"] == 0 and done["calls"] == [] and lab_.owners(DESIGN, 12) == {GERMANY}
+
+
+def test_the_queue_is_finished_without_touching_how_long_research_takes(lib):
+    """"대기열의 연구 즉시 완료": 걸린 기술과 부대 설계를 모두 끝내고 대기열에서 뺀다. 내장 치트(e=mc2)는 부대 설계를 남겨 두었고,
+    모든 기술의 연구 기간(+0x30)을 1일로 바꿨다 — 모든 나라가 함께 쓰는 표다. ToyBox 는 그 칸에 쓰지 않는다."""
+    fake, lab_ = lab()
+    days = [struct.unpack_from("<f", lab_.techs, n * TECH_SIZE + 0x30)[0] for n in range(64)]
+    wrote, done = write(lib, fake, lab_, "queue")
+    assert wrote == DONE and done["techs"] == [2, 3] and done["designs"] == [11] and done["asked"] == (1, 1) and done["nodes"] == [0, 1]
+    assert all(flags[0] & GONE and flags[1] & GONE for flags in map(lab_.flags, lab_.nodes))
+    assert [struct.unpack_from("<f", lab_.techs, n * TECH_SIZE + 0x30)[0] for n in range(64)] == days
+    assert write(lib, fake, lab_, "queue")[1]["text"] == ""                           # 한 번 더 — 대기열이 비었다
+
+
+def test_level_takes_the_techs_at_or_below_it(lib):
+    fake, lab_ = lab()
+    wrote, done = write(lib, fake, lab_, "level 40")
+    assert wrote == DONE and done["techs"] == [2, 3] and done["asked"] == (2, 0) and done["designs"] == []
+    assert lab_.held(TECH, 64, GERMANY) == [1, 2, 3, 4, 6] and lab_.held(DESIGN, 64, GERMANY) == [10, 13, 14]
+
+
+def test_revoking_a_tech_clears_the_players_bit_on_what_leaned_on_it(lib):
+    """기술 4 를 미완료로: 4 와, 4 를 선행으로 갖는 6, 6 을 선행으로 갖는 설계 13. 14 는 게임이 건너뛰는 설계라 그대로다.
+    다른 나라의 비트는 그대로이고 묶음도 그대로 둔다(풀지 않는다)."""
+    fake, lab_ = lab()
+    wrote, done = write(lib, fake, lab_, "items t4", REVOKE)
+    assert wrote == DONE and done["techs"] == [4, 6] and done["designs"] == [13] and done["asked"] == (1, 0) and done["nodes"] == []
+    assert done["text"] == "기술 2개(딸린 것 1개 포함) · 부대 설계 1개(딸린 것 1개 포함)"
+    assert lab_.owners(TECH, 4) == {DENMARK} and lab_.owners(TECH, 6) == set() and lab_.block(TECH, 6) != 0
+    assert lab_.owners(DESIGN, 13) == {POLAND} and lab_.owners(DESIGN, 14) == {GERMANY}
+    assert done["housed"] == 0 and done["calls"] == [(lab_.world, GERMANY)]
+    wrote, done = write(lib, fake, lab_, "items d10", REVOKE)
+    assert wrote == DONE and done["designs"] == [10] and done["calls"] == [] and lab_.owners(DESIGN, 10) == set()
+
+
+def rehouse(lab_: Lab, make) -> None:
+    """모든 보유 묶음을 make() 가 주는 자리로 옮긴다(내용은 그대로)."""
+    for kind, count in ((TECH, 64), (DESIGN, 64)):
+        for number in range(1, count):
+            old = lab_.block(kind, number)
+            if old:
+                new = make()
+                ctypes.memmove(new, old, OWNERS_BYTES)
+                lab_.house(kind, number, block=new)
+
+
+@pytest.mark.parametrize("where", ["a-buffer", "a-bigger-block"])
+def test_a_new_set_is_made_only_when_the_games_sets_are_heap_blocks_of_that_size(lib, where):
+    """새 묶음은 게임이 나중에 풀 것이다 — 게임이 묶음을 받는 힙 · 크기와 같아야 한다. 이미 있는 묶음이 프로세스 힙의 128바이트 블록이
+    아니면(다른 할당기를 쓰는 빌드, 지역이 늘어난 빌드) 만들지 않는다: 묶음이 없는 항목만 건너뛰고 나머지는 쓴다."""
+    fake, lab_ = lab()
+    pool = (ctypes.c_ubyte * 0x4000)()
+    used = iter(range(0, 0x4000, 0x100))
+    if where == "a-buffer":
+        rehouse(lab_, lambda: ctypes.addressof(pool) + next(used))
+    else:
+        rehouse(lab_, lambda: kernel32.HeapAlloc(kernel32.GetProcessHeap(), 8, 2 * OWNERS_BYTES))
+    wrote, done = write(lib, fake, lab_, "items t3 d12 d10 t7")
+    assert wrote == DONE and done["techs"] == [7] and done["designs"] == [] and done["skipped"] == 2 and done["housed"] == 0
+    assert lab_.block(TECH, 3) == 0 and lab_.block(DESIGN, 12) == 0 and lab_.owners(TECH, 7) == {DENMARK, GERMANY}
+    assert lab_.owners(TECH, 2) == {POLAND}                                           # 건너뛴 3 의 선행은 따라가지 않았다
+
+
+def test_nothing_is_written_when_one_of_the_sets_cannot_be_written(lib):
+    """쓰기 전에 모든 칸이 읽기 · 쓰기 쪽인지 본다. 하나라도 아니면 한 칸도 쓰지 않는다 — 받아 둔 새 묶음도 돌려준다."""
+    fake, lab_ = lab()
+    lab_.house(TECH, 2, block=locked_page())              # 기술 2 의 묶음이 읽기 전용 쪽에 있다
+    before = lab_.everything()
+    wrote, done = write(lib, fake, lab_, "items t3")
+    assert wrote == FAILED and done["why"] == "기술 2 의 보유 묶음" and done["written"] == 0 and done["cells"] == 5
+    assert done["calls"] == [] and lab_.everything() == before and lab_.block(TECH, 3) == 0
+
+
+def test_nothing_is_written_when_a_queue_node_cannot_be_written(lib):
+    fake, lab_ = lab()
+    page = kernel32.VirtualAlloc(None, 0x1000, 0x3000, 0x04)
+    lab_.queue(GERMANY, TECH, 7, at=page)
+    assert kernel32.VirtualProtect(page, 0x1000, 0x02, ctypes.byref(ctypes.c_ulong()))
+    before = lab_.everything()
+    wrote, done = write(lib, fake, lab_, "items t7")
+    assert wrote == FAILED and done["why"] == "연구 목록의 노드" and done["written"] == 0
+    assert done["calls"] == [] and lab_.everything() == before
+
+
+def test_a_fault_in_the_games_function_is_caught(lib):
+    """"다시 셈"에서 예외가 나면 죽지 않고 그 코드를 돌려준다(부른 쪽이 ToyBox 를 멈춘다). 비트는 이미 썼다."""
+    fake, lab_ = lab()
+    wrote, done = write(lib, fake, lab_, "items t2", recompute=ctypes.c_void_p(8))    # 부를 수 없는 주소
+    assert wrote == CRASHED and done["code"] == 0xC0000005 and done["recomputed"] == 0
+    assert lab_.owners(TECH, 2) == {POLAND, GERMANY}
+
+
+def test_an_empty_request_writes_nothing_and_calls_nothing(lib):
+    fake, lab_ = lab()
+    before = lab_.everything()
+    wrote, done = write(lib, fake, lab_, "items t1 d10 t5 t63")      # 이미 보유한 것, 빈 자리, 표에 없는 번호
+    assert wrote == DONE and done["text"] == "" and done["cells"] == 0 and done["calls"] == [] and lab_.everything() == before
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# 이 프로세스의 "게임"에서: 연구를 쓸 수 있는가, 게임이 뜰 때의 찾기와 로그
+
+CAN_RESEARCH = 64                                         # srtoybox_game_flags 의 비트
+
+
+def text(call, *args, size: int = 4096) -> str:
+    buf = ctypes.create_string_buffer(size)
+    n = call(*args, buf, size)
+    return buf.raw[:max(n, 0)].decode("utf-8")
+
+
+def test_research_is_off_until_its_place_is_known(lib):
+    """연구는 제 묶음을 찾았을 때만 쓴다. 못 찾았으면 까닭을 그대로 보인다 — 내장 치트로 되돌아가지 않는다."""
+    fake, lab_ = lab()
+    lib.srtoybox_test_game.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
+    lib.srtoybox_test_research.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+    lib.srtoybox_research_off.argtypes = [ctypes.c_char_p, ctypes.c_int]
+    hook = RECOMPUTE(lambda world, index: None)
+    try:
+        lib.srtoybox_test_game(fake.base, ctypes.byref(fake.at), None)
+        assert not lib.srtoybox_game_flags() & CAN_RESEARCH
+        assert text(lib.srtoybox_research_off) == "이 게임 판에서는 쓸 수 없습니다 (연구의 자리를 주지 않았습니다)"
+        lib.srtoybox_test_research(ctypes.byref(lab_.layout), ctypes.cast(hook, ctypes.c_void_p))
+        assert lib.srtoybox_game_flags() & CAN_RESEARCH and text(lib.srtoybox_research_off) == ""
+        lib.srtoybox_test_research(None, None)
+        assert not lib.srtoybox_game_flags() & CAN_RESEARCH
+    finally:
+        lib.srtoybox_test_game(None, None, None)
+    assert text(lib.srtoybox_research_off) == "게임 상태를 읽을 수 있을 때만 씁니다."
+
+
+@pytest.fixture(scope="module")
+def sigs(lib):
+    """DLL 에 든 서명 표: (상태 21개, 값 12개, 연구 21개) — 저마다 [(찾을 것, 서명 글)]."""
+    rows = lambda found: [(row.name, row.text) for row in found[2]]
+    return rows(toybox.state_of(lib, b"")), rows(toybox.values_of(lib, b"")), rows(toybox.research_of(lib, b"", None))
+
+
+def startup(lib, image: bytes, tmp_path, monkeypatch) -> tuple[int, str, list[str]]:
+    """게임이 뜰 때의 찾기(game_init_from)를 그 이미지에 돌린다: (아는 것의 비트, 연구를 쓸 수 없는 까닭, 로그의 줄들 — 때를 뗀 것)."""
+    lib.srtoybox_test_init.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong]
+    lib.srtoybox_test_game.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
+    lib.srtoybox_research_off.argtypes = [ctypes.c_char_p, ctypes.c_int]
+    monkeypatch.setenv("SRTOYBOX_HOME", str(tmp_path))
+    try:
+        lib.srtoybox_test_init(image, len(image))
+        flags, off = lib.srtoybox_game_flags(), text(lib.srtoybox_research_off)
+    finally:
+        lib.srtoybox_test_game(None, None, None)              # 이미지를 놓기 전에 이 프로세스의 "게임"을 비운다
+    log = tmp_path / "toybox.log"
+    return flags, off, [line.split(" ", 2)[2] for line in log.read_text(encoding="utf-8").splitlines()] if log.is_file() else []
+
+
+FOUND = "연구를 씁니다 (기술 표 +0x5048 · 부대 설계 표 +0x5058 · 연구 목록 +0x2100 · 다시 셈 +0x1C00)"
+
+
+def test_startup_finds_research_without_any_cheat(lib, sigs, tmp_path, monkeypatch):
+    """치트 문자열이 하나도 없는 이미지에서도 연구의 자리와 다시 셈 함수를 찾는다."""
+    state, values, research_ = sigs
+    image = toybox_fake_exe.sig_image(state + values + research_)
+    assert b"cheat" not in image
+    flags, off, log = startup(lib, image, tmp_path, monkeypatch)
+    assert flags & CAN_RESEARCH and off == "" and FOUND in log
+    assert not any("맞지 않은 서명" in line for line in log)
+
+
+def test_startup_without_research_keeps_everything_else(lib, sigs, tmp_path, monkeypatch):
+    """연구의 서명이 없는 게임: 연구만 꺼지고(까닭 한 줄) 상태 읽기와 돈 · 물자는 그대로다."""
+    state, values, _ = sigs
+    flags, off, log = startup(lib, toybox_fake_exe.sig_image(state + values), tmp_path, monkeypatch)
+    assert flags & 5 == 5 and not flags & CAN_RESEARCH                                # 상태를 읽고 값(국고 · 재고)을 쓴다
+    assert off == "이 게임 판에서는 쓸 수 없습니다 (기술 표: 서명 3개 가운데 0개)"
+    assert "연구를 쓸 수 없습니다 (기술 표: 서명 3개 가운데 0개)" in log and not any(line.startswith("연구를 씁니다") for line in log)
+
+
+def test_startup_drops_research_when_one_signature_is_missing(lib, sigs, tmp_path, monkeypatch):
+    """연구는 서명 하나만 맞지 않아도 쓰지 않는다 — 표의 꼴이 서명마다 박혀 있다."""
+    state, values, research_ = sigs
+    image = toybox_fake_exe.sig_image(research_ + state + values, broken={17})        # 연구 목록의 셋째 서명
+    flags, off, log = startup(lib, image, tmp_path, monkeypatch)
+    assert flags & 5 == 5 and not flags & CAN_RESEARCH and "연구를 쓸 수 없습니다 (연구 목록: 서명 3개 가운데 2개)" in log
+
+
+def test_startup_drops_research_that_sits_on_the_world_pointer(lib, sigs, tmp_path, monkeypatch):
+    """저마다 찾았어도 연구의 전역이 값 묶음의 세계 자료 포인터와 겹치면 연구는 쓰지 않는다. 돈 · 물자는 그대로다."""
+    state, values, research_ = sigs
+    image = toybox_fake_exe.sig_image(state + values + research_, targets={"tech_table": toybox_fake_exe.VALUE_LAYOUT["world_pointer"]})
+    flags, off, log = startup(lib, image, tmp_path, monkeypatch)
+    clash = "기술 표: 찾은 주소가 세계 자료 포인터 의 자리와 겹칩니다"
+    assert flags & 5 == 5 and not flags & CAN_RESEARCH and off == f"이 게임 판에서는 쓸 수 없습니다 ({clash})"
+    assert f"연구를 쓸 수 없습니다 ({clash})" in log and any(line.startswith("값을 씁니다 (국고 ") for line in log)
+
+
+def test_startup_without_the_state_does_not_look_for_research(lib, sigs, tmp_path, monkeypatch):
+    _, _, research_ = sigs
+    flags, off, log = startup(lib, toybox_fake_exe.sig_image(research_), tmp_path, monkeypatch)
+    assert flags == 0 and off == "게임 상태를 읽을 수 있을 때만 씁니다." and not any("연구" in line for line in log)

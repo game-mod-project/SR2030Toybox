@@ -529,6 +529,68 @@ EXPORT int srtoybox_more_off(int group, char *out, int size)
     return put(game_more_off(group), out, size);
 }
 
+// 테스트: 가짜 메모리에서 연구의 표를 읽는다(read_research). 읽었으면 1 과 표의 글, 못 읽었으면 0 과 까닭.
+// 표의 글은 한 줄에 하나: "slots <기술 자리 수> <설계 자리 수>" /
+//   "t <번호> <분류> <수준> <선행 0> <선행 1> <보유> <고른 나라가 보유> <다른 나라의 수> <대기열에 있다> <묶음이 있다>" /
+//   "d <번호> <병과> <연도> <연구 대상> <게임이 건너뛰는 설계> <보유> <고른 나라가 보유> <다른 나라의 수> <대기열에 있다> <묶음이 있다> <선행 넷>" /
+//   "q <종류> <번호> <깃발 0(16진수)> <깃발 1(16진수)>"
+EXPORT int srtoybox_research_read(const unsigned char *base, const GameAddresses *at, const ResearchLayout *layout, int picked, char *out,
+                                  int size)
+{
+    if (at == nullptr || layout == nullptr)
+        return -1;
+    ResearchTables t;
+    std::string why;
+    if (!read_research(base, *at, *layout, picked, &t, &why))
+        return put(why, out, size) < 0 ? -1 : 0;
+    std::ostringstream text;
+    text << "slots " << t.tech_slots << ' ' << t.design_slots << '\n';
+    for (const TechRow &row : t.techs)
+        text << "t " << row.id << ' ' << row.kind << ' ' << row.level << ' ' << row.needs[0] << ' ' << row.needs[1] << ' ' << row.mine
+             << ' ' << row.picked << ' ' << row.others << ' ' << row.queued << ' ' << row.housed << '\n';
+    for (const DesignRow &row : t.designs)
+        text << "d " << row.id << ' ' << row.cls << ' ' << row.year << ' ' << row.open << ' ' << row.held << ' ' << row.mine << ' '
+             << row.picked << ' ' << row.others << ' ' << row.queued << ' ' << row.housed << ' ' << row.needs[0] << ' ' << row.needs[1]
+             << ' ' << row.needs[2] << ' ' << row.needs[3] << '\n';
+    for (const QueueRow &row : t.queue)
+        text << "q " << row.kind << ' ' << row.id << ' ' << std::hex << row.flags[0] << ' ' << row.flags[1] << std::dec << '\n';
+    return put(text.str(), out, size) < 0 ? -1 : 1;
+}
+
+// 테스트: 가짜 메모리의 연구를 완료(action 0) · 미완료(1)로 바꾼다(write_research). what 은 what_from 의 글,
+// recompute 는 "다시 셈" 자리에 둘 함수(없으면 nullptr). 돌려주는 값은 Wrote. out 에는 한 줄에 하나:
+// "techs …" / "designs …" / "nodes …" / "asked <기술> <설계>" / "skipped N" / "housed N" / "cells N" / "written N" /
+// "recomputed 0|1" / "code <예외 코드(16진수)>" / "why <까닭>" / "text <알림의 글>"
+EXPORT int srtoybox_research_write(const unsigned char *base, const GameAddresses *at, const ResearchLayout *layout, void *recompute,
+                                   int action, const char *what, char *out, int size)
+{
+    if (at == nullptr || layout == nullptr)
+        return -1;
+    const Research how = action == 0 ? Research::Complete : Research::Revoke;
+    ResearchDone done;
+    const Wrote wrote = write_research(base, *at, *layout, reinterpret_cast<Recompute>(recompute), how,
+                                       what_from(what != nullptr ? what : ""), &done);
+    std::ostringstream text;
+    text << numbers("techs", done.plan.techs) << numbers("designs", done.plan.designs) << numbers("nodes", done.plan.nodes) << "asked "
+         << done.plan.asked_techs << ' ' << done.plan.asked_designs << "\nskipped " << done.skipped << "\nhoused " << done.housed
+         << "\ncells " << done.cells << "\nwritten " << done.written << "\nrecomputed " << done.recomputed << "\ncode " << std::hex
+         << done.code << "\nwhy " << done.why << "\ntext " << research_summary(done.plan, how);
+    put(text.str(), out, size);
+    return static_cast<int>(wrote);
+}
+
+// 테스트: 이 프로세스의 "게임"에 연구의 자리와 "다시 셈" 자리에 둘 함수를 준다(srtoybox_test_game 다음에 부른다). nullptr 이면 못 찾은 것으로.
+EXPORT void srtoybox_test_research(const ResearchLayout *layout, void *recompute)
+{
+    game_set_research_for_test(layout, recompute);
+}
+
+// 연구를 쓸 수 없는 까닭. 쓸 수 있으면 빈 글.
+EXPORT int srtoybox_research_off(char *out, int size)
+{
+    return put(game_research_off(), out, size);
+}
+
 // 테스트: 게임이 뜰 때의 찾기(game_init_from)를 그 이미지에 돌린다. 이미지는 srtoybox_test_game(nullptr, …) 로 비울 때까지 살아 있어야 한다.
 EXPORT void srtoybox_test_init(const unsigned char *image, unsigned long long size)
 {
@@ -536,12 +598,12 @@ EXPORT void srtoybox_test_init(const unsigned char *image, unsigned long long si
 }
 
 // 테스트: 이 프로세스의 "게임"에 대해 아는 것. 비트 1 = 상태를 읽는다, 2 = 명령 처리 함수를 부를 수 있다, 4 = 값(국고 · 재고)을 쓸 수 있다,
-// 8 = 기술 수준을, 16 = 세계 시장 여론을, 32 = 관계를 쓸 수 있다.
+// 8 = 기술 수준을, 16 = 세계 시장 여론을, 32 = 관계를, 64 = 연구를 쓸 수 있다.
 EXPORT int srtoybox_game_flags(void)
 {
     return (game_reads() ? 1 : 0) | (game_can_call() ? 2 : 0) | (game_values_off().empty() ? 4 : 0)
         | (game_more_off(MORE_TECH).empty() ? 8 : 0) | (game_more_off(MORE_OPINION).empty() ? 16 : 0)
-        | (game_more_off(MORE_RELATIONS).empty() ? 32 : 0);
+        | (game_more_off(MORE_RELATIONS).empty() ? 32 : 0) | (game_research_off().empty() ? 64 : 0);
 }
 
 EXPORT int srtoybox_values_off(char *out, int size)
