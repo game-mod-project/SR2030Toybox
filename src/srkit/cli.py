@@ -196,6 +196,10 @@ def cmd_locate(cfg, _args) -> int:
                 print(f"  {found.more[name]:#010x}  {toybox.MORE_NAMES[name]}")
     if any(found.more_why):
         print("ToyBox 에서 그 묶음의 단추만 꺼집니다. uv run srkit sig-mine --offset 으로 서명을 다시 뽑습니다(docs/11).")
+    print("새 찾기 — 부르는 게임의 함수(서명. 그 함수를 부르는 자리 — 셋이 모두 맞아야 한다):")
+    _print_sig_rows(found.act_rows)
+    for name, why in zip(toybox.ACT_FIELDS, found.acts_why):
+        print(f"  찾지 못했습니다: {why}" if why else f"  {found.acts[name]:#010x}  {toybox.ACT_NAMES[name]}")
     print("새 찾기 — 연구(서명. 셋이 모두 맞아야 한다 — 표와 목록의 꼴이 서명에 박혀 있다. 세계 객체는 주소 · 지역 표까지의 거리):")
     _print_sig_rows(found.research_rows)
     if found.research is None:

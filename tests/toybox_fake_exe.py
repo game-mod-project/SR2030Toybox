@@ -10,6 +10,8 @@ SIZE = 0x10000                                # 지역 표(8바이트 × 1024칸
 TEXT, RDATA, PDATA, DATA = 0x1000, 0x3000, 0x4000, 0x5000
 HANDLER, CALLER = 0x1000, 0x1800
 RECOMPUTE = TEXT + 0xC00                      # 가짜 "다시 셈 함수" — 함수 표에 그 시작으로 들어 있다
+COLONIZE = TEXT + 0xC80                       # 가짜 "식민지화 함수" — 〃
+ACTS = {"colonize": COLONIZE}                 # 새 찾기(부르는 게임의 함수)의 가짜 주소
 WORLD = DATA + 0x180                          # 지역 표 = WORLD + 0x80
 ANCHOR = RDATA                                # "cheat allowcheats"
 # 새 찾기(상태 묶음)의 가짜 주소
@@ -110,8 +112,8 @@ def sig_image(sigs: list[tuple[str, str]], *, broken=(), twice=(), stray=(), tar
     broken · twice · stray 는 sigs 의 칸 번호들이다: 심지 않는다 / 한 번 더 심는다(두 번 맞는다) / 옆의 값을 가리키게 심는다.
     targets 로 가짜 주소 · 값을 바꾼다(STATE · VALUES · MORE · RESEARCH 의 이름으로).
     """
-    image = into if into is not None else shell([(RECOMPUTE, RECOMPUTE + 0x40), (PLANT, TEXT + 0x2000)])
-    at = {**STATE, **VALUES, **MORE, **RESEARCH, **(targets or {})}
+    image = into if into is not None else shell([(RECOMPUTE, RECOMPUTE + 0x40), (COLONIZE, COLONIZE + 0x40), (PLANT, TEXT + 0x2000)])
+    at = {**STATE, **VALUES, **MORE, **RESEARCH, **ACTS, **(targets or {})}
     places: dict[str, int] = {}
     for i, (name, text) in enumerate(sigs):
         if i in broken:
@@ -132,7 +134,7 @@ def build(sigs: list[tuple[str, str]] | None = None, *, extra_anchor: bool = Fal
     나머지 인자는 옛 찾기가 거부해야 하는 흠을 하나씩 낸다.
     """
     image = shell([(HANDLER, HANDLER + 0x200), (CALLER, CALLER + 0x20), (CALLER + 0x20, CALLER + 0x100), (RECOMPUTE, RECOMPUTE + 0x40),
-                   (PLANT, TEXT + 0x2000)])
+                   (COLONIZE, COLONIZE + 0x40), (PLANT, TEXT + 0x2000)])
     unwind = RDATA + 0x800
     put(image, unwind + 0x10, bytes([0x21, 0, 0, 0]) + struct.pack("<III", CALLER, CALLER + 0x20, unwind))   # UNW_FLAG_CHAININFO
     struct.pack_into("<I", image, PDATA + 12 * 2 + 8, unwind + 0x10)           # 부르는 함수의 뒤 조각은 앞 조각에 묶인다

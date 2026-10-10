@@ -25,6 +25,7 @@ enum class Direct {
     QueueDone,         // 플레이어의 대기열에 있는 기술 · 부대 설계를 모두 보유로 만들고 대기열에서 뺀다
     PeopleAdd,         // 플레이어의 인구 +100만(3단계 4)
     ApprovalBest,      // 플레이어의 국내 지지율 100%(3단계 4)
+    Colonize,          // 고른 나라를 플레이어의 식민지로 — 게임의 함수를 부른다(3단계 4). 한 번 더 눌러야 실행된다
 };
 
 struct Feature {

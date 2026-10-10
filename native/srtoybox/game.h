@@ -7,7 +7,9 @@
 //   플레이어의 연구 목록 노드의 깃발 두 칸.
 // 그 밖의 지역 · 다른 칸 · 전역 · 치트 허용 비트에는 쓰지 않는다. 기술 표와 부대 설계 표는 모든 나라가 함께 쓰는 표다 — 거기에 쓰는 것은
 // 플레이어의 비트와, 플레이어의 비트 하나만 켜질 빈 묶음을 거는 것뿐이다(다른 나라의 비트 · 연구 기간 · 비용은 건드리지 않는다).
-// 게임의 함수는 하나만 부른다: "지역의 효과를 다시 셈"(치트가 아니다 — 게임이 연구가 끝날 때 스스로 부르는 함수), 플레이어 지역에 대해서만.
+// 게임의 함수는 둘만 부른다(둘 다 치트가 아니다 — 게임이 스스로도 부르는 함수):
+//   "지역의 효과를 다시 셈" — 플레이어 지역에 대해서만(연구가 끝날 때 게임이 부르는 것).
+//   "식민지화"(3단계 4) — (플레이어의 지역 객체, 고른 나라의 인덱스, 1) 로 한 번. 사용자가 정했다(2026-10-10).
 #pragma once
 
 #include <cstdint>
@@ -152,6 +154,15 @@ Wrote game_write_opinion();
 Wrote game_write_people(float add);
 Wrote game_write_approval();
 Wrote game_write_relation(int number, float level);
+
+// 게임의 함수를 부르는 기능(ACT_COLONIZE)을 쓸 수 없는 까닭(창에 그대로 보인다). 쓸 수 있으면 빈 글. 다른 묶음과 따로다.
+std::string game_act_off(int act);
+// 고른 나라(지역 번호)를 플레이어의 식민지로: 게임의 함수를 (플레이어의 지역 객체, 그 나라의 인덱스, 1) 로 한 번 부른다 — 구조적 예외 가드 안에서.
+// 부르기 전에 본다: 진행 중 · 멀티플레이가 아니다 · 그 나라가 이번 판에 있고 플레이어가 아니다(NotInGame · NoTarget).
+// 함수 안에서 예외가 나면 Wrote::Crashed 와 code — 부른 쪽이 오류 가드를 건다(runner_win.h).
+Wrote game_colonize(int number, unsigned long *code);
+// 테스트: 부르는 함수의 자리를 준다(colonize 는 그 자리에 둘 함수). nullptr 이면 못 찾은 것으로.
+void game_set_acts_for_test(const ActLayout *layout, void *colonize);
 
 // 연구를 쓸 수 없는 까닭(창에 그대로 보인다). 쓸 수 있으면 빈 글. 다른 묶음과 따로다.
 std::string game_research_off();

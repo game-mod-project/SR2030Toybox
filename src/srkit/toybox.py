@@ -65,6 +65,11 @@ RESEARCH_NAMES = {"tech_table": "기술 표의 포인터(qword)", "tech_count": 
                   "recompute": "지역의 효과를 다시 셈하는 함수(세계 객체, 지역 인덱스)"}
 
 
+# 새 찾기(서명)가 채우는 "부르는 게임의 함수" — native/srtoybox/locate.h 의 ActLayout 과 같은 순서다. 값은 함수의 RVA
+ACT_FIELDS = ["colonize"]
+ACT_NAMES = {"colonize": "식민지화 함수(지역 객체, 다른 지역의 인덱스, 깃발)"}
+
+
 @dataclass
 class SigRow:
     """서명 하나의 결과."""
@@ -94,6 +99,9 @@ class Located:
     research: dict[str, int] | None  # 새 찾기(서명): 연구 묶음. 못 찾았으면 None
     research_why: str
     research_rows: list[SigRow]      # 세계 객체의 value2 는 지역 표까지의 거리
+    acts: dict[str, int] = None      # 새 찾기(서명): 부르는 게임의 함수. 못 찾은 것은 0
+    acts_why: list[str] = None       # 함수마다(ACT_FIELDS 순서)의 까닭. 찾았으면 빈 글
+    act_rows: list[SigRow] = None
 
 
 class GameAddresses(ctypes.Structure):
@@ -106,6 +114,10 @@ class ValueLayout(ctypes.Structure):
 
 class MoreLayout(ctypes.Structure):
     _fields_ = [(name, ctypes.c_uint32) for name in MORE_FIELDS]
+
+
+class ActLayout(ctypes.Structure):
+    _fields_ = [(name, ctypes.c_uint32) for name in ACT_FIELDS]
 
 
 class ResearchLayout(ctypes.Structure):
@@ -283,6 +295,16 @@ def more_of(lib: ctypes.CDLL, image: bytes, values: dict[str, int] | None = None
     return {name: getattr(found, name) for name in MORE_FIELDS}, why, _sig_rows(rows.value)
 
 
+def acts_of(lib: ctypes.CDLL, image: bytes) -> tuple[dict[str, int], list[str], list[SigRow]]:
+    """새 찾기(부르는 게임의 함수)를 그 이미지에 돌린다: (이름 → 함수의 RVA — 못 찾은 것은 0, 함수마다의 까닭, 서명마다의 결과)."""
+    lib.srtoybox_locate_acts.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong, ctypes.POINTER(ActLayout), ctypes.c_char_p, ctypes.c_int,
+                                         ctypes.c_char_p, ctypes.c_int]
+    found, error, rows = ActLayout(), ctypes.create_string_buffer(1024), ctypes.create_string_buffer(8192)
+    lib.srtoybox_locate_acts(image, len(image), ctypes.byref(found), error, len(error), rows, len(rows))
+    why = error.value.decode("utf-8").split("\n")[:len(ACT_FIELDS)]
+    return {name: getattr(found, name) for name in ACT_FIELDS}, why, _sig_rows(rows.value)
+
+
 def research_of(lib: ctypes.CDLL, image: bytes, state: dict[str, int] | None) -> tuple[dict[str, int] | None, str, list[SigRow]]:
     """새 찾기(연구)를 그 이미지에 돌린다: (이름 → 값 또는 None, 까닭, 서명마다의 결과).
 
@@ -337,5 +359,6 @@ def locate(cfg: Config) -> Located:
     clash = research_fits(lib, research, values) if research is not None and values is not None else ""
     if clash:
         research, research_why = None, clash  # 게임 안의 ToyBox 도 이때 연구 묶음을 버린다(game_init_from)
+    acts, acts_why, act_rows = acts_of(lib, image)
     return Located(state, state_why, rows, ms, values, values_why, value_rows, legacy, legacy_why, more, more_why, more_rows,
-                   research, research_why, research_rows)
+                   research, research_why, research_rows, acts, acts_why, act_rows)

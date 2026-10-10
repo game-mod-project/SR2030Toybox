@@ -121,6 +121,30 @@ def research_sigs(lib):
     return [(row.name, row.text) for row in toybox.research_of(lib, b"", None)[2]]
 
 
+@pytest.fixture(scope="module")
+def act_sigs(lib):
+    """DLL 에 든 "부르는 게임의 함수"의 서명 표: [(찾을 것, 서명 글)] — 찾을 것마다 셋."""
+    return [(row.name, row.text) for row in toybox.acts_of(lib, b"")[2]]
+
+
+BUILD_ACTS = {"colonize": 0x771FB0}
+
+
+def test_the_called_functions_are_found_by_their_call_sites(lib, act_sigs, game_dir):
+    """3단계 4: 부르는 게임의 함수(식민지화)는 그것을 부르는 자리의 서명 셋이 모두 한 번씩 맞고 같은 주소를 내야 찾은 것이다 —
+    그 주소가 함수 표에 있는 함수의 시작이어야 한다. 하나라도 어긋나면 못 찾은 것으로 친다(엉뚱한 함수를 부르지 않는다)."""
+    assert [name for name, _ in act_sigs] == [name for name in toybox.ACT_FIELDS for _ in range(3)] and len({t for _, t in act_sigs}) == 3
+    assert toybox.acts_of(lib, toybox_fake_exe.sig_image(act_sigs))[:2] == (toybox_fake_exe.ACTS, [""])
+    found, why, _ = toybox.acts_of(lib, toybox_fake_exe.sig_image(act_sigs, broken={1}))
+    assert found == {"colonize": 0} and "식민지화 함수" in why[0] and "3개 가운데 2개" in why[0]          # 셋 가운데 둘로는 찾지 않는다
+    found, why, _ = toybox.acts_of(lib, toybox_fake_exe.sig_image(act_sigs, stray={2}))
+    assert found == {"colonize": 0} and "서로 다른" in why[0]
+    found, why, _ = toybox.acts_of(lib, toybox_fake_exe.sig_image(act_sigs, targets={"colonize": toybox_fake_exe.COLONIZE + 4}))
+    assert found == {"colonize": 0} and why == ["식민지화 함수: 찾은 주소가 함수의 시작이 아닙니다"]
+    found, why, rows = toybox.acts_of(lib, installed_image(game_dir))                                    # build 21347933
+    assert found == BUILD_ACTS and why == [""] and [row.count for row in rows] == [1] * 3
+
+
 def installed_image(game_dir) -> bytes:
     """설치된 게임의 실행 파일을 펼친 것. 아는 빌드(21347933)가 아니면 건너뛴다."""
     exe = (game_dir / "SupremeRuler2030.exe").read_bytes()
@@ -217,14 +241,14 @@ def test_signatures_lie_outside_the_cheat_code(lib, game_dir):
     cheats = sigmine.cheat_ranges(sigmine.Image(image))
     assert len(cheats) == 12
     for row in (toybox.state_of(lib, image)[2] + toybox.values_of(lib, image)[2] + toybox.more_of(lib, image)[2]
-                + toybox.research_of(lib, image, BUILD_STATE)[2]):
+                + toybox.research_of(lib, image, BUILD_STATE)[2] + toybox.acts_of(lib, image)[2]):
         assert not any(begin <= row.at < end for begin, end in cheats), row
 
 
 def test_each_item_takes_its_signatures_from_different_functions(lib, game_dir):
     image = installed_image(game_dir)
     rows = (toybox.state_of(lib, image)[2] + toybox.values_of(lib, image)[2] + toybox.more_of(lib, image)[2]
-            + toybox.research_of(lib, image, BUILD_STATE)[2])
+            + toybox.research_of(lib, image, BUILD_STATE)[2] + toybox.acts_of(lib, image)[2])
     for i in range(0, len(rows), 3):
         roots = {lib.srtoybox_function_root(image, len(image), row.at) or -row.at for row in rows[i:i + 3]}   # 함수 표에 없으면 0
         assert len(roots) == 3, rows[i].name

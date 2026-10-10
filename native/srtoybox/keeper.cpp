@@ -22,6 +22,14 @@ const char *const LEFT_GAME = "게임이 진행 중이 아니어서 쓰지 않�
 std::mutex g_lock;          // 단추(그리는 스레드)와 틱(창 스레드)이 함께 만진다
 std::deque<Request> g_queue;
 std::deque<ResearchRequest> g_research;     // 연구 요청은 따로 줄을 선다 — 틱마다 값 요청을 비운 뒤 하나
+std::deque<int> g_acts;                     // 게임의 함수를 부르는 요청(식민지로 삼을 나라의 번호) — 연구 요청보다 먼저, 틱마다 하나
+
+// 이번 틱에 잠금을 놓고 할 일 하나: 게임의 함수를 부르는 요청이거나 연구 요청.
+struct Job {
+    bool act = false;
+    int region = 0;
+    ResearchRequest research;
+};
 std::string g_last, g_notice;
 Keep g_keep;                        // 최소 유지의 설정(창이 넘긴 것)
 bool g_keep_due;                    // 설정이 바뀌었다 — 0.5초를 기다리지 않고 다음 틱에 본다
@@ -235,12 +243,12 @@ void keep_check()
 
 // 틱의 앞쪽: 값 요청을 비우고, 때가 됐으면 유지를 본다. 이번 틱에 처리할 연구 요청이 있으면 *next 에 꺼내고 true —
 // 그때는 "게임의 함수 안" 깃발을 세워 둔다(부른 쪽이 runner_leave_call 로 내린다). g_lock 을 쥔 채로 부른다.
-bool tick_locked(unsigned long long now_ms, ResearchRequest *next)
+bool tick_locked(unsigned long long now_ms, Job *next)
 {
     if (runner_calling())
         return false;                          // 게임의 함수 안에서 다시 온 틱이면 기다린다 — 그 함수가 읽고 있는 값을 바꾸지 않는다
     const bool due = keep_count(g_keep) > 0 && (g_keep_due || now_ms - g_keep_at >= KEEP_EVERY_MS);
-    if (g_queue.empty() && g_research.empty() && !due)
+    if (g_queue.empty() && g_research.empty() && g_acts.empty() && !due)
         return false;
     if (due) {                                 // 쓰든 쉬든, 다음에 보는 것은 지금부터 0.5초 뒤다
         g_keep_due = false;
@@ -250,12 +258,14 @@ bool tick_locked(unsigned long long now_ms, ResearchRequest *next)
     if (runner_faulted() || !game_writes()) {
         g_queue.clear();                       // 까닭은 창이 보인다(빨간 경고, 탭의 한 줄). 유지도 쉰다
         g_research.clear();
+        g_acts.clear();
         return false;
     }
     if (!game.known || !game.in_game || game.multiplayer) {
-        if (!g_queue.empty() || !g_research.empty()) {
+        if (!g_queue.empty() || !g_research.empty() || !g_acts.empty()) {
             g_queue.clear();                   // 누른 뒤 게임에서 나갔다 — 돌아온 뒤에 쓰이지 않게 버린다
             g_research.clear();
+            g_acts.clear();
             g_notice = LEFT_GAME;
         }
         return false;                          // 유지는 게임 밖 · 멀티플레이에서 쉰다
@@ -263,15 +273,22 @@ bool tick_locked(unsigned long long now_ms, ResearchRequest *next)
     const bool values = !g_queue.empty();
     if (values && !drain()) {
         g_research.clear();                    // 값 쓰기가 꺼졌다 — 연구도 쓰지 않는다
+        g_acts.clear();
         return false;
     }
     if (due && game_values_off().empty())      // 유지는 국고와 물자다 — 그 자리를 못 찾은 게임에서는 쉰다
         keep_check();                          // 단추의 요청을 쓴 뒤에 본다 — 방금 내린 값도 바닥 아래면 올린다
-    if (g_research.empty() || !runner_enter_call())
+    if ((g_research.empty() && g_acts.empty()) || !runner_enter_call())
         return false;
     if (!values)
         g_notice.clear();                      // 이번 틱에 쓴 값 요청의 알림은 남긴다 — 연구의 알림이 생기면 그것이 덮는다
-    *next = g_research.front();
+    if (!g_acts.empty()) {
+        next->act = true;
+        next->region = g_acts.front();
+        g_acts.pop_front();
+        return true;
+    }
+    next->research = g_research.front();
     g_research.pop_front();
     return true;
 }
@@ -298,6 +315,7 @@ void run_research(const ResearchRequest &r)
     if (wrote != Wrote::Done) {                // 실패 · 꺼짐 · 예외: 까닭은 그 단추의 자리와 빨간 경고에 보인다. 남은 요청을 버린다
         g_queue.clear();
         g_research.clear();
+        g_acts.clear();
         return;
     }
     const std::string skipped = done.skipped == 0 ? std::string()
@@ -344,6 +362,29 @@ bool keeper_enqueue_research(const ResearchRequest &request)
 }
 
 namespace {
+
+// 고른 나라를 식민지로 삼는다(게임의 함수를 부른다). g_lock 을 쥐지 않은 채로 부른다 — "게임의 함수 안" 깃발은 tick_locked 가 세워 뒀다.
+void run_colonize(int region)
+{
+    unsigned long code = 0;
+    const Wrote wrote = game_colonize(region, &code);
+    runner_leave_call(wrote == Wrote::Crashed ? "식민지화하는" : nullptr, code);
+
+    std::lock_guard<std::mutex> lock(g_lock);
+    const std::string who = region_label(region) + " (" + std::to_string(region) + ")";
+    if (wrote == Wrote::Done) {
+        g_last = "식민지화 — " + who;
+        log_line("게임의 함수: 식민지화 — %s", who.c_str());
+    } else if (wrote == Wrote::NoTarget) {
+        g_notice = "그 나라는 이번 판에 없어 하지 않았습니다.";
+    } else if (wrote == Wrote::NotInGame) {
+        g_notice = LEFT_GAME;
+    } else {                                   // 꺼짐 · 예외: 까닭은 그 단추의 자리와 빨간 경고에 보인다. 남은 요청을 버린다
+        g_queue.clear();
+        g_research.clear();
+        g_acts.clear();
+    }
+}
 
 // 연구 탭이 보이는 동안의 스냅숏. g_lock 을 쥐지 않은 채로 부른다(읽는 동안 그리는 스레드를 세우지 않는다).
 void watch_tick(unsigned long long now_ms)
@@ -394,16 +435,27 @@ std::shared_ptr<const ResearchShot> keeper_research_shot()
     return g_shot;
 }
 
+bool keeper_enqueue_colonize(int region)
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    if (g_acts.size() >= RESEARCH_QUEUE || !game_act_off(ACT_COLONIZE).empty())
+        return false;
+    g_acts.push_back(region);
+    return true;
+}
+
 void keeper_tick(unsigned long long now_ms)
 {
-    ResearchRequest research;
+    Job job;
     bool write = false;
     {
         std::lock_guard<std::mutex> lock(g_lock);
-        write = tick_locked(now_ms, &research);
+        write = tick_locked(now_ms, &job);
     }
-    if (write) {
-        run_research(research);
+    if (write && job.act) {
+        run_colonize(job.region);
+    } else if (write) {
+        run_research(job.research);
         std::lock_guard<std::mutex> lock(g_lock);
         g_watch_dirty = true;                  // 쓴 것이 목록에 바로 보이게
     }
@@ -478,6 +530,7 @@ void keeper_reset_for_test()
     std::lock_guard<std::mutex> lock(g_lock);
     g_queue.clear();
     g_research.clear();
+    g_acts.clear();
     g_last.clear();
     g_notice.clear();
     g_keep = Keep();
