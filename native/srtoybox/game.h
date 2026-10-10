@@ -22,6 +22,8 @@ struct GameState {
     bool multiplayer = false;
     bool cheats_on = false;     // 치트 허용 비트. 옛 찾기가 옵션 묶음을 찾았을 때만 읽는다(못 찾았으면 늘 false)
     int player = 0;             // 플레이어 지역의 번호(in_game 일 때만)
+    int index = 0;              // 플레이어 지역의 인덱스(in_game 일 때만) — 지역 표의 그 칸이 플레이어 객체임을 확인한 값이다
+    int regions = 0;            // 지역 수(in_game 일 때만)
 };
 
 // 플레이어의 값(locate_values 가 찾은 자리에서 읽는다).

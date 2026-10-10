@@ -240,6 +240,8 @@ GameState read_player(const uint8_t *base, const GameAddresses &at, uint64_t *ob
     }
     s.in_game = true;
     s.player = player.number;
+    s.index = index;
+    s.regions = count;
     *object = pointer;
     return s;
 }
@@ -299,11 +301,10 @@ bool find_region(const uint8_t *base, const GameAddresses &at, int number, uint6
 Wrote find_pair(const uint8_t *base, const GameAddresses &at, int number, bool writing, uint64_t *mine, int *me, uint64_t *theirs,
                 int *them)
 {
-    int32_t index = 0;
     const GameState s = read_player(base, at, mine);
-    if (!s.in_game || (writing && s.multiplayer) || !peek_at(base, at.player_index, &index) || index < 1 || index >= MAX_REGIONS)
+    if (!s.in_game || (writing && s.multiplayer))
         return Wrote::NotInGame;
-    *me = index;
+    *me = s.index;   // read_player 가 확인한 인덱스 — 전역을 다시 읽으면 그 사이에 바뀐 값을 쓸 수 있다
     if (number == s.player || !find_region(base, at, number, theirs, them))
         return Wrote::NoTarget;
     return Wrote::Done;
@@ -449,12 +450,12 @@ bool owners_of(uint64_t owners, int me, int them, bool *mine, bool *picked, int 
 bool shoot(const uint8_t *base, const GameAddresses &at, const ResearchLayout &r, int picked, Shot *shot, std::string *why)
 {
     uint64_t player = 0, other = 0, tech_table = 0, design_table = 0, node = 0;
-    int32_t me = 0, regions = 0, tech_count = 0, design_count = 0;
+    int32_t tech_count = 0, design_count = 0;
     int them = 0;
     const GameState s = read_player(base, at, &player);
     // 플레이어의 인덱스는 보유 묶음의 비트와 "다시 셈"의 인자가 된다 — 지역 표의 마지막 인덱스(지역 수)보다 크면 쓰지 않는다
-    if (!s.in_game || !peek_at(base, at.player_index, &me) || !peek_at(base, at.region_count, &regions) || me < 1
-        || me >= MAX_REGIONS || me > regions) {
+    const int me = s.index;   // read_player 가 확인한 값(전역을 다시 읽지 않는다)
+    if (!s.in_game || me > s.regions) {
         *why = NOT_PLAYING;
         return false;
     }

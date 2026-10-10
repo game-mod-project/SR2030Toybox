@@ -226,7 +226,8 @@ def test_settings_fall_back_to_defaults(dll):
     norm = lambda ini: text(dll.srtoybox_settings_normalize, ini.encode("utf-8"))
     assert norm("") == DEFAULTS
     assert norm("\xff garbage\n===\n[x]\nhotkey_vk\n=5\n") == DEFAULTS                      # 깨진 파일
-    assert norm("money.amount=0\ntechnology=999999999999\nspawnunit=12x\n") == DEFAULTS       # 범위 밖·숫자 아님 → 기본값
+    assert norm("money.amount=0\ntechnology=0\nspawnunit=12x\n") == DEFAULTS                  # 범위 밖·숫자 아님 → 기본값
+    assert norm("technology=999\n") == DEFAULTS.replace("technology=120", "technology=255")   # 기능 값이 범위보다 크면 끝으로 자른다
     assert norm("technology=abc\n") == DEFAULTS
     assert norm("unknown=5\nfinalexam=7\ndepopulate=1\ntreasury=500\nproducts=5\n") == DEFAULTS   # 모르는 키, 값이 없는 기능, 지운 기능
     assert norm("hotkey_vk=16\nhotkey_mods=1\n") == DEFAULTS                                 # 수정키만으로는 단축키가 못 된다
