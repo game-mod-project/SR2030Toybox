@@ -288,10 +288,25 @@ def set_mods(on: bool) -> None:
     user32.SetKeyboardState(state)
 
 
-def mods_down() -> bool:
+def mods_held() -> tuple[bool, bool]:
+    """이 스레드의 키 상태표에서 Ctrl · Shift 가 눌려 있는가. 밀려 있던 실제 키의 변화를 먼저 받는다(set_mods 의 설명)."""
+    for vk in MODIFIERS:
+        user32.GetKeyState(vk)
     state = (ctypes.c_ubyte * 256)()
     user32.GetKeyboardState(state)
-    return bool((state[0x11] | state[0x10]) & 0x80)
+    return bool(state[0x11] & 0x80), bool(state[0x10] & 0x80)
+
+
+def mods_down() -> bool:
+    return any(mods_held())
+
+
+def mods_left(before: tuple[bool, bool]) -> bool:
+    """글쇠 넣기가 Ctrl · Shift 를 눌린 채로 남겼는가: 지금 눌려 있는데, 넣기 전(before)에는 떼어져 있었고 실제 키보드에서도
+    눌려 있지 않은 것이 있다. 사용자가 실제로 쥐고 있는 수정키는 넣기가 남긴 것이 아니다 — 테스트가 도는 동안 사용자는 같은 PC 를 쓴다."""
+    now = mods_held()
+    real = tuple(user32.GetAsyncKeyState(vk) & 0x8000 != 0 for vk in (0x11, 0x10))
+    return any(n and not b and not r for n, b, r in zip(now, before, real))
 
 
 def press_hotkey(hwnd, lparam: int = 1) -> None:
@@ -1387,26 +1402,42 @@ def run_present_fault(hook: str) -> int:
     return 0
 
 
-def run_input(hook: str) -> int:
+def run_input(hook: str, mode: str = "input") -> int:
+    """글쇠와 누름이 제 쪽으로만 가는가.
+
+    input        넣는 동안 사용자가 9 를 치고 단축키를 누른다. 그 단축키가 Ctrl · Shift 를 눌렀다 떼므로, 넣기가 수정키를 남겼는지는
+                 여기서 가릴 수 없다.
+    input_quiet  아무도 끼어들지 않는다 — 넣기가 Ctrl · Shift 를 눌린 채로 남기면 여기서 드러난다.
+    input_held   넣기 전부터 Ctrl · Shift 가 눌려 있었다(사용자가 쥐고 있다). 실제 키를 누르는 대신 이 스레드의 키 상태표에 적는다
+                 (실제 키가 눌리면 상태표가 그렇게 된다)."""
     game = start_game(hook)
     if game is None:
         return 0
+    held, quiet = mode == "input_held", mode != "input"
     out = {"hotkey": game.open()}
+    if held:
+        set_mods(True)
+    before = mods_held()                                      # 넣기 전의 Ctrl · Shift — 넣은 뒤에 이것으로 되돌아와야 한다
+    out["mods_before"] = int(any(before))
     out["button"] = game.click(BUTTON)                        # 설정 창의 단추 — 게임에 가면 안 된다. 명령이 대기열에 든다
-    out["outside"] = game.click((900, 100))                   # 설정 창 밖(창은 40..760 x 60..660 이다) — 게임이 받아야 한다
+    if not quiet:
+        out["outside"] = game.click((900, 100))               # 설정 창 밖(창은 40..760 x 60..660 이다) — 게임이 받아야 한다
     game.got.clear()
     out["typing"] = int(game.pump(lambda: game.has("char", ord("c")), 10))   # 실행기가 치트를 적기 시작했다
-    # 그동안 사용자가 실제 키보드로 9 를 치고(게임에 가면 치트를 받아 적는 줄에 섞인다) 단축키를 누른다(평소처럼 창이 닫혀야 한다)
-    user32.PostMessageW(game.hwnd, WM_KEYDOWN, 0x39, 0x000A0001)
-    user32.PostMessageW(game.hwnd, WM_CHAR, 0x39, 0x000A0001)
-    user32.PostMessageW(game.hwnd, WM_KEYUP, 0x39, 0xC00A0001)
-    game.wait(0.2)
-    out["hotkey_busy"] = game.hotkey(REAL_KEY)
+    if not quiet:
+        # 그동안 사용자가 실제 키보드로 9 를 치고(게임에 가면 치트를 받아 적는 줄에 섞인다) 단축키를 누른다(평소처럼 창이 닫혀야 한다)
+        user32.PostMessageW(game.hwnd, WM_KEYDOWN, 0x39, 0x000A0001)
+        user32.PostMessageW(game.hwnd, WM_CHAR, 0x39, 0x000A0001)
+        user32.PostMessageW(game.hwnd, WM_KEYUP, 0x39, 0xC00A0001)
+        game.wait(0.2)
+        out["hotkey_busy"] = game.hotkey(REAL_KEY)
     out["done"] = int(game.pump(lambda: game.has("up", 0x1B), 20))            # 마지막 글쇠(ESC)까지 들어갔다
     game.wait(0.6)
     typed = game.text()
-    out["mods_left"] = int(mods_down())
-    out["title_after"] = game.click(TITLE)                    # 넣는 중에 누른 단축키로 창이 닫혔으면 게임이 받는다
+    out["mods_now"] = int(mods_down())
+    out["mods_left"] = int(mods_left(before))
+    if not quiet:
+        out["title_after"] = game.click(TITLE)                # 넣는 중에 누른 단축키로 창이 닫혔으면 게임이 받는다
     print(" ".join(f"{k}={v}" for k, v in out.items()) + " text=" + typed)
     return 0
 
@@ -1442,8 +1473,8 @@ def run_scale(hook: str) -> int:
 
 def main() -> int:
     hook, mode = sys.argv[1], sys.argv[2]
-    if mode == "input":
-        return run_input(hook)
+    if mode in ("input", "input_quiet", "input_held"):
+        return run_input(hook, mode)
     if mode == "scale":
         return run_scale(hook)
     if mode == "real_key":
