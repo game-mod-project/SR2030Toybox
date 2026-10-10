@@ -342,3 +342,19 @@ def test_research_stops_when_the_game_cannot_be_read(gd, lab_game):
     fake.poke(RESEARCH["tech_count"], "<i", 70000)
     with pytest.raises(SystemExit, match="자리 수가 범위 밖입니다"):
         gd.peek_research(read, RESEARCH, shape, fake.base, 176, 176)
+
+
+def test_research_reads_a_long_list_and_stops_on_one_that_never_ends(gd, lab_game):
+    """게임은 연구 목록의 노드를 지우지 않는다(깃발로 표시한다) — 오래 한 판의 긴 목록도 읽는다. 끝이 머리를 가리키는 목록(순환)에서는 멈춘다."""
+    import ctypes
+    import struct
+
+    from toybox_fake_game import GONE, RESEARCH, TECH
+
+    fake, lab, shape, read = lab_game
+    for _ in range(5000):
+        lab.queue(176, TECH, 1, flags=(GONE | 1, GONE))
+    assert len(gd.peek_research(read, RESEARCH, shape, fake.base, 176, 176)["queue"]) == 5002
+    ctypes.memmove(lab.nodes[0] + 0x10, struct.pack("<Q", lab.nodes[-1]), 8)      # 목록의 끝(맨 먼저 건 노드)이 머리를 가리킨다
+    with pytest.raises(SystemExit, match="연구 목록이 끝나지 않습니다"):
+        gd.peek_research(read, RESEARCH, shape, fake.base, 176, 176)

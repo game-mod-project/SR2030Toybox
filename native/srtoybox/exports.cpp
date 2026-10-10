@@ -581,6 +581,16 @@ EXPORT int srtoybox_research_write(const unsigned char *base, const GameAddresse
     return static_cast<int>(wrote);
 }
 
+// 테스트: 포인터 칸에 새 묶음을 건다(hang_owners). 0 걸었다 / 1 이미 걸려 있었다 / -1 쓸 수 없다. *owners 는 그 칸에 걸려 있는 묶음.
+EXPORT int srtoybox_research_hang(void *cell, unsigned long long block, unsigned long long *owners)
+{
+    uint64_t found = owners != nullptr ? *owners : 0;
+    const int taken = hang_owners(reinterpret_cast<uint64_t>(cell), block, &found);
+    if (owners != nullptr)
+        *owners = found;
+    return taken;
+}
+
 // 테스트: 이 프로세스의 "게임"에 연구의 자리와 "다시 셈" 자리에 둘 함수를 준다(srtoybox_test_game 다음에 부른다). nullptr 이면 못 찾은 것으로.
 EXPORT void srtoybox_test_research(const ResearchLayout *layout, void *recompute)
 {

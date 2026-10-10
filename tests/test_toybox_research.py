@@ -9,8 +9,8 @@ import struct
 import pytest
 
 import toybox_fake_exe
-from toybox_fake_game import DESIGN, DESIGN_SIZE, ENDED, GONE, INDEX, MULTIPLAYER, OWNERS_BYTES, RESEARCH, TECH, TECH_SIZE, FakeGame, \
-    Lab, kernel32, locked_page, standard_lab
+from toybox_fake_game import COUNT, DESIGN, DESIGN_SIZE, ENDED, GONE, INDEX, MULTIPLAYER, OWNERS_BYTES, RESEARCH, TECH, TECH_SIZE, \
+    FakeGame, Lab, kernel32, locked_page, standard_lab
 from srkit import toybox
 
 COMPLETE, REVOKE = 0, 1
@@ -260,7 +260,7 @@ def lab() -> tuple[FakeGame, Lab]:
 
 def read(lib, fake: FakeGame, lab: Lab, picked: int = 0):
     """표를 읽는다. 읽었으면 {slots, techs: {번호: 행}, designs: {번호: 행}, queue: [(종류, 번호, 깃발 0, 깃발 1)]}, 못 읽었으면 까닭의 글."""
-    out = ctypes.create_string_buffer(1 << 16)
+    out = ctypes.create_string_buffer(1 << 18)
     ok = lib.srtoybox_research_read(fake.base, ctypes.byref(fake.at), ctypes.byref(lab.layout), picked, out, len(out))
     assert ok >= 0
     if ok == 0:
@@ -341,6 +341,8 @@ def broken(flaw: str) -> tuple[FakeGame, Lab]:
         fake.poke(MULTIPLAYER, "<B", 1)
     elif flaw == "wrong-index":
         fake.poke(INDEX, "<i", POLAND)                        # 전역의 인덱스가 플레이어의 객체가 아는 인덱스와 다르다
+    elif flaw == "beyond-count":
+        fake.poke(COUNT, "<i", GERMANY - 1)                   # 플레이어의 인덱스가 지역 표의 마지막 인덱스보다 크다
     elif flaw == "no-table":
         fake.poke(RESEARCH["tech_table"], "<Q", 0)
     elif flaw == "one-slot":
@@ -364,6 +366,7 @@ def broken(flaw: str) -> tuple[FakeGame, Lab]:
     ("menu", "게임이 진행 중이 아닙니다", NOT_IN_GAME),
     ("multiplayer", "멀티플레이에서는 연구를 읽지 않습니다", NOT_IN_GAME),
     ("wrong-index", "게임이 진행 중이 아닙니다", NOT_IN_GAME),
+    ("beyond-count", "게임이 진행 중이 아닙니다", NOT_IN_GAME),
     ("no-table", "표가 없거나 자리 수가 범위 밖입니다", UNREADABLE),
     ("one-slot", "표가 없거나 자리 수가 범위 밖입니다", UNREADABLE),
     ("too-many", "표가 없거나 자리 수가 범위 밖입니다", UNREADABLE),
@@ -418,6 +421,50 @@ def test_only_the_players_bit_in_its_byte_changes(lib):
     assert lab_.owners(TECH, 2) == {POLAND, GERMANY, 177, 183, 168, 175}
     assert write(lib, fake, lab_, "items t2", REVOKE)[0] == DONE
     assert lab_.owners(TECH, 2) == {POLAND, 177, 183, 168, 175}
+
+
+@pytest.mark.parametrize("me", [183, 250, 255], ids=["bit-7", "bit-2", "the-last-index-of-the-fake-table"])
+def test_the_bit_written_is_the_one_of_the_players_index(lib, me):
+    """어느 나라의 비트인가는 플레이어의 인덱스에서만 나온다: 바이트는 인덱스 / 8, 비트는 인덱스 % 8(다른 테스트의 독일은 176 — 나머지가 0 이다).
+    같은 바이트의 양옆과 앞뒤 바이트의 같은 자리(다른 나라들)는 그대로다. 다시 셈도 그 인덱스로 부른다."""
+    fake = FakeGame()
+    fake.region(POLAND, 1106, alive=3)
+    fake.region(me, 1499)
+    fake.play(me)
+    lab_ = standard_lab(fake, me, POLAND, DENMARK)
+    others = {me ^ 1, me ^ 7, me - 8, me + 8}
+    for index in others:
+        lab_.own(TECH, 2, index)
+    wrote, done = write(lib, fake, lab_, "items t2")
+    assert wrote == DONE and lab_.owners(TECH, 2) == {POLAND, me} | others and done["calls"] == [(lab_.world, me)]
+    assert write(lib, fake, lab_, "items t2", REVOKE)[0] == DONE and lab_.owners(TECH, 2) == {POLAND} | others
+
+
+def test_a_long_research_list_is_still_read(lib):
+    """게임은 연구 목록의 노드를 지우지 않는다(깃발로 표시한다) — 오래 한 판의 목록은 그 판에서 건 연구의 누적이다.
+    길다고 읽기를 그만두면 그런 판에서는 두 단추가 영영 듣지 않는다. 끝나지 않는 목록(순환)은 길이가 아니라 순환으로 가린다."""
+    fake, lab_ = lab()
+    for _ in range(5000):
+        lab_.queue(GERMANY, TECH, 1, flags=(GONE | 1, GONE))  # 끝나서 빠진 노드들이 머리 쪽에 쌓여 있다
+    table = read(lib, fake, lab_)
+    assert len(table["queue"]) == 5002 and table["techs"][2]["queued"] is True and table["techs"][1]["queued"] is False
+    wrote, done = write(lib, fake, lab_, "queue")
+    assert wrote == DONE and done["techs"] == [2, 3] and done["designs"] == [11] and done["nodes"] == [5000, 5001]
+
+
+def test_a_new_set_is_hung_only_on_a_cell_that_is_still_empty(lib):
+    """새 묶음은 포인터 칸이 비어 있을 때만 건다 — 한 번의 원자적 비교 · 교환으로. 표를 읽은 뒤 쓰기 전에 게임이 그 항목에 제 묶음을 걸었으면
+    (다른 나라가 그 항목을 처음 보유했다) 덮어쓰지 않고 그 묶음의 주소를 돌려준다 — 덮어쓰면 그 나라의 연구가 사라진다."""
+    lib.srtoybox_research_hang.argtypes = [ctypes.c_void_p, ctypes.c_uint64, ctypes.POINTER(ctypes.c_uint64)]
+    mine, theirs = 0x11110000, 0x22220000                     # 묶음의 주소(걸기만 한다 — 따라가지 않는다)
+    cell, owners = ctypes.c_uint64(0), ctypes.c_uint64(0)
+    assert lib.srtoybox_research_hang(ctypes.addressof(cell), mine, ctypes.byref(owners)) == 0          # 걸었다
+    assert (cell.value, owners.value) == (mine, mine)
+    cell.value, owners.value = theirs, 0
+    assert lib.srtoybox_research_hang(ctypes.addressof(cell), mine, ctypes.byref(owners)) == 1          # 이미 걸려 있다
+    assert (cell.value, owners.value) == (theirs, theirs)
+    owners.value = 0
+    assert lib.srtoybox_research_hang(locked_page(), mine, ctypes.byref(owners)) == -1 and owners.value == 0     # 쓸 수 없는 쪽
 
 
 def test_completing_a_design_sets_its_bit_and_brings_the_techs_it_needs(lib):

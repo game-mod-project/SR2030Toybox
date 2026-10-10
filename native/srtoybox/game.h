@@ -100,12 +100,17 @@ bool read_research(const uint8_t *base, const GameAddresses &at, const ResearchL
 //           되쓰지 않는다(그 순간 게임이 다른 나라의 연구를 끝내도 덮어쓰지 않는다).
 //   묶음    완료로 바꿀 항목에 묶음이 없으면 프로세스 힙에서 OWNERS_BYTES 를 0 으로 받아 레코드의 포인터 칸에 건다(게임이 하는 그대로).
 //           먼저 이미 있는 묶음 하나가 그 힙의 OWNERS_BYTES 짜리 블록인지 본다 — 아니면 만들지 않고 그 항목들을 건너뛴다(skipped).
+//           거는 것은 칸이 아직 비어 있을 때만이다(hang_owners) — 표를 읽은 뒤에 게임이 제 묶음을 걸었으면 그 묶음을 쓴다.
 //   노드    대기열에서 뺄 노드의 깃발 둘에 NODE_GONE 을 켠다(게임이 연구를 끝낼 때 하는 그대로). 그 비트만, 원자적으로.
 //   다시 셈 기술의 비트를 하나라도 바꿨으면 끝에 recompute(세계 객체, 플레이어 인덱스)를 한 번 부른다. -1(모든 지역)로는 부르지 않는다.
 // 순서는 칸의 확인 → 묶음 → 비트 → 노드 → 다시 셈. 도중에 쓰기가 실패하면 거기서 멈춘다(Wrote::Failed. 앞서 쓴 것은 되돌리지 않고
 // 다시 셈도 부르지 않는다). 바꿀 것이 없어도 Wrote::Done 이다(done->plan 이 비어 있다).
 Wrote write_research(const uint8_t *base, const GameAddresses &at, const ResearchLayout &research, Recompute recompute, Research action,
                      const ResearchWhat &what, ResearchDone *done);
+// 비어 있는(0) 포인터 칸에 새 묶음(block)을 건다 — 한 번의 원자적 비교 · 교환으로. 그사이 게임이 그 칸에 제 묶음을 걸었으면(다른 나라가
+// 그 항목을 처음 보유했다) 덮어쓰지 않는다 — 덮어쓰면 그 나라의 보유가 사라진다. *owners 는 그 칸에 걸려 있는 묶음이다.
+// 0 걸었다 / 1 이미 걸려 있었다(block 은 쓰이지 않았다) / -1 쓸 수 없는 칸이다(*owners 는 그대로).
+int hang_owners(uint64_t cell, uint64_t block, uint64_t *owners);
 
 void game_init();                  // 올라와 있는 실행 파일에서 주소와 자리를 찾는다(시작할 때 한 번). 결과를 로그에 적는다
 void game_init_from(const uint8_t *base, size_t size);   // 그 일의 몸통(테스트는 가짜 이미지로 부른다)

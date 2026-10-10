@@ -471,7 +471,7 @@ RESEARCH_BUILD = 0x695377B6     # 아래 보정 표의 자리를 본 빌드(2134
 EFFECT_TABLES = {"mul": (0x5456A8, 0x320, 200), "add": (0x60D6A8, 0x2C0, 176)}
 EFFECT_CELL = 0x14D38           # 지역 객체 안의 한 칸(dword) — 같은 함수가 0 으로 되돌리고 다시 쌓는다
 TECH_DAYS = 0x30                # 기술 레코드의 연구 기간(float). ToyBox 는 읽지도 쓰지도 않는다 — "그대로인가"만 본다
-MAX_NODES = 4096                # 연구 목록이 이 안에 끝나지 않으면 읽지 않는다(ToyBox 의 스냅숏과 같다)
+MAX_NODES = 1 << 20             # 연구 목록의 노드의 상한(ToyBox 의 스냅숏과 같다). 게임은 노드를 지우지 않는다 — 오래 한 판의 목록은 길다
 
 
 def peek_research(read, research: dict[str, int], shape: dict[str, int], base: int, index: int, me: int,
@@ -520,9 +520,11 @@ def peek_research(read, research: dict[str, int], shape: dict[str, int], base: i
             if name == "techs":
                 out["days"] += struct.unpack_from("<f", records, at + TECH_DAYS)[0]
     node = value(base + research["world"] + research["lists"] + shape["list_step"] * me, "<Q")
+    seen: set[int] = set()
     while node:
-        if len(out["queue"]) >= MAX_NODES:
+        if node in seen or len(seen) >= MAX_NODES:          # 같은 노드에 다시 왔다(순환)
             raise SystemExit("연구 목록이 끝나지 않습니다")
+        seen.add(node)
         first, second = value(node + shape["node_flags"], "<I"), value(node + shape["node_flags"] + 4, "<I")
         out["queue"].append([value(node + shape["node_kind"], "<B"), value(node + shape["node_id"], "<i"), f"{first:08x}", f"{second:08x}"])
         node = value(node + shape["node_next"], "<Q")

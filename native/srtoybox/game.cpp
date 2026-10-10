@@ -18,7 +18,9 @@ namespace {
 const int MAX_REGIONS = 1024;   // 지역 표의 칸 수
 const int MAX_NUMBER = 12900;   // 지역 번호의 상한(게임의 번호 → 지역 표가 이 크기다)
 const int MAX_ITEMS = 65536;    // 기술 · 부대 설계 표의 자리 수의 상한(선행의 번호가 16비트다)
-const int MAX_NODES = 4096;     // 지역 하나의 연구 목록에서 따라가는 노드의 상한
+// 지역 하나의 연구 목록에서 따라가는 노드의 상한. 게임은 노드를 지우지 않는다(깃발로 표시한다) — 목록의 길이는 그 판에서 건 연구의
+// 누적이라 오래 한 판에서는 수천을 넘는다. 끝나지 않는 목록(순환)은 길이가 아니라 순환으로 가린다(shoot)
+const int MAX_NODES = 1 << 20;
 const char *const NOT_PLAYING = "게임이 진행 중이 아닙니다";
 
 std::mutex g_lock;
@@ -447,10 +449,12 @@ bool owners_of(uint64_t owners, int me, int them, bool *mine, bool *picked, int 
 bool shoot(const uint8_t *base, const GameAddresses &at, const ResearchLayout &r, int picked, Shot *shot, std::string *why)
 {
     uint64_t player = 0, other = 0, tech_table = 0, design_table = 0, node = 0;
-    int32_t me = 0, tech_count = 0, design_count = 0;
+    int32_t me = 0, regions = 0, tech_count = 0, design_count = 0;
     int them = 0;
     const GameState s = read_player(base, at, &player);
-    if (!s.in_game || !peek_at(base, at.player_index, &me) || me < 1 || me >= MAX_REGIONS) {
+    // 플레이어의 인덱스는 보유 묶음의 비트와 "다시 셈"의 인자가 된다 — 지역 표의 마지막 인덱스(지역 수)보다 크면 쓰지 않는다
+    if (!s.in_game || !peek_at(base, at.player_index, &me) || !peek_at(base, at.region_count, &regions) || me < 1
+        || me >= MAX_REGIONS || me > regions) {
         *why = NOT_PLAYING;
         return false;
     }
@@ -532,12 +536,21 @@ bool shoot(const uint8_t *base, const GameAddresses &at, const ResearchLayout &r
         *why = "연구 목록을 읽을 수 없습니다";
         return false;
     }
+    // 순환은 Brent 의 방법으로 잡는다: 표시(mark)를 2의 거듭제곱 걸음마다 지금 노드로 옮기고, 다시 그 노드에 오면 순환이다
+    uint64_t mark = 0;
+    size_t reach = 1, walked = 0;
     while (node != 0) {
         uint8_t record[NODE_FLAGS + 8];
-        if (shot->nodes.size() >= static_cast<size_t>(MAX_NODES)) {
+        if (node == mark || shot->nodes.size() >= static_cast<size_t>(MAX_NODES)) {
             *why = "연구 목록이 끝나지 않습니다";
             return false;
         }
+        if (walked == reach) {
+            mark = node;
+            reach *= 2;
+            walked = 0;
+        }
+        walked++;
         if (!peek(reinterpret_cast<const void *>(node), record, sizeof(record))) {
             *why = "연구 목록의 노드를 읽을 수 없습니다";
             return false;
@@ -750,6 +763,20 @@ bool read_research(const uint8_t *base, const GameAddresses &at, const ResearchL
     return ok;
 }
 
+int hang_owners(uint64_t cell, uint64_t block, uint64_t *owners)
+{
+    if (!writable(cell, sizeof(uint64_t)))
+        return -1;
+    LONG64 was = 0;
+    __try {
+        was = InterlockedCompareExchange64(reinterpret_cast<LONG64 *>(cell), static_cast<LONG64>(block), 0);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return -1;
+    }
+    *owners = was == 0 ? block : static_cast<uint64_t>(was);
+    return was == 0 ? 0 : 1;
+}
+
 Wrote write_research(const uint8_t *base, const GameAddresses &at, const ResearchLayout &research, Recompute recompute, Research action,
                      const ResearchWhat &what, ResearchDone *done)
 {
@@ -819,15 +846,18 @@ Wrote write_research(const uint8_t *base, const GameAddresses &at, const Researc
     // 묶음(없는 항목만) → 비트
     for (Item &item : items) {
         if (item.owners == 0) {
-            const uint64_t block = reinterpret_cast<uint64_t>(fresh[hung]);
-            if (!poke(item.cell, &block, sizeof(block))) {
+            const int taken = hang_owners(item.cell, reinterpret_cast<uint64_t>(fresh[hung]), &item.owners);
+            if (taken < 0) {
                 release();
                 return research_failed(done, item_name(item) + " 의 묶음 칸");
             }
-            hung++;
-            item.owners = block;
-            done->housed++;
-            done->written++;
+            if (taken == 0) {                   // 걸었다 — 이제 게임의 것이다
+                hung++;
+                done->housed++;
+                done->written++;
+            } else {                            // 표를 읽은 뒤에 게임이 제 묶음을 걸었다 — 그것을 쓴다. 받아 둔 것은 끝에 돌려준다
+                done->cells--;
+            }
         }
         if (!poke_bits(item.owners + byte, mask, action == Research::Complete, 1)) {
             release();
@@ -835,6 +865,7 @@ Wrote write_research(const uint8_t *base, const GameAddresses &at, const Researc
         }
         done->written++;
     }
+    release();                                  // 걸지 않고 남은 묶음(게임이 먼저 건 항목의 몫)을 돌려준다
 
     // 대기열에서 뺀다: 노드의 깃발 둘에 "뺐다"를 켠다(다른 비트는 그대로)
     for (int n : plan.nodes)
