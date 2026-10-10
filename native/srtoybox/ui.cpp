@@ -628,19 +628,22 @@ void research_list(const GameState &game, bool blocked)
     // 열의 너비는 머리 줄의 경계를 끌어 바꾸고, 머리 줄을 누르면 그 열로 놓는다(한 번 더 누르면 거꾸로)
     const ImGuiTableFlags flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_ScrollY
         | ImGuiTableFlags_Resizable | ImGuiTableFlags_Sortable;
-    if (ImGui::BeginTable(with_picked ? "list7" : "list6", with_picked ? 7 : 6, flags, ImVec2(0.0f, height))) {
+    // 표는 하나다 — 고른 나라의 열은 켜고 끌 뿐이다(열의 수가 다른 표로 바꾸면 놓은 순서와 고친 너비가 처음으로 돌아간다)
+    const int columns = 7;
+    if (ImGui::BeginTable("list", columns, flags, ImVec2(0.0f, height))) {
         ImGui::TableSetupScrollFreeze(0, 1);
         ImGui::TableSetupColumn("##on", ImGuiTableColumnFlags_NoSort | ImGuiTableColumnFlags_NoResize);
-        ImGui::TableSetupColumn("이름", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("이름", ImGuiTableColumnFlags_WidthStretch, 1.0f);
         ImGui::TableSetupColumn(designs ? "병과" : "분류");
         ImGui::TableSetupColumn(designs ? "연도" : "수준", ImGuiTableColumnFlags_DefaultSort);
         ImGui::TableSetupColumn("상태");
-        ImGui::TableSetupColumn("보유국");
-        if (with_picked)
-            ImGui::TableSetupColumn(region_label(shot->picked).c_str());
+        ImGui::TableSetupColumn("보유국", ImGuiTableColumnFlags_WidthStretch, 0.6f);   // 이름이 여럿이다 — 남는 너비를 이름 열과 나눠 쓴다
+        ImGui::TableSetupColumn(with_picked ? region_label(shot->picked).c_str() : "고른 나라", ImGuiTableColumnFlags_NoHide);
+        ImGui::TableSetColumnEnabled(6, with_picked);
         ImGui::TableNextRow(ImGuiTableRowFlags_Headers);         // TableHeadersRow 가 하는 일 — 머리 칸의 자리를 적으려고 풀어 썼다
-        for (int column = 0; column < (with_picked ? 7 : 6); column++) {
-            ImGui::TableSetColumnIndex(column);
+        for (int column = 0; column < columns; column++) {
+            if (!ImGui::TableSetColumnIndex(column))
+                continue;                                         // 꺼진 열(고른 나라가 없다)
             ImGui::TableHeader(ImGui::TableGetColumnName(column));
             note("head:" + std::to_string(column), ImGui::TableGetColumnName(column));
         }
@@ -683,8 +686,7 @@ void research_list(const GameState &game, bool blocked)
                     ImGui::AlignTextToFramePadding();
                     ImGui::TextUnformatted(cell.c_str());
                 }
-                if (with_picked) {
-                    ImGui::TableNextColumn();
+                if (with_picked && ImGui::TableSetColumnIndex(6)) {
                     ImGui::AlignTextToFramePadding();
                     ImGui::TextUnformatted(r.picked ? "보유" : "");
                 }
