@@ -23,9 +23,10 @@ std::mutex g_lock;          // 단추(그리는 스레드)와 틱(창 스레드)
 std::deque<Request> g_queue;
 std::deque<ResearchRequest> g_research;     // 연구 요청은 따로 줄을 선다 — 틱마다 값 요청을 비운 뒤 하나
 struct Act {
-    int attacker;                           // 전쟁: 지도에서 고른 나라. 0 이면 식민지화다
+    int attacker;                           // 전쟁: 지도에서 고른 나라. 0 이면 식민지화, BECOME 이면 "이 나라로 플레이"다
     int region;                             // 식민지로 삼을 나라 · 전쟁의 둘째 나라
 };
+const int BECOME = -1;
 std::deque<Act> g_acts;                     // 게임의 함수를 부르는 요청(식민지로 삼을 나라의 번호) — 연구 요청보다 먼저, 틱마다 하나
 
 // 이번 틱에 잠금을 놓고 할 일 하나: 게임의 함수를 부르는 요청이거나 연구 요청.
@@ -371,16 +372,20 @@ namespace {
 void run_act(const Act &act)
 {
     unsigned long code = 0;
-    const bool fight = act.attacker != 0;
-    const Wrote wrote = fight ? game_fight(act.attacker, act.region, &code) : game_colonize(act.region, &code);
-    runner_leave_call(wrote != Wrote::Crashed ? nullptr : fight ? "전쟁을 붙이는" : "식민지화하는", code);
+    const bool fight = act.attacker > 0, become = act.attacker == BECOME;
+    const Wrote wrote = fight ? game_fight(act.attacker, act.region, &code) : become ? game_become(act.region, &code)
+        : game_colonize(act.region, &code);
+    runner_leave_call(wrote != Wrote::Crashed ? nullptr : fight ? "전쟁을 붙이는" : become ? "플레이하는 나라를 바꾸는" : "식민지화하는", code);
 
     std::lock_guard<std::mutex> lock(g_lock);
     const auto name = [](int number) { return region_label(number) + " (" + std::to_string(number) + ")"; };
     const std::string who = fight ? name(act.attacker) + " -> " + name(act.region) : name(act.region);
     if (wrote == Wrote::Done) {
-        g_last = std::string(fight ? "전쟁 붙이기 — " : "식민지화 — ") + who;
+        g_last = std::string(fight ? "전쟁 붙이기 — " : become ? "이 나라로 플레이 — " : "식민지화 — ") + who;
         log_line("게임의 함수: %s", g_last.c_str());
+    } else if (wrote == Wrote::BadValue) {
+        g_notice = "게임의 플레이어 정보가 서로 맞지 않아 하지 않았습니다.";
+        log_line("%s", g_notice.c_str());
     } else if (wrote == Wrote::NoTarget) {
         g_notice = "그 나라는 이번 판에 없어 하지 않았습니다.";
     } else if (wrote == Wrote::NotInGame) {
@@ -447,6 +452,15 @@ bool keeper_enqueue_colonize(int region)
     if (g_acts.size() >= RESEARCH_QUEUE || !game_act_off(ACT_COLONIZE).empty())
         return false;
     g_acts.push_back({0, region});
+    return true;
+}
+
+bool keeper_enqueue_become(int region)
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    if (g_acts.size() >= RESEARCH_QUEUE || !game_act_off(ACT_BECOME).empty())
+        return false;
+    g_acts.push_back({BECOME, region});
     return true;
 }
 

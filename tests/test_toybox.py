@@ -79,9 +79,9 @@ def test_feature_table(dll):
     # 게임에 넣는 글이 없다. 나머지 열하나가 내장 치트로 돈다
     assert {f["id"]: f["how"] for f in fs if f["how"] != "cheat"} == {
         "technology": "tech_level", "e=mc2": "queue_done", "finalexam": "tech_up", "shelovesme": "opinion_best",
-        "love": "relation_best", "neutral": "relation_neutral", "populate": "people_add", "approval": "approval_best", "colonize": "colonize", "fight": "fight"}
+        "love": "relation_best", "neutral": "relation_neutral", "populate": "people_add", "approval": "approval_best", "colonize": "colonize", "fight": "fight", "becomeregion": "become"}
     cheats = [f for f in fs if f["how"] == "cheat"]
-    assert len(cheats) == 9 == dll.srtoybox_cheat_feature_count() and len({f["command"] for f in cheats}) == 9
+    assert len(cheats) == 8 == dll.srtoybox_cheat_feature_count() and len({f["command"] for f in cheats}) == 8
     assert [f["id"] for f in fs][:3] == ["technology", "e=mc2", "finalexam"]            # 줄의 자리는 옮기기 전과 같다
     assert [(f["label"], f["default"], f["min"], f["max"]) for f in fs[:2]] == [("기술 수준 N 이하 전부 보유", 120, 1, 255),
                                                                               ("대기열의 연구 즉시 완료", 0, 0, 0)]
@@ -90,7 +90,7 @@ def test_feature_table(dll):
         if f["how"] == "cheat":
             assert f["command"] == "cheat " + f["id"]
         else:
-            assert f["command"] == "" and f["confirm"] == (f["id"] in ("colonize", "fight"))   # 게임의 함수를 부르는 줄은 한 번 더 누른다
+            assert f["command"] == "" and f["confirm"] == (f["id"] in ("colonize", "fight", "becomeregion"))   # 게임의 함수를 부르는 줄은 한 번 더 누른다
         assert not (f["has_value"] and f["target"] != "none")           # 한 기능의 인자는 하나다
         if f["has_value"]:
             assert f["min"] <= f["default"] <= f["max"]
@@ -128,7 +128,7 @@ def test_command_text(dll):
     assert text(dll.srtoybox_command, b"annex", 0, 1106) == "cheat annex 1106"
     assert text(dll.srtoybox_command, b"treaty", 0, 1106) == "cheat treaty"                    # 게임이 지도에서 고른 나라를 쓴다
     assert text(dll.srtoybox_command, b"annex", 0, 0) is None                                  # 나라를 고르지 않았으면 만들지 않는다
-    for moved in (b"technology", b"e=mc2", b"finalexam", b"shelovesme", b"love", b"neutral", b"populate", b"approval", b"colonize", b"fight"):   # 직접 쓰는 줄은 게임에 넣을 글이 없다
+    for moved in (b"technology", b"e=mc2", b"finalexam", b"shelovesme", b"love", b"neutral", b"populate", b"approval", b"colonize", b"fight", b"becomeregion"):   # 직접 쓰는 줄은 게임에 넣을 글이 없다
         assert text(dll.srtoybox_command, moved, 120, 1106) is None
     assert text(dll.srtoybox_command, b"depopulate", 0, 0) is None                             # 표에 없는 것은 만들지 않는다
     assert text(dll.srtoybox_command, b"treasury", 1, 0) is None                               # 지운 기능 — 국고는 돈 탭이 직접 한다
@@ -551,7 +551,7 @@ def test_an_irreversible_button_says_what_and_to_whom_before_the_second_press(dl
     assert got["after_first"] == []                             # 처음 누름은 묻기만 한다
     assert got["armed"] == "이 나라로 플레이: 폴란드 (1106) — 한 번 더 누르면 실행합니다"
     assert got["status"] == "플레이 중: 독일 (1499)" and got["picked"] == "고른 나라: 폴란드 (1106)"
-    assert got["lines"] == ["cheat allowcheats", "cheat becomeregion 1106"]
+    assert got["became"] == [[1106, 0]] and got["lines"] == []   # 둘째 누름에 게임의 함수가 한 번 — 내장 치트는 거치지 않는다
 
 
 def test_the_fault_warning_stays_in_sight(dll, cfg, tmp_path):
@@ -600,7 +600,7 @@ def test_picking_another_country_starts_the_confirmation_over(dll, cfg, tmp_path
     assert got["asked"] == "이 나라로 플레이: 폴란드 (1106) — 한 번 더 누르면 실행합니다"
     assert got["after_repick"] == "이 나라로 플레이" and got["after_one_press"] == []
     assert got["asked_again"] == "이 나라로 플레이: 덴마크 (1201) — 한 번 더 누르면 실행합니다"
-    assert got["lines"] == ["cheat allowcheats", "cheat becomeregion 1201"]
+    assert got["became"] == [[1201, 0]] and got["lines"] == []
 
 
 def test_hangul_typed_into_an_ansi_game_window_reaches_the_search_box_whole(dll, cfg, tmp_path):
@@ -904,6 +904,7 @@ def test_the_moved_buttons_say_why_they_are_off_and_offer_no_cheat(dll, cfg, tmp
         rows = ["off:love", "off:neutral"] + DIPLOMACY_ROWS[2:]
         rows[rows.index("run:colonize")] = "off:colonize"      # 게임의 함수를 부르는 줄도 값 쓰기를 끄면 꺼진다
         rows[rows.index("run:fight")] = "off:fight"
+        rows[rows.index("run:becomeregion")] = "off:becomeregion"
         assert list(got["diplomacy"]) == rows and got["diplomacy"]["off:colonize"] == "식민지화 — " + why
         assert got["diplomacy"]["off:love"] == "관계 최고 — " + why and got["diplomacy"]["off:neutral"] == "관계 중립 — " + why
     assert got["state"] == MORE_START and got["lines"] == [] and got["text"] == ""
@@ -1102,4 +1103,17 @@ def test_the_research_list_completes_and_revokes_what_is_picked(dll, cfg, tmp_pa
     assert got["wrote_undo"] == "부대 설계 3개를 미완료로 — 보이는 것" and got["designs_after"] == {}
     assert got["held"] == [[1, 2, 3, 4, 6, 7], [], [1, 2], [11, 13]]        # 폴란드의 보유는 그대로다
     assert got["days"] == [100.0] and got["recomputed"] == [176]            # 다시 셈은 기술을 바꿨을 때만, 플레이어로만
+    assert got["lines"] == [] and got["text"] == "" and got["options"] == 0
+
+
+def test_become_writes_the_four_player_globals_and_calls_the_game_once(dll, cfg, tmp_path):
+    """3단계 4: "이 나라로 플레이"는 내장 치트 없이 플레이어의 전역 넷(인덱스 둘 · 포인터 둘)을 쓰고 게임의 함수를 (새 나라의 객체, 0) 으로 한 번 부른다 —
+    둘째 누름에만. 전역의 지금 값이 서로 맞지 않으면(둘째 사본이 첫째와 다르다) 하나도 쓰지 않는다. 그 뒤로 ToyBox 는 새 나라를 플레이어로 본다."""
+    got = json.loads(_probe(cfg, tmp_path, "more_become"))
+    assert got["asking"] == "이 나라로 플레이: 폴란드 (1106) — 한 번 더 누르면 실행합니다"
+    assert got["mismatch"] == "게임의 플레이어 정보가 서로 맞지 않아 하지 않았습니다." and got["became_mismatch"] == [] and got["index_mismatch"] == 176
+    assert got["became_first"] == []                                        # 첫 누름은 쓰지 않는다
+    assert got["became"] == [[1106, 0, 141, 141, True, True]]               # 함수가 불릴 때 전역 넷은 이미 폴란드다
+    assert got["wrote"] == "이 나라로 플레이 — 폴란드 (1106)" and got["status_after"] == "플레이 중: 폴란드 (1106)"
+    assert got["picked_after"] == "고른 나라: 없음 — 아래 목록에서 고르십시오"   # 고른 나라가 플레이어가 됐다 — 풀린다
     assert got["lines"] == [] and got["text"] == "" and got["options"] == 0
