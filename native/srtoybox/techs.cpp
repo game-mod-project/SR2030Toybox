@@ -82,6 +82,8 @@ void fill(ListRow *out, const Row &row)
     out->id = row.id;
     out->state = row.mine ? STATE_MINE : row.queued ? STATE_QUEUED : STATE_NONE;
     out->others = row.others;
+    out->owners[0] = row.owners[0];
+    out->owners[1] = row.owners[1];
     out->picked = row.picked;
 }
 
@@ -191,7 +193,7 @@ std::vector<ListRow> research_rows(const ResearchTables &tables, const ListFilte
     std::vector<ListRow> rows;
     if (filter.designs) {
         for (const DesignRow &d : tables.designs) {
-            if ((filter.kind >= 0 && d.cls != filter.kind) || !shown(filter.show, d.mine, d.picked, d.others))
+            if ((filter.kind >= 0 && d.cls != filter.kind) || !shown(filter.show, d.mine, d.picked, d.others) || (filter.by_picked && !d.picked))
                 continue;
             ListRow row;
             fill(&row, d);
@@ -204,7 +206,7 @@ std::vector<ListRow> research_rows(const ResearchTables &tables, const ListFilte
         }
     } else {
         for (const TechRow &t : tables.techs) {
-            if ((filter.kind >= 0 && t.kind != filter.kind) || !shown(filter.show, t.mine, t.picked, t.others))
+            if ((filter.kind >= 0 && t.kind != filter.kind) || !shown(filter.show, t.mine, t.picked, t.others) || (filter.by_picked && !t.picked))
                 continue;
             const TechName *name = find_tech(t.id);
             if (!filter.find.empty() && !contains(std::to_string(t.id), filter.find)

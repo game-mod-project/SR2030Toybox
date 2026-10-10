@@ -14,6 +14,7 @@ struct TechRow {
     bool mine = false;          // 플레이어가 보유했다
     bool picked = false;        // 고른 나라가 보유했다(고른 나라가 없으면 false)
     int others = 0;             // 보유한 다른 나라의 수(플레이어는 세지 않는다)
+    int owners[2] = {};         // 그 가운데 앞의 둘(지역 인덱스, 낮은 것부터. 없으면 0) — 목록이 이름으로 적는다
     bool queued = false;        // 플레이어의 연구 대기열에 있다
     bool housed = false;        // 보유 비트 묶음이 있다(없으면 아무도 보유한 적이 없다)
 };
@@ -28,6 +29,7 @@ struct DesignRow {
     bool held = false;          // 게임이 "기술을 뺄 때" 건드리지 않는 설계(깃발)
     bool mine = false, picked = false;
     int others = 0;
+    int owners[2] = {};
     bool queued = false, housed = false;
 };
 
@@ -44,6 +46,7 @@ struct ResearchTables {
     std::vector<TechRow> techs;             // 쓰는 기술, 번호순
     std::vector<DesignRow> designs;         // 쓰는 부대 설계, 번호순
     std::vector<QueueRow> queue;            // 플레이어의 연구 목록의 노드, 목록의 순서
+    std::vector<int> regions;               // 지역 인덱스 → 지역 번호(없는 지역은 0). 목록이 보유국의 이름을 적을 때 쓴다
 };
 
 // 그 노드가 대기열에 있는가(게임의 기준): 깃발 둘 가운데 하나라도 아래 두 비트가 0 이 아니고 "뺐다"(NODE_GONE)가 꺼져 있다.

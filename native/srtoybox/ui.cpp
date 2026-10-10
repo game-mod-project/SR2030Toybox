@@ -45,6 +45,9 @@ float g_footer;               // 바닥 줄들(알림 · 안내)의 높이 — �
 Keep g_keep_sent;             // keeper 에 마지막으로 넘긴 최소 유지(저장한 설정과 같다)
 ListFilter g_list;            // 연구 목록의 거르개
 char g_find[64];              // 연구 목록의 찾기란
+char g_owner_find[64];        // 연구 목록의 보유국 고르기 안의 검색란
+int g_sort_column = -1;       // 연구 목록을 놓은 열과 방향 — 줄을 다시 만들면 이것으로 다시 놓는다
+bool g_sort_down;
 std::set<int> g_chosen;       // 연구 목록에서 고른 번호(지금 목록 — 기술이나 부대 설계 — 의 것)
 int g_chosen_player;          // 그것을 고를 때의 플레이어. 나라가 바뀌면 고른 것을 푼다
 std::vector<ListRow> g_rows;  // 거르개를 지난 줄 — 스냅숏이나 거르개가 바뀌었을 때만 다시 만든다
@@ -468,7 +471,36 @@ void list_request(Research action, const std::vector<int> &ids, const char *labe
 
 bool same(const ListFilter &a, const ListFilter &b)
 {
-    return a.designs == b.designs && a.show == b.show && a.kind == b.kind && a.find == b.find;
+    return a.designs == b.designs && a.show == b.show && a.kind == b.kind && a.find == b.find && a.by_picked == b.by_picked;
+}
+
+// 목록의 "보유국" 칸: 보유한 다른 나라의 이름. 둘까지 적고 더 있으면 "폴란드, 덴마크 외 3". 없으면 빈 글.
+std::string owners_label(const ListRow &row, const std::vector<int> &regions)
+{
+    std::string out;
+    int named = 0;
+    for (int index : row.owners)
+        if (index > 0 && named < row.others) {
+            const int number = static_cast<size_t>(index) < regions.size() ? regions[static_cast<size_t>(index)] : 0;
+            out += (named++ > 0 ? ", " : "") + (number > 0 ? region_label(number) : "#" + std::to_string(index));
+        }
+    return row.others > named ? out + " 외 " + std::to_string(row.others - named) : out;
+}
+
+// 목록을 머리 줄에서 고른 열로 놓는다. 같은 값끼리는 앞의 순서(수준 · 번호)가 남는다.
+void sort_rows(int column, bool down)
+{
+    const auto less = [column](const ListRow &a, const ListRow &b) {
+        switch (column) {
+        case 1: return a.name < b.name;
+        case 2: return a.kind < b.kind;
+        case 4: return a.state < b.state;
+        case 5: return a.others < b.others;
+        case 6: return a.picked < b.picked;
+        default: return a.level < b.level;
+        }
+    };
+    std::stable_sort(g_rows.begin(), g_rows.end(), [&](const ListRow &a, const ListRow &b) { return down ? less(b, a) : less(a, b); });
 }
 
 // 연구 탭의 목록: 기술이나 부대 설계를 거르개로 걸러 보이고, 고른 것 · 보이는 것 전부를 완료 · 미완료로 바꾼다.
@@ -543,6 +575,34 @@ void research_list(const GameState &game, bool blocked)
         ImGui::EndCombo();
     }
     note("list:kind", kind_label(g_list.kind));
+    // 둘째 줄: 보유국(그 나라가 보유한 것만 — 보기와 함께 걸린다)과 찾기. 고르면 "외교·영토" 탭의 고른 나라도 그 나라가 된다
+    if (g_picked == 0)
+        g_list.by_picked = false;
+    const std::string owner = g_list.by_picked ? region_label(g_picked) + " (" + std::to_string(g_picked) + ")" : std::string("전체");
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted("보유국");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(220.0f);
+    if (ImGui::BeginCombo("##owner", owner.c_str())) {
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        ImGui::InputTextWithHint("##ownerfind", "검색 (이름 · 번호)", g_owner_find, sizeof(g_owner_find));
+        if (ImGui::Selectable("전체", !g_list.by_picked)) {
+            g_list.by_picked = false;
+            g_confirm.clear();
+        }
+        note("owner:0", "전체");
+        for (int number : region_view(g_regions, game.player, g_picked, g_owner_find).rows) {
+            const std::string label = region_label(number) + " (" + std::to_string(number) + ")";
+            if (ImGui::Selectable(label.c_str(), g_list.by_picked && number == g_picked)) {
+                g_picked = number;
+                g_list.by_picked = true;
+                g_confirm.clear();
+            }
+            note("owner:" + std::to_string(number), label);
+        }
+        ImGui::EndCombo();
+    }
+    note("list:owner", owner);
     ImGui::SameLine();
     ImGui::SetNextItemWidth(-FLT_MIN);
     if (ImGui::InputTextWithHint("##find", "찾기 (이름 · 번호)", g_find, sizeof(g_find)))
@@ -550,32 +610,52 @@ void research_list(const GameState &game, bool blocked)
     note("list:find", g_find);
     g_list.find = g_find;
 
+    bool rebuilt = false;
     if (shot->serial != g_rows_serial || !same(g_list, g_rows_filter)) {
         g_rows = research_rows(shot->tables, g_list);
         g_rows_serial = shot->serial;
         g_rows_filter = g_list;
+        rebuilt = true;
     }
     const bool with_picked = shot->picked != 0 && shot->picked == g_picked;   // 고른 나라의 열 — 그 나라로 뜬 스냅숏일 때만
     const float below = 2.0f * ImGui::GetFrameHeightWithSpacing();           // 표 아래의 두 줄(수 · 단추)
     const float height = std::max(6.0f * ImGui::GetFrameHeightWithSpacing(), ImGui::GetContentRegionAvail().y - below);
-    const ImGuiTableFlags flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_ScrollY;
+    // 열의 너비는 머리 줄의 경계를 끌어 바꾸고, 머리 줄을 누르면 그 열로 놓는다(한 번 더 누르면 거꾸로)
+    const ImGuiTableFlags flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_ScrollY
+        | ImGuiTableFlags_Resizable | ImGuiTableFlags_Sortable;
     if (ImGui::BeginTable(with_picked ? "list7" : "list6", with_picked ? 7 : 6, flags, ImVec2(0.0f, height))) {
         ImGui::TableSetupScrollFreeze(0, 1);
-        ImGui::TableSetupColumn("##on");
+        ImGui::TableSetupColumn("##on", ImGuiTableColumnFlags_NoSort | ImGuiTableColumnFlags_NoResize);
         ImGui::TableSetupColumn("이름", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn(designs ? "병과" : "분류");
-        ImGui::TableSetupColumn(designs ? "연도" : "수준");
+        ImGui::TableSetupColumn(designs ? "연도" : "수준", ImGuiTableColumnFlags_DefaultSort);
         ImGui::TableSetupColumn("상태");
-        ImGui::TableSetupColumn("타국");
+        ImGui::TableSetupColumn("보유국");
         if (with_picked)
             ImGui::TableSetupColumn(region_label(shot->picked).c_str());
-        ImGui::TableHeadersRow();
+        ImGui::TableNextRow(ImGuiTableRowFlags_Headers);         // TableHeadersRow 가 하는 일 — 머리 칸의 자리를 적으려고 풀어 썼다
+        for (int column = 0; column < (with_picked ? 7 : 6); column++) {
+            ImGui::TableSetColumnIndex(column);
+            ImGui::TableHeader(ImGui::TableGetColumnName(column));
+            note("head:" + std::to_string(column), ImGui::TableGetColumnName(column));
+        }
+        if (ImGuiTableSortSpecs *specs = ImGui::TableGetSortSpecs()) {
+            if (specs->SpecsDirty && specs->SpecsCount > 0) {
+                g_sort_column = specs->Specs[0].ColumnIndex;
+                g_sort_down = specs->Specs[0].SortDirection == ImGuiSortDirection_Descending;
+                specs->SpecsDirty = false;
+                rebuilt = true;
+            }
+        }
+        if (rebuilt && g_sort_column >= 0 && !(g_sort_column == 3 && !g_sort_down))   // 줄은 수준의 오름차순으로 만들어진다
+            sort_rows(g_sort_column, g_sort_down);
         ImGuiListClipper clipper;                // 줄이 많다(부대 설계 수천) — 보이는 줄만 그린다
         clipper.Begin(static_cast<int>(g_rows.size()));
         while (clipper.Step())
             for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
                 const ListRow &r = g_rows[static_cast<size_t>(i)];
-                const std::string cells[5] = {r.name, kind_label(r.kind), std::to_string(r.level), state_label(r.state), std::to_string(r.others)};
+                const std::string cells[5] = {r.name, kind_label(r.kind), std::to_string(r.level), state_label(r.state),
+                                              owners_label(r, shot->tables.regions)};
                 ImGui::PushID(r.id);
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();

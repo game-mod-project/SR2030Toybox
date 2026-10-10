@@ -1322,6 +1322,17 @@ def run_research(hook: str, mode: str) -> int:
         items = lambda: {name[5:]: fact[3] for name, fact in game.facts().items() if name.startswith("item:")}
         game.wait(0.8)                                        # 목록의 스냅숏은 탭이 보이는 동안 0.5초마다 뜬다
         out["picked"], out["first"], out["count"] = game.shown("picked"), items(), game.shown("list:count")
+        game.click("list:owner")                              # 보유국: 그 나라가 보유한 것만(보기와 함께 걸린다)
+        game.wait(0.2)
+        owners = {fact[3]: name for name, fact in game.facts().items() if name.startswith("owner:")}
+        out["owners"] = list(owners)
+        game.click(next(name for label, name in owners.items() if label.startswith("폴란드")))
+        game.wait(0.8)                                        # 고른 나라가 바뀌면 스냅숏을 다시 뜬다
+        out["by_owner"], out["owner"], out["picked_owner"] = items(), game.shown("list:owner"), game.shown("picked")
+        game.click("list:owner")
+        game.click("owner:0")                                 # 전체 — 고른 나라(와 그 열)는 남는다
+        game.wait(0.3)
+        out["owner_all"] = game.shown("list:owner")
         game.click("item:3")
         game.click("item:7")
         out["count_chosen"] = game.shown("list:count")
@@ -1332,6 +1343,12 @@ def run_research(hook: str, mode: str) -> int:
         game.click("show:1")                                  # 보기: 자국 보유
         game.wait(0.2)
         out["mine"] = items()
+        order = []
+        for head in ("head:1", "head:1", "head:5", "head:3"):  # 머리 줄을 누르면 그 열로 놓는다: 이름 ↑ · 이름 ↓ · 보유국 ↑ · 수준 ↑(처음 순서)
+            game.click(head)
+            game.wait(0.2)
+            order.append(list(items()))
+        out["sorted"] = order
         game.click("list:designs")                            # 목록을 바꾸면 고른 것이 풀린다
         game.wait(0.2)
         out["designs"], out["count_designs"] = items(), game.shown("list:count")
