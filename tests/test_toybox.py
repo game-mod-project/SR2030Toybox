@@ -1071,12 +1071,18 @@ def test_the_research_list_completes_and_revokes_what_is_picked(dll, cfg, tmp_pa
     got = json.loads(_probe(cfg, tmp_path, "research_list"))
     assert got["rows"] == RESEARCH_BUTTONS                                  # 위의 단추 셋은 그대로다
     assert got["picked"] == "고른 나라: 없음 — 외교·영토 탭에서 고릅니다"
-    assert got["first"] == {"2": "0|개량 폐기물 소각|전쟁|20|연구 중|1", "3": "0|물 절약|전쟁|30|미보유|0", "7": "0|미사일 발사 사일로|전쟁|70|미보유|1"}
+    # 보유국의 칸은 보유한 다른 나라의 이름이다(가짜 판의 덴마크는 지역 표에 없어 인덱스로 적힌다)
+    assert got["first"] == {"2": "0|개량 폐기물 소각|전쟁|20|연구 중|폴란드", "3": "0|물 절약|전쟁|30|미보유|", "7": "0|미사일 발사 사일로|전쟁|70|미보유|#150"}
+    # 보유국으로 거른다: 폴란드가 보유한 것 가운데 자국 미보유. 고른 나라가 그 나라가 되고 그 나라의 열이 생긴다. "전체"로 돌려도 열은 남는다
+    assert got["owners"] == ["전체", "폴란드 (1106)"] and got["owner"] == "폴란드 (1106)" and got["owner_all"] == "전체"
+    assert got["by_owner"] == {"2": "0|개량 폐기물 소각|전쟁|20|연구 중|폴란드|보유"} and got["picked_owner"] == "고른 나라: 폴란드 (1106)"
     assert got["count"] == "보이는 것 3개 · 고른 것 0개" and got["count_chosen"] == "보이는 것 3개 · 고른 것 2개"
     assert got["after_done"] == LIST_DONE and got["wrote_done"] == "기술 3개(선행 1개 포함)를 완료로 — 고른 것"
     assert got["left"] == {} and got["count_left"] == "보이는 것 0개 · 고른 것 2개(보이지 않는 것 2개)"
-    assert list(got["mine"]) == ["1", "2", "3", "4", "6", "7"] and got["mine"]["3"] == "1|물 절약|전쟁|30|보유|0"
-    assert got["designs"] == {"10": "0|Unit|보병|1950|보유|0", "13": "0|Unit|보병|1950|보유|1", "14": "0|Unit|보병|1950|보유|0"}
+    assert list(got["mine"]) == ["1", "2", "3", "4", "6", "7"] and got["mine"]["3"] == "1|물 절약|전쟁|30|보유||"
+    # 머리 줄을 누르면 그 열로 놓는다: 이름 ↑ · 이름 ↓ · 보유국(수) ↑ · 수준 ↑. 같은 값끼리는 수준 · 번호의 순서가 남는다
+    assert got["sorted"] == [["2", "6", "1", "3", "7", "4"], ["4", "7", "3", "1", "6", "2"], ["3", "6", "4", "7", "1", "2"], ["1", "2", "3", "4", "6", "7"]]
+    assert got["designs"] == {"10": "0|Unit|보병|1950|보유||", "13": "0|Unit|보병|1950|보유|폴란드|보유", "14": "0|Unit|보병|1950|보유||"}
     assert got["count_designs"] == "보이는 것 3개 · 고른 것 0개"
     assert got["asking"] == "보이는 것 전부 미완료 — 한 번 더 누르면 실행합니다" and got["held_asking"] == LIST_DONE   # 첫 누름은 쓰지 않는다
     assert got["wrote_undo"] == "부대 설계 3개를 미완료로 — 보이는 것" and got["designs_after"] == {}

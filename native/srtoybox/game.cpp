@@ -473,10 +473,12 @@ T field(const uint8_t *record, uint32_t offset)
 }
 
 // 보유 묶음에서 플레이어(me)와 고른 나라(them. 없으면 0)의 비트, 그리고 플레이어를 뺀 보유 나라의 수. 묶음이 없으면(0) 아무도 없다.
-bool owners_of(Span *span, uint64_t owners, int me, int them, bool *mine, bool *picked, int *others)
+// first 에는 플레이어가 아닌 보유 나라 가운데 인덱스가 낮은 둘(없으면 0).
+bool owners_of(Span *span, uint64_t owners, int me, int them, bool *mine, bool *picked, int *others, int *first)
 {
     *mine = *picked = false;
     *others = 0;
+    first[0] = first[1] = 0;
     if (owners == 0)
         return true;
     uint8_t bits[OWNERS_BYTES];
@@ -486,6 +488,9 @@ bool owners_of(Span *span, uint64_t owners, int me, int them, bool *mine, bool *
     for (uint8_t byte : bits)
         for (; byte != 0; byte = static_cast<uint8_t>(byte & (byte - 1)))
             count++;
+    for (int i = 0, found = 0; i < OWNERS_BYTES * 8 && found < 2; i++)
+        if (i != me && (bits[i / 8] >> (i % 8) & 1) != 0)
+            first[found++] = i;
     *mine = (bits[me / 8] >> (me % 8) & 1) != 0;
     *picked = them > 0 && (bits[them / 8] >> (them % 8) & 1) != 0;
     *others = count - (*mine ? 1 : 0);
@@ -521,6 +526,14 @@ bool shoot(const uint8_t *base, const GameAddresses &at, const ResearchLayout &r
     shot->multiplayer = s.multiplayer;
     shot->world = reinterpret_cast<uint64_t>(base) + r.world;
     ResearchTables &t = shot->tables;
+    std::vector<uint64_t> region_table(static_cast<size_t>(s.regions) + 1);
+    t.regions.assign(region_table.size(), 0);
+    if (peek(base + at.region_table, region_table.data(), region_table.size() * sizeof(uint64_t)))
+        for (int i = 1; i <= s.regions; i++) {
+            Region region = {};
+            if (peek_region(region_table[static_cast<size_t>(i)], &region) && usable(region, i))
+                t.regions[static_cast<size_t>(i)] = region.number;
+        }
     t.tech_slots = tech_count;
     t.design_slots = design_count;
 
@@ -540,7 +553,7 @@ bool shoot(const uint8_t *base, const GameAddresses &at, const ResearchLayout &r
         for (int n = 0; n < TECH_NEED_COUNT; n++)
             row.needs[n] = field<uint16_t>(record, TECH_NEEDS + 2 * static_cast<uint32_t>(n));
         const uint64_t owners = field<uint64_t>(record, TECH_OWNERS);
-        if (!owners_of(&span, owners, me, them, &row.mine, &row.picked, &row.others)) {
+        if (!owners_of(&span, owners, me, them, &row.mine, &row.picked, &row.others, row.owners)) {
             *why = "기술 " + std::to_string(i) + " 의 보유 묶음을 읽을 수 없습니다";
             return false;
         }
@@ -583,7 +596,7 @@ bool shoot(const uint8_t *base, const GameAddresses &at, const ResearchLayout &r
         for (int n = 0; n < DESIGN_NEED_COUNT; n++)
             row.needs[n] = field<uint16_t>(record, DESIGN_NEEDS + 2 * static_cast<uint32_t>(n));
         const uint64_t owners = field<uint64_t>(record, DESIGN_OWNERS);
-        if (!owners_of(&span, owners, me, them, &row.mine, &row.picked, &row.others)) {
+        if (!owners_of(&span, owners, me, them, &row.mine, &row.picked, &row.others, row.owners)) {
             *why = "부대 설계 " + std::to_string(i) + " 의 보유 묶음을 읽을 수 없습니다";
             return false;
         }

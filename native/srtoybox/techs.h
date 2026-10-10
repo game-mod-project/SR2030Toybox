@@ -34,6 +34,7 @@ struct ListFilter {
     Show show = Show::NotMine;
     int kind = -1;                // 분류(기술) · 병과(부대 설계). -1 이면 전체
     std::string find;             // 이름이나 번호의 일부(영문은 대소문자를 가리지 않는다). 비었으면 전부
+    bool by_picked = false;       // 보유국으로 거른다: 고른 나라가 보유한 것만(보기와 함께 건다)
 };
 
 const int STATE_NONE = 0, STATE_QUEUED = 1, STATE_MINE = 2;   // 미보유 · 연구 중 · 보유
@@ -45,6 +46,7 @@ struct ListRow {
     int level = 0;                // 기술 수준 · 등장 연도
     int state = STATE_NONE;
     int others = 0;               // 보유한 다른 나라의 수
+    int owners[2] = {};           // 그 가운데 앞의 둘(지역 인덱스. 없으면 0)
     bool picked = false;          // 고른 나라가 보유했다
 };
 
