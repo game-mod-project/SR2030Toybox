@@ -4,6 +4,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <initializer_list>
 
 #include "sigs.h"
 
@@ -281,8 +282,35 @@ const struct ValueWanted {
       "4C 69 C2 [u32] 48 69 CA ? ? ? ? 0F 28 C2 F3 41 0F 59 44 01 [u8]"}},
 };
 
-const int MAX_TABLE = STATE_WANTED * STATE_SIGS;    // 한 표의 서명 수의 상한(상태 21개, 값 12개)
-static_assert(VALUE_WANTED <= STATE_WANTED, "vote_table 의 배열은 상태 묶음의 크기로 잡았다 — 더 큰 표를 더하면 MAX_TABLE 을 키운다");
+// 더 쓰는 값의 자리 일곱 — 기능마다 한 묶음이다(group: 0 지식, 1 여론, 2 관계). 같은 규칙으로 뽑았다
+// (uv run srkit sig-mine --offset <자리>). 표의 서명은 모두 "지역 객체 + 인덱스 × 4 + 자리" 꼴의 명령에서 읽는다.
+const struct MoreWanted {
+    const char *name;                       // srkit locate 와 테스트가 본다(MoreLayout 의 필드 순서와 같다)
+    const char *label;                      // 로그와 창에 나오는 이름
+    int group;
+    uint32_t bytes;                         // 그 자리부터 차지하는 크기: 칸은 4, 표는 4 × REGION_SLOTS
+    const char *sigs[STATE_SIGS];
+} MORE[MORE_WANTED] = {
+    {"tech", "기술 수준 칸", 0, 4,
+     {"F3 0F 2C 88 [u32] 41 3B C8 7E 4A", "F3 0F 2C 87 [u32] 83 E8 0F 3B C8", "48 05 [u32] F3 0F 2C 00 05 6C 07 00 00"}},
+    {"opinion0", "여론 칸 1", 1, 4,
+     {"F3 0F 58 B0 [u32] 48 85 D2 74 48", "F3 0F 10 89 [u32] 44 0F 2F D1 76 18", "F3 0F 59 8B [u32] F3 0F 58 C8 0F 2F F1"}},
+    {"opinion1", "여론 칸 2", 1, 4,
+     {"F3 0F 10 88 [u32] 0F 2F CB 76 5D", "F3 0F 10 8F [u32] 0F 2E CE 7A 14", "F3 0F 59 8B [u32] F3 0F 58 C8 0F 28 C2"}},
+    {"opinion2", "여론 칸 3", 1, 4,
+     {"F3 0F 10 B0 [u32] 48 85 D2 74 43", "F3 0F 10 8A [u32] 0F 2F F9 76 2E", "F3 0F 10 81 [u32] 48 8D 44 24 70 F3 0F 5C C1"}},
+    {"relation0", "관계 표 1", 2, 4 * REGION_SLOTS,
+     {"41 0F 2F 84 8D [u32] 76 0D 40 B6 01", "F3 42 0F 10 9C 82 [u32] 0F 2F FB 76 33", "F3 0F 10 84 81 [u32] 41 0F 2F C6 76 5F"}},
+    {"relation1", "관계 표 2", 2, 4 * REGION_SLOTS,
+     {"41 0F 2F 84 84 [u32] 76 7A 48 85 D2", "F3 0F 11 84 88 [u32] 45 85 DB 79 2A", "F3 0F 10 9C 81 [u32] 8B D0 0F 2F FB"}},
+    {"casus", "전쟁 명분 표", 2, 4 * REGION_SLOTS,
+     {"F3 0F 10 9C 8A [u32] 0F 2F FB 76 35", "F3 41 0F 5C 8C 82 [u32] 0F 2F C1 76 02", "F3 0F 11 84 88 [u32] 0F 28 C2 48 8B 07"}},
+};
+
+const int MAX_TABLE = STATE_WANTED * STATE_SIGS;    // 한 표의 서명 수의 상한(상태 21개, 값 12개, 더 쓰는 값 21개)
+static_assert(VALUE_WANTED <= STATE_WANTED && MORE_WANTED <= STATE_WANTED,
+              "서명을 맞추는 배열은 상태 묶음의 크기로 잡았다 — 더 큰 표를 더하면 MAX_TABLE 을 키운다");
+static_assert(sizeof(MoreLayout) == MORE_WANTED * sizeof(uint32_t), "MoreLayout 의 필드는 표 MORE 의 순서대로 uint32_t 일곱이다");
 
 // 전역 변수가 있을 수 있는 곳인가: 쓸 수 있는 자료 구역 안.
 bool in_data(const Image &im, uint64_t rva, uint64_t bytes)
@@ -301,11 +329,10 @@ bool offset_ok(uint64_t offset)
     return offset > 0 && offset < 0x100000;
 }
 
-// 서명 표 하나(찾을 것 n 개 × 서명 STATE_SIGS 개)를 실행 구역에 한 번 훑어 맞추고, 찾을 것마다 투표한다.
-// values: n 줄 × SIG_CAPTURES 칸(0 으로 채워서 준다). 못 찾으면 false 와 why. what 은 서명이 읽어 내는 것("주소를" · "값을").
+// 서명 표 하나(찾을 것 n 개 × 서명 STATE_SIGS 개)를 실행 구역에 한 번 훑어 맞춘다. sigs · hits 는 MAX_TABLE 칸.
+// 표가 틀렸으면 false 와 why.
 template <class Row>
-bool vote_table(const Image &im, const Row *table, int n, const char *what, SigRow *rows, uint64_t (*values)[SIG_CAPTURES],
-                char *why, size_t why_size)
+bool scan_table(const Image &im, const Row *table, int n, SigRow *rows, Sig *sigs, SigHit *hits, char *why, size_t why_size)
 {
     const int total = n * STATE_SIGS;
     if (total > MAX_TABLE) {
@@ -320,8 +347,6 @@ bool vote_table(const Image &im, const Row *table, int n, const char *what, SigR
             ranges[range_count].end = im.sections[s].rva + im.sections[s].size;
             range_count++;
         }
-    Sig sigs[MAX_TABLE];
-    SigHit hits[MAX_TABLE];
     for (int i = 0; i < total; i++)
         if (!sig_parse(table[i / STATE_SIGS].sigs[i % STATE_SIGS], &sigs[i])) {
             snprintf(why, why_size, "서명 표가 틀렸습니다 (%s)", table[i / STATE_SIGS].name);
@@ -335,16 +360,37 @@ bool vote_table(const Image &im, const Row *table, int n, const char *what, SigR
             rows[i].value = static_cast<uint32_t>(hits[i].value[0]);
             rows[i].value2 = static_cast<uint32_t>(hits[i].value[1]);
         }
-    for (int w = 0; w < n; w++) {
-        int matched = 0;
-        if (!sig_vote(sigs + w * STATE_SIGS, hits + w * STATE_SIGS, STATE_SIGS, STATE_NEED, values[w], &matched)) {
-            if (matched >= STATE_NEED)
-                snprintf(why, why_size, "%s: 서명들이 서로 다른 %s 냅니다", table[w].label, what);
-            else
-                snprintf(why, why_size, "%s: 서명 %d개 가운데 %d개", table[w].label, STATE_SIGS, matched);
+    return true;
+}
+
+// 찾을 것 하나(표의 w 째)의 투표. value 는 SIG_CAPTURES 칸. 못 찾으면 false 와 why. what 은 서명이 읽어 내는 것("주소를" · "값을").
+template <class Row>
+bool vote_item(const Row *table, int w, const char *what, const Sig *sigs, const SigHit *hits, uint64_t *value, char *why,
+               size_t why_size)
+{
+    int matched = 0;
+    if (sig_vote(sigs + w * STATE_SIGS, hits + w * STATE_SIGS, STATE_SIGS, STATE_NEED, value, &matched))
+        return true;
+    if (matched >= STATE_NEED)
+        snprintf(why, why_size, "%s: 서명들이 서로 다른 %s 냅니다", table[w].label, what);
+    else
+        snprintf(why, why_size, "%s: 서명 %d개 가운데 %d개", table[w].label, STATE_SIGS, matched);
+    return false;
+}
+
+// 서명 표 하나를 맞추고 찾을 것마다 투표한다 — 하나라도 못 찾으면 false 와 why.
+// values: n 줄 × SIG_CAPTURES 칸(0 으로 채워서 준다).
+template <class Row>
+bool vote_table(const Image &im, const Row *table, int n, const char *what, SigRow *rows, uint64_t (*values)[SIG_CAPTURES],
+                char *why, size_t why_size)
+{
+    Sig sigs[MAX_TABLE];
+    SigHit hits[MAX_TABLE];
+    if (!scan_table(im, table, n, rows, sigs, hits, why, why_size))
+        return false;
+    for (int w = 0; w < n; w++)
+        if (!vote_item(table, w, what, sigs, hits, values[w], why, why_size))
             return false;
-        }
-    }
     return true;
 }
 
@@ -444,6 +490,87 @@ bool search_values(const uint8_t *image, size_t size, ValueLayout *out, SigRow *
     return true;
 }
 
+// [a, a + a_bytes) 와 [b, b + b_bytes) 가 겹치는가.
+bool overlap(uint64_t a, uint64_t a_bytes, uint64_t b, uint64_t b_bytes)
+{
+    return a < b + b_bytes && b < a + a_bytes;
+}
+
+// 더 쓰는 값: 서명은 한 번에 맞추고, 묶음마다 따로 판정한다.
+int search_more(const uint8_t *image, size_t size, const ValueLayout *values, MoreLayout *out, SigRow *rows, char (*why)[MORE_WHY])
+{
+    Image im = {};
+    im.p = image;
+    im.size = size;
+    char broken[MORE_WHY] = "";
+    Sig sigs[MAX_TABLE];
+    SigHit hits[MAX_TABLE];
+    if (image == nullptr || !parse(im))
+        snprintf(broken, sizeof(broken), "실행 파일의 머리말을 읽을 수 없습니다");
+    if (broken[0] != '\0' || !scan_table(im, MORE, MORE_WANTED, rows, sigs, hits, broken, sizeof(broken))) {
+        for (int g = 0; g < MORE_GROUPS; g++)
+            snprintf(why[g], MORE_WHY, "%s", broken);
+        return 0;
+    }
+    uint64_t at[MORE_WANTED] = {};              // 저마다 찾은 자리. 못 찾았으면 0
+    bool ok[MORE_GROUPS];
+    for (int g = 0; g < MORE_GROUPS; g++) {
+        ok[g] = true;
+        why[g][0] = '\0';
+    }
+    for (int w = 0; w < MORE_WANTED; w++) {
+        uint64_t value[SIG_CAPTURES] = {};
+        char one[MORE_WHY] = "";
+        bool good = vote_item(MORE, w, "값을", sigs, hits, value, one, sizeof(one));
+        if (good && (!offset_ok(value[0]) || !offset_ok(value[0] + MORE[w].bytes))) {
+            snprintf(one, sizeof(one), "%s: 찾은 자리가 범위 밖입니다", MORE[w].label);
+            good = false;
+        }
+        if (good && value[0] % 4 != 0) {        // 칸이 float 다
+            snprintf(one, sizeof(one), "%s: 찾은 자리가 4 의 배수가 아닙니다", MORE[w].label);
+            good = false;
+        }
+        if (good) {
+            at[w] = value[0];
+        } else if (ok[MORE[w].group]) {         // 묶음의 까닭은 처음 것만 남긴다
+            ok[MORE[w].group] = false;
+            snprintf(why[MORE[w].group], MORE_WHY, "%s", one);
+        }
+    }
+    // 저마다는 말이 되어도 서로 겹치면 어느 한쪽이 엉뚱한 것을 읽은 것이다 — 어느 쪽인지 모르므로 두 묶음 다 버린다
+    for (int w = 0; w < MORE_WANTED; w++)
+        for (int v = 0; v < w; v++) {
+            if (at[w] == 0 || at[v] == 0 || !overlap(at[w], MORE[w].bytes, at[v], MORE[v].bytes))
+                continue;
+            for (int g : {MORE[w].group, MORE[v].group})
+                if (ok[g]) {
+                    ok[g] = false;
+                    snprintf(why[g], MORE_WHY, "%s: 찾은 자리가 %s 의 자리와 겹칩니다", MORE[w].label, MORE[v].label);
+                }
+        }
+    if (values != nullptr)                      // 값 묶음(돈 · 물자)을 찾았으면 그 칸들과도 겹치면 안 된다 — 새 묶음을 버린다
+        for (int w = 0; w < MORE_WANTED; w++) {
+            if (at[w] == 0)
+                continue;
+            bool hit = overlap(at[w], MORE[w].bytes, values->treasury, 8);
+            for (int i = 0; i < STOCK_SLOTS && !hit; i++)
+                hit = overlap(at[w], MORE[w].bytes, values->stock_first + static_cast<uint64_t>(values->stock_step) * static_cast<uint64_t>(i), 4);
+            if (hit && ok[MORE[w].group]) {
+                ok[MORE[w].group] = false;
+                snprintf(why[MORE[w].group], MORE_WHY, "%s: 찾은 자리가 국고 칸이나 재고 칸과 겹칩니다", MORE[w].label);
+            }
+        }
+    uint32_t found[MORE_WANTED] = {};
+    int groups = 0;
+    for (int w = 0; w < MORE_WANTED; w++)
+        if (ok[MORE[w].group]) {
+            found[w] = static_cast<uint32_t>(at[w]);
+            groups |= 1 << MORE[w].group;
+        }
+    memcpy(out, found, sizeof(found));
+    return groups;
+}
+
 // 서명마다의 결과 칸에 이름과 글을 채운다 — 찾기 전에. 머리말조차 못 읽은 이미지에서도 서명 표를 볼 수 있다(테스트와 srkit locate 가 쓴다).
 template <class Row>
 void name_rows(const Row *table, int n, SigRow *rows)
@@ -463,7 +590,7 @@ void name_rows(const Row *table, int n, SigRow *rows)
 }  // namespace
 
 // 올라와 있는 실행 파일에는 읽을 수 없는 쪽이 있을 수 있다(보호된 구역). 그때도 죽지 않는다 — 여기서 예외가 새면 게임이 뜨다가 죽는다.
-// __try 가 든 함수에는 소멸자가 있는 지역 변수를 둘 수 없어 찾는 일(search_legacy · search_state · search_values)과 따로 뗐다.
+// __try 가 든 함수에는 소멸자가 있는 지역 변수를 둘 수 없어 찾는 일(search_legacy · search_state · search_values · search_more)과 따로 뗐다.
 const char *locate_legacy(const uint8_t *image, size_t size, GameAddresses *out)
 {
     __try {
@@ -492,6 +619,20 @@ bool locate_values(const uint8_t *image, size_t size, ValueLayout *out, SigRow *
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         snprintf(why, why_size, "실행 파일에 읽을 수 없는 곳이 있습니다");
         return false;
+    }
+}
+
+int locate_more(const uint8_t *image, size_t size, const ValueLayout *values, MoreLayout *out, SigRow *rows, char (*why)[MORE_WHY])
+{
+    name_rows(MORE, MORE_WANTED, rows);
+    *out = MoreLayout();
+    __try {
+        return search_more(image, size, values, out, rows, why);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        *out = MoreLayout();
+        for (int g = 0; g < MORE_GROUPS; g++)
+            snprintf(why[g], MORE_WHY, "실행 파일에 읽을 수 없는 곳이 있습니다");
+        return 0;
     }
 }
 

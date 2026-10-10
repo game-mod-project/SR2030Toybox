@@ -18,6 +18,8 @@ BUILD_STATE = {name: BUILD_21347933[name] for name in toybox.STATE_FIELDS}
 BUILD_LEGACY = {name: BUILD_21347933[name] for name in toybox.LEGACY_FIELDS}
 BUILD_VALUES = {"world_pointer": 0x1AF5868, "treasury": 0x14B88, "stock_first": 0x14DA4, "stock_step": 0x150,
                 "used_first": 0x18, "used_step": 0x84}
+BUILD_MORE = {"tech": 0x14CD0, "opinion0": 0x14AF4, "opinion1": 0x14AF8, "opinion2": 0x14B10, "relation0": 0x15F10,
+              "relation1": 0x16F10, "casus": 0x17F10}
 GARBAGE = [b"", b"MZ", bytes(0x1000), b"MZ" + bytes(0x3A) + struct.pack("<I", 0x7FFFFFF0) + bytes(0x100)]
 GARBAGE_IDS = ["empty", "two-bytes", "zeros", "header-far-outside"]
 
@@ -46,6 +48,12 @@ def sigs(lib):
 def value_sigs(lib):
     """DLL 에 든 값 묶음의 서명 표: [(찾을 것, 서명 글)] — 찾을 것마다 셋, 표의 순서대로."""
     return [(row.name, row.text) for row in toybox.values_of(lib, b"")[2]]
+
+
+@pytest.fixture(scope="module")
+def more_sigs(lib):
+    """DLL 에 든 "더 쓰는 값"의 서명 표: [(찾을 것, 서명 글)] — 찾을 것마다 셋, 표의 순서대로."""
+    return [(row.name, row.text) for row in toybox.more_of(lib, b"")[2]]
 
 
 def installed_image(game_dir) -> bytes:
@@ -143,13 +151,13 @@ def test_signatures_lie_outside_the_cheat_code(lib, game_dir):
     image = installed_image(game_dir)
     cheats = sigmine.cheat_ranges(sigmine.Image(image))
     assert len(cheats) == 12
-    for row in toybox.state_of(lib, image)[2] + toybox.values_of(lib, image)[2]:
+    for row in toybox.state_of(lib, image)[2] + toybox.values_of(lib, image)[2] + toybox.more_of(lib, image)[2]:
         assert not any(begin <= row.at < end for begin, end in cheats), row
 
 
 def test_each_item_takes_its_signatures_from_different_functions(lib, game_dir):
     image = installed_image(game_dir)
-    rows = toybox.state_of(lib, image)[2] + toybox.values_of(lib, image)[2]
+    rows = toybox.state_of(lib, image)[2] + toybox.values_of(lib, image)[2] + toybox.more_of(lib, image)[2]
     for i in range(0, len(rows), 3):
         roots = {lib.srtoybox_function_root(image, len(image), row.at) or -row.at for row in rows[i:i + 3]}   # 함수 표에 없으면 0
         assert len(roots) == 3, rows[i].name
@@ -268,6 +276,110 @@ def test_values_agree_with_what_the_cheat_code_says(lib, game_dir):
     assert toybox.values_of(lib, image)[0] == said
 
 
+def more_without(group: int) -> dict[str, int]:
+    """가짜 이미지의 "더 쓰는 값"에서 그 묶음(0 지식, 1 여론, 2 관계)만 못 찾았을 때의 결과."""
+    return {**toybox_fake_exe.MORE, **dict.fromkeys(toybox.MORE_GROUPS[group][1], 0)}
+
+
+def test_the_more_table_has_three_signatures_per_item(more_sigs):
+    assert [name for name, _ in more_sigs] == [name for name in toybox.MORE_FIELDS for _ in range(3)]
+    assert len({text for _, text in more_sigs}) == 21
+    assert [field for _, fields in toybox.MORE_GROUPS for field in fields] == toybox.MORE_FIELDS
+
+
+def test_more_is_found_in_an_image_without_any_cheat_string(lib, more_sigs):
+    """기술 수준 · 여론 · 관계의 자리도 치트 문자열에 기대지 않고 찾는다."""
+    image = toybox_fake_exe.sig_image(more_sigs)
+    assert b"cheat" not in image
+    found, why, rows = toybox.more_of(lib, image)
+    assert found == toybox_fake_exe.MORE and why == ["", "", ""]
+    assert [row.count for row in rows] == [1] * 21
+    assert all(row.value == toybox_fake_exe.MORE[row.name] for row in rows)
+
+
+@pytest.mark.parametrize("which", range(7))
+def test_more_survives_one_broken_signature_per_item(lib, more_sigs, which):
+    found, why, rows = toybox.more_of(lib, toybox_fake_exe.sig_image(more_sigs, broken={3 * which + 2}))
+    assert found == toybox_fake_exe.MORE and why == ["", "", ""]
+    assert rows[3 * which + 2].count == 0
+
+
+@pytest.mark.parametrize("item, group, label", [(0, 0, "기술 수준 칸"), (2, 1, "여론 칸 2"), (6, 2, "전쟁 명분 표")],
+                         ids=["tech", "opinion", "relations"])
+def test_a_group_that_cannot_find_one_of_its_items_is_dropped_alone(lib, more_sigs, item, group, label):
+    """묶음마다 따로 찾는다: 한 묶음의 한 자리를 못 찾으면 그 묶음만 통째로 버리고(반쪽 묶음은 없다) 나머지 묶음은 그대로 찾는다."""
+    found, why, _ = toybox.more_of(lib, toybox_fake_exe.sig_image(more_sigs, broken={3 * item, 3 * item + 1}))
+    assert found == more_without(group)
+    assert [bool(text) for text in why] == [g == group for g in range(3)]
+    assert label in why[group] and "3개 가운데 1개" in why[group]
+
+
+def test_more_signatures_that_disagree_drop_that_group(lib, more_sigs):
+    """셋이 모두 맞았는데 하나가 다른 자리를 낸다 — 다수결로 고르지 않는다(틀린 칸에 쓰느니 쓰지 않는다)."""
+    found, why, _ = toybox.more_of(lib, toybox_fake_exe.sig_image(more_sigs, stray={13}))      # 관계 표 1 의 둘째 서명
+    assert found == more_without(2)
+    assert why[:2] == ["", ""] and "관계 표 1" in why[2] and "서로 다른 값" in why[2]
+
+
+@pytest.mark.parametrize("targets, dropped, reason", [
+    ({"tech": 0x3122}, [0], "기술 수준 칸: 찾은 자리가 4 의 배수가 아닙니다"),
+    ({"opinion1": 0}, [1], "여론 칸 2: 찾은 자리가 범위 밖입니다"),
+    ({"casus": 0xFFFFC}, [2], "전쟁 명분 표: 찾은 자리가 범위 밖입니다"),                    # 표의 끝이 범위를 넘는다
+    ({"opinion2": 0x3004}, [1], "여론 칸 3: 찾은 자리가 여론 칸 1 의 자리와 겹칩니다"),       # 세 칸은 서로 달라야 한다
+    ({"relation1": 0x4800}, [2], "관계 표 2: 찾은 자리가 관계 표 1 의 자리와 겹칩니다"),      # 표 하나는 4바이트 × 1024칸이다
+    ({"tech": 0x4010}, [0, 2], "관계 표 1: 찾은 자리가 기술 수준 칸 의 자리와 겹칩니다"),     # 어느 쪽이 틀렸는지 모른다 — 둘 다 버린다
+], ids=["unaligned", "zero", "table-runs-out", "same-cell", "tables-too-close", "cell-inside-a-table"])
+def test_more_that_does_not_add_up_is_dropped(lib, more_sigs, targets, dropped, reason):
+    """서명들이 서로 맞아도 읽어 낸 자리가 말이 안 되면 그 묶음은 못 찾은 것이다."""
+    found, why, _ = toybox.more_of(lib, toybox_fake_exe.sig_image(more_sigs, targets=targets))
+    expected = {**toybox_fake_exe.MORE, **targets}
+    for group in dropped:
+        expected.update(dict.fromkeys(toybox.MORE_GROUPS[group][1], 0))
+    assert found == expected
+    assert [text for text in why if text] == [reason] * len(dropped) and [bool(text) for text in why] == [g in dropped for g in range(3)]
+
+
+def test_more_must_not_sit_on_the_treasury_or_a_stock_slot(lib, more_sigs):
+    """값 묶음(돈 · 물자)을 찾았으면 그 칸들과 겹치는 새 묶음은 버린다 — 둘 가운데 하나는 엉뚱한 것을 읽었다. 값 묶음은 그대로 둔다."""
+    targets = {"tech": 0x1234, "opinion0": 0x2040}         # 국고 칸(0x1230, 8바이트)의 뒤쪽 절반 / 재고의 셋째 칸
+    image = toybox_fake_exe.sig_image(more_sigs, targets=targets)
+    found, why, _ = toybox.more_of(lib, image)
+    assert found == {**toybox_fake_exe.MORE, **targets} and why == ["", "", ""]      # 값 묶음을 모르면 저마다는 말이 된다
+    found, why, _ = toybox.more_of(lib, image, toybox_fake_exe.VALUE_LAYOUT)
+    assert found == {**more_without(0), **dict.fromkeys(toybox.MORE_GROUPS[1][1], 0)}
+    assert why == ["기술 수준 칸: 찾은 자리가 국고 칸이나 재고 칸과 겹칩니다", "여론 칸 1: 찾은 자리가 국고 칸이나 재고 칸과 겹칩니다", ""]
+    assert toybox.more_of(lib, toybox_fake_exe.sig_image(more_sigs), toybox_fake_exe.VALUE_LAYOUT)[1] == ["", "", ""]
+
+
+def test_more_is_found_beside_the_other_tables(lib, sigs, value_sigs, more_sigs):
+    """세 서명 표가 한 이미지에 있어도 저마다 찾는다(서명이 서로의 자리에 맞지 않는다)."""
+    image = toybox_fake_exe.sig_image(sigs + value_sigs + more_sigs)
+    assert toybox.state_of(lib, image)[0] == toybox_fake_exe.STATE
+    assert toybox.values_of(lib, image)[0] == toybox_fake_exe.VALUE_LAYOUT
+    assert toybox.more_of(lib, image, toybox_fake_exe.VALUE_LAYOUT)[:2] == (toybox_fake_exe.MORE, ["", "", ""])
+
+
+@pytest.mark.parametrize("image", GARBAGE, ids=GARBAGE_IDS)
+def test_more_survives_garbage(lib, image):
+    found, why, _ = toybox.more_of(lib, image)
+    assert found == dict.fromkeys(toybox.MORE_FIELDS, 0) and all(why)
+
+
+def test_more_on_the_installed_game(lib, game_dir):
+    """build 21347933: 서명 21개가 저마다 실행 구역에 정확히 한 번 맞고, 읽어 낸 자리가 docs/11 의 표와 같다."""
+    found, why, rows = toybox.more_of(lib, installed_image(game_dir), BUILD_VALUES)
+    assert found == BUILD_MORE and why == ["", "", ""]
+    assert [row.count for row in rows] == [1] * 21
+    assert all(row.value == BUILD_MORE[row.name] for row in rows)
+
+
+def test_more_agrees_with_what_the_cheat_code_says(lib, game_dir):
+    """치트 코드가 남아 있는 빌드에서의 대조: 서명으로 읽은 자리 == 치트 finalexam · shelovesme · love · neutral 의 본문이 쓰는 자리."""
+    oracle = pytest.importorskip("toybox_cheat_oracle", reason="capstone 이 없다 (uv sync)")
+    image = installed_image(game_dir)
+    assert toybox.more_of(lib, image)[0] == oracle.more(image)
+
+
 def test_legacy_finds_the_handler_from_the_cheat_anchor(lib, sigs):
     """옛 찾기(전환 기간): 아직 내장 치트로 도는 기능이 쓰는 셋만 치트 문자열을 닻으로 찾는다."""
     assert toybox.legacy_of(lib, toybox_fake_exe.build(sigs)) == (toybox_fake_exe.LEGACY, "")
@@ -335,6 +447,8 @@ def test_srkit_locate_reports_every_search(lib, cfg, game_dir):
     assert located.values is not None and set(located.values) == set(toybox.VALUE_FIELDS), located.values_why
     assert len(located.value_rows) == 12
     assert located.legacy is not None and set(located.legacy) == set(toybox.LEGACY_FIELDS), located.legacy_why
+    assert set(located.more) == set(toybox.MORE_FIELDS) and all(located.more.values()) and located.more_why == ["", "", ""]
+    assert len(located.more_rows) == 21
 
 
 def state(lib, fake: FakeGame) -> dict[str, str]:

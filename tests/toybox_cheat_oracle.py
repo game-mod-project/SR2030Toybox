@@ -2,6 +2,7 @@
 
 게임 안에서 도는 DLL 은 이 방식을 쓰지 않는다(docs/superpowers/specs/2026-10-09-toybox-stage3-1-design.md 의 요구 3).
 치트 코드가 남아 있는 빌드에서 "새 찾기(서명)가 낸 값이 치트 코드에서 읽은 값과 같은가"를 보는 데만 쓴다.
+(3단계 2 의 "더 쓰는 값"은 치트 finalexam · shelovesme · love · neutral 의 본문과 댄다.)
 pytest 가 직접 모으는 테스트 파일이 아니다(tests/test_toybox_game.py 가 쓴다).
 """
 import re
@@ -93,4 +94,45 @@ def values(image_bytes: bytes) -> dict[str, int]:
     assert stock == [out["stock_first"] + out["stock_step"] * i for i in range(len(stock))], stock
     assert len(used) == len(stock), (len(used), len(stock))
     out["slots"] = len(stock)
+    return out
+
+
+def _body(image: sigmine.Image, text: str) -> bytes:
+    """그 치트의 본문: 치트 문자열을 쓰는 자리부터, 글이 다를 때 건너뛰는 곳(다음 치트)까지."""
+    use = _uses(image, text)[0]
+    skip = re.search(rb"\x85\xc0(?:\x0f\x84(....)|\x75(.))", image.data[use:use + 0x20], re.S)     # test eax,eax / je(먼) · jne(가까운) <다음 치트>
+    jump = struct.unpack("<i", skip.group(1))[0] if skip.group(1) is not None else struct.unpack("<b", skip.group(2))[0]
+    return image.data[use:use + skip.end() + jump]
+
+
+def _relation_writes(body: bytes) -> dict[str, list[int]]:
+    """love · neutral 의 본문이 쓰는 칸(표의 첫 칸): 플레이어 객체 쪽(mine)과 그 나라 객체 쪽(theirs), 1.0 을 쓰는 것과 0 을 쓰는 것."""
+    def found(pattern: bytes) -> list[int]:
+        return sorted(struct.unpack("<I", d)[0] for d in re.findall(pattern, body, re.S))
+
+    return {"mine_one": found(rb"\xc7\x84\x88(....)\x00\x00\x80\x3f"),                          # mov dword ptr [rax+rcx*4+표],1.0
+            "mine_zero": found(rb"\x44\x89\xb4\x88(....)"),                                      # mov [rax+rcx*4+표],r14d (0)
+            "theirs_one": found(rb"\xc7\x84\x82(....)\x00\x00\x80\x3f"),                        # mov dword ptr [rdx+rax*4+표],1.0
+            "theirs_zero": found(rb"\x44\x89\xb4\x82(....)")}                                    # mov [rdx+rax*4+표],r14d
+
+
+def more(image_bytes: bytes) -> dict[str, int]:
+    """더 쓰는 값의 자리 일곱 — 치트 finalexam · shelovesme · love 의 본문에서 읽은 것. neutral 이 love 와 같은 여섯 칸을 쓰는지도 본다."""
+    image = sigmine.Image(image_bytes)
+    data = image.data
+    out = {}
+    at = _after(image, "cheat finalexam", 0x40,
+                rb"\xf3\x0f\x10\x80(....)\xf3\x0f\x58\x05....\xf3\x0f\x11\x80\1")              # movss xmm0,[rax+칸] / addss xmm0,[1.0] / movss [rax+칸],xmm0
+    out["tech"] = struct.unpack_from("<I", data, at + 4)[0]
+    cells = sorted(struct.unpack("<I", d)[0]                                                    # mov dword ptr [rax+칸],1.0 셋
+                   for d in re.findall(rb"\xc7\x80(....)\x00\x00\x80\x3f", _body(image, "cheat shelovesme"), re.S))
+    assert len(cells) == 3, cells
+    out["opinion0"], out["opinion1"], out["opinion2"] = cells
+    love, neutral = _relation_writes(_body(image, "cheat love")), _relation_writes(_body(image, "cheat neutral"))
+    assert love["mine_one"] == love["theirs_one"] and len(love["mine_one"]) == 2, love          # 관계 표 둘에 1.0 — 양쪽 객체에
+    assert love["mine_zero"] == love["theirs_zero"] and len(love["mine_zero"]) == 1, love       # 전쟁 명분 표에 0
+    six = sorted(love["mine_one"] + love["mine_zero"])
+    assert neutral == {"mine_one": [], "mine_zero": six, "theirs_one": [], "theirs_zero": six}, neutral   # 중립은 같은 칸들에 0
+    out["relation0"], out["relation1"] = love["mine_one"]
+    out["casus"] = love["mine_zero"][0]
     return out

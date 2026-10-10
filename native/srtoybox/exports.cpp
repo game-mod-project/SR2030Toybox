@@ -235,6 +235,26 @@ EXPORT int srtoybox_locate_values(const unsigned char *image, unsigned long long
     return 0;
 }
 
+// 새 찾기(더 쓰는 값 — 묶음 셋). 돌려주는 값은 찾은 묶음의 비트(1 지식, 2 여론, 4 관계). values 는 값 묶음(찾았을 때)이거나 nullptr.
+// error 에는 묶음마다 한 줄(지식 · 여론 · 관계 순. 찾은 묶음은 빈 줄). rows 는 srtoybox_locate_state 와 같다.
+EXPORT int srtoybox_locate_more(const unsigned char *image, unsigned long long size, const ValueLayout *values, MoreLayout *out,
+                                char *error, int error_size, char *rows, int rows_size)
+{
+    MoreLayout found = {};
+    SigRow table[MORE_WANTED * STATE_SIGS];
+    char why[MORE_GROUPS][MORE_WHY] = {};
+    const int groups = locate_more(image, static_cast<size_t>(size), values, &found, table, why);
+    if (rows != nullptr)
+        put(rows_text(table, MORE_WANTED * STATE_SIGS), rows, rows_size);
+    std::string all;
+    for (int g = 0; g < MORE_GROUPS; g++)
+        all += std::string(why[g]) + '\n';
+    put(all, error, error_size);
+    if (out != nullptr)
+        *out = found;
+    return groups;
+}
+
 // 두 묶음의 대조(locate_fits). 0 이면 맞는다. -1 이면 error 에 까닭.
 EXPORT int srtoybox_locate_fits(const GameAddresses *state, const ValueLayout *values, char *error, int error_size)
 {

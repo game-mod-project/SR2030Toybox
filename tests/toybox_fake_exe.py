@@ -1,6 +1,6 @@
 """주소 찾기(native/srtoybox/locate.cpp) 테스트용: 작은 가짜 실행 파일 이미지(RVA 대로 펼친 것).
 
-게임의 코드를 옮긴 것이 아니다. 새 찾기가 보는 서명(DLL 의 서명 표에서 받아 심는다 — 상태 묶음과 값 묶음)과, 옛 찾기가 보는
+게임의 코드를 옮긴 것이 아니다. 새 찾기가 보는 서명(DLL 의 서명 표에서 받아 심는다 — 상태 묶음, 값 묶음, 더 쓰는 값)과, 옛 찾기가 보는
 닻(치트 문자열)과 명령의 바이트 꼴만 같은 자리 관계로 놓았다. pytest 가 직접 모으는 테스트 파일이 아니다.
 """
 import re
@@ -21,6 +21,9 @@ LEGACY = {"handler": HANDLER, "context": DATA + 0x100, "options": DATA + 4}
 VALUES = {"world_pointer": DATA + 0x40, "treasury": 0x1230, "stock": (0x20, 0x2000), "used": (0x44, 0x28)}
 VALUE_LAYOUT = {"world_pointer": DATA + 0x40, "treasury": 0x1230, "stock_first": 0x2000, "stock_step": 0x20,
                 "used_first": 0x28, "used_step": 0x44}
+# 새 찾기(더 쓰는 값)의 가짜 자리 — 지역 객체 안의 자리다(이미지 안이 아니다). 표 셋은 저마다 0x1000(4바이트 × 1024칸)을 차지한다
+MORE = {"tech": 0x3120, "opinion0": 0x3004, "opinion1": 0x3008, "opinion2": 0x3020, "relation0": 0x4000, "relation1": 0x5000,
+        "casus": 0x6000}
 PLANT, AGAIN = TEXT + 0x1000, TEXT + 0x1800     # 서명을 심는 곳, 같은 서명을 한 번 더 심는 곳
 TOKEN = re.compile(r"\[rip(?:\+([14]))?\]|\[u(?:8|32)\]|\?|[0-9A-Fa-f]{2}")   # 서명 글의 낱말(native/srtoybox/sigs.h)
 
@@ -99,10 +102,10 @@ def sig_image(sigs: list[tuple[str, str]], *, broken=(), twice=(), stray=(), tar
     """DLL 의 서명 표(sigs: [(찾을 것, 서명 글)])를 심은 이미지. into 가 없으면 치트 문자열이 하나도 없는 빈 틀에 심는다.
 
     broken · twice · stray 는 sigs 의 칸 번호들이다: 심지 않는다 / 한 번 더 심는다(두 번 맞는다) / 옆의 값을 가리키게 심는다.
-    targets 로 가짜 주소 · 값을 바꾼다(STATE 와 VALUES 의 이름으로).
+    targets 로 가짜 주소 · 값을 바꾼다(STATE · VALUES · MORE 의 이름으로).
     """
     image = into if into is not None else shell([(PLANT, TEXT + 0x2000)])
-    at = {**STATE, **VALUES, **(targets or {})}
+    at = {**STATE, **VALUES, **MORE, **(targets or {})}
     places: dict[str, int] = {}
     for i, (name, text) in enumerate(sigs):
         if i in broken:

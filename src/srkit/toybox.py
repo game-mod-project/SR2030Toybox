@@ -47,6 +47,14 @@ VALUE_NAMES = {"world_pointer": "세계 자료 객체의 포인터(qword. 이것
                "stock_first": "재고의 첫 칸 — 지역 객체 안의 자리(float)", "stock_step": "재고 칸의 간격",
                "used_first": "\"쓰는 물자\" 표의 첫 칸 — 세계 자료 객체 안의 자리(float. 0 보다 크면 쓴다)", "used_step": "그 표의 간격"}
 STOCK_SLOTS = 12        # 재고의 칸 수(native/srtoybox/locate.h 의 STOCK_SLOTS)
+# 새 찾기(서명)가 채우는 "더 쓰는 값" — native/srtoybox/locate.h 의 MoreLayout 과 같은 순서다. 모두 지역 객체 안의 자리(float)
+MORE_FIELDS = ["tech", "opinion0", "opinion1", "opinion2", "relation0", "relation1", "casus"]
+MORE_NAMES = {"tech": "기술 수준 칸", "opinion0": "세계 시장 여론의 칸 1", "opinion1": "세계 시장 여론의 칸 2",
+              "opinion2": "세계 시장 여론의 칸 3", "relation0": "관계 표 1 의 첫 칸(지역 인덱스 × 4 를 더한다)",
+              "relation1": "관계 표 2 의 첫 칸", "casus": "전쟁 명분 표의 첫 칸"}
+# 묶음: 기능마다 따로 찾고 따로 꺼진다 — (이름, 그 묶음의 필드들). locate.h 의 MORE_TECH · MORE_OPINION · MORE_RELATIONS 순서다
+MORE_GROUPS = [("기술 수준", ["tech"]), ("세계 시장 여론", ["opinion0", "opinion1", "opinion2"]),
+               ("관계", ["relation0", "relation1", "casus"])]
 
 
 @dataclass
@@ -72,6 +80,9 @@ class Located:
     value_rows: list[SigRow]
     legacy: dict[str, int] | None    # 옛 찾기(치트 닻): 명령 처리 함수 · this · 옵션 묶음. 못 찾았으면 None
     legacy_why: str
+    more: dict[str, int]             # 새 찾기(서명): 더 쓰는 값. 못 찾은 묶음의 자리는 0
+    more_why: list[str]              # 묶음마다(MORE_GROUPS 순서)의 까닭. 찾았으면 빈 글
+    more_rows: list[SigRow]
 
 
 class GameAddresses(ctypes.Structure):
@@ -80,6 +91,10 @@ class GameAddresses(ctypes.Structure):
 
 class ValueLayout(ctypes.Structure):
     _fields_ = [(name, ctypes.c_uint32) for name in VALUE_FIELDS]
+
+
+class MoreLayout(ctypes.Structure):
+    _fields_ = [(name, ctypes.c_uint32) for name in MORE_FIELDS]
 
 
 def output(cfg: Config) -> Path:
@@ -172,6 +187,8 @@ def library(cfg: Config) -> ctypes.CDLL:
     lib.srtoybox_locate_values.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong, ctypes.POINTER(ValueLayout), ctypes.c_char_p,
                                            ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
     lib.srtoybox_locate_fits.argtypes = [ctypes.POINTER(GameAddresses), ctypes.POINTER(ValueLayout), ctypes.c_char_p, ctypes.c_int]
+    lib.srtoybox_locate_more.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong, ctypes.POINTER(ValueLayout), ctypes.POINTER(MoreLayout),
+                                         ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
     lib.srtoybox_function_root.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong, ctypes.c_uint]
     lib.srtoybox_function_root.restype = ctypes.c_uint
     return lib
@@ -218,6 +235,18 @@ def fits(lib: ctypes.CDLL, state: dict[str, int], values: dict[str, int]) -> str
     return "" if ok else error.value.decode("utf-8")
 
 
+def more_of(lib: ctypes.CDLL, image: bytes, values: dict[str, int] | None = None) -> tuple[dict[str, int], list[str], list[SigRow]]:
+    """새 찾기(더 쓰는 값)를 그 이미지에 돌린다: (이름 → 자리 — 못 찾은 묶음의 것은 0, 묶음마다의 까닭 — 찾았으면 빈 글, 서명마다의 결과).
+
+    values 는 값 묶음(찾았을 때)이다 — 그 칸들과 겹치는 묶음은 못 찾은 것이 된다.
+    """
+    found, error, rows = MoreLayout(), ctypes.create_string_buffer(1024), ctypes.create_string_buffer(8192)
+    lib.srtoybox_locate_more(image, len(image), ctypes.byref(ValueLayout(**values)) if values else None, ctypes.byref(found),
+                             error, len(error), rows, len(rows))
+    why = error.value.decode("utf-8").split("\n")[:len(MORE_GROUPS)]
+    return {name: getattr(found, name) for name in MORE_FIELDS}, why, _sig_rows(rows.value)
+
+
 def legacy_of(lib: ctypes.CDLL, image: bytes) -> tuple[dict[str, int] | None, str]:
     """옛 찾기(치트 닻)를 그 이미지에 돌린다: (이름 → RVA, "") 또는 (None, 까닭)."""
     found, error = GameAddresses(), ctypes.create_string_buffer(256)
@@ -241,4 +270,5 @@ def locate(cfg: Config) -> Located:
     if clash:
         values, values_why = None, clash      # 게임 안의 ToyBox 도 이때 값 묶음을 버린다(game_init_from)
     legacy, legacy_why = legacy_of(lib, image)
-    return Located(state, state_why, rows, ms, values, values_why, value_rows, legacy, legacy_why)
+    more, more_why, more_rows = more_of(lib, image, values)
+    return Located(state, state_why, rows, ms, values, values_why, value_rows, legacy, legacy_why, more, more_why, more_rows)
