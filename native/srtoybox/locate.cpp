@@ -319,15 +319,22 @@ const struct MoreWanted {
 const struct ActWanted {
     const char *name;                       // srkit locate 와 테스트가 본다(ActLayout 의 필드 순서와 같다)
     const char *label;                      // 로그와 창에 나오는 이름
+    uint32_t bytes;                         // 자료면 그 크기(4 · 8). 함수면 0
     const char *sigs[STATE_SIGS];
 } ACTS[ACT_WANTED] = {
-    {"colonize", "식민지화 함수",
+    {"colonize", "식민지화 함수", 0,
      {"41 B0 01 49 8B CE E8 [rip] 33 D2", "49 8B C9 41 B0 01 E8 [rip] FF C7", "45 33 C0 8B D7 E8 [rip] 48 63 CF"}},
-    {"fight", "전쟁 함수",
+    {"fight", "전쟁 함수", 0,
      {"88 5C 24 20 49 8B CA E8 [rip]", "40 0F B6 D6 49 8B CD E8 [rip]", "B2 01 C6 44 24 20 00 E8 [rip] 8B 4E 38"}},
+    {"become", "플레이 지역을 바꾸는 함수", 0,
+     {"33 D2 48 8B CB E8 [rip] 0F B7 43 04", "49 8B 8C C4 A0 E8 34 00 33 D2 E8 [rip]", "49 8B F0 48 8B 0C D8 E8 [rip]"}},
     // 자료: 그 포인터를 읽고 곧바로 가리키는 word(지역의 인덱스)를 읽는 자리들
-    {"map_pick", "지도에서 고른 지역",
+    {"map_pick", "지도에서 고른 지역", 8,
      {"48 8B 0D [rip] 44 8B CF 0F B7 11", "48 8B 05 [rip] 0F B7 08 41 3B CB", "48 8B 05 [rip] 0F B7 08 0F 28 C1"}},
+    {"player_index2", "플레이어 인덱스의 둘째 사본", 4,
+     {"48 63 05 [rip] 44 3B C0 74 68", "48 63 05 [rip] 44 3B F8 74 60", "48 63 05 [rip] 44 3B C8 74 69"}},
+    {"player_pointer2", "플레이어 포인터의 둘째 사본", 8,
+     {"48 89 0D [rip] 83 39 02 74 48", "48 89 05 [rip] 8B 86 50 05 00 00 8B D0", "48 89 05 [rip] 75 5F 0F B7 05 ? ? ? ?"}},
 };
 static_assert(sizeof(ActLayout) == ACT_WANTED * sizeof(uint32_t), "ActLayout 의 필드는 표 ACTS 의 순서대로 uint32_t 다");
 
@@ -767,8 +774,8 @@ int search_acts(const uint8_t *image, size_t size, ActLayout *out, SigRow *rows,
             snprintf(why[w], MORE_WHY, "%s: 찾은 주소가 함수의 시작이 아닙니다", ACTS[w].label);
             continue;
         }
-        if (w >= ACT_FUNCTIONS && (value[0] == 0 || value[0] + 8 > size || value[0] % 8 != 0
-                                   || !in_data(im, static_cast<uint32_t>(value[0]), 8))) {
+        if (w >= ACT_FUNCTIONS && (value[0] == 0 || value[0] + ACTS[w].bytes > size || value[0] % ACTS[w].bytes != 0
+                                   || !in_data(im, static_cast<uint32_t>(value[0]), ACTS[w].bytes))) {
             snprintf(why[w], MORE_WHY, "%s: 찾은 주소가 쓸 수 있는 자료 구역이 아닙니다", ACTS[w].label);
             continue;
         }

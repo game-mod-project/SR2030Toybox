@@ -12,7 +12,10 @@ HANDLER, CALLER = 0x1000, 0x1800
 RECOMPUTE = TEXT + 0xC00                      # 가짜 "다시 셈 함수" — 함수 표에 그 시작으로 들어 있다
 COLONIZE = TEXT + 0xC80                       # 가짜 "식민지화 함수" — 〃
 FIGHT = TEXT + 0xD00                          # 가짜 "전쟁 함수" — 〃
-ACTS = {"colonize": COLONIZE, "fight": FIGHT, "map_pick": DATA + 0x68}   # 새 찾기(부르는 게임의 함수와 지도에서 고른 지역)의 가짜 주소
+BECOME = TEXT + 0xD80                         # 가짜 "플레이 지역을 바꾸는 함수" — 〃
+# 새 찾기(부르는 게임의 함수와 그것들이 쓰는 전역)의 가짜 주소
+ACTS = {"colonize": COLONIZE, "fight": FIGHT, "become": BECOME, "map_pick": DATA + 0x68, "player_index2": DATA + 0x74,
+        "player_pointer2": DATA + 0x78}
 WORLD = DATA + 0x180                          # 지역 표 = WORLD + 0x80
 ANCHOR = RDATA                                # "cheat allowcheats"
 # 새 찾기(상태 묶음)의 가짜 주소
@@ -113,7 +116,8 @@ def sig_image(sigs: list[tuple[str, str]], *, broken=(), twice=(), stray=(), tar
     broken · twice · stray 는 sigs 의 칸 번호들이다: 심지 않는다 / 한 번 더 심는다(두 번 맞는다) / 옆의 값을 가리키게 심는다.
     targets 로 가짜 주소 · 값을 바꾼다(STATE · VALUES · MORE · RESEARCH 의 이름으로).
     """
-    image = into if into is not None else shell([(RECOMPUTE, RECOMPUTE + 0x40), (COLONIZE, COLONIZE + 0x40), (FIGHT, FIGHT + 0x40), (PLANT, TEXT + 0x2000)])
+    image = into if into is not None else shell([(RECOMPUTE, RECOMPUTE + 0x40), (COLONIZE, COLONIZE + 0x40), (FIGHT, FIGHT + 0x40), (BECOME, BECOME + 0x40),
+                                                 (PLANT, TEXT + 0x2000)])
     at = {**STATE, **VALUES, **MORE, **RESEARCH, **ACTS, **(targets or {})}
     places: dict[str, int] = {}
     for i, (name, text) in enumerate(sigs):
@@ -135,7 +139,7 @@ def build(sigs: list[tuple[str, str]] | None = None, *, extra_anchor: bool = Fal
     나머지 인자는 옛 찾기가 거부해야 하는 흠을 하나씩 낸다.
     """
     image = shell([(HANDLER, HANDLER + 0x200), (CALLER, CALLER + 0x20), (CALLER + 0x20, CALLER + 0x100), (RECOMPUTE, RECOMPUTE + 0x40),
-                   (COLONIZE, COLONIZE + 0x40), (FIGHT, FIGHT + 0x40), (PLANT, TEXT + 0x2000)])
+                   (COLONIZE, COLONIZE + 0x40), (FIGHT, FIGHT + 0x40), (BECOME, BECOME + 0x40), (PLANT, TEXT + 0x2000)])
     unwind = RDATA + 0x800
     put(image, unwind + 0x10, bytes([0x21, 0, 0, 0]) + struct.pack("<III", CALLER, CALLER + 0x20, unwind))   # UNW_FLAG_CHAININFO
     struct.pack_into("<I", image, PDATA + 12 * 2 + 8, unwind + 0x10)           # 부르는 함수의 뒤 조각은 앞 조각에 묶인다

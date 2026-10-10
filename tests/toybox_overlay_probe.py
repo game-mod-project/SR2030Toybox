@@ -151,6 +151,8 @@ HANDLER = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_char_p)    # 게임
 RECOMPUTE = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int)     # 게임의 "효과를 다시 셈": void f(void *world, int index)
 COLONIZE = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int, ctypes.c_bool)   # 게임의 "식민지화": void f(void *region, int other, bool)
 FIGHT = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_bool, ctypes.c_int, ctypes.c_bool, ctypes.c_bool)   # 게임의 "전쟁"
+INDEX2, POINTER2 = 0x80, 0x88                   # 가짜 게임의 플레이어 인덱스 · 포인터의 둘째 사본
+BECOME = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int)        # 게임의 "플레이 지역 바꾸기": void f(void *region, int 0)
 MAP_PICK = 0x70                                 # 가짜 게임의 "지도에서 고른 지역": 이 자리의 포인터가 가리키는 word(바로 뒤 0x78)가 인덱스다
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 user32 = ctypes.WinDLL("user32", use_last_error=True)
@@ -609,10 +611,21 @@ def fake_game(hook: str, handler: int | None = None, values: bool = True, more: 
     fake.fight = FIGHT(lambda region, a, other, b, c: fake.fought.append(
         [struct.unpack("<H", ctypes.string_at(region + 8, 2))[0], int(a), other, int(b), int(c)]))
     fake.poke(MAP_PICK, "<Q", fake.base + MAP_PICK + 8)        # 지도에서는 아직 아무것도 고르지 않았다(인덱스 0)
-    toybox.srtoybox_test_acts.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
+    fake.became = []                                           # 가짜 "플레이 지역 바꾸기"가 불린 인자와 그때의 전역 넷
+    fake.become = BECOME(lambda region, zero: fake.became.append(
+        [struct.unpack("<H", ctypes.string_at(region + 8, 2))[0], zero, fake.peek(0x20, "<i"), fake.peek(INDEX2, "<i"),
+         fake.peek(0x28, "<Q") == region, fake.peek(POINTER2, "<Q") == region]))
+    play = fake.play
+
+    def play_both(index: int) -> None:                         # 게임은 플레이어의 인덱스 · 포인터를 두 벌 둔다
+        play(index)
+        fake.poke(INDEX2, "<i", index)
+        fake.poke(POINTER2, "<Q", fake.where[index])
+    fake.play = play_both
+    toybox.srtoybox_test_acts.argtypes = [ctypes.c_void_p] * 4
     if os.environ.get("PROBE_NO_ACTS") != "1":
-        toybox.srtoybox_test_acts((ctypes.c_uint32 * 3)(1, 1, MAP_PICK), ctypes.cast(fake.colonize, ctypes.c_void_p),
-                                  ctypes.cast(fake.fight, ctypes.c_void_p))
+        toybox.srtoybox_test_acts((ctypes.c_uint32 * 6)(1, 1, 1, MAP_PICK, INDEX2, POINTER2), ctypes.cast(fake.colonize, ctypes.c_void_p),
+                                  ctypes.cast(fake.fight, ctypes.c_void_p), ctypes.cast(fake.become, ctypes.c_void_p))
     fake.recomputed = []
     fake.recompute = RECOMPUTE(lambda _world, index: fake.recomputed.append(index))     # 게임이 살아 있는 동안 붙들어 둔다
     if research:
@@ -684,7 +697,7 @@ def run_direct(hook: str, mode: str) -> int:
 
 
 DIPLOMACY = "tab:외교·영토"
-LAST_BUTTON = "run:becomeregion"   # 그 탭의 맨 아래 단추 "이 나라로 플레이" — 되돌릴 수 없는 것이라 두 번 눌러야 한다
+LAST_BUTTON = "run:becomeregion"   # 그 탭의 맨 아래 단추 "이 나라로 플레이" — 되돌릴 수 없는 것이라 두 번 눌러야 한다(게임의 함수를 부른다)
 
 
 def recording_game(hook: str, crash: bool = False, ansi: bool = False):
@@ -772,6 +785,7 @@ def run_window(hook: str, mode: str) -> int:
         out["status"], out["picked"] = game.shown("status"), game.shown("picked")   # 스크롤을 내린 채로도 보이는가
         game.click(LAST_BUTTON)
         game.wait(0.4)
+        out["became"] = [call[:2] for call in fake.became]
     elif mode == "confirm_fault":
         game.click("run:treaty")                              # 아직 내장 치트로 도는 줄 — 명령 처리 함수가 죽는다
         game.wait(0.4)
@@ -808,6 +822,7 @@ def run_window(hook: str, mode: str) -> int:
         out["asked_again"] = game.shown(LAST_BUTTON)
         game.click(LAST_BUTTON)
         game.wait(0.4)
+        out["became"] = [call[:2] for call in fake.became]
     elif mode == "ansi_search":
         game.click("search")
         game.present(3)                                       # 검색란이 글을 받는다
@@ -1265,6 +1280,24 @@ def run_more(hook: str, mode: str) -> int:
         fake.play(176)
         press("run:finalexam")                                # 돌아오면 다시 된다
         out["unwritten_after"] = game.shown("unwritten")
+    elif mode == "more_become":                               # 이 나라로 플레이(3단계 4): 전역 넷을 쓰고 게임의 함수를 부른다
+        game.click(DIPLOMACY)
+        game.wait(1.2)
+        game.click("row:1106")
+        scroll_to(game, "run:becomeregion")
+        fake.poke(INDEX2, "<i", 150)                          # 둘째 사본이 첫째와 다르다 — 쓰지 않는다
+        fake.poke(POINTER2, "<Q", fake.where[176])
+        press("run:becomeregion")
+        out["asking"] = game.facts()["run:becomeregion"][3]
+        press("run:becomeregion")
+        out["mismatch"], out["became_mismatch"], out["index_mismatch"] = game.shown("unwritten"), list(fake.became), fake.peek(0x20, "<i")
+        fake.poke(INDEX2, "<i", 176)                          # 이제 맞는다
+        scroll_to(game, "run:becomeregion")
+        press("run:becomeregion")
+        out["became_first"] = list(fake.became)
+        press("run:becomeregion")
+        game.wait(1.2)
+        out["became"], out["wrote"], out["status_after"], out["picked_after"] = fake.became, game.shown("wrote"), game.shown("status"), game.shown("picked")
     elif mode == "more_repick":
         game.click(DIPLOMACY)
         game.wait(1.2)                                        # 나라 목록은 1초마다 읽는다

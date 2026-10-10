@@ -66,10 +66,12 @@ RESEARCH_NAMES = {"tech_table": "기술 표의 포인터(qword)", "tech_count": 
 
 
 # 새 찾기(서명)가 채우는 "부르는 게임의 함수" — native/srtoybox/locate.h 의 ActLayout 과 같은 순서다. 값은 함수의 RVA
-ACT_FIELDS = ["colonize", "fight", "map_pick"]
+ACT_FIELDS = ["colonize", "fight", "become", "map_pick", "player_index2", "player_pointer2"]
 ACT_NAMES = {"colonize": "식민지화 함수(지역 객체, 다른 지역의 인덱스, 깃발)",
              "fight": "전쟁 함수(지역 객체, 깃발, 다른 지역의 인덱스, 깃발, 깃발)",
-             "map_pick": "지도에서 고른 지역(qword — 가리키는 word 가 지역의 인덱스. 읽기만 한다)"}
+             "become": "플레이 지역을 바꾸는 함수(지역 객체, 0)",
+             "map_pick": "지도에서 고른 지역(qword — 가리키는 word 가 지역의 인덱스. 읽기만 한다)",
+             "player_index2": "플레이어 인덱스의 둘째 사본(dword)", "player_pointer2": "플레이어 포인터의 둘째 사본(qword)"}
 
 
 @dataclass

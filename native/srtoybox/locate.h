@@ -92,15 +92,18 @@ const size_t MORE_WHY = 160;    // 까닭 한 줄의 크기
 struct ActLayout {
     uint32_t colonize;         // void f(void *지역 객체, int 다른 지역의 인덱스, bool): 그 지역이 다른 지역을 식민지로 삼는다
     uint32_t fight;            // void f(void *지역 객체, bool, int 다른 지역의 인덱스, bool, bool): 그 지역이 다른 지역과 전쟁에 들어간다
+    uint32_t become;           // void f(void *지역 객체, int 0): 플레이하는 나라를 바꾼 뒤 게임이 그 지역으로 화면을 맞춘다
     uint32_t map_pick;         // qword(자료). 그 포인터가 가리키는 word 가 "지도에서 고른 지역"의 인덱스다 — 읽기만 한다
+    uint32_t player_index2;    // dword(자료). 플레이어의 인덱스의 둘째 사본 — "이 나라로 플레이"가 첫째(GameAddresses.player_index)와 함께 쓴다
+    uint32_t player_pointer2;  // qword(자료). 플레이어의 지역 객체 포인터의 둘째 사본 — 〃 (첫째는 GameAddresses.player_pointer)
 };
 
-const int ACT_COLONIZE = 1, ACT_FIGHT = 2, ACT_MAP_PICK = 4;   // 찾을 것의 비트
-const int ACT_WANTED = 3;       // 찾을 것의 수(ActLayout 의 필드 순서와 같다)
-const int ACT_FUNCTIONS = 2;    // 그 가운데 앞의 이만큼이 함수다(나머지는 자료의 주소)
+const int ACT_COLONIZE = 1, ACT_FIGHT = 2, ACT_BECOME = 4, ACT_MAP_PICK = 8, ACT_INDEX2 = 16, ACT_POINTER2 = 32;   // 찾을 것의 비트
+const int ACT_WANTED = 6;       // 찾을 것의 수(ActLayout 의 필드 순서와 같다)
+const int ACT_FUNCTIONS = 3;    // 그 가운데 앞의 이만큼이 함수다(나머지는 자료의 주소)
 
 // 새 찾기(부르는 함수): 함수마다 서명 셋이 모두 정확히 한 번 맞고 같은 주소를 내야 하며, 그 주소가 함수 표에 있는 함수의 시작이어야 한다.
-// 자료의 주소(지도에서 고른 지역)는 쓸 수 있는 자료 구역의 8의 배수여야 한다.
+// 자료의 주소는 쓸 수 있는 자료 구역에 있고 제 크기(4 · 8)의 배수여야 한다.
 // 돌려주는 값은 찾은 함수의 비트. 못 찾은 것의 필드는 0, why 의 그 줄에 까닭(UTF-8).
 // rows: ACT_WANTED * STATE_SIGS 칸이거나 nullptr.
 int locate_acts(const uint8_t *image, size_t size, ActLayout *out, SigRow *rows, char (*why)[MORE_WHY]);
