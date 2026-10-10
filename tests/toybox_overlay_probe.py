@@ -150,6 +150,8 @@ WNDPROC = ctypes.WINFUNCTYPE(LRESULT, wintypes.HWND, wintypes.UINT, wintypes.WPA
 HANDLER = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_char_p)    # 게임의 명령 처리 함수: void f(void *context, const char *line)
 RECOMPUTE = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int)     # 게임의 "효과를 다시 셈": void f(void *world, int index)
 COLONIZE = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int, ctypes.c_bool)   # 게임의 "식민지화": void f(void *region, int other, bool)
+FIGHT = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_bool, ctypes.c_int, ctypes.c_bool, ctypes.c_bool)   # 게임의 "전쟁"
+MAP_PICK = 0x70                                 # 가짜 게임의 "지도에서 고른 지역": 이 자리의 포인터가 가리키는 word(바로 뒤 0x78)가 인덱스다
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 user32 = ctypes.WinDLL("user32", use_last_error=True)
 user32.CreateWindowExW.restype = wintypes.HWND
@@ -603,9 +605,14 @@ def fake_game(hook: str, handler: int | None = None, values: bool = True, more: 
     fake.colonized = []                                        # 가짜 "식민지화"가 불린 인자들: [종주국의 지역 번호, 대상의 인덱스, 깃발]
     fake.colonize = COLONIZE(lambda region, other, flag: fake.colonized.append(
         [struct.unpack("<H", ctypes.string_at(region + 8, 2))[0], other, int(flag)]))
-    toybox.srtoybox_test_acts.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+    fake.fought = []                                           # 가짜 "전쟁"이 불린 인자들: [첫째 나라의 지역 번호, 깃발, 둘째 나라의 인덱스, 깃발, 깃발]
+    fake.fight = FIGHT(lambda region, a, other, b, c: fake.fought.append(
+        [struct.unpack("<H", ctypes.string_at(region + 8, 2))[0], int(a), other, int(b), int(c)]))
+    fake.poke(MAP_PICK, "<Q", fake.base + MAP_PICK + 8)        # 지도에서는 아직 아무것도 고르지 않았다(인덱스 0)
+    toybox.srtoybox_test_acts.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
     if os.environ.get("PROBE_NO_ACTS") != "1":
-        toybox.srtoybox_test_acts(ctypes.byref(ctypes.c_uint32(1)), ctypes.cast(fake.colonize, ctypes.c_void_p))
+        toybox.srtoybox_test_acts((ctypes.c_uint32 * 3)(1, 1, MAP_PICK), ctypes.cast(fake.colonize, ctypes.c_void_p),
+                                  ctypes.cast(fake.fight, ctypes.c_void_p))
     fake.recomputed = []
     fake.recompute = RECOMPUTE(lambda _world, index: fake.recomputed.append(index))     # 게임이 살아 있는 동안 붙들어 둔다
     if research:
@@ -1235,6 +1242,19 @@ def run_more(hook: str, mode: str) -> int:
                 press("run:colonize")
                 out["wrote_colonize"] = game.shown("wrote")
             out["colonized"] = fake.colonized
+            if "run:fight" in out["diplomacy"] and mode == "more":      # 전쟁 붙이기(3단계 4): 지도에서 고른 나라 → 목록에서 고른 나라
+                scroll_to(game, "run:fight")                          # 탭의 아래쪽에 있다
+                out["fight_unpicked"] = game.facts()["fight:map"][3]
+                press("run:fight")                                    # 지도에서 고르지 않았다 — 단추가 꺼져 있다
+                out["fight_asking_unpicked"] = game.shown("run:fight")
+                fake.poke(MAP_PICK + 8, "<H", 150)                    # 게임의 지도에서 덴마크를 골랐다
+                game.wait(0.2)
+                out["fight_map"] = game.facts()["fight:map"][3]
+                press("run:fight")
+                out["fight_asking"], out["fought_first"] = game.shown("run:fight"), list(fake.fought)
+                press("run:fight")
+                out["wrote_fight"] = game.shown("wrote")
+            out["fought"] = fake.fought
         out["hint"], out["status"] = game.shown("hint"), game.shown("status")
     elif mode == "more_leave":
         game.click(RESEARCH)

@@ -486,6 +486,7 @@ def test_startup_finds_more_without_any_cheat(lib, all_sigs, more_sigs, tmp_path
     assert f"값을 더 씁니다 ({FOUND_MORE})" in log
     unwritable = [line.split(" ", 2)[2] for line in log.splitlines() if "쓸 수 없습니다" in line]
     assert unwritable == ["식민지화를 쓸 수 없습니다 (식민지화 함수: 서명 3개 가운데 0개)",     # 이 이미지에 부르는 함수 · 연구의 서명은 넣지 않았다
+                          "전쟁 붙이기를 쓸 수 없습니다 (전쟁 함수: 서명 3개 가운데 0개)",
                           "연구를 쓸 수 없습니다 (기술 표: 서명 3개 가운데 0개)"]
     assert "맞지 않은 서명" not in log
 

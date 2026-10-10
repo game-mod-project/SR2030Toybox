@@ -40,6 +40,8 @@ const size_t RESEARCH_QUEUE = 4;               // 기다리는 연구 요청은 
 // 게임의 함수를 부르는 요청(3단계 4): 고른 나라를 식민지로. 연구 요청처럼 따로 줄을 서고(RESEARCH_QUEUE 까지), 틱마다 하나를
 // keeper 의 잠금을 놓고 "게임의 함수 안" 깃발을 세운 채 부른다. 받지 못하면 false: 가득 찼다, 그 기능을 쓸 수 없다(game_act_off).
 bool keeper_enqueue_colonize(int region);
+// 지도에서 고른 나라(attacker)와 목록에서 고른 나라(target)를 싸움 붙인다. 같은 줄에 선다.
+bool keeper_enqueue_fight(int attacker, int target);
 
 // 최소 유지: 켜진 항목이 바닥보다 작아지면 바닥으로 올린다. KEEP_EVERY_MS 마다 보고, 설정 창이 닫혀 있어도 돈다.
 // 플레이하는 나라가 바뀌면 그 뒤로는 새 나라의 값을 본다. 물자는 이번 판에서 쓰는 것만 올린다.

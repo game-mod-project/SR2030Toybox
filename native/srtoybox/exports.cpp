@@ -161,7 +161,7 @@ EXPORT int srtoybox_feature_info(int index, char *out, int size)
     const Feature &f = FEATURES[index];
     static const char *const targets[] = {"none", "player", "picked"};
     static const char *const how[] = {"cheat", "tech_up", "opinion_best", "relation_best", "relation_neutral", "tech_level", "queue_done",
-                                      "people_add", "approval_best", "colonize"};
+                                      "people_add", "approval_best", "colonize", "fight"};
     const std::string line = std::string(f.id) + '\t' + f.tab + '\t' + f.label + '\t' + f.command + '\t' + (f.has_value ? "1" : "0")
         + '\t' + std::to_string(f.def) + '\t' + std::to_string(f.min) + '\t' + std::to_string(f.max) + '\t'
         + (f.confirm ? "1" : "0") + '\t' + f.help + '\t' + targets[static_cast<int>(f.target)] + '\t'
@@ -423,9 +423,15 @@ EXPORT int srtoybox_locate_acts(const unsigned char *image, unsigned long long s
 }
 
 // 테스트: 이 프로세스의 "게임"에 부르는 함수의 자리를 준다(srtoybox_test_game 다음에 부른다). colonize 는 그 자리에 둘 함수.
-EXPORT void srtoybox_test_acts(const ActLayout *layout, void *colonize)
+EXPORT void srtoybox_test_acts(const ActLayout *layout, void *colonize, void *fight)
 {
-    game_set_acts_for_test(layout, colonize);
+    game_set_acts_for_test(layout, colonize, fight);
+}
+
+// 테스트: 게임의 지도에서 고른 지역의 번호(없으면 0).
+EXPORT int srtoybox_map_pick(void)
+{
+    return game_map_pick();
 }
 
 // 테스트: 고른 나라를 식민지로 삼는 요청. 받았으면 1.

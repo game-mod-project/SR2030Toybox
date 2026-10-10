@@ -22,12 +22,16 @@ const char *const LEFT_GAME = "게임이 진행 중이 아니어서 쓰지 않�
 std::mutex g_lock;          // 단추(그리는 스레드)와 틱(창 스레드)이 함께 만진다
 std::deque<Request> g_queue;
 std::deque<ResearchRequest> g_research;     // 연구 요청은 따로 줄을 선다 — 틱마다 값 요청을 비운 뒤 하나
-std::deque<int> g_acts;                     // 게임의 함수를 부르는 요청(식민지로 삼을 나라의 번호) — 연구 요청보다 먼저, 틱마다 하나
+struct Act {
+    int attacker;                           // 전쟁: 지도에서 고른 나라. 0 이면 식민지화다
+    int region;                             // 식민지로 삼을 나라 · 전쟁의 둘째 나라
+};
+std::deque<Act> g_acts;                     // 게임의 함수를 부르는 요청(식민지로 삼을 나라의 번호) — 연구 요청보다 먼저, 틱마다 하나
 
 // 이번 틱에 잠금을 놓고 할 일 하나: 게임의 함수를 부르는 요청이거나 연구 요청.
 struct Job {
     bool act = false;
-    int region = 0;
+    Act what = {};
     ResearchRequest research;
 };
 std::string g_last, g_notice;
@@ -284,7 +288,7 @@ bool tick_locked(unsigned long long now_ms, Job *next)
         g_notice.clear();                      // 이번 틱에 쓴 값 요청의 알림은 남긴다 — 연구의 알림이 생기면 그것이 덮는다
     if (!g_acts.empty()) {
         next->act = true;
-        next->region = g_acts.front();
+        next->what = g_acts.front();
         g_acts.pop_front();
         return true;
     }
@@ -363,18 +367,20 @@ bool keeper_enqueue_research(const ResearchRequest &request)
 
 namespace {
 
-// 고른 나라를 식민지로 삼는다(게임의 함수를 부른다). g_lock 을 쥐지 않은 채로 부른다 — "게임의 함수 안" 깃발은 tick_locked 가 세워 뒀다.
-void run_colonize(int region)
+// 게임의 함수를 부르는 요청 하나: 고른 나라를 식민지로 삼거나, 두 나라를 싸움 붙인다. g_lock 을 쥐지 않은 채로 부른다 — "게임의 함수 안" 깃발은 tick_locked 가 세워 뒀다.
+void run_act(const Act &act)
 {
     unsigned long code = 0;
-    const Wrote wrote = game_colonize(region, &code);
-    runner_leave_call(wrote == Wrote::Crashed ? "식민지화하는" : nullptr, code);
+    const bool fight = act.attacker != 0;
+    const Wrote wrote = fight ? game_fight(act.attacker, act.region, &code) : game_colonize(act.region, &code);
+    runner_leave_call(wrote != Wrote::Crashed ? nullptr : fight ? "전쟁을 붙이는" : "식민지화하는", code);
 
     std::lock_guard<std::mutex> lock(g_lock);
-    const std::string who = region_label(region) + " (" + std::to_string(region) + ")";
+    const auto name = [](int number) { return region_label(number) + " (" + std::to_string(number) + ")"; };
+    const std::string who = fight ? name(act.attacker) + " -> " + name(act.region) : name(act.region);
     if (wrote == Wrote::Done) {
-        g_last = "식민지화 — " + who;
-        log_line("게임의 함수: 식민지화 — %s", who.c_str());
+        g_last = std::string(fight ? "전쟁 붙이기 — " : "식민지화 — ") + who;
+        log_line("게임의 함수: %s", g_last.c_str());
     } else if (wrote == Wrote::NoTarget) {
         g_notice = "그 나라는 이번 판에 없어 하지 않았습니다.";
     } else if (wrote == Wrote::NotInGame) {
@@ -440,7 +446,16 @@ bool keeper_enqueue_colonize(int region)
     std::lock_guard<std::mutex> lock(g_lock);
     if (g_acts.size() >= RESEARCH_QUEUE || !game_act_off(ACT_COLONIZE).empty())
         return false;
-    g_acts.push_back(region);
+    g_acts.push_back({0, region});
+    return true;
+}
+
+bool keeper_enqueue_fight(int attacker, int target)
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    if (attacker <= 0 || g_acts.size() >= RESEARCH_QUEUE || !game_act_off(ACT_FIGHT).empty())
+        return false;
+    g_acts.push_back({attacker, target});
     return true;
 }
 
@@ -453,7 +468,7 @@ void keeper_tick(unsigned long long now_ms)
         write = tick_locked(now_ms, &job);
     }
     if (write && job.act) {
-        run_colonize(job.region);
+        run_act(job.what);
     } else if (write) {
         run_research(job.research);
         std::lock_guard<std::mutex> lock(g_lock);
