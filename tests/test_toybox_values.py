@@ -17,6 +17,8 @@ READS, CALLS, WRITES = 1, 2, 4                                      # srtoybox_g
 CAN_TECH, CAN_OPINION, CAN_RELATIONS = 8, 16, 32                    # 〃 더 쓰는 값의 묶음마다
 TECH_TO, OPINION_BEST, RELATION_TO = 0, 1, 2                        # srtoybox_more_write 의 what
 MORE_TECH, MORE_OPINION, MORE_RELATIONS = 1, 2, 4                   # native/srtoybox/locate.h 의 묶음의 비트
+TECH, OPINION, RELATION = -3, -4, -5                                # native/srtoybox/keeper.h 의 Request.slot(더 쓰는 값의 요청)
+BEST, NEUTRAL = 1.0, 0.0                                            # 관계의 수준
 UNREAD = "게임 상태를 읽을 수 있을 때만 씁니다."
 FAILED_OFF = "값 쓰기가 실패해 껐습니다. 게임을 다시 시작하면 다시 시도합니다."
 LEFT_GAME = "게임이 진행 중이 아니어서 쓰지 않았습니다."
@@ -49,6 +51,7 @@ def lib(cfg):
     lib.srtoybox_test_init.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong]
     lib.srtoybox_values_off.argtypes = [ctypes.c_char_p, ctypes.c_int]
     lib.srtoybox_keeper_request.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_double]
+    lib.srtoybox_keeper_more.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_double]
     lib.srtoybox_keeper_text.argtypes = [ctypes.c_char_p, ctypes.c_int]
     lib.srtoybox_keeper_tick_at.argtypes = [ctypes.c_ulonglong]
     lib.srtoybox_keeper_keep.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_double]
@@ -590,6 +593,7 @@ def game(lib, tmp_path, monkeypatch):
     fake = germany()
     lib.srtoybox_test_game(fake.base, ctypes.byref(fake.at), None)
     lib.srtoybox_test_values(ctypes.byref(fake.layout))
+    lib.srtoybox_test_more(ctypes.byref(fake.more))
     lib.srtoybox_keeper_reset()
     yield fake
     lib.srtoybox_keeper_reset()
@@ -849,3 +853,140 @@ def test_nothing_is_asked_when_values_cannot_be_written(lib, game):
     assert not ask(lib, TREASURY, ADD, 1e9)
     lib.srtoybox_keeper_tick()
     assert game.treasury(176) == 14.43e9
+
+
+def ask_more(lib, slot: int, region: int = 0, amount: float = 0.0) -> bool:
+    """더 쓰는 값의 요청(기술 수준 +1 · 세계 시장 여론 최고 · 관계)."""
+    return lib.srtoybox_keeper_more(slot, region, amount) == 1
+
+
+def logged(tmp_path) -> list[str]:
+    """로그의 줄들(때를 뗀 것)."""
+    log = tmp_path / "toybox.log"
+    return [line.split(" ", 2)[2] for line in log.read_text(encoding="utf-8").splitlines()] if log.is_file() else []
+
+
+def test_a_tech_request_adds_one_on_the_next_tick(lib, game, tmp_path):
+    assert ask_more(lib, TECH) and ask_more(lib, TECH)
+    assert game.tech(176) == 130.0                             # 누른 것만으로는 쓰지 않는다 — 창 스레드의 틱에서 쓴다
+    lib.srtoybox_keeper_tick()
+    assert game.tech(176) == 132.0 and game.tech(141) == 128.0
+    assert told(lib) == ("기술 수준 131 -> 132", "")
+    assert logged(tmp_path) == ["값 쓰기: 기술 수준 130 -> 131", "값 쓰기: 기술 수준 131 -> 132"]
+    assert game.peek(OPTIONS, "<I") == 0                       # 치트 허용 비트는 그대로다
+
+
+def test_tech_stops_at_its_limit_and_leaves_what_it_cannot_read(lib, game):
+    game.set_tech(176, 998.0)
+    assert ask_more(lib, TECH)
+    lib.srtoybox_keeper_tick()
+    assert game.tech(176) == 999.0 and told(lib) == ("기술 수준 998 -> 999", "")
+    assert ask_more(lib, TECH)
+    lib.srtoybox_keeper_tick()
+    assert game.tech(176) == 999.0 and told(lib)[1] == "기술 수준이 한도(999)라 쓰지 않았습니다."
+    game.set_tech(176, 130.5)                                  # 정수가 아니어도 1 을 더하고, 있는 그대로 적는다
+    assert ask_more(lib, TECH)
+    lib.srtoybox_keeper_tick()
+    assert game.tech(176) == 131.5 and told(lib) == ("기술 수준 130.5 -> 131.5", "")
+    for odd in (NAN, INF, -5.0):
+        game.set_tech(176, odd)
+        before = game.snapshot(176)
+        assert ask_more(lib, TECH)
+        lib.srtoybox_keeper_tick()
+        assert game.snapshot(176) == before and told(lib)[1] == "기술 수준을 읽을 수 없어 쓰지 않았습니다."
+
+
+def test_an_opinion_request_sets_the_three_cells(lib, game, tmp_path):
+    assert ask_more(lib, OPINION)
+    lib.srtoybox_keeper_tick()
+    assert game.opinion(176) == [1.0, 1.0, 1.0] and game.opinion(141) == [0.0, 0.0, 0.0]
+    assert told(lib) == ("세계 시장 여론 최고", "") and logged(tmp_path) == ["값 쓰기: 세계 시장 여론 최고"]
+
+
+def test_relation_requests_write_both_sides(lib, game, tmp_path):
+    assert ask_more(lib, RELATION, 1106, BEST)
+    lib.srtoybox_keeper_tick()
+    assert game.relation(176, 141) == [1.0, 1.0, 0.0] and game.relation(141, 176) == [1.0, 1.0, 0.0]
+    assert told(lib) == ("관계 최고 — 폴란드 (1106)", "")
+    assert ask_more(lib, RELATION, 1106, NEUTRAL)
+    lib.srtoybox_keeper_tick()
+    assert game.relation(176, 141) == [0.0, 0.0, 0.0] and game.relation(141, 176) == [0.0, 0.0, 0.0]
+    assert told(lib) == ("관계 중립 — 폴란드 (1106)", "")
+    assert logged(tmp_path) == ["값 쓰기: 관계 최고 — 폴란드 (1106)", "값 쓰기: 관계 중립 — 폴란드 (1106)"]
+    assert game.treasury(176) == 14.43e9 and game.peek(OPTIONS, "<I") == 0
+
+
+def test_a_relation_request_for_a_country_that_is_gone_is_dropped(lib, game, tmp_path):
+    """누른 뒤 쓰기 전에 그 나라가 없어졌다(다른 판, 병합됨) — 쓰지 않고 알린다. 자기 나라 · 없는 번호도 같다."""
+    gone = "그 나라는 이번 판에 없어 쓰지 않았습니다."
+    assert ask_more(lib, RELATION, 1106, BEST)
+    struct.pack_into("<I", game.objects[141], 0, 5)            # 폴란드가 이번 판에 없는 지역이 됐다
+    before = everything(game)
+    lib.srtoybox_keeper_tick()
+    assert everything(game) == before and told(lib) == ("", gone)
+    for number in (1499, 9999):
+        assert ask_more(lib, RELATION, number, BEST)
+        lib.srtoybox_keeper_tick()
+        assert everything(game) == before and told(lib) == ("", gone)
+    assert logged(tmp_path) == []
+
+
+def test_more_requests_are_dropped_outside_a_game(lib, game):
+    assert ask_more(lib, TECH) and ask_more(lib, OPINION) and ask_more(lib, RELATION, 1106, BEST)
+    game.menu()
+    before = everything(game)
+    lib.srtoybox_keeper_tick()
+    game.play(176)
+    lib.srtoybox_keeper_tick()                                 # 버린 요청이 돌아온 뒤에 쓰이지 않는다
+    assert game.tech(176) == 130.0 and game.opinion(176) == [0.5, 0.25, 0.75] and told(lib) == ("", LEFT_GAME)
+    assert game.relation(176, 141) == [0.25, -0.5, 0.75] and len(before) == len(everything(game))
+
+
+def test_money_stock_and_more_requests_are_written_in_the_order_asked(lib, game, tmp_path):
+    assert ask(lib, TREASURY, ADD, 1e9) and ask_more(lib, TECH) and ask(lib, 3, ADD, 1.0) and ask_more(lib, OPINION)
+    lib.srtoybox_keeper_tick()
+    assert logged(tmp_path) == ["값 쓰기: 국고 14.43 B -> 15.43 B", "값 쓰기: 기술 수준 130 -> 131", "값 쓰기: 석유 2.5 K -> 2.5 K",
+                                "값 쓰기: 세계 시장 여론 최고"]
+    assert told(lib) == ("세계 시장 여론 최고", "")
+
+
+def test_more_requests_do_not_need_money_and_stock(lib, game):
+    """묶음은 서로 기대지 않는다: 국고 · 재고의 자리를 못 찾은 게임에서도 더 쓰는 값은 쓴다. 유지는 쉰다."""
+    lib.srtoybox_test_values(None)
+    keep(lib, TREASURY, 50e9)
+    assert not ask(lib, TREASURY, ADD, 1e9) and ask_more(lib, TECH)
+    lib.srtoybox_keeper_tick_at(1000)
+    assert game.tech(176) == 131.0 and game.treasury(176) == 14.43e9 and told(lib) == ("기술 수준 130 -> 131", "")
+
+
+def test_a_request_is_not_taken_for_a_group_that_is_off(lib, game):
+    """그 묶음의 자리를 못 찾았으면 그 요청만 받지 않는다. 다른 묶음과 국고 · 재고는 그대로 받는다."""
+    lib.srtoybox_test_more(ctypes.byref(toybox.MoreLayout(**{**MORE, "tech": 0})))
+    assert not ask_more(lib, TECH)
+    assert ask_more(lib, OPINION) and ask_more(lib, RELATION, 1106, NEUTRAL) and ask(lib, TREASURY, ADD, 1.0)
+    assert text(lib.srtoybox_more_off, MORE_TECH) == "이 게임 판에서는 쓸 수 없습니다 (값의 자리를 주지 않았습니다)"
+    assert text(lib.srtoybox_more_off, MORE_OPINION) == "" and lib.srtoybox_keeper_more(7, 0, 0.0) == -1
+    lib.srtoybox_keeper_tick()
+    assert game.tech(176) == 130.0 and game.opinion(176) == [1.0, 1.0, 1.0]
+
+
+def test_a_failed_relation_write_turns_all_value_writing_off(lib, game, tmp_path):
+    """쓰기가 실패하면 묶음 1 의 규칙 그대로 그 실행에서는 값 쓰기 전체를 끈다(돈 · 물자 · 유지 포함). 반쪽은 남지 않는다."""
+    game.lock(141)                                             # 고른 나라의 객체가 읽기 전용 쪽에 있다
+    mine = game.snapshot(176)
+    assert ask_more(lib, RELATION, 1106, BEST) and ask_more(lib, TECH)
+    lib.srtoybox_keeper_tick()
+    assert game.snapshot(176) == mine                          # 플레이어 쪽 칸도, 뒤따르던 요청도 쓰지 않았다
+    assert text(lib.srtoybox_values_off) == FAILED_OFF
+    assert [text(lib.srtoybox_more_off, group) for group in (MORE_TECH, MORE_OPINION, MORE_RELATIONS)] == [FAILED_OFF] * 3
+    assert not ask_more(lib, TECH) and not ask(lib, TREASURY, ADD, 1e9)
+    assert logged(tmp_path) == ["값 쓰기 실패 (관계 — 폴란드 (1106)) — 값 쓰기를 끕니다"]
+
+
+def test_a_failed_tech_write_says_so(lib, game, tmp_path):
+    game.lock(176)
+    game.play(176)
+    assert ask_more(lib, TECH) and ask_more(lib, OPINION)
+    lib.srtoybox_keeper_tick()
+    assert game.tech(176) == 130.0 and game.opinion(176) == [0.5, 0.25, 0.75]
+    assert logged(tmp_path) == ["값 쓰기 실패 (기술 수준) — 값 쓰기를 끕니다"] and told(lib)[0] == ""

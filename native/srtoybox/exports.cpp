@@ -419,6 +419,15 @@ EXPORT int srtoybox_keeper_request(int slot, int change, double amount)
     return keeper_enqueue({slot, static_cast<Change>(change), amount}) ? 1 : 0;
 }
 
+// 테스트: 더 쓰는 값의 요청. slot: -3 기술 수준 +1, -4 세계 시장 여론 최고, -5 region 의 나라와의 관계를 amount(1 최고, 0 중립)로.
+// 받았으면 1. 그런 요청이 없으면 -1.
+EXPORT int srtoybox_keeper_more(int slot, int region, double amount)
+{
+    if (slot != TECH && slot != OPINION && slot != RELATION)
+        return -1;
+    return keeper_enqueue({slot, Change::Set, amount, region}) ? 1 : 0;
+}
+
 EXPORT void srtoybox_keeper_tick(void)
 {
     keeper_tick(GetTickCount64());
