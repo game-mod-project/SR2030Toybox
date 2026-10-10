@@ -46,6 +46,8 @@ void *g_fight;                // 게임의 "전쟁"(〃)
 uint32_t g_map_pick;          // "지도에서 고른 지역"의 포인터가 든 전역(RVA. 못 찾았으면 0)
 void *g_become;               // 게임의 "플레이 지역 바꾸기"(못 찾았으면 nullptr)
 uint32_t g_index2, g_pointer2;   // 플레이어의 인덱스 · 포인터의 둘째 사본(RVA. 못 찾았으면 0)
+void *g_elect, *g_news;       // 게임의 "새 지도자 세우기" · "알림"(못 찾았으면 nullptr)
+uint32_t g_leaders, g_leader_id;   // 지도자 표의 포인터가 든 전역(RVA) · 지역 객체에서 지도자 번호의 자리(못 찾았으면 0)
 char g_act_why[ACT_WANTED][MORE_WHY];   // 부르는 함수마다 못 찾은 까닭
 
 typedef void (*Handler)(void *context, const char *line);
@@ -102,6 +104,25 @@ bool guarded_colonize(Colonize colonize, void *region, int other, unsigned long 
 {
     __try {
         colonize(region, other, true);
+        return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        *code = GetExceptionCode();
+        return false;
+    }
+}
+
+typedef void (*Elect)(void *region, int a, int b);
+typedef void (*News)(void *region, int n1, int n2, int n3, int n4, bool flag, void *nothing, int before, int index, int after, int z1,
+                     int z2, int z3, bool z4);
+
+// 게임의 "새 지도자 세우기"와 "알림"을 차례로 부른다(지도자가 죽은 날 게임이 하는 그대로). 예외는 잡아 code 에 적는다.
+// leader 는 그 지역의 지도자 번호(word)가 든 주소 — 세운 뒤의 번호를 알림에 넘긴다.
+bool guarded_succession(Elect elect, News news, void *region, const uint16_t *leader, int before, int index, unsigned long *code)
+{
+    __try {
+        elect(region, 0, 0);
+        news(region, NEWS_LEADER_GONE, NEWS_LEADER_GONE, NEWS_LEADER_GONE, NEWS_LEADER_GONE, true, nullptr, before, index, *leader, 0, 0, 0,
+             false);
         return true;
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         *code = GetExceptionCode();
@@ -1123,6 +1144,10 @@ void game_init_from(const uint8_t *base, size_t size)
         g_become = (acting & ACT_BECOME) != 0 ? const_cast<uint8_t *>(base) + acts.become : nullptr;
         g_index2 = (acting & ACT_INDEX2) != 0 ? acts.player_index2 : 0;
         g_pointer2 = (acting & ACT_POINTER2) != 0 ? acts.player_pointer2 : 0;
+        g_elect = (acting & ACT_ELECT) != 0 ? const_cast<uint8_t *>(base) + acts.elect : nullptr;
+        g_news = (acting & ACT_NEWS) != 0 ? const_cast<uint8_t *>(base) + acts.news : nullptr;
+        g_leaders = (acting & ACT_LEADERS) != 0 ? acts.leader_table : 0;
+        g_leader_id = (acting & ACT_LEADER_ID) != 0 ? acts.leader_id : 0;
         memcpy(g_act_why, act_why, sizeof(g_act_why));
     }
     if (state) {
@@ -1133,14 +1158,21 @@ void game_init_from(const uint8_t *base, size_t size)
         if ((acting & ACT_FIGHT) != 0 && (acting & ACT_MAP_PICK) != 0)
             log_line("게임의 함수를 부릅니다 (전쟁 +0x%X, 지도에서 고른 지역 +0x%X)", acts.fight, acts.map_pick);
         else
-            log_line("전쟁 붙이기를 쓸 수 없습니다 (%s)", (acting & ACT_FIGHT) == 0 ? act_why[1] : act_why[3]);
+            log_line("전쟁 붙이기를 쓸 수 없습니다 (%s)", (acting & ACT_FIGHT) == 0 ? act_why[1] : act_why[5]);
         const int become = ACT_BECOME | ACT_INDEX2 | ACT_POINTER2;
         if ((acting & become) == become)
             log_line("게임의 함수를 부릅니다 (플레이 지역 바꾸기 +0x%X, 플레이어의 둘째 사본 +0x%X +0x%X)", acts.become, acts.player_index2,
                      acts.player_pointer2);
         else
             log_line("이 나라로 플레이를 쓸 수 없습니다 (%s)",
-                     (acting & ACT_BECOME) == 0 ? act_why[2] : (acting & ACT_INDEX2) == 0 ? act_why[4] : act_why[5]);
+                     (acting & ACT_BECOME) == 0 ? act_why[2] : (acting & ACT_INDEX2) == 0 ? act_why[6] : act_why[7]);
+        const int novichok = ACT_ELECT | ACT_NEWS | ACT_LEADERS | ACT_LEADER_ID;
+        if ((acting & novichok) == novichok)
+            log_line("게임의 함수를 부릅니다 (새 지도자 세우기 +0x%X, 알림 +0x%X, 지도자 표 +0x%X, 지도자 번호 +0x%X)", acts.elect, acts.news,
+                     acts.leader_table, acts.leader_id);
+        else
+            log_line("지도자 제거를 쓸 수 없습니다 (%s)", (acting & ACT_ELECT) == 0 ? act_why[3] : (acting & ACT_NEWS) == 0 ? act_why[4]
+                     : (acting & ACT_LEADERS) == 0 ? act_why[8] : act_why[9]);
     }
     if (!state) {
         log_line("게임 상태를 읽을 수 없습니다 (%s) — 글쇠 방식", why);
@@ -1248,8 +1280,8 @@ void game_set_for_test(const uint8_t *base, const GameAddresses *at, void *handl
     g_research = ResearchLayout();
     g_research_found = false;
     g_recompute = nullptr;
-    g_colonize = g_fight = g_become = nullptr;
-    g_map_pick = g_index2 = g_pointer2 = 0;
+    g_colonize = g_fight = g_become = g_elect = g_news = nullptr;
+    g_map_pick = g_index2 = g_pointer2 = g_leaders = g_leader_id = 0;
     for (int w = 0; w < ACT_WANTED; w++)
         snprintf(g_act_why[w], MORE_WHY, "%s", "함수의 자리를 주지 않았습니다");
     snprintf(g_research_why, sizeof(g_research_why), "연구의 자리를 주지 않았습니다");
@@ -1470,11 +1502,54 @@ std::string game_act_off(int act)
     if (act == ACT_COLONIZE)
         return off_text(g_colonize != nullptr, g_act_why[0]);
     if (act == ACT_FIGHT)                      // 함수와 "지도에서 고른 지역"을 둘 다 찾아야 한다
-        return off_text(g_fight != nullptr && g_map_pick != 0, g_fight == nullptr ? g_act_why[1] : g_act_why[3]);
+        return off_text(g_fight != nullptr && g_map_pick != 0, g_fight == nullptr ? g_act_why[1] : g_act_why[5]);
+    if (act == ACT_ELECT)                      // 지도자 제거: 함수 둘 · 지도자 표 · 지도자 번호의 자리를 모두 찾아야 한다
+        return off_text(g_elect != nullptr && g_news != nullptr && g_leaders != 0 && g_leader_id != 0,
+                        g_elect == nullptr ? g_act_why[3] : g_news == nullptr ? g_act_why[4] : g_leaders == 0 ? g_act_why[8] : g_act_why[9]);
     if (act == ACT_BECOME)                     // 함수와 둘째 사본 둘을 모두 찾아야 한다 — 전역을 반쪽만 쓰지 않는다
         return off_text(g_become != nullptr && g_index2 != 0 && g_pointer2 != 0,
-                        g_become == nullptr ? g_act_why[2] : g_index2 == 0 ? g_act_why[4] : g_act_why[5]);
+                        g_become == nullptr ? g_act_why[2] : g_index2 == 0 ? g_act_why[6] : g_act_why[7]);
     return "없는 기능입니다";
+}
+
+Wrote game_novichok(int number, unsigned long *code)
+{
+    *code = 0;
+    if (!game_act_off(ACT_ELECT).empty())
+        return Wrote::Off;
+    const uint8_t *base = nullptr;
+    GameAddresses at = {};
+    Elect elect = nullptr;
+    News news = nullptr;
+    uint32_t leaders = 0, leader_id = 0;
+    {
+        std::lock_guard<std::mutex> lock(g_lock);
+        base = g_base;
+        at = g_at;
+        elect = reinterpret_cast<Elect>(g_elect);
+        news = reinterpret_cast<News>(g_news);
+        leaders = g_leaders;
+        leader_id = g_leader_id;
+    }
+    uint64_t player = 0, target = 0, table = 0;
+    int them = 0;
+    uint16_t before = 0;
+    uint32_t flags = 0;
+    const GameState s = read_player(base, at, &player);
+    if (!s.in_game || s.multiplayer)
+        return Wrote::NotInGame;
+    if (number == s.player || !find_region(base, at, number, &target, &them))
+        return Wrote::NoTarget;
+    if (!peek_at(base, leaders, &table) || table == 0 || !peek_in(target, leader_id, &before))
+        return Wrote::BadValue;
+    const uint64_t cell = table + static_cast<uint64_t>(before) * LEADER_SIZE + LEADER_FLAGS;
+    if (!peek(reinterpret_cast<const void *>(cell), &flags, sizeof(flags)))
+        return Wrote::BadValue;
+    flags |= LEADER_GONE;
+    if (!writable(cell, sizeof(flags)) || !poke(cell, &flags, sizeof(flags)))
+        return write_failed("지도자", 1, 0);
+    return guarded_succession(elect, news, reinterpret_cast<void *>(target), reinterpret_cast<const uint16_t *>(target + leader_id), before,
+                              them, code) ? Wrote::Done : Wrote::Crashed;
 }
 
 Wrote game_become(int number, unsigned long *code)
@@ -1599,7 +1674,7 @@ Wrote game_colonize(int number, unsigned long *code)
     return guarded_colonize(colonize, reinterpret_cast<void *>(mine), them, code) ? Wrote::Done : Wrote::Crashed;
 }
 
-void game_set_acts_for_test(const ActLayout *layout, void *colonize, void *fight, void *become)
+void game_set_acts_for_test(const ActLayout *layout, void *colonize, void *fight, void *become, void *elect, void *news)
 {
     std::lock_guard<std::mutex> lock(g_lock);
     g_colonize = layout != nullptr ? colonize : nullptr;
@@ -1611,9 +1686,14 @@ void game_set_acts_for_test(const ActLayout *layout, void *colonize, void *fight
     g_index2 = layout != nullptr ? layout->player_index2 : 0;
     g_pointer2 = layout != nullptr ? layout->player_pointer2 : 0;
     snprintf(g_act_why[2], MORE_WHY, "%s", g_become != nullptr ? "" : "함수의 자리를 주지 않았습니다");
-    snprintf(g_act_why[3], MORE_WHY, "%s", g_map_pick != 0 ? "" : "함수의 자리를 주지 않았습니다");
-    snprintf(g_act_why[4], MORE_WHY, "%s", g_index2 != 0 ? "" : "함수의 자리를 주지 않았습니다");
-    snprintf(g_act_why[5], MORE_WHY, "%s", g_pointer2 != 0 ? "" : "함수의 자리를 주지 않았습니다");
+    g_elect = layout != nullptr ? elect : nullptr;
+    g_news = layout != nullptr ? news : nullptr;
+    g_leaders = layout != nullptr ? layout->leader_table : 0;
+    g_leader_id = layout != nullptr ? layout->leader_id : 0;
+    const bool given[ACT_WANTED] = {g_colonize != nullptr, g_fight != nullptr, g_become != nullptr, g_elect != nullptr, g_news != nullptr,
+                                    g_map_pick != 0, g_index2 != 0, g_pointer2 != 0, g_leaders != 0, g_leader_id != 0};
+    for (int w = 0; w < ACT_WANTED; w++)
+        snprintf(g_act_why[w], MORE_WHY, "%s", given[w] ? "" : "함수의 자리를 주지 않았습니다");
 }
 
 Wrote game_write_research(Research action, const ResearchWhat &what, ResearchDone *done)

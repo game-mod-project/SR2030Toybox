@@ -79,9 +79,9 @@ def test_feature_table(dll):
     # 게임에 넣는 글이 없다. 나머지 열하나가 내장 치트로 돈다
     assert {f["id"]: f["how"] for f in fs if f["how"] != "cheat"} == {
         "technology": "tech_level", "e=mc2": "queue_done", "finalexam": "tech_up", "shelovesme": "opinion_best",
-        "love": "relation_best", "neutral": "relation_neutral", "populate": "people_add", "approval": "approval_best", "colonize": "colonize", "fight": "fight", "becomeregion": "become"}
+        "love": "relation_best", "neutral": "relation_neutral", "populate": "people_add", "approval": "approval_best", "colonize": "colonize", "fight": "fight", "becomeregion": "become", "novichok": "novichok"}
     cheats = [f for f in fs if f["how"] == "cheat"]
-    assert len(cheats) == 8 == dll.srtoybox_cheat_feature_count() and len({f["command"] for f in cheats}) == 8
+    assert len(cheats) == 7 == dll.srtoybox_cheat_feature_count() and len({f["command"] for f in cheats}) == 7
     assert [f["id"] for f in fs][:3] == ["technology", "e=mc2", "finalexam"]            # 줄의 자리는 옮기기 전과 같다
     assert [(f["label"], f["default"], f["min"], f["max"]) for f in fs[:2]] == [("기술 수준 N 이하 전부 보유", 120, 1, 255),
                                                                               ("대기열의 연구 즉시 완료", 0, 0, 0)]
@@ -90,7 +90,7 @@ def test_feature_table(dll):
         if f["how"] == "cheat":
             assert f["command"] == "cheat " + f["id"]
         else:
-            assert f["command"] == "" and f["confirm"] == (f["id"] in ("colonize", "fight", "becomeregion"))   # 게임의 함수를 부르는 줄은 한 번 더 누른다
+            assert f["command"] == "" and f["confirm"] == (f["id"] in ("colonize", "fight", "becomeregion", "novichok"))   # 게임의 함수를 부르는 줄은 한 번 더 누른다
         assert not (f["has_value"] and f["target"] != "none")           # 한 기능의 인자는 하나다
         if f["has_value"]:
             assert f["min"] <= f["default"] <= f["max"]
@@ -128,7 +128,7 @@ def test_command_text(dll):
     assert text(dll.srtoybox_command, b"annex", 0, 1106) == "cheat annex 1106"
     assert text(dll.srtoybox_command, b"treaty", 0, 1106) == "cheat treaty"                    # 게임이 지도에서 고른 나라를 쓴다
     assert text(dll.srtoybox_command, b"annex", 0, 0) is None                                  # 나라를 고르지 않았으면 만들지 않는다
-    for moved in (b"technology", b"e=mc2", b"finalexam", b"shelovesme", b"love", b"neutral", b"populate", b"approval", b"colonize", b"fight", b"becomeregion"):   # 직접 쓰는 줄은 게임에 넣을 글이 없다
+    for moved in (b"technology", b"e=mc2", b"finalexam", b"shelovesme", b"love", b"neutral", b"populate", b"approval", b"colonize", b"fight", b"becomeregion", b"novichok"):   # 직접 쓰는 줄은 게임에 넣을 글이 없다
         assert text(dll.srtoybox_command, moved, 120, 1106) is None
     assert text(dll.srtoybox_command, b"depopulate", 0, 0) is None                             # 표에 없는 것은 만들지 않는다
     assert text(dll.srtoybox_command, b"treasury", 1, 0) is None                               # 지운 기능 — 국고는 돈 탭이 직접 한다
@@ -905,6 +905,7 @@ def test_the_moved_buttons_say_why_they_are_off_and_offer_no_cheat(dll, cfg, tmp
         rows[rows.index("run:colonize")] = "off:colonize"      # 게임의 함수를 부르는 줄도 값 쓰기를 끄면 꺼진다
         rows[rows.index("run:fight")] = "off:fight"
         rows[rows.index("run:becomeregion")] = "off:becomeregion"
+        rows[rows.index("run:novichok")] = "off:novichok"
         assert list(got["diplomacy"]) == rows and got["diplomacy"]["off:colonize"] == "식민지화 — " + why
         assert got["diplomacy"]["off:love"] == "관계 최고 — " + why and got["diplomacy"]["off:neutral"] == "관계 중립 — " + why
     assert got["state"] == MORE_START and got["lines"] == [] and got["text"] == ""
@@ -1117,4 +1118,16 @@ def test_become_writes_the_four_player_globals_and_calls_the_game_once(dll, cfg,
     assert got["became"] == [[1106, 0, 141, 141, True, True]]               # 함수가 불릴 때 전역 넷은 이미 폴란드다
     assert got["wrote"] == "이 나라로 플레이 — 폴란드 (1106)" and got["status_after"] == "플레이 중: 폴란드 (1106)"
     assert got["picked_after"] == "고른 나라: 없음 — 아래 목록에서 고르십시오"   # 고른 나라가 플레이어가 됐다 — 풀린다
+    assert got["lines"] == [] and got["text"] == "" and got["options"] == 0
+
+
+def test_novichok_marks_the_leader_and_lets_the_game_hand_over_power(dll, cfg, tmp_path):
+    """3단계 4: "지도자 제거"는 내장 치트 없이 게임이 지도자가 죽은 날 스스로 하는 일을 한다 — 둘째 누름에만:
+    지도자 표에서 그 나라의 지도자(3 번)의 깃발에 "죽었다"(2)를 켜고, "새 지도자 세우기"를 (그 나라의 객체, 0, 0) 으로,
+    "알림"을 (그 객체, 0x65C × 4, 1, NULL, 앞 지도자 3, 지역 인덱스 141, 새 지도자 9, 0, 0, 0, 0) 으로 한 번씩 부른다. 다른 지도자의 깃발은 그대로다."""
+    got = json.loads(_probe(cfg, tmp_path, "more_novichok"))
+    assert got["asking"] == "지도자 제거: 폴란드 (1106) — 한 번 더 누르면 실행합니다" and got["first"] == [] and got["flags_first"] == 0
+    assert got["succession"] == [["elect", 1106, 0, 0, 2],                                   # 세울 때 앞 지도자는 이미 "죽었다"
+                                 ["news", 1106, 0x65C, 0x65C, 0x65C, 0x65C, 1, 0, 3, 141, 9, 0, 0, 0, 0]]
+    assert got["flags"] == [0, 0, 0, 2] + [0] * 12 and got["wrote"] == "지도자 제거 — 폴란드 (1106)"
     assert got["lines"] == [] and got["text"] == "" and got["options"] == 0

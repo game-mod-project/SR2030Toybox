@@ -153,6 +153,10 @@ COLONIZE = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int, ctypes.c_bool
 FIGHT = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_bool, ctypes.c_int, ctypes.c_bool, ctypes.c_bool)   # 게임의 "전쟁"
 INDEX2, POINTER2 = 0x80, 0x88                   # 가짜 게임의 플레이어 인덱스 · 포인터의 둘째 사본
 BECOME = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int)        # 게임의 "플레이 지역 바꾸기": void f(void *region, int 0)
+LEADERS, LEADER_ID = 0x90, 0xAE                 # 가짜 게임의 지도자 표의 포인터 · 지역 객체 안의 지도자 번호의 자리
+ELECT = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int, ctypes.c_int)   # 게임의 "새 지도자 세우기"
+NEWS = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_bool, ctypes.c_void_p,
+                          ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_bool)   # 게임의 "알림"
 MAP_PICK = 0x70                                 # 가짜 게임의 "지도에서 고른 지역": 이 자리의 포인터가 가리키는 word(바로 뒤 0x78)가 인덱스다
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 user32 = ctypes.WinDLL("user32", use_last_error=True)
@@ -622,10 +626,26 @@ def fake_game(hook: str, handler: int | None = None, values: bool = True, more: 
         fake.poke(INDEX2, "<i", index)
         fake.poke(POINTER2, "<Q", fake.where[index])
     fake.play = play_both
-    toybox.srtoybox_test_acts.argtypes = [ctypes.c_void_p] * 4
+    # 지도자: 표는 레코드 0xC8 바이트 × 16, 폴란드의 지도자는 3 번. 가짜 "새 지도자 세우기"는 9 번을 세운다
+    fake.leaders = (ctypes.c_ubyte * (0xC8 * 16))()
+    fake.poke(LEADERS, "<Q", ctypes.addressof(fake.leaders))
+    ctypes.memmove(fake.where[141] + LEADER_ID, struct.pack("<H", 3), 2)
+    fake.succession = []                                       # 불린 순서대로: ["elect", 지역 번호, 인자 둘, 그때 앞 지도자의 깃발] · ["news", …]
+    number = lambda region: struct.unpack("<H", ctypes.string_at(region + 8, 2))[0]
+
+    def elect(region, a, b):
+        fake.succession.append(["elect", number(region), a, b, struct.unpack_from("<I", fake.leaders, 3 * 0xC8 + 0x28)[0]])
+        ctypes.memmove(region + LEADER_ID, struct.pack("<H", 9), 2)
+
+    def news(region, n1, n2, n3, n4, flag, nothing, before, index, after, z1, z2, z3, z4):
+        fake.succession.append(["news", number(region), n1, n2, n3, n4, int(flag), nothing or 0, before, index, after, z1, z2, z3, int(z4)])
+    fake.elect, fake.news = ELECT(elect), NEWS(news)
+    toybox.srtoybox_test_acts.argtypes = [ctypes.c_void_p] * 6
     if os.environ.get("PROBE_NO_ACTS") != "1":
-        toybox.srtoybox_test_acts((ctypes.c_uint32 * 6)(1, 1, 1, MAP_PICK, INDEX2, POINTER2), ctypes.cast(fake.colonize, ctypes.c_void_p),
-                                  ctypes.cast(fake.fight, ctypes.c_void_p), ctypes.cast(fake.become, ctypes.c_void_p))
+        toybox.srtoybox_test_acts((ctypes.c_uint32 * 10)(1, 1, 1, 1, 1, MAP_PICK, INDEX2, POINTER2, LEADERS, LEADER_ID),
+                                  ctypes.cast(fake.colonize, ctypes.c_void_p), ctypes.cast(fake.fight, ctypes.c_void_p),
+                                  ctypes.cast(fake.become, ctypes.c_void_p), ctypes.cast(fake.elect, ctypes.c_void_p),
+                                  ctypes.cast(fake.news, ctypes.c_void_p))
     fake.recomputed = []
     fake.recompute = RECOMPUTE(lambda _world, index: fake.recomputed.append(index))     # 게임이 살아 있는 동안 붙들어 둔다
     if research:
@@ -1280,6 +1300,17 @@ def run_more(hook: str, mode: str) -> int:
         fake.play(176)
         press("run:finalexam")                                # 돌아오면 다시 된다
         out["unwritten_after"] = game.shown("unwritten")
+    elif mode == "more_novichok":                             # 지도자 제거(3단계 4): 깃발에 비트를 켜고 게임의 함수 둘을 부른다
+        game.click(DIPLOMACY)
+        game.wait(1.2)
+        game.click("row:1106")
+        scroll_to(game, "run:becomeregion")                   # 맨 아래까지 내린다 — 그 위의 단추가 탭 안쪽에 온다
+        press("run:novichok")
+        out["asking"], out["first"] = game.facts()["run:novichok"][3], list(fake.succession)
+        out["flags_first"] = struct.unpack_from("<I", fake.leaders, 3 * 0xC8 + 0x28)[0]
+        press("run:novichok")
+        out["succession"], out["wrote"] = fake.succession, game.shown("wrote")
+        out["flags"] = [struct.unpack_from("<I", fake.leaders, n * 0xC8 + 0x28)[0] for n in range(16)]
     elif mode == "more_become":                               # 이 나라로 플레이(3단계 4): 전역 넷을 쓰고 게임의 함수를 부른다
         game.click(DIPLOMACY)
         game.wait(1.2)
