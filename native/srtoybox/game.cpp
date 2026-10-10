@@ -445,7 +445,7 @@ bool peek_near(Span *span, uint64_t address, void *out, size_t size)
 
 // 부대 설계의 이름(UTF-8)을 번호마다 기억해 둔다 — 이름은 판이 도는 동안 바뀌지 않고, 스냅숏은 0.5초마다 뜬다.
 // 이름의 포인터가 달라졌으면 다시 읽고, 표가 달라졌거나 스냅숏이 한동안(NAMES_STALE_MS) 없었으면 모두 버린다(다른 판일 수 있다).
-const int NAME_BYTES = 48;                        // 이름은 47자까지 읽는다
+const int NAME_BYTES = 96;                        // 이름은 95바이트까지 읽는다(원본의 가장 긴 이름이 52자, 한글은 한 글자가 3바이트다)
 const unsigned long long NAMES_STALE_MS = 2000;
 std::mutex g_names_lock;
 std::vector<std::pair<uint64_t, std::string>> g_names;
@@ -572,7 +572,7 @@ bool shoot(const uint8_t *base, const GameAddresses &at, const ResearchLayout &r
         if (known.first != name) {              // 읽지 못하면 빈 글로 둔다(창이 "#번호"로 적는다) — 다음 스냅숏에 다시 읽지는 않는다
             char text[NAME_BYTES] = {};
             known.first = name;
-            known.second = peek_near(&span, name, text, sizeof(text) - 1) ? cp1252_to_utf8(text, sizeof(text) - 1) : std::string();
+            known.second = peek_near(&span, name, text, sizeof(text) - 1) ? game_text_to_utf8(text, sizeof(text) - 1) : std::string();
         }
         row.name = known.second;
         row.cls = record[DESIGN_CLASS];

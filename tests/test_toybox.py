@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from srkit import hook, toybox
+from srkit import hook, srutf8, toybox
 
 # 넣지 않는 것: 모든 지역 · AI 에 닿거나, 불리해지거나, 반응이 없었거나, 넣지 않기로 한 것
 EXCLUDED = {
@@ -1047,12 +1047,17 @@ def test_research_list_rows_follow_the_view(dll):
 
 
 def test_research_names(dll):
-    """기술의 이름은 번역 표에서(없으면 #번호), 분류 · 병과의 이름은 ToyBox 의 표에서. 부대 설계의 이름은 CP1252 로 풀어 UTF-8 로."""
+    """기술의 이름은 번역 표에서(없으면 #번호), 분류 · 병과의 이름은 ToyBox 의 표에서. 부대 설계의 이름은 게임 메모리의 글이다 —
+    한글화가 옮긴 이름은 SR-UTF8, 원본의 이름은 CP1252 다(srutf8.decode 와 같은 규칙. 게임에서 본 것: "시설"이 깨져 보였다)."""
     dll.srtoybox_tech_names.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int]
     names = lambda *a: text(dll.srtoybox_tech_names, *a).split("\n")
     assert names(49, 1, 0, b"T-72B") == ["비생식 복제", "전쟁", "보병", "T-72B"]
     assert names(60000, 6, 21, "Škoda Mörser €".encode("cp1252")) == ["#60000", "사회", "시설", "Škoda Mörser €"]
     assert names(1, 0, 22, b"\x81")[1:] == ["0", "22", "?"]               # 표에 없는 번호는 번호로, 정해지지 않은 바이트는 ?
+    for name in ("시설", "경보병 부대", "특수부대 — 추출", "북부 권역 출", "JP-1 Löwe", "Bogotá", "Škoda ¶ 훈련"):   # 바꿔 쓰는 바이트(B6 · 9A · 9E, 선두 EA · EB · ED · E2)가 든 것도
+        raw = srutf8.encode(name) if any(ord(ch) > 0xFF and ch not in "Š" for ch in name) else name.encode("cp1252")
+        assert names(1, 1, 0, raw)[3] == srutf8.decode(raw) == name
+    assert names(1, 1, 0, srutf8.encode("경보병 부대")[:-1])[3] == "경보병 부"   # 칸에 맞춰 잘린 꼬리는 버린다
     assert names(1, 1, 6, b"")[2] == "수송" and names(1, 1, 14, b"")[2] == "공중 수송" and names(1, 1, 20, b"")[2] == "해상 수송"
 
 
