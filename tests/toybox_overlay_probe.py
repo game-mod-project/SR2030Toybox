@@ -1318,6 +1318,29 @@ def run_research(hook: str, mode: str) -> int:
         out["fault"] = game.shown("fault")
         out["after_fault"] = held()
         press("run:technology")                               # 오류 가드가 걸렸다 — 단추가 꺼져 있다
+    elif mode == "research_list":
+        items = lambda: {name[5:]: fact[3] for name, fact in game.facts().items() if name.startswith("item:")}
+        game.wait(0.8)                                        # 목록의 스냅숏은 탭이 보이는 동안 0.5초마다 뜬다
+        out["picked"], out["first"], out["count"] = game.shown("picked"), items(), game.shown("list:count")
+        game.click("item:3")
+        game.click("item:7")
+        out["count_chosen"] = game.shown("list:count")
+        press("list:done")                                    # 고른 것 완료: 기술 3(+ 선행 2) · 7
+        game.wait(0.3)
+        out["after_done"], out["wrote_done"], out["left"], out["count_left"] = held(), game.shown("wrote"), items(), game.shown("list:count")
+        game.click("list:show")
+        game.click("show:1")                                  # 보기: 자국 보유
+        game.wait(0.2)
+        out["mine"] = items()
+        game.click("list:designs")                            # 목록을 바꾸면 고른 것이 풀린다
+        game.wait(0.2)
+        out["designs"], out["count_designs"] = items(), game.shown("list:count")
+        game.click("list:all_undo")                           # 한 번 더 눌러야 실행된다
+        game.wait(0.2)
+        out["asking"], out["held_asking"] = game.shown("list:all_undo"), held()
+        press("list:all_undo")
+        game.wait(0.3)
+        out["wrote_undo"], out["designs_after"] = game.shown("wrote"), items()
     elif mode == "research_reenter":
         game.click(CHEAT_TAB)
         game.click(BUTTON)

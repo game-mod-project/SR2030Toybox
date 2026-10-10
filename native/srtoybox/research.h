@@ -23,6 +23,7 @@ struct DesignRow {
     int cls = 0;                // 병과 번호
     int year = 0;               // 등장 연도 - 1900
     int needs[4] = {};          // 선행 기술의 번호
+    std::string name;           // 이름(UTF-8). 게임 메모리에서 읽는다 — 읽지 못했으면 빈 글
     bool open = false;          // 연구 대상이다
     bool held = false;          // 게임이 "기술을 뺄 때" 건드리지 않는 설계(깃발)
     bool mine = false, picked = false;

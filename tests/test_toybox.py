@@ -226,7 +226,8 @@ def test_settings_fall_back_to_defaults(dll):
     norm = lambda ini: text(dll.srtoybox_settings_normalize, ini.encode("utf-8"))
     assert norm("") == DEFAULTS
     assert norm("\xff garbage\n===\n[x]\nhotkey_vk\n=5\n") == DEFAULTS                      # 깨진 파일
-    assert norm("money.amount=0\ntechnology=999999999999\nspawnunit=12x\n") == DEFAULTS       # 범위 밖·숫자 아님 → 기본값
+    assert norm("money.amount=0\ntechnology=0\nspawnunit=12x\n") == DEFAULTS                  # 범위 밖·숫자 아님 → 기본값
+    assert norm("technology=999\n") == DEFAULTS.replace("technology=120", "technology=255")   # 기능 값이 범위보다 크면 끝으로 자른다
     assert norm("technology=abc\n") == DEFAULTS
     assert norm("unknown=5\nfinalexam=7\ndepopulate=1\ntreasury=500\nproducts=5\n") == DEFAULTS   # 모르는 키, 값이 없는 기능, 지운 기능
     assert norm("hotkey_vk=16\nhotkey_mods=1\n") == DEFAULTS                                 # 수정키만으로는 단축키가 못 된다
@@ -1012,3 +1013,68 @@ def test_prologue_length_knows_only_plain_function_heads(dll):
     assert length("48 8b 05 11 22 33 44 55 55 55 55 55 55 55 55 55") == 0    # RIP 상대 주소 — 옮기면 주소가 틀어진다
     assert length("e8 11 22 33 44 55 55 55 55 55 55 55 55 55 55 55") == 0    # call
     assert length("48 89 5c 24 10 48 89 74 24") == 0                         # 명령이 중간에 끊겼다
+
+
+# ---- 연구의 목록(3단계 3 (나)) ----
+
+LIST_TABLES = """slots 16 16
+t 1 1 10 0 0 1 1 1 1
+t 2 3 20 1 0 0 1 1 1
+t 3 3 30 2 0 0 0 0 0
+t 49 5 20 0 0 0 1 2 0
+d 10 1 0 1 1 1 0 0 0 0 0 0 50 Leopard_2A4
+d 11 1 0 0 1 0 0 0 0 1 1 2 95 Panther
+d 12 1 0 0 0 0 0 0 0 0 0 14 60
+q 1 2 1 0
+"""
+
+
+def test_research_list_rows_follow_the_view(dll):
+    """목록의 줄: 보기 여섯 · 분류 · 찾기로 거르고, 수준(연도) · 번호의 순서로 놓는다. 상태는 보유 > 연구 중 > 미보유."""
+    dll.srtoybox_research_rows.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int]
+    rows = lambda designs, show, kind=-1, find="": text(dll.srtoybox_research_rows, LIST_TABLES.encode(), designs, show, kind,
+                                                        find.encode("utf-8")).splitlines()
+    ids = lambda *a, **k: [int(line.split("|")[0]) for line in rows(*a, **k)]
+    assert rows(0, 0) == ["1|고효율 핵융합 발전|전쟁|10|보유|1|1", "2|개량 폐기물 소각|과학|20|연구 중|1|1", "49|비생식 복제|의료|20|미보유|2|0",
+                          "3|물 절약|과학|30|미보유|0|0"]                    # 전체: 수준 · 번호의 순서
+    assert ids(0, 1) == [1] and ids(0, 2) == [2, 49, 3]                     # 자국 보유 / 자국 미보유
+    assert ids(0, 3) == [2, 49]                                             # 타국만 보유
+    assert ids(0, 4) == [1, 2] and ids(0, 5) == [2]                         # 고른 나라의 보유 / 고른 나라에서 가져올 것
+    assert ids(0, 0, kind=3) == [2, 3] and ids(0, 2, kind=5) == [49]        # 분류
+    assert ids(0, 0, find="복제") == [49] and ids(0, 0, find="CLONING") == [49] and ids(0, 0, find="4") == [49]   # 이름(한글 · 영문) · 번호
+    assert rows(1, 0) == ["10|Leopard_2A4|보병|1950|보유|0|0", "12|#12|공중 수송|1960|미보유|0|0", "11|Panther|전차|1995|미보유|1|1"]
+    assert ids(1, 0, kind=2) == [11] and ids(1, 0, find="pan") == [11] and ids(1, 5) == [11]
+
+
+def test_research_names(dll):
+    """기술의 이름은 번역 표에서(없으면 #번호), 분류 · 병과의 이름은 ToyBox 의 표에서. 부대 설계의 이름은 CP1252 로 풀어 UTF-8 로."""
+    dll.srtoybox_tech_names.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int]
+    names = lambda *a: text(dll.srtoybox_tech_names, *a).split("\n")
+    assert names(49, 1, 0, b"T-72B") == ["비생식 복제", "전쟁", "보병", "T-72B"]
+    assert names(60000, 6, 21, "Škoda Mörser €".encode("cp1252")) == ["#60000", "사회", "시설", "Škoda Mörser €"]
+    assert names(1, 0, 22, b"\x81")[1:] == ["0", "22", "?"]               # 표에 없는 번호는 번호로, 정해지지 않은 바이트는 ?
+    assert names(1, 1, 6, b"")[2] == "수송" and names(1, 1, 14, b"")[2] == "공중 수송" and names(1, 1, 20, b"")[2] == "해상 수송"
+
+
+LIST_DONE = [[1, 2, 3, 4, 6, 7], [10, 13, 14], [1, 2], [11, 13]]      # 기술 3(+ 선행 2) · 7 을 완료로
+
+
+def test_the_research_list_completes_and_revokes_what_is_picked(dll, cfg, tmp_path):
+    """연구 탭의 목록: 처음에는 자국 미보유의 기술이 보인다. 고른 것을 완료로 바꾸면 선행도 딸려 오고 목록이 바로 따라온다.
+    "고른 것"은 거르개로 가려져도 남고, 목록(기술 ↔ 부대 설계)을 바꾸면 풀린다. "보이는 것 전부 미완료"는 한 번 더 눌러야 실행된다.
+    내장 치트는 거치지 않는다. 다른 나라의 보유는 그대로다."""
+    got = json.loads(_probe(cfg, tmp_path, "research_list"))
+    assert got["rows"] == RESEARCH_BUTTONS                                  # 위의 단추 셋은 그대로다
+    assert got["picked"] == "고른 나라: 없음 — 외교·영토 탭에서 고릅니다"
+    assert got["first"] == {"2": "0|개량 폐기물 소각|전쟁|20|연구 중|1", "3": "0|물 절약|전쟁|30|미보유|0", "7": "0|미사일 발사 사일로|전쟁|70|미보유|1"}
+    assert got["count"] == "보이는 것 3개 · 고른 것 0개" and got["count_chosen"] == "보이는 것 3개 · 고른 것 2개"
+    assert got["after_done"] == LIST_DONE and got["wrote_done"] == "기술 3개(선행 1개 포함)를 완료로 — 고른 것"
+    assert got["left"] == {} and got["count_left"] == "보이는 것 0개 · 고른 것 2개(보이지 않는 것 2개)"
+    assert list(got["mine"]) == ["1", "2", "3", "4", "6", "7"] and got["mine"]["3"] == "1|물 절약|전쟁|30|보유|0"
+    assert got["designs"] == {"10": "0|Unit|보병|1950|보유|0", "13": "0|Unit|보병|1950|보유|1", "14": "0|Unit|보병|1950|보유|0"}
+    assert got["count_designs"] == "보이는 것 3개 · 고른 것 0개"
+    assert got["asking"] == "보이는 것 전부 미완료 — 한 번 더 누르면 실행합니다" and got["held_asking"] == LIST_DONE   # 첫 누름은 쓰지 않는다
+    assert got["wrote_undo"] == "부대 설계 3개를 미완료로 — 보이는 것" and got["designs_after"] == {}
+    assert got["held"] == [[1, 2, 3, 4, 6, 7], [], [1, 2], [11, 13]]        # 폴란드의 보유는 그대로다
+    assert got["days"] == [100.0] and got["recomputed"] == [176]            # 다시 셈은 기술을 바꿨을 때만, 플레이어로만
+    assert got["lines"] == [] and got["text"] == "" and got["options"] == 0

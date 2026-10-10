@@ -136,8 +136,8 @@ Settings parse_settings(const std::string &ini)
             parse_keep_stock(key.substr(11), n, s);
         } else {
             const Feature *f = find_feature(key.c_str());
-            if (f != nullptr && f->has_value && n >= f->min && n <= f->max)
-                s.values[f->id] = n;
+            if (f != nullptr && f->has_value && n >= f->min)
+                s.values[f->id] = n > f->max ? f->max : n;   // 범위가 줄어든 빌드에서 저장된 큰 값은 끝으로 자른다(말없이 기본값이 되지 않게)
         }
     }
     if (vk >= 0 && vk <= 0xFE && mods >= 0 && mods <= 7 && valid_hotkey(static_cast<int>(vk), static_cast<int>(mods))) {
