@@ -15,7 +15,7 @@ MULTIPLAYER, OPTIONS, PROGRAM, MODE, INDEX, COUNT, POINTER, WORLD_POINTER, TABLE
 LAYOUT = dict(world_pointer=WORLD_POINTER, treasury=0x40, stock_first=0x60, stock_step=0x10, used_first=0x18, used_step=0x84)
 # 더 쓰는 값의 자리: 기술 수준, 여론의 세 칸, 지역 인덱스로 찾는 표 셋(가짜 게임의 표는 256칸 — 인덱스 255 까지 쓴다)
 MORE = dict(tech=0x130, opinion0=0x134, opinion1=0x138, opinion2=0x150, relation0=0x200, relation1=0x600, casus=0xA00,
-            people0=0x160, people1=0x178, people2=0x17C, approval=0x158)
+            people0=0x160, people1=0x170, approval=0x158)
 RELATION_TABLES = ("relation0", "relation1", "casus")
 OBJECT_SIZE = 0x1000
 # 연구의 자리: 전역 넷은 mem 의 앞쪽, 세계 객체는 mem 의 0x800 부터(지역 표가 그 +0x800), 연구 목록은 그 +0x1800(지역마다 24바이트 × 256칸).
@@ -111,12 +111,12 @@ class FakeGame:
         return [self._read(index, MORE[name], "<f") for name in ("opinion0", "opinion1", "opinion2")]
 
     def people(self, index: int) -> list[float]:
-        """그 지역의 [인구, 인구 칸 2, 인구 칸 3, 국내 지지율]."""
-        return [self._read(index, MORE[name], "<f") for name in ("people0", "people1", "people2", "approval")]
+        """그 지역의 [인구, 인구의 풀, 국내 지지율]."""
+        return [self._read(index, MORE[name], "<f") for name in ("people0", "people1", "approval")]
 
-    def set_people(self, index: int, values: tuple[float, float, float], approval: float) -> None:
-        """그 지역의 인구 세 칸과 국내 지지율."""
-        for name, value in zip(("people0", "people1", "people2", "approval"), (*values, approval)):
+    def set_people(self, index: int, values: tuple[float, float], approval: float) -> None:
+        """그 지역의 인구 칸 · 인구의 풀 칸과 국내 지지율."""
+        for name, value in zip(("people0", "people1", "approval"), (*values, approval)):
             self._write(index, MORE[name], "<f", value)
 
     def set_opinion(self, index: int, values: tuple[float, float, float]) -> None:

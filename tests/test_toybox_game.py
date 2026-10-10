@@ -21,7 +21,7 @@ BUILD_LEGACY = {name: BUILD_21347933[name] for name in toybox.LEGACY_FIELDS}
 BUILD_VALUES = {"world_pointer": 0x1AF5868, "treasury": 0x14B88, "stock_first": 0x14DA4, "stock_step": 0x150,
                 "used_first": 0x18, "used_step": 0x84}
 BUILD_MORE = {"tech": 0x14CD0, "opinion0": 0x14AF4, "opinion1": 0x14AF8, "opinion2": 0x14B10, "relation0": 0x15F10,
-              "relation1": 0x16F10, "casus": 0x17F10, "people0": 0x14B48, "people1": 0x14B60, "people2": 0x14B64, "approval": 0x14B04}
+              "relation1": 0x16F10, "casus": 0x17F10, "people0": 0x14B48, "people1": 0x14B58, "approval": 0x14B04}
 BUILD_RESEARCH = {"tech_table": 0x1829620, "tech_count": 0x1829098, "design_table": 0x1829610, "design_count": 0x182909C,
                   "world": 0x17A9020, "lists": 0x3568C0, "recompute": 0xBDD380}
 # 연구의 표와 목록의 꼴(native/srtoybox/locate.h 의 상수)이 박힌 서명: (찾을 것, 몇째 서명, 그 명령의 바이트).
@@ -350,7 +350,7 @@ def more_without(group: int) -> dict[str, int]:
 
 def test_the_more_table_has_three_signatures_per_item(more_sigs):
     assert [name for name, _ in more_sigs] == [name for name in toybox.MORE_FIELDS for _ in range(3)]
-    assert len({text for _, text in more_sigs}) == 33
+    assert len({text for _, text in more_sigs}) == 30
     assert [field for _, fields in toybox.MORE_GROUPS for field in fields] == toybox.MORE_FIELDS
 
 
@@ -360,7 +360,7 @@ def test_more_is_found_in_an_image_without_any_cheat_string(lib, more_sigs):
     assert b"cheat" not in image
     found, why, rows = toybox.more_of(lib, image)
     assert found == toybox_fake_exe.MORE and why == [""] * 5
-    assert [row.count for row in rows] == [1] * 33
+    assert [row.count for row in rows] == [1] * 30
     assert all(row.value == toybox_fake_exe.MORE[row.name] for row in rows)
 
 
@@ -433,10 +433,10 @@ def test_more_survives_garbage(lib, image):
 
 
 def test_more_on_the_installed_game(lib, game_dir):
-    """build 21347933: 서명 33개가 저마다 실행 구역에 정확히 한 번 맞고, 읽어 낸 자리가 docs/11 의 표와 같다."""
+    """build 21347933: 서명 30개가 저마다 실행 구역에 정확히 한 번 맞고, 읽어 낸 자리가 docs/11 의 표와 같다."""
     found, why, rows = toybox.more_of(lib, installed_image(game_dir), BUILD_VALUES)
     assert found == BUILD_MORE and why == [""] * 5
-    assert [row.count for row in rows] == [1] * 33
+    assert [row.count for row in rows] == [1] * 30
     assert all(row.value == BUILD_MORE[row.name] for row in rows)
 
 
@@ -444,7 +444,8 @@ def test_more_agrees_with_what_the_cheat_code_says(lib, game_dir):
     """치트 코드가 남아 있는 빌드에서의 대조: 서명으로 읽은 자리 == 치트 finalexam · shelovesme · love · neutral 의 본문이 쓰는 자리."""
     oracle = pytest.importorskip("toybox_cheat_oracle", reason="capstone 이 없다 (uv sync)")
     image = installed_image(game_dir)
-    assert toybox.more_of(lib, image)[0] == oracle.more(image)
+    found, cheat = toybox.more_of(lib, image)[0], oracle.more(image)
+    assert {name: found[name] for name in cheat} == cheat      # 인구의 풀 칸은 치트가 쓰지 않는 칸이라 댈 것이 없다
 
 
 def research(lib, image: bytes, state: dict | None = toybox_fake_exe.STATE):
@@ -656,7 +657,7 @@ def test_srkit_locate_reports_every_search(lib, cfg, game_dir):
     assert len(located.value_rows) == 12
     assert located.legacy is not None and set(located.legacy) == set(toybox.LEGACY_FIELDS), located.legacy_why
     assert set(located.more) == set(toybox.MORE_FIELDS) and all(located.more.values()) and located.more_why == [""] * 5
-    assert len(located.more_rows) == 33
+    assert len(located.more_rows) == 30
     assert located.research is not None and set(located.research) == set(toybox.RESEARCH_FIELDS), located.research_why
     assert len(located.research_rows) == 21
 

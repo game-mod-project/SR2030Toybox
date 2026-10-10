@@ -832,9 +832,9 @@ def test_the_four_moved_buttons_write_without_any_cheat(dll, cfg, tmp_path, mode
     assert list(got["diplomacy"]) == DIPLOMACY_ROWS
     assert (got["diplomacy"]["run:love"], got["diplomacy"]["run:neutral"]) == ("관계 최고", "관계 중립")
     assert got["wrote_tech"] == "기술 수준 131 -> 132" and got["wrote_opinion"] == "세계 시장 여론 최고"
-    # 3단계 4: 인구 +100만은 플레이어의 세 칸에 같은 수를 더하고, 지지율은 1.0 이 된다. 폴란드는 그대로다
+    # 3단계 4: 인구 +100만은 플레이어의 인구 칸과 그 풀에 같은 수를 더하고, 지지율은 1.0 이 된다. 폴란드는 그대로다
     assert got["wrote_people"] == "인구 82.6 M -> 83.6 M" and got["wrote_approval"] == "지지율 100%"
-    assert got["people_now"] == [[83615760.0, 51e6, 31e6, 1.0], [38e6, 2e7, 1e7, 0.5]]
+    assert got["people_now"] == [[83615760.0, 1003632.0, 1.0], [38e6, 2500.0, 0.5]]
     assert got["unpicked"] == {**MORE_START, "tech": 132.0, "opinion": [1.0, 1.0, 1.0]}       # 나라를 고르기 전의 누름은 쓰지 않는다
     assert got["after_love"] == {**got["unpicked"], "poland": [[1.0, 1.0, 0.0], [1.0, 1.0, 0.0]]}
     assert got["wrote_love"] == "관계 최고 — 폴란드 (1106)" and got["wrote_neutral"] == "관계 중립 — 폴란드 (1106)"

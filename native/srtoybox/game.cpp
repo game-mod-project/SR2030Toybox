@@ -757,8 +757,10 @@ GameMore read_more(const uint8_t *base, const GameAddresses &at, const MoreLayou
     if (!read_player(base, at, &object).in_game || (more.tech != 0 && !peek_in(object, more.tech, &v.tech)))
         return v;
     for (int i = 0; i < 3; i++)
-        if ((more.opinion[i] != 0 && !peek_in(object, more.opinion[i], &v.opinion[i]))
-            || (more.people[i] != 0 && !peek_in(object, more.people[i], &v.people[i])))
+        if (more.opinion[i] != 0 && !peek_in(object, more.opinion[i], &v.opinion[i]))
+            return v;
+    for (int i = 0; i < 2; i++)
+        if (more.people[i] != 0 && !peek_in(object, more.people[i], &v.people[i]))
             return v;
     if (more.approval != 0 && !peek_in(object, more.approval, &v.approval))
         return v;
@@ -798,22 +800,22 @@ Wrote write_tech(const uint8_t *base, const GameAddresses &at, const MoreLayout 
 
 Wrote write_people(const uint8_t *base, const GameAddresses &at, const MoreLayout &more, float add, int *done)
 {
-    uint64_t object = 0, cells[3];
-    float values[3];
+    uint64_t object = 0, cells[2];
+    float values[2];
     *done = 0;
-    if (more.people[0] == 0 || more.people[1] == 0 || more.people[2] == 0)
+    if (more.people[0] == 0 || more.people[1] == 0)
         return Wrote::Off;
     const GameState s = read_player(base, at, &object);
     if (!s.in_game || s.multiplayer)
         return Wrote::NotInGame;
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 2; i++) {
         cells[i] = object + more.people[i];
         if (!peek(reinterpret_cast<const void *>(cells[i]), &values[i], sizeof(float)) || !std::isfinite(values[i]) || values[i] < 0.0f
             || !std::isfinite(values[i] + add))
             return Wrote::BadValue;
         values[i] += add;
     }
-    return poke_floats(cells, values, 3, done);
+    return poke_floats(cells, values, 2, done);
 }
 
 Wrote write_approval(const uint8_t *base, const GameAddresses &at, const MoreLayout &more)
@@ -1098,7 +1100,7 @@ void game_init_from(const uint8_t *base, size_t size)
         if (groups & MORE_RELATIONS)
             add("%s관계 +0x%X +0x%X 전쟁 명분 +0x%X", more.relation[0], more.relation[1], more.casus);
         if (groups & MORE_PEOPLE)
-            add("%s인구 +0x%X +0x%X +0x%X", more.people[0], more.people[1], more.people[2]);
+            add("%s인구 +0x%X 풀 +0x%X", more.people[0], more.people[1], 0);
         if (groups & MORE_APPROVAL)
             add("%s지지율 +0x%X", more.approval, 0, 0);
         log_line(write_wanted() ? "값을 더 씁니다 (%s)" : "값을 더 쓰지 않습니다 (SRTOYBOX_WRITE=0. %s)", found);
@@ -1198,7 +1200,7 @@ void game_set_more_for_test(const MoreLayout *layout)
     g_more_groups = (g_more.tech != 0 ? MORE_TECH : 0)
         | (g_more.opinion[0] != 0 && g_more.opinion[1] != 0 && g_more.opinion[2] != 0 ? MORE_OPINION : 0)
         | (g_more.relation[0] != 0 && g_more.relation[1] != 0 && g_more.casus != 0 ? MORE_RELATIONS : 0)
-        | (g_more.people[0] != 0 && g_more.people[1] != 0 && g_more.people[2] != 0 ? MORE_PEOPLE : 0)
+        | (g_more.people[0] != 0 && g_more.people[1] != 0 ? MORE_PEOPLE : 0)
         | (g_more.approval != 0 ? MORE_APPROVAL : 0);
     g_write_failed = false;
 }
@@ -1305,7 +1307,7 @@ Wrote game_write_people(float add)
     if (!more_ready(MORE_PEOPLE, &base, &at, &more))
         return Wrote::Off;
     const Wrote wrote = write_people(base, at, more, add, &done);
-    return wrote == Wrote::Failed ? write_failed("인구", 3, done) : wrote;
+    return wrote == Wrote::Failed ? write_failed("인구", 2, done) : wrote;
 }
 
 Wrote game_write_approval()
