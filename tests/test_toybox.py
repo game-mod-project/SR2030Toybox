@@ -1108,7 +1108,8 @@ def test_the_research_list_completes_and_revokes_what_is_picked(dll, cfg, tmp_pa
 
 def test_become_writes_the_four_player_globals_and_calls_the_game_once(dll, cfg, tmp_path):
     """3단계 4: "이 나라로 플레이"는 내장 치트 없이 플레이어의 전역 넷(인덱스 둘 · 포인터 둘)을 쓰고 게임의 함수를 (새 나라의 객체, 0) 으로 한 번 부른다 —
-    둘째 누름에만. 전역의 지금 값이 서로 맞지 않으면(둘째 사본이 첫째와 다르다) 하나도 쓰지 않는다. 그 뒤로 ToyBox 는 새 나라를 플레이어로 본다."""
+    둘째 누름에만. 인덱스의 둘째 사본이 첫째와 다르면 하나도 쓰지 않는다. 둘째 포인터는 달라도 된다 — 게임이 첫 자정부터 그것을 플레이어 지역의
+    전날 사본으로 돌린다(게임에서 봤다: 그것까지 같아야 한다고 했더니 첫 자정 뒤로는 실행되지 않았다). 그 뒤로 ToyBox 는 새 나라를 플레이어로 본다."""
     got = json.loads(_probe(cfg, tmp_path, "more_become"))
     assert got["asking"] == "이 나라로 플레이: 폴란드 (1106) — 한 번 더 누르면 실행합니다"
     assert got["mismatch"] == "게임의 플레이어 정보가 서로 맞지 않아 하지 않았습니다." and got["became_mismatch"] == [] and got["index_mismatch"] == 176
