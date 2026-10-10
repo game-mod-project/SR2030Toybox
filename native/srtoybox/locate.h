@@ -4,6 +4,7 @@
 // 찾는 길이 둘이다(docs/11-game-internals.md):
 //   새 찾기 locate_state   게임 상태를 읽는 전역 일곱. 내장 치트와 무관한 코드의 서명으로(sigs.h) — 게임이 치트를 없애도 된다.
 //           locate_values  값을 읽고 쓰는 자리(국고 칸, 재고 칸 …). 같은 규칙의 서명으로.
+//           locate_more    더 쓰는 값의 자리(기술 수준, 세계 시장 여론, 관계). 기능마다 한 묶음 — 따로 찾고 따로 실패한다.
 //   옛 찾기 locate_legacy  치트 명령 처리 함수와 그 둘레의 셋. "cheat allowcheats" 문자열을 닻으로. 아직 내장 치트로 도는
 //                          기능이 쓴다 — 모든 기능을 옮긴 뒤(3단계의 마지막 묶음) 직접 실행 · 글쇠 방식과 함께 지운다.
 #pragma once
@@ -69,6 +70,31 @@ bool locate_values(const uint8_t *image, size_t size, ValueLayout *out, SigRow *
 // 두 묶음을 함께 본다(둘 다 찾은 뒤에): 세계 자료 포인터가 상태 전역 일곱 가운데 어느 것과도 겹치지 않아야 한다.
 // 겹치면 false 와 why(UTF-8) — 값 묶음을 못 찾은 것으로 친다(상태 묶음은 그대로 쓴다).
 bool locate_fits(const GameAddresses &state, const ValueLayout &values, char *why, size_t why_size);
+
+// 더 쓰는 값(3단계 2): 모두 지역 객체 안의 자리(float)다. 필드는 서명 표의 순서대로 uint32_t 일곱이다.
+struct MoreLayout {
+    uint32_t tech;             // [지식] 기술 수준
+    uint32_t opinion[3];       // [여론] 세계 시장 여론과 그 둘레의 세 칸
+    uint32_t relation[2];      // [관계] 지역 인덱스로 찾는 표 둘의 첫 칸: 그 지역과의 관계(-1 … 1)
+    uint32_t casus;            // [관계] 같은 꼴의 표: 그 지역에 대한 전쟁 명분(0 … 1)
+};
+
+const int MORE_TECH = 1, MORE_OPINION = 2, MORE_RELATIONS = 4;   // 묶음의 비트
+const int MORE_GROUPS = 3;      // 묶음의 수(지식 · 여론 · 관계 순)
+const int MORE_WANTED = 7;      // 찾을 것의 수: 기술 수준 칸, 여론 칸 셋, 관계 표 둘, 전쟁 명분 표
+const int REGION_SLOTS = 1024;  // 지역 표의 칸 수 = 관계 표 하나의 칸 수
+const size_t MORE_WHY = 160;    // 까닭 한 줄의 크기
+
+// 새 찾기(더 쓰는 값): 서명의 규칙은 locate_state 와 같다. 돌려주는 값은 찾은 묶음의 비트다 — 찾은 묶음의 필드만 채우고
+// 못 찾은 묶음의 필드는 0 으로 둔다. 한 묶음은 그 안의 것을 모두 찾아야 찾은 것이다(반쪽 묶음은 없다).
+// why 는 MORE_GROUPS 줄: 못 찾은 묶음의 까닭(UTF-8). 찾은 묶음은 빈 글.
+// 읽어 낸 자리가 말이 되는지도 본다: 0 보다 크고 0x100000 보다 작은 4 의 배수, 칸(4바이트)과 표(4바이트 × REGION_SLOTS)가
+// 서로 겹치지 않는다 — 겹치면 어느 쪽이 엉뚱한 것을 읽었는지 모르므로 두 묶음 다 버린다.
+// values 를 주면(값 묶음을 찾았을 때) 국고 칸 · 재고 칸들과 겹치는 묶음도 버린다(값 묶음은 그대로 둔다).
+// rows: MORE_WANTED * STATE_SIGS 칸(서명마다의 결과)이거나 nullptr.
+int locate_more(const uint8_t *image, size_t size, const ValueLayout *values, MoreLayout *out, SigRow *rows, char (*why)[MORE_WHY]);
+// 찾을 것(표의 wanted 째. rows 의 칸 번호 / STATE_SIGS)이 든 묶음: 0 지식, 1 여론, 2 관계.
+int locate_more_group(int wanted);
 
 // 옛 찾기(전환 기간에만): 찾으면 nullptr 과 out 의 handler · context · options(다른 필드는 건드리지 않는다).
 // 못 찾으면 까닭(UTF-8, 정적 문자열)이고 out 은 그대로다.

@@ -66,16 +66,24 @@ EXPORT int srtoybox_feature_count(void)
     return FEATURE_COUNT;
 }
 
-// 한 줄: id, 탭, 이름, 명령, 값 있음(0/1), 기본값, 최소, 최대, 확인(0/1), 설명, 대상(none/player/picked) — 탭 문자로 나눈다
+EXPORT int srtoybox_cheat_feature_count(void)
+{
+    return cheat_feature_count();
+}
+
+// 한 줄: id, 탭, 이름, 명령, 값 있음(0/1), 기본값, 최소, 최대, 확인(0/1), 설명, 대상(none/player/picked),
+// 하는 길(cheat = 내장 치트 / tech_up · opinion_best · relation_best · relation_neutral = 직접 쓴다) — 탭 문자로 나눈다
 EXPORT int srtoybox_feature_info(int index, char *out, int size)
 {
     if (index < 0 || index >= FEATURE_COUNT)
         return -1;
     const Feature &f = FEATURES[index];
     static const char *const targets[] = {"none", "player", "picked"};
+    static const char *const how[] = {"cheat", "tech_up", "opinion_best", "relation_best", "relation_neutral"};
     const std::string line = std::string(f.id) + '\t' + f.tab + '\t' + f.label + '\t' + f.command + '\t' + (f.has_value ? "1" : "0")
         + '\t' + std::to_string(f.def) + '\t' + std::to_string(f.min) + '\t' + std::to_string(f.max) + '\t'
-        + (f.confirm ? "1" : "0") + '\t' + f.help + '\t' + targets[static_cast<int>(f.target)];
+        + (f.confirm ? "1" : "0") + '\t' + f.help + '\t' + targets[static_cast<int>(f.target)] + '\t'
+        + how[static_cast<int>(f.direct)];
     return put(line, out, size);
 }
 
@@ -235,6 +243,26 @@ EXPORT int srtoybox_locate_values(const unsigned char *image, unsigned long long
     return 0;
 }
 
+// 새 찾기(더 쓰는 값 — 묶음 셋). 돌려주는 값은 찾은 묶음의 비트(1 지식, 2 여론, 4 관계). values 는 값 묶음(찾았을 때)이거나 nullptr.
+// error 에는 묶음마다 한 줄(지식 · 여론 · 관계 순. 찾은 묶음은 빈 줄). rows 는 srtoybox_locate_state 와 같다.
+EXPORT int srtoybox_locate_more(const unsigned char *image, unsigned long long size, const ValueLayout *values, MoreLayout *out,
+                                char *error, int error_size, char *rows, int rows_size)
+{
+    MoreLayout found = {};
+    SigRow table[MORE_WANTED * STATE_SIGS];
+    char why[MORE_GROUPS][MORE_WHY] = {};
+    const int groups = locate_more(image, static_cast<size_t>(size), values, &found, table, why);
+    if (rows != nullptr)
+        put(rows_text(table, MORE_WANTED * STATE_SIGS), rows, rows_size);
+    std::string all;
+    for (int g = 0; g < MORE_GROUPS; g++)
+        all += std::string(why[g]) + '\n';
+    put(all, error, error_size);
+    if (out != nullptr)
+        *out = found;
+    return groups;
+}
+
 // 두 묶음의 대조(locate_fits). 0 이면 맞는다. -1 이면 error 에 까닭.
 EXPORT int srtoybox_locate_fits(const GameAddresses *state, const ValueLayout *values, char *error, int error_size)
 {
@@ -311,16 +339,79 @@ EXPORT void srtoybox_test_values(const ValueLayout *layout)
     game_set_values_for_test(layout);
 }
 
+// 테스트: 가짜 메모리에서 더 쓰는 값을 읽는다. "ok=1 tech=130 opinion=0.5,0.25,0.75"
+EXPORT int srtoybox_more_read(const unsigned char *base, const GameAddresses *at, const MoreLayout *more, char *out, int size)
+{
+    if (at == nullptr || more == nullptr)
+        return -1;
+    const GameMore v = read_more(base, *at, *more);
+    char line[160];
+    snprintf(line, sizeof(line), "ok=%d tech=%.9g opinion=%.9g,%.9g,%.9g", v.ok ? 1 : 0, static_cast<double>(v.tech),
+             static_cast<double>(v.opinion[0]), static_cast<double>(v.opinion[1]), static_cast<double>(v.opinion[2]));
+    return put(line, out, size);
+}
+
+// 테스트: 가짜 메모리에서 그 번호의 나라와의 관계를 읽는다. "ok=1 mine=0.5,0.25,0 theirs=-1,0,1"(관계 표 둘, 전쟁 명분)
+EXPORT int srtoybox_relation_read(const unsigned char *base, const GameAddresses *at, const MoreLayout *more, int number, char *out,
+                                  int size)
+{
+    if (at == nullptr || more == nullptr)
+        return -1;
+    const Relation r = read_relation(base, *at, *more, number);
+    char line[200];
+    snprintf(line, sizeof(line), "ok=%d mine=%.9g,%.9g,%.9g theirs=%.9g,%.9g,%.9g", r.ok ? 1 : 0, static_cast<double>(r.mine[0]),
+             static_cast<double>(r.mine[1]), static_cast<double>(r.mine[2]), static_cast<double>(r.theirs[0]),
+             static_cast<double>(r.theirs[1]), static_cast<double>(r.theirs[2]));
+    return put(line, out, size);
+}
+
+// 테스트: 가짜 메모리에 더 쓰는 값을 쓴다. what: 0 기술 수준(value 로), 1 세계 시장 여론(최고), 2 관계(number 의 나라와 value 로).
+// 돌려주는 값은 Wrote(…, 5 꺼져 있다 · 자리를 모른다, 6 그 나라가 없다). done 에 쓴 칸의 수.
+EXPORT int srtoybox_more_write(const unsigned char *base, const GameAddresses *at, const MoreLayout *more, int what, int number,
+                               double value, int *done)
+{
+    int cells = 0;
+    Wrote wrote = Wrote::BadValue;
+    if (at == nullptr || more == nullptr || what < 0 || what > 2)
+        return -1;
+    if (what == 0) {
+        wrote = write_tech(base, *at, *more, static_cast<float>(value));
+        cells = wrote == Wrote::Done ? 1 : 0;
+    } else if (what == 1) {
+        wrote = write_opinion(base, *at, *more, &cells);
+    } else {
+        wrote = write_relation(base, *at, *more, number, static_cast<float>(value), &cells);
+    }
+    if (done != nullptr)
+        *done = cells;
+    return static_cast<int>(wrote);
+}
+
+// 테스트: 이 프로세스의 "게임"에 더 쓰는 값의 자리를 준다(srtoybox_test_game 다음에 부른다). 자리가 0 인 묶음 · nullptr 은 못 찾은 것으로.
+EXPORT void srtoybox_test_more(const MoreLayout *layout)
+{
+    game_set_more_for_test(layout);
+}
+
+// 더 쓰는 값의 묶음(1 지식, 2 여론, 4 관계)을 쓸 수 없는 까닭. 쓸 수 있으면 빈 글.
+EXPORT int srtoybox_more_off(int group, char *out, int size)
+{
+    return put(game_more_off(group), out, size);
+}
+
 // 테스트: 게임이 뜰 때의 찾기(game_init_from)를 그 이미지에 돌린다. 이미지는 srtoybox_test_game(nullptr, …) 로 비울 때까지 살아 있어야 한다.
 EXPORT void srtoybox_test_init(const unsigned char *image, unsigned long long size)
 {
     game_init_from(image, static_cast<size_t>(size));
 }
 
-// 테스트: 이 프로세스의 "게임"에 대해 아는 것. 비트 1 = 상태를 읽는다, 2 = 명령 처리 함수를 부를 수 있다, 4 = 값을 쓸 수 있다.
+// 테스트: 이 프로세스의 "게임"에 대해 아는 것. 비트 1 = 상태를 읽는다, 2 = 명령 처리 함수를 부를 수 있다, 4 = 값(국고 · 재고)을 쓸 수 있다,
+// 8 = 기술 수준을, 16 = 세계 시장 여론을, 32 = 관계를 쓸 수 있다.
 EXPORT int srtoybox_game_flags(void)
 {
-    return (game_reads() ? 1 : 0) | (game_can_call() ? 2 : 0) | (game_values_off().empty() ? 4 : 0);
+    return (game_reads() ? 1 : 0) | (game_can_call() ? 2 : 0) | (game_values_off().empty() ? 4 : 0)
+        | (game_more_off(MORE_TECH).empty() ? 8 : 0) | (game_more_off(MORE_OPINION).empty() ? 16 : 0)
+        | (game_more_off(MORE_RELATIONS).empty() ? 32 : 0);
 }
 
 EXPORT int srtoybox_values_off(char *out, int size)
@@ -334,6 +425,15 @@ EXPORT int srtoybox_keeper_request(int slot, int change, double amount)
     if (change < 0 || change > 2)
         return -1;
     return keeper_enqueue({slot, static_cast<Change>(change), amount}) ? 1 : 0;
+}
+
+// 테스트: 더 쓰는 값의 요청. slot: -3 기술 수준 +1, -4 세계 시장 여론 최고, -5 region 의 나라와의 관계를 amount(1 최고, 0 중립)로.
+// 받았으면 1. 그런 요청이 없으면 -1.
+EXPORT int srtoybox_keeper_more(int slot, int region, double amount)
+{
+    if (slot != TECH && slot != OPINION && slot != RELATION)
+        return -1;
+    return keeper_enqueue({slot, Change::Set, amount, region}) ? 1 : 0;
 }
 
 EXPORT void srtoybox_keeper_tick(void)

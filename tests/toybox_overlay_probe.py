@@ -60,17 +60,29 @@ ToyBox 가 부른 함수 안에서 난 예외를 위에서 잡을 때 (출력 "c
     keep_type        석유의 유지를 켠 채 수량을 새로 친다 — 입력을 마쳐야(Enter, 다른 곳을 누름) 쓰인다. 치던 채로 창을 닫으면 버려진다
     keep_reenter     국고의 유지를 켠 채, 옮기지 않은 기능의 직접 실행이 게임의 함수 안에 있는 동안 타이머가 다시 온다 — 그 안에서는 올리지 않는다
     keep_write_off   유지를 켜 둔 설정인데 값 쓰기가 꺼져 있다(SRTOYBOX_WRITE=0) — 메뉴에서도 게임 안에서도 상태 줄이 "쓸 수 없어 쉰다"고 한다
+직접 쓰는 줄 넷 — 내장 치트를 거치지 않고 기술 수준 · 세계 시장 여론 · 관계를 고친다 (출력은 JSON 한 줄):
+    more             게임 안에서 "지식 순위 올리기" 두 번, "세계 시장 여론 최고", (나라를 고르기 전과 뒤에) "관계 최고", "관계 중립"
+    more_alone       같은 일을, 국고 · 재고의 자리를 찾지 못한 게임에서 — 묶음은 서로 기대지 않는다
+    more_menu        메뉴에 있다 — 단추가 꺼져 있다
+    more_leave       단추를 누른 뒤 쓰기 전에 게임에서 나간다 — 쓰지 않고 버린다. 돌아오면 다시 된다
+    more_notfound    기술 수준의 자리만 찾지 못한 게임 — 그 줄에만 까닭이 보이고 나머지 줄은 그대로다
+    more_write_off   SRTOYBOX_WRITE=0 — 네 줄 모두 까닭만 보인다. 내장 치트로 도는 줄은 그대로다
+    more_unread      SRTOYBOX_READ=0 — 〃
+    more_repick      폴란드를 골라 "관계 최고"를 누르고, 쓰이기 전에 덴마크로 바꿔 고른다 — 누른 때의 나라(폴란드)에 쓴다
+    more_fail        고른 나라의 객체가 읽기 전용 쪽에 있다 — 쓰기가 실패하고, 값 쓰기 전체가 꺼진다
+    more_reenter     옮기지 않은 기능의 직접 실행이 게임의 함수 안에 있는 동안 타이머가 다시 온다 — 그 안에서는 쓰지 않는다
+    more_fault       옮기지 않은 기능의 직접 실행이 죽는다(오류 가드) — 함께 대기열에 있던 요청을 쓰지 않는다
 물자 탭이 창 안에 들어오는가 (출력은 JSON 한 줄):
     layout_full      처음 여는 창에서, 물자 열하나를 쓰는 판 — 바닥에 "마지막으로 쓴 값" 줄이 생긴 뒤에도 모든 줄이 보인다
     layout_saved     이미 써 본 사용자의 창(저장된 크기 500x460) — 최소 유지의 긴 안내 글이 창 밖으로 나가지 않는다
 설정 창에 보이는 글 (출력은 JSON 한 줄. 보이지 않는 글은 "-"):
     confirm          "외교·영토" 탭에서 폴란드를 고르고 스크롤을 내려 맨 아래의 "이 나라로 플레이"를 두 번 누른다
-    confirm_fault    같은 탭에서 직접 실행이 죽는다 — 경고가 스크롤을 내려도 보인다
+    confirm_fault    같은 탭에서 직접 실행("동맹 맺기")이 죽는다 — 경고가 스크롤을 내려도 보인다
     hints            메뉴에 있을 때와 게임 안에 있을 때의 바닥 안내
     leave            직접 실행: 단추를 누른 뒤 실행되기 전에 게임에서 나간다 — 부르지 않고, 돌아오면 다시 된다
     multiplayer      직접 실행: 단추를 누른 뒤 실행되기 전에 멀티플레이 표시가 선다
-    pick_gone        폴란드를 고른 뒤 폴란드가 이번 판에서 없어진다 — 고른 것이 풀린다
-    pick_become      폴란드를 고른 뒤 플레이하는 나라가 폴란드가 된다 — 고른 것이 풀린다
+    pick_gone        폴란드를 골라 "관계 최고"를 누른 뒤 폴란드가 이번 판에서 없어진다 — 고른 것이 풀리고 단추가 꺼진다
+    pick_become      폴란드를 골라 "관계 최고"를 누른 뒤 플레이하는 나라가 폴란드가 된다 — 〃
     pick_again       폴란드에 대해 "한 번 더"를 기다리는 중에 덴마크를 고른다 — 처음부터 다시 묻는다
     ansi_search      게임 창이 ANSI 창일 때 검색란에 한글 한 글자(두 바이트)를 넣는다
 
@@ -87,7 +99,7 @@ from ctypes import wintypes
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
-from toybox_fake_game import MULTIPLAYER, OPTIONS, FakeGame  # noqa: E402  (이 파일과 같은 폴더)
+from toybox_fake_game import MORE, MULTIPLAYER, OPTIONS, FakeGame  # noqa: E402  (이 파일과 같은 폴더)
 
 SLOT_PRESENT, SLOT_RESIZE, SLOT_PRESENT1 = 8, 13, 22
 LIMIT = 50      # 가짜 훅이 이만큼 불리면 맴도는 것이다. 여기서 끊어 프로세스가 죽지 않게 한다
@@ -531,23 +543,34 @@ def start_game(hook: str, buffer: tuple[int, int] | None = None, ansi: bool = Fa
     return game
 
 
-def fake_game(hook: str, handler: int | None = None, values: bool = True) -> FakeGame:
+def fake_game(hook: str, handler: int | None = None, values: bool = True, more: dict | None = MORE) -> FakeGame:
     """ToyBox 가 보는 "게임"을 가짜 메모리로 바꾼다. 폴란드(141, 1106. 국고 $5 B)와 독일(176, 1499. 국고 $14.43 B)이 있고 메뉴 상태다.
+    기술 수준은 독일 130 · 폴란드 128, 독일의 여론 세 칸은 0.5 · 0.25 · 0.75, 독일 → 폴란드의 관계는 0.25 · -0.5(전쟁 명분 0.75),
+    폴란드 → 독일은 0.125 · 0.5(전쟁 명분 1).
 
     handler 는 명령 처리 함수 자리에 둘 함수의 주소(없으면 직접 실행을 쓰는 테스트가 아니다).
     values 가 False 면 값의 자리를 찾지 못한 게임이다(돈 탭이 꺼진다).
+    more 는 더 쓰는 값의 자리다 — 자리를 0 으로 둔 묶음은 못 찾은 것이 된다. None 이면 모두 못 찾은 게임이다.
     """
     toybox = ctypes.WinDLL(str(Path(hook).with_name("srtoybox.dll")))
     toybox.srtoybox_test_game.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
     toybox.srtoybox_test_values.argtypes = [ctypes.c_void_p]
+    toybox.srtoybox_test_more.argtypes = [ctypes.c_void_p]
     fake = FakeGame()
     fake.region(141, 1106, alive=3)
     fake.region(176, 1499)
     fake.set_treasury(141, 5e9)
     fake.set_treasury(176, 14.43e9)
+    fake.set_tech(141, 128.0)
+    fake.set_tech(176, 130.0)
+    fake.set_opinion(176, (0.5, 0.25, 0.75))
+    fake.set_relation(176, 141, (0.25, -0.5, 0.75))
+    fake.set_relation(141, 176, (0.125, 0.5, 1.0))
     toybox.srtoybox_test_game(fake.base, ctypes.byref(fake.at), handler)
     if values:
         toybox.srtoybox_test_values(ctypes.byref(fake.layout))
+    if more is not None:
+        toybox.srtoybox_test_more(ctypes.byref(type(fake.more)(**more)))
     return fake
 
 
@@ -701,15 +724,17 @@ def run_window(hook: str, mode: str) -> int:
         game.click(LAST_BUTTON)
         game.wait(0.4)
     elif mode == "confirm_fault":
-        game.click("run:love")
+        game.click("run:treaty")                              # 아직 내장 치트로 도는 줄 — 명령 처리 함수가 죽는다
         game.wait(0.4)
         out["at_top"] = game.shown("fault")
         out["scrolled"] = scroll_to(game, LAST_BUTTON)
         out["scrolled_down"] = game.shown("fault")
     elif mode in ("pick_gone", "pick_become"):
-        game.click("run:love")
+        game.click("run:love")                                # 직접 쓰는 줄: 폴란드와의 관계를 쓴다
         game.wait(0.3)
-        out["first"] = list(lines)
+        out["first"] = [fake.relation(176, 141), fake.relation(141, 176)]
+        fake.set_relation(176, 141, (0.25, -0.5, 0.75))       # 되돌려 둔다 — 뒤의 누름이 다시 쓰면 알아본다
+        fake.set_relation(141, 176, (0.125, 0.5, 1.0))
         if mode == "pick_gone":
             struct.pack_into("<I", fake.objects[141], 0, 5)   # 폴란드가 이번 판에 없는 지역이 됐다(다른 판을 불러온 것처럼)
             game.wait(1.5)                                    # 나라 목록은 1초마다 읽는다
@@ -719,6 +744,7 @@ def run_window(hook: str, mode: str) -> int:
         out["status"], out["picked"], out["row"] = game.shown("status"), game.shown("picked"), game.shown("row:1106")
         game.click("run:love")                                # 고른 나라가 없다 — 단추가 꺼져 있다
         game.wait(0.3)
+        out["later"], out["unwritten"] = [fake.relation(176, 141), fake.relation(141, 176)], game.shown("unwritten")
     elif mode == "pick_again":
         scroll_to(game, LAST_BUTTON)
         game.click(LAST_BUTTON)                               # 폴란드에 대해 묻는 중이다
@@ -1079,6 +1105,120 @@ def run_stock(hook: str, mode: str) -> int:
     return 0
 
 
+RESEARCH, PEOPLE = "tab:연구", "tab:인구·여론"
+
+
+def run_more(hook: str, mode: str) -> int:
+    """직접 쓰는 줄 넷: 내장 치트를 거치지 않고 기술 수준 · 세계 시장 여론 · 관계를 고친다. 출력은 JSON 한 줄(보이지 않는 글은 "-").
+
+    fake_game 의 게임에 덴마크(150, 1201)를 더했다. 독일 ↔ 덴마크의 관계는 모두 0.5 다.
+    """
+    game = start_game(hook)
+    if game is None:
+        return 0
+    lines: list[str] = []
+    inside: list[float] = []
+    box: dict[str, FakeGame] = {}
+
+    def body(_context, line):
+        lines.append(line.decode())
+        if line == b"cheat allowcheats":
+            box["fake"].poke(OPTIONS, "<I", box["fake"].peek(OPTIONS, "<I") | 0x40)
+        elif mode == "more_reenter":                          # 게임의 함수가 일하는 도중에 ToyBox 의 타이머가 다시 온다
+            inside.append(box["fake"].tech(176))
+            user32.SendMessageW(game.hwnd, WM_TIMER, TIMER_ID, 0)
+            inside.append(box["fake"].tech(176))
+
+    game.handler = HANDLER(body)                              # 게임이 살아 있는 동안 붙들어 둔다
+    handler = crash_stub() if mode == "more_fault" else ctypes.cast(game.handler, ctypes.c_void_p).value
+    fake = box["fake"] = fake_game(hook, handler, values=mode != "more_alone",
+                                   more={**MORE, "tech": 0} if mode == "more_notfound" else MORE)
+    fake.region(150, 1201, alive=3)
+    fake.set_relation(176, 150, (0.5, 0.5, 0.5))
+    fake.set_relation(150, 176, (0.5, 0.5, 0.5))
+    if mode == "more_fail":
+        fake.lock(141)                                        # 폴란드의 객체가 읽기 전용 쪽에 있다(읽을 수는 있다)
+    if mode != "more_menu":
+        fake.play(176)
+    game.hotkey()
+    game.got.clear()
+    out: dict[str, object] = {}
+
+    def seen(tab: str) -> dict[str, str]:
+        """그 탭에 그려진 줄들을 그린 순서대로: "run:<id>" 는 단추(글은 이름), "off:<id>" 는 단추 대신 나온 까닭 한 줄."""
+        game.click(tab)
+        facts = game.facts()
+        return {name: facts[name][3] for name in facts if name.startswith(("run:", "off:"))}
+
+    def state() -> dict[str, object]:
+        return {"tech": fake.tech(176), "opinion": fake.opinion(176), "poland": [fake.relation(176, 141), fake.relation(141, 176)],
+                "denmark": [fake.relation(176, 150), fake.relation(150, 176)]}
+
+    def press(name: str) -> None:
+        game.click(name)
+        game.wait(0.2)                                        # 쓰는 것은 다음 타이머에서다
+
+    if mode in ("more", "more_alone", "more_notfound", "more_write_off", "more_unread", "more_menu"):
+        out["research"] = seen(RESEARCH)
+        if "run:finalexam" in out["research"]:
+            press("run:finalexam")
+            press("run:finalexam")
+        out["wrote_tech"] = game.shown("wrote")
+        out["people"] = seen(PEOPLE)
+        if "run:shelovesme" in out["people"]:
+            press("run:shelovesme")
+        out["wrote_opinion"] = game.shown("wrote")
+        out["diplomacy"] = seen(DIPLOMACY)
+        if "run:love" in out["diplomacy"]:
+            press("run:love")                                 # 아직 나라를 고르지 않았다 — 단추가 꺼져 있다
+            out["unpicked"] = state()
+            game.wait(1.2)                                    # 나라 목록은 1초마다 읽는다
+            if mode != "more_menu":
+                game.click("row:1106")
+            press("run:love")
+            out["after_love"], out["wrote_love"] = state(), game.shown("wrote")
+            press("run:neutral")
+            out["wrote_neutral"] = game.shown("wrote")
+        out["hint"], out["status"] = game.shown("hint"), game.shown("status")
+    elif mode == "more_leave":
+        game.click(RESEARCH)
+        game.click("run:finalexam")                           # 눌렀다. 쓰는 것은 다음 타이머에서다(메시지를 돌릴 때 온다)
+        fake.menu()                                           # 그 전에 게임에서 나갔다
+        game.wait(0.3)
+        out["dropped"], out["unwritten"] = fake.tech(176), game.shown("unwritten")
+        fake.play(176)
+        press("run:finalexam")                                # 돌아오면 다시 된다
+        out["unwritten_after"] = game.shown("unwritten")
+    elif mode == "more_repick":
+        game.click(DIPLOMACY)
+        game.wait(1.2)                                        # 나라 목록은 1초마다 읽는다
+        game.click("row:1106")
+        game.click("run:love")                                # 눌렀다. 쓰는 것은 다음 타이머에서다(메시지를 돌릴 때 온다)
+        game.click("row:1201")                                # 그 전에 덴마크로 바꿔 골랐다
+        game.wait(0.3)
+        out["picked"], out["wrote"] = game.shown("picked"), game.shown("wrote")
+    elif mode == "more_fail":
+        game.click(DIPLOMACY)
+        game.wait(1.2)
+        game.click("row:1106")
+        press("run:love")
+        out["diplomacy"] = seen(DIPLOMACY)
+        out["research"] = seen(RESEARCH)
+        game.click(MONEY)
+        out["money_off"] = game.shown("money:off")
+    elif mode in ("more_reenter", "more_fault"):
+        game.click(CHEAT_TAB)
+        game.click(BUTTON)                                    # 옮기지 않은 기능 하나(직접 실행)가 대기열에 든다
+        game.click(RESEARCH)
+        game.click("run:finalexam")                           # 기술 수준의 요청도 대기열에 든다
+        game.wait(0.5)
+        out["inside"], out["fault"] = inside, game.shown("fault")
+    out["state"], out["lines"], out["text"], out["options"] = state(), lines, game.text(), fake.peek(OPTIONS, "<I")
+    out["treasury"] = fake.treasury(176)
+    print(json.dumps(out, ensure_ascii=False))
+    return 0
+
+
 def run_layout(hook: str, mode: str) -> int:
     """물자 탭이 창 안에 들어오는가. 독일은 물자 열하나를 모두 쓴다. 출력은 JSON 한 줄(보이지 않는 글은 "-").
 
@@ -1215,6 +1355,8 @@ def main() -> int:
         return run_reenter(hook, mode)
     if mode.startswith("money"):
         return run_money(hook, mode)
+    if mode.startswith("more"):
+        return run_more(hook, mode)
     if mode.startswith("stock"):
         return run_stock(hook, mode)
     if mode.startswith("keep"):

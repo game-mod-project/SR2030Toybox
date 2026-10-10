@@ -248,3 +248,33 @@ def test_the_foreground_is_locked_before_the_game_is_started(gd, cfg, monkeypatc
     gd.start_in_background(cfg, cfg.game_dir / gd.EXE, ["-window"])
     assert desk.calls == [("lock", 1), "launch", "watch", ("lock", 2)]
     assert "앞 창 잠금" in capsys.readouterr().out
+
+
+def test_peek_reads_tech_opinion_and_the_relation_with_one_region(gd):
+    """peek 은 더 쓰는 값도 읽는다: 그 지역의 기술 수준 · 여론, 그리고 플레이어가 아닌 지역이면 둘 사이의 관계 여섯 칸.
+    못 찾은 묶음(자리 0)의 값은 결과에 없다. 읽기만 한다."""
+    import ctypes
+    import struct
+
+    from toybox_fake_game import MORE, FakeGame
+
+    fake = FakeGame()
+    fake.region(141, 1106, alive=3)
+    fake.region(176, 1499)
+    fake.set_tech(176, 130.0)
+    fake.set_tech(141, 128.0)
+    fake.set_opinion(176, (0.5, 0.25, 0.75))
+    fake.set_relation(176, 141, (0.25, -0.5, 0.75))           # 독일 객체의 표에서 폴란드의 칸
+    fake.set_relation(141, 176, (0.125, 0.5, 1.0))            # 폴란드 객체의 표에서 독일의 칸
+    before = fake.snapshot(176) + fake.snapshot(141)
+
+    def read(address: int, fmt: str):
+        return struct.unpack(fmt, ctypes.string_at(address, struct.calcsize(fmt)))[0]
+
+    germany, poland = fake.where[176], fake.where[141]
+    assert gd.peek_more(read, MORE, germany, 176, germany) == {"tech": 130.0, "opinion": [0.5, 0.25, 0.75]}
+    assert gd.peek_more(read, MORE, germany, 176, poland) == {
+        "tech": 128.0, "opinion": [0.0, 0.0, 0.0], "relations": {"mine": [0.25, -0.5, 0.75], "theirs": [0.125, 0.5, 1.0]}}
+    assert gd.peek_more(read, {**MORE, "tech": 0, "relation0": 0}, germany, 176, poland) == {"opinion": [0.0, 0.0, 0.0]}
+    assert gd.peek_more(read, dict.fromkeys(MORE, 0), germany, 176, poland) == {}
+    assert fake.snapshot(176) + fake.snapshot(141) == before

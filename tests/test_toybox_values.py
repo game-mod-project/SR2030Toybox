@@ -5,15 +5,20 @@ import struct
 import pytest
 
 import toybox_fake_exe
-from toybox_fake_game import LAYOUT, MULTIPLAYER, OPTIONS, POINTER, TABLE, WORLD_POINTER, FakeGame
+from toybox_fake_game import LAYOUT, MORE, MULTIPLAYER, OBJECT_SIZE, OPTIONS, POINTER, RELATION_TABLES, TABLE, WORLD_POINTER, FakeGame
 from srkit import toybox
 
 ADD, SET, FLOOR = 0, 1, 2                 # native/srtoybox/values.h 의 Change
 WRITE, NOTHING, REFUSE = 0, 1, 2          # 〃 Verdict
 NAN, INF = float("nan"), float("inf")
-DONE, NOT_IN_GAME, NOT_USED, BAD_VALUE, FAILED, OFF = range(6)      # native/srtoybox/game.h 의 Wrote
+DONE, NOT_IN_GAME, NOT_USED, BAD_VALUE, FAILED, OFF, NO_TARGET = range(7)   # native/srtoybox/game.h 의 Wrote
 TREASURY, ALL_STOCK = -1, -2                                        # 쓰기의 대상: 국고 / 쓰는 물자 모두. 0 … 11 은 그 칸의 재고
 READS, CALLS, WRITES = 1, 2, 4                                      # srtoybox_game_flags 의 비트
+CAN_TECH, CAN_OPINION, CAN_RELATIONS = 8, 16, 32                    # 〃 더 쓰는 값의 묶음마다
+TECH_TO, OPINION_BEST, RELATION_TO = 0, 1, 2                        # srtoybox_more_write 의 what
+MORE_TECH, MORE_OPINION, MORE_RELATIONS = 1, 2, 4                   # native/srtoybox/locate.h 의 묶음의 비트
+TECH, OPINION, RELATION = -3, -4, -5                                # native/srtoybox/keeper.h 의 Request.slot(더 쓰는 값의 요청)
+BEST, NEUTRAL = 1.0, 0.0                                            # 관계의 수준
 UNREAD = "게임 상태를 읽을 수 있을 때만 씁니다."
 FAILED_OFF = "값 쓰기가 실패해 껐습니다. 게임을 다시 시작하면 다시 시도합니다."
 LEFT_GAME = "게임이 진행 중이 아니어서 쓰지 않았습니다."
@@ -35,9 +40,18 @@ def lib(cfg):
                                           ctypes.c_double]
     lib.srtoybox_test_game.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
     lib.srtoybox_test_values.argtypes = [ctypes.c_void_p]
+    lib.srtoybox_more_read.argtypes = [ctypes.c_void_p, pointer(toybox.GameAddresses), pointer(toybox.MoreLayout), ctypes.c_char_p,
+                                       ctypes.c_int]
+    lib.srtoybox_relation_read.argtypes = [ctypes.c_void_p, pointer(toybox.GameAddresses), pointer(toybox.MoreLayout), ctypes.c_int,
+                                           ctypes.c_char_p, ctypes.c_int]
+    lib.srtoybox_more_write.argtypes = [ctypes.c_void_p, pointer(toybox.GameAddresses), pointer(toybox.MoreLayout), ctypes.c_int,
+                                        ctypes.c_int, ctypes.c_double, pointer(ctypes.c_int)]
+    lib.srtoybox_test_more.argtypes = [ctypes.c_void_p]
+    lib.srtoybox_more_off.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
     lib.srtoybox_test_init.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong]
     lib.srtoybox_values_off.argtypes = [ctypes.c_char_p, ctypes.c_int]
     lib.srtoybox_keeper_request.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_double]
+    lib.srtoybox_keeper_more.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_double]
     lib.srtoybox_keeper_text.argtypes = [ctypes.c_char_p, ctypes.c_int]
     lib.srtoybox_keeper_tick_at.argtypes = [ctypes.c_ulonglong]
     lib.srtoybox_keeper_keep.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_double]
@@ -123,13 +137,21 @@ def test_short_amounts_look_like_the_resource_bar(lib):
 
 
 def germany() -> FakeGame:
-    """독일(인덱스 176, 번호 1499)로 진행 중인 게임. 국고 $14.43 B. 물자 0 · 3 · 7 을 쓰고 재고가 1000 · 2500 · 0. 폴란드(141)의 국고는 $5 B."""
+    """독일(인덱스 176, 번호 1499)로 진행 중인 게임. 국고 $14.43 B. 물자 0 · 3 · 7 을 쓰고 재고가 1000 · 2500 · 0. 폴란드(141)의 국고는 $5 B.
+
+    기술 수준은 독일 130 · 폴란드 128, 독일의 여론 세 칸은 0.5 · 0.25 · 0.75, 독일 → 폴란드의 관계는 0.25 · -0.5(전쟁 명분 0.75),
+    폴란드 → 독일은 0.125 · 0.5(전쟁 명분 1)."""
     fake = FakeGame()
     fake.region(141, 1106, alive=3)
     fake.region(176, 1499)
     fake.play(176)
     fake.set_treasury(176, 14.43e9)
     fake.set_treasury(141, 5e9)
+    fake.set_tech(176, 130.0)
+    fake.set_tech(141, 128.0)
+    fake.set_opinion(176, (0.5, 0.25, 0.75))
+    fake.set_relation(176, 141, (0.25, -0.5, 0.75))
+    fake.set_relation(141, 176, (0.125, 0.5, 1.0))
     for slot, amount in ((0, 1000.0), (3, 2500.0), (7, 0.0)):
         fake.use(slot)
         fake.set_stock(176, slot, amount)
@@ -178,12 +200,13 @@ def test_a_write_changes_only_that_slot(lib):
     assert fake.treasury(176) == 24.43e9
     after = everything(fake)
     changed = [i for i in range(len(before)) if before[i] != after[i]]
-    assert changed and set(changed) <= set(range(len(before) - 0x200 + LAYOUT["treasury"], len(before) - 0x200 + LAYOUT["treasury"] + 8))
+    assert changed and set(changed) <= set(range(len(before) - OBJECT_SIZE + LAYOUT["treasury"],
+                                                 len(before) - OBJECT_SIZE + LAYOUT["treasury"] + 8))
     assert fake.treasury(141) == 5e9 and fake.peek(OPTIONS, "<I") == 0
     assert write(lib, fake, 3, 9999.0) == DONE
     assert fake.stock(176, 3) == 9999.0
     last = everything(fake)
-    slot = len(before) - 0x200 + LAYOUT["stock_first"] + LAYOUT["stock_step"] * 3
+    slot = len(before) - OBJECT_SIZE + LAYOUT["stock_first"] + LAYOUT["stock_step"] * 3
     assert set(i for i in range(len(after)) if after[i] != last[i]) <= set(range(slot, slot + 4))
     assert write(lib, fake, TREASURY, -1e12) == DONE and fake.treasury(176) == -1e12      # 국고는 음수가 된다
 
@@ -237,6 +260,183 @@ def test_a_slot_on_a_page_that_is_not_read_write_is_not_written(lib, protection)
     assert fake.snapshot(176) == before
 
 
+def more(lib, fake: FakeGame, layout: toybox.MoreLayout | None = None) -> dict[str, str]:
+    out = ctypes.create_string_buffer(1024)
+    assert lib.srtoybox_more_read(fake.base, ctypes.byref(fake.at), ctypes.byref(layout or fake.more), out, len(out)) >= 0
+    return dict(pair.split("=", 1) for pair in out.value.decode().split())
+
+
+def relation(lib, fake: FakeGame, number: int) -> dict[str, str]:
+    out = ctypes.create_string_buffer(1024)
+    assert lib.srtoybox_relation_read(fake.base, ctypes.byref(fake.at), ctypes.byref(fake.more), number, out, len(out)) >= 0
+    return dict(pair.split("=", 1) for pair in out.value.decode().split())
+
+
+def write_more(lib, fake: FakeGame, what: int, number: int = 0, value: float = 0.0,
+               layout: toybox.MoreLayout | None = None) -> tuple[int, int]:
+    """(Wrote, 쓴 칸의 수)."""
+    done = ctypes.c_int(-1)
+    wrote = lib.srtoybox_more_write(fake.base, ctypes.byref(fake.at), ctypes.byref(layout or fake.more), what, number, value,
+                                    ctypes.byref(done))
+    return wrote, done.value
+
+
+def where(fake: FakeGame, index: int, offset: int, size: int = 4) -> set[int]:
+    """everything(fake) 안에서 그 지역 객체의 그 자리가 차지하는 바이트들."""
+    start = len(fake.mem) + len(fake.world) + OBJECT_SIZE * sorted(fake.objects).index(index) + offset
+    return set(range(start, start + size))
+
+
+def changed(before: bytes, after: bytes) -> set[int]:
+    return {i for i in range(len(before)) if before[i] != after[i]}
+
+
+def with_denmark() -> FakeGame:
+    """germany() 에 덴마크(인덱스 150, 번호 1201)를 더한 것. 독일 ↔ 덴마크, 폴란드 ↔ 덴마크의 관계도 0 이 아니다."""
+    fake = germany()
+    fake.region(150, 1201, alive=3)
+    for a, b in ((176, 150), (150, 176), (141, 150), (150, 141)):
+        fake.set_relation(a, b, (0.5, 0.5, 0.5))
+    return fake
+
+
+def test_more_is_read_from_the_players_region(lib):
+    fake = germany()
+    assert more(lib, fake) == {"ok": "1", "tech": "130", "opinion": "0.5,0.25,0.75"}
+    assert relation(lib, fake, 1106) == {"ok": "1", "mine": "0.25,-0.5,0.75", "theirs": "0.125,0.5,1"}
+    assert relation(lib, fake, 1499)["ok"] == "0" and relation(lib, fake, 9999)["ok"] == "0"      # 자기 자신, 없는 번호
+    fake.menu()
+    assert more(lib, fake)["ok"] == "0" and relation(lib, fake, 1106)["ok"] == "0"
+
+
+def test_a_tech_write_changes_only_that_cell(lib):
+    """쓰는 곳은 플레이어 지역 객체의 그 칸뿐이다. 둘레의 바이트 · 다른 지역 · 전역 · 치트 허용 비트는 그대로다."""
+    fake = germany()
+    before = everything(fake)
+    assert write_more(lib, fake, TECH_TO, value=131.0) == (DONE, 1)
+    assert fake.tech(176) == 131.0 and fake.tech(141) == 128.0
+    assert changed(before, everything(fake)) <= where(fake, 176, MORE["tech"])
+    assert fake.peek(OPTIONS, "<I") == 0
+
+
+def test_an_opinion_write_changes_only_the_three_cells(lib):
+    fake = germany()
+    before = everything(fake)
+    assert write_more(lib, fake, OPINION_BEST) == (DONE, 3)
+    assert fake.opinion(176) == [1.0, 1.0, 1.0] and fake.opinion(141) == [0.0, 0.0, 0.0]
+    cells = set().union(*(where(fake, 176, MORE[name]) for name in ("opinion0", "opinion1", "opinion2")))
+    assert changed(before, everything(fake)) <= cells
+
+
+def test_a_relation_write_changes_only_the_six_cells(lib):
+    """관계는 치트처럼 양쪽에 쓴다: 플레이어 객체의 표 셋에서 그 나라의 칸, 그 나라 객체의 표 셋에서 플레이어의 칸.
+    같은 표의 이웃 칸, 다른 나라와의 관계, 다른 나라의 객체는 그대로다."""
+    fake = with_denmark()
+    before = everything(fake)
+    assert write_more(lib, fake, RELATION_TO, 1106, 1.0) == (DONE, 6)
+    assert fake.relation(176, 141) == [1.0, 1.0, 0.0] and fake.relation(141, 176) == [1.0, 1.0, 0.0]   # 관계 둘은 최고, 전쟁 명분은 0
+    six = set().union(*(where(fake, 176, MORE[name] + 4 * 141) | where(fake, 141, MORE[name] + 4 * 176) for name in RELATION_TABLES))
+    assert changed(before, everything(fake)) <= six
+    assert fake.relation(176, 150) == [0.5, 0.5, 0.5] and fake.relation(150, 176) == [0.5, 0.5, 0.5]
+    assert write_more(lib, fake, RELATION_TO, 1106, 0.0) == (DONE, 6)                                  # 중립: 여섯 칸 모두 0
+    assert fake.relation(176, 141) == [0.0, 0.0, 0.0] and fake.relation(141, 176) == [0.0, 0.0, 0.0]
+    assert changed(before, everything(fake)) <= six and fake.peek(OPTIONS, "<I") == 0
+
+
+@pytest.mark.parametrize("flaw", ["menu", "multiplayer", "inconsistent", "unreadable"])
+def test_more_is_not_written_outside_a_game_it_can_trust(lib, flaw):
+    fake = germany()
+    if flaw == "menu":
+        fake.menu()
+    elif flaw == "multiplayer":
+        fake.poke(MULTIPLAYER, "<B", 1)
+    elif flaw == "inconsistent":
+        struct.pack_into("<H", fake.objects[176], 4, 175)                 # 객체가 아는 자기 인덱스가 다르다
+    else:
+        fake.poke(POINTER, "<Q", 0x00007FFFFFFF0000)
+        fake.poke(TABLE + 8 * 176, "<Q", 0x00007FFFFFFF0000)
+    before = everything(fake)
+    assert write_more(lib, fake, TECH_TO, value=131.0) == (NOT_IN_GAME, 0)
+    assert write_more(lib, fake, OPINION_BEST) == (NOT_IN_GAME, 0)
+    assert write_more(lib, fake, RELATION_TO, 1106, 1.0) == (NOT_IN_GAME, 0)
+    assert everything(fake) == before
+
+
+@pytest.mark.parametrize("flaw", ["no-such-number", "self", "not-in-play", "inconsistent", "unreadable"])
+def test_a_relation_is_written_only_with_a_country_that_is_in_this_game(lib, flaw):
+    """고른 나라가 쓰기 직전에 없어졌거나(다른 판, 병합됨) 플레이어 자신이면 쓰지 않는다 — 엉뚱한 객체를 건드리지 않는다."""
+    fake = with_denmark()
+    number = 1106
+    if flaw == "no-such-number":
+        number = 9999
+    elif flaw == "self":
+        number = 1499
+    elif flaw == "not-in-play":
+        struct.pack_into("<I", fake.objects[141], 0, 5)                   # 사람도 AI 도 맡지 않은 지역이 됐다
+    elif flaw == "inconsistent":
+        struct.pack_into("<H", fake.objects[141], 4, 140)                 # 객체가 아는 자기 인덱스가 표에서의 자리와 다르다
+    else:
+        fake.poke(TABLE + 8 * 141, "<Q", 0x00007FFFFFFF0000)
+    before = everything(fake)
+    assert write_more(lib, fake, RELATION_TO, number, 1.0) == (NO_TARGET, 0)
+    assert everything(fake) == before
+
+
+def test_more_values_that_make_no_sense_are_not_written(lib):
+    fake = germany()
+    before = everything(fake)
+    for value in (NAN, INF, -INF, -1.0):
+        assert write_more(lib, fake, TECH_TO, value=value) == (BAD_VALUE, 0)
+    for level in (NAN, INF, 1.5, -1.5):
+        assert write_more(lib, fake, RELATION_TO, 1106, level) == (BAD_VALUE, 0)
+    assert everything(fake) == before
+    assert write_more(lib, fake, RELATION_TO, 1106, -1.0) == (DONE, 6)        # 범위의 끝은 된다(최저)
+
+
+def test_a_group_whose_place_is_not_known_is_not_written(lib):
+    """묶음마다 따로다: 못 찾은 묶음(자리 0)에는 쓰지 않고, 찾은 묶음은 그대로 쓴다."""
+    fake = germany()
+    before = everything(fake)
+    assert write_more(lib, fake, TECH_TO, value=131.0, layout=toybox.MoreLayout(**{**MORE, "tech": 0})) == (OFF, 0)
+    assert write_more(lib, fake, OPINION_BEST, layout=toybox.MoreLayout(**{**MORE, "opinion1": 0})) == (OFF, 0)
+    assert write_more(lib, fake, RELATION_TO, 1106, 1.0, layout=toybox.MoreLayout(**{**MORE, "casus": 0})) == (OFF, 0)
+    assert everything(fake) == before
+    no_tech = toybox.MoreLayout(**{**MORE, "tech": 0})
+    assert more(lib, fake, no_tech) == {"ok": "1", "tech": "0", "opinion": "0.5,0.25,0.75"}
+    assert write_more(lib, fake, OPINION_BEST, layout=no_tech) == (DONE, 3)
+
+
+@pytest.mark.parametrize("protection", [0x02, 0x20], ids=["read-only", "execute-read"])
+def test_more_on_a_page_that_is_not_read_write_is_not_written(lib, protection):
+    """쓸 수 없는 쪽이면 실패로 돌아온다. 여러 칸을 쓰는 것은 먼저 모든 칸을 보고 — 한 칸도 쓰지 않는다."""
+    fake = germany()
+    fake.lock(176, protection)
+    fake.play(176)
+    theirs = fake.snapshot(141)
+    assert write_more(lib, fake, TECH_TO, value=131.0) == (FAILED, 0)
+    assert write_more(lib, fake, OPINION_BEST) == (FAILED, 0)
+    assert write_more(lib, fake, RELATION_TO, 1106, 1.0) == (FAILED, 0)
+    assert fake.tech(176) == 130.0 and fake.snapshot(141) == theirs          # 폴란드 쪽 칸도 쓰지 않았다
+    fake = germany()
+    fake.lock(141, protection)                                                # 이번에는 고른 나라의 객체가 쓸 수 없는 쪽에 있다
+    mine = fake.snapshot(176)
+    assert write_more(lib, fake, RELATION_TO, 1106, 1.0) == (FAILED, 0)
+    assert fake.snapshot(176) == mine                                         # 플레이어 쪽 칸도 쓰지 않았다
+
+
+def test_more_follows_the_country_being_played(lib):
+    """요구 2: 쓰는 것은 지금 플레이하는 나라의 값이다. 나라를 바꾸면 새 플레이어의 칸에 쓴다."""
+    fake = with_denmark()
+    fake.play(141)                                                            # 폴란드로 플레이한다
+    assert write_more(lib, fake, TECH_TO, value=129.0) == (DONE, 1)
+    assert write_more(lib, fake, OPINION_BEST) == (DONE, 3)
+    assert fake.tech(141) == 129.0 and fake.tech(176) == 130.0
+    assert fake.opinion(141) == [1.0, 1.0, 1.0] and fake.opinion(176) == [0.5, 0.25, 0.75]
+    assert write_more(lib, fake, RELATION_TO, 1201, 1.0) == (DONE, 6)         # 폴란드 ↔ 덴마크
+    assert fake.relation(141, 150) == [1.0, 1.0, 0.0] and fake.relation(150, 141) == [1.0, 1.0, 0.0]
+    assert fake.relation(176, 150) == [0.5, 0.5, 0.5] and fake.relation(176, 141) == [0.25, -0.5, 0.75]   # 독일의 것은 그대로다
+
+
 @pytest.fixture(scope="module")
 def all_sigs(lib):
     """DLL 에 든 서명 표 둘: ([상태 묶음 21개], [값 묶음 12개]) — 저마다 (찾을 것, 서명 글)."""
@@ -254,6 +454,84 @@ def init(lib, image: bytes, tmp_path, monkeypatch) -> tuple[int, str, str]:
         lib.srtoybox_test_game(None, None, None)              # 이미지를 놓기 전에 이 프로세스의 "게임"을 비운다
     log = tmp_path / "toybox.log"
     return flags, off, log.read_text(encoding="utf-8") if log.is_file() else ""
+
+
+@pytest.fixture(scope="module")
+def more_sigs(lib):
+    """DLL 에 든 "더 쓰는 값"의 서명 21개 — (찾을 것, 서명 글)."""
+    return [(row.name, row.text) for row in toybox.more_of(lib, b"")[2]]
+
+
+def init_more(lib, image: bytes, tmp_path, monkeypatch) -> tuple[int, list[str], str]:
+    """init 과 같되 더 쓰는 값을 본다: (아는 것의 비트, 묶음마다(지식 · 여론 · 관계) 쓸 수 없는 까닭, 로그)."""
+    monkeypatch.setenv("SRTOYBOX_HOME", str(tmp_path))
+    try:
+        lib.srtoybox_test_init(image, len(image))
+        flags = lib.srtoybox_game_flags()
+        off = [text(lib.srtoybox_more_off, group) for group in (MORE_TECH, MORE_OPINION, MORE_RELATIONS)]
+    finally:
+        lib.srtoybox_test_game(None, None, None)
+    log = tmp_path / "toybox.log"
+    return flags, off, log.read_text(encoding="utf-8") if log.is_file() else ""
+
+
+FOUND_MORE = "기술 수준 +0x3120 · 세계 시장 여론 +0x3004 +0x3008 +0x3020 · 관계 +0x4000 +0x5000 전쟁 명분 +0x6000"
+
+
+def test_startup_finds_more_without_any_cheat(lib, all_sigs, more_sigs, tmp_path, monkeypatch):
+    state, values = all_sigs
+    flags, off, log = init_more(lib, toybox_fake_exe.sig_image(state + values + more_sigs), tmp_path, monkeypatch)
+    assert flags == READS | WRITES | CAN_TECH | CAN_OPINION | CAN_RELATIONS and off == ["", "", ""]
+    assert f"값을 더 씁니다 ({FOUND_MORE})" in log
+    assert "쓸 수 없습니다" not in log and "맞지 않은 서명" not in log
+
+
+def test_startup_drops_only_the_group_it_cannot_find(lib, all_sigs, more_sigs, tmp_path, monkeypatch):
+    """한 묶음의 서명이 깨지면 그 단추만 꺼진다. 까닭이 로그와 창에 같은 글로 남는다. 돈 · 물자와 다른 묶음은 그대로다."""
+    state, values = all_sigs
+    first = len(state) + len(values) + 3 * 4                  # 관계 표 1 의 서명 셋 가운데 앞의 둘
+    image = toybox_fake_exe.sig_image(state + values + more_sigs, broken={first, first + 1})
+    flags, off, log = init_more(lib, image, tmp_path, monkeypatch)
+    assert flags == READS | WRITES | CAN_TECH | CAN_OPINION
+    assert off == ["", "", "이 게임 판에서는 쓸 수 없습니다 (관계 표 1: 서명 3개 가운데 1개)"]
+    assert "값을 더 씁니다 (기술 수준 +0x3120 · 세계 시장 여론 +0x3004 +0x3008 +0x3020)" in log
+    assert "관계를 쓸 수 없습니다 (관계 표 1: 서명 3개 가운데 1개)" in log
+    assert "맞지 않은 서명" not in log                         # 못 찾은 묶음의 서명을 줄줄이 적지 않는다
+
+
+def test_startup_without_any_of_more_keeps_money_and_stock(lib, all_sigs, tmp_path, monkeypatch):
+    state, values = all_sigs
+    flags, off, log = init_more(lib, toybox_fake_exe.sig_image(state + values), tmp_path, monkeypatch)
+    assert flags == READS | WRITES and all(off)
+    assert "값을 씁니다 (국고 +0x1230" in log and "값을 더 씁니다" not in log
+    for line in ("기술 수준을 쓸 수 없습니다 (기술 수준 칸: 서명 3개 가운데 0개)", "세계 시장 여론을 쓸 수 없습니다 (여론 칸 1: 서명 3개 가운데 0개)",
+                 "관계를 쓸 수 없습니다 (관계 표 1: 서명 3개 가운데 0개)"):
+        assert line in log
+
+
+def test_startup_finds_more_when_money_and_stock_are_not_found(lib, all_sigs, more_sigs, tmp_path, monkeypatch):
+    """묶음은 서로 기대지 않는다: 값 묶음(돈 · 물자)을 못 찾아도 더 쓰는 값은 찾아서 쓴다."""
+    state, _values = all_sigs
+    flags, off, log = init_more(lib, toybox_fake_exe.sig_image(state + more_sigs), tmp_path, monkeypatch)
+    assert flags == READS | CAN_TECH | CAN_OPINION | CAN_RELATIONS and off == ["", "", ""]
+    assert "값을 쓸 수 없습니다 (세계 자료 포인터" in log and f"값을 더 씁니다 ({FOUND_MORE})" in log
+
+
+def test_startup_names_an_unmatched_signature_of_a_group_it_found(lib, all_sigs, more_sigs, tmp_path, monkeypatch):
+    state, values = all_sigs
+    image = toybox_fake_exe.sig_image(state + values + more_sigs, broken={len(state) + len(values) + 2})
+    flags, _off, log = init_more(lib, image, tmp_path, monkeypatch)
+    assert flags & CAN_TECH and "맞지 않은 서명: tech #3 (안 맞음)" in log
+
+
+def test_startup_drops_a_group_that_sits_on_the_treasury(lib, all_sigs, more_sigs, tmp_path, monkeypatch):
+    """새 묶음의 칸이 국고 칸과 겹치면 그 묶음을 버린다(값 묶음은 그대로 쓴다)."""
+    state, values = all_sigs
+    image = toybox_fake_exe.sig_image(state + values + more_sigs, targets={"tech": 0x1234})
+    flags, off, log = init_more(lib, image, tmp_path, monkeypatch)
+    assert flags == READS | WRITES | CAN_OPINION | CAN_RELATIONS
+    assert off[0] == "이 게임 판에서는 쓸 수 없습니다 (기술 수준 칸: 찾은 자리가 국고 칸이나 재고 칸과 겹칩니다)"
+    assert "기술 수준을 쓸 수 없습니다 (기술 수준 칸: 찾은 자리가 국고 칸이나 재고 칸과 겹칩니다)" in log
 
 
 def test_startup_finds_the_state_and_the_values_without_any_cheat(lib, all_sigs, tmp_path, monkeypatch):
@@ -315,6 +593,7 @@ def game(lib, tmp_path, monkeypatch):
     fake = germany()
     lib.srtoybox_test_game(fake.base, ctypes.byref(fake.at), None)
     lib.srtoybox_test_values(ctypes.byref(fake.layout))
+    lib.srtoybox_test_more(ctypes.byref(fake.more))
     lib.srtoybox_keeper_reset()
     yield fake
     lib.srtoybox_keeper_reset()
@@ -574,3 +853,140 @@ def test_nothing_is_asked_when_values_cannot_be_written(lib, game):
     assert not ask(lib, TREASURY, ADD, 1e9)
     lib.srtoybox_keeper_tick()
     assert game.treasury(176) == 14.43e9
+
+
+def ask_more(lib, slot: int, region: int = 0, amount: float = 0.0) -> bool:
+    """더 쓰는 값의 요청(기술 수준 +1 · 세계 시장 여론 최고 · 관계)."""
+    return lib.srtoybox_keeper_more(slot, region, amount) == 1
+
+
+def logged(tmp_path) -> list[str]:
+    """로그의 줄들(때를 뗀 것)."""
+    log = tmp_path / "toybox.log"
+    return [line.split(" ", 2)[2] for line in log.read_text(encoding="utf-8").splitlines()] if log.is_file() else []
+
+
+def test_a_tech_request_adds_one_on_the_next_tick(lib, game, tmp_path):
+    assert ask_more(lib, TECH) and ask_more(lib, TECH)
+    assert game.tech(176) == 130.0                             # 누른 것만으로는 쓰지 않는다 — 창 스레드의 틱에서 쓴다
+    lib.srtoybox_keeper_tick()
+    assert game.tech(176) == 132.0 and game.tech(141) == 128.0
+    assert told(lib) == ("기술 수준 131 -> 132", "")
+    assert logged(tmp_path) == ["값 쓰기: 기술 수준 130 -> 131", "값 쓰기: 기술 수준 131 -> 132"]
+    assert game.peek(OPTIONS, "<I") == 0                       # 치트 허용 비트는 그대로다
+
+
+def test_tech_stops_at_its_limit_and_leaves_what_it_cannot_read(lib, game):
+    game.set_tech(176, 998.0)
+    assert ask_more(lib, TECH)
+    lib.srtoybox_keeper_tick()
+    assert game.tech(176) == 999.0 and told(lib) == ("기술 수준 998 -> 999", "")
+    assert ask_more(lib, TECH)
+    lib.srtoybox_keeper_tick()
+    assert game.tech(176) == 999.0 and told(lib)[1] == "기술 수준이 한도(999)라 쓰지 않았습니다."
+    game.set_tech(176, 130.5)                                  # 정수가 아니어도 1 을 더하고, 있는 그대로 적는다
+    assert ask_more(lib, TECH)
+    lib.srtoybox_keeper_tick()
+    assert game.tech(176) == 131.5 and told(lib) == ("기술 수준 130.5 -> 131.5", "")
+    for odd in (NAN, INF, -5.0):
+        game.set_tech(176, odd)
+        before = game.snapshot(176)
+        assert ask_more(lib, TECH)
+        lib.srtoybox_keeper_tick()
+        assert game.snapshot(176) == before and told(lib)[1] == "기술 수준을 읽을 수 없어 쓰지 않았습니다."
+
+
+def test_an_opinion_request_sets_the_three_cells(lib, game, tmp_path):
+    assert ask_more(lib, OPINION)
+    lib.srtoybox_keeper_tick()
+    assert game.opinion(176) == [1.0, 1.0, 1.0] and game.opinion(141) == [0.0, 0.0, 0.0]
+    assert told(lib) == ("세계 시장 여론 최고", "") and logged(tmp_path) == ["값 쓰기: 세계 시장 여론 최고"]
+
+
+def test_relation_requests_write_both_sides(lib, game, tmp_path):
+    assert ask_more(lib, RELATION, 1106, BEST)
+    lib.srtoybox_keeper_tick()
+    assert game.relation(176, 141) == [1.0, 1.0, 0.0] and game.relation(141, 176) == [1.0, 1.0, 0.0]
+    assert told(lib) == ("관계 최고 — 폴란드 (1106)", "")
+    assert ask_more(lib, RELATION, 1106, NEUTRAL)
+    lib.srtoybox_keeper_tick()
+    assert game.relation(176, 141) == [0.0, 0.0, 0.0] and game.relation(141, 176) == [0.0, 0.0, 0.0]
+    assert told(lib) == ("관계 중립 — 폴란드 (1106)", "")
+    assert logged(tmp_path) == ["값 쓰기: 관계 최고 — 폴란드 (1106)", "값 쓰기: 관계 중립 — 폴란드 (1106)"]
+    assert game.treasury(176) == 14.43e9 and game.peek(OPTIONS, "<I") == 0
+
+
+def test_a_relation_request_for_a_country_that_is_gone_is_dropped(lib, game, tmp_path):
+    """누른 뒤 쓰기 전에 그 나라가 없어졌다(다른 판, 병합됨) — 쓰지 않고 알린다. 자기 나라 · 없는 번호도 같다."""
+    gone = "그 나라는 이번 판에 없어 쓰지 않았습니다."
+    assert ask_more(lib, RELATION, 1106, BEST)
+    struct.pack_into("<I", game.objects[141], 0, 5)            # 폴란드가 이번 판에 없는 지역이 됐다
+    before = everything(game)
+    lib.srtoybox_keeper_tick()
+    assert everything(game) == before and told(lib) == ("", gone)
+    for number in (1499, 9999):
+        assert ask_more(lib, RELATION, number, BEST)
+        lib.srtoybox_keeper_tick()
+        assert everything(game) == before and told(lib) == ("", gone)
+    assert logged(tmp_path) == []
+
+
+def test_more_requests_are_dropped_outside_a_game(lib, game):
+    assert ask_more(lib, TECH) and ask_more(lib, OPINION) and ask_more(lib, RELATION, 1106, BEST)
+    game.menu()
+    before = everything(game)
+    lib.srtoybox_keeper_tick()
+    game.play(176)
+    lib.srtoybox_keeper_tick()                                 # 버린 요청이 돌아온 뒤에 쓰이지 않는다
+    assert game.tech(176) == 130.0 and game.opinion(176) == [0.5, 0.25, 0.75] and told(lib) == ("", LEFT_GAME)
+    assert game.relation(176, 141) == [0.25, -0.5, 0.75] and len(before) == len(everything(game))
+
+
+def test_money_stock_and_more_requests_are_written_in_the_order_asked(lib, game, tmp_path):
+    assert ask(lib, TREASURY, ADD, 1e9) and ask_more(lib, TECH) and ask(lib, 3, ADD, 1.0) and ask_more(lib, OPINION)
+    lib.srtoybox_keeper_tick()
+    assert logged(tmp_path) == ["값 쓰기: 국고 14.43 B -> 15.43 B", "값 쓰기: 기술 수준 130 -> 131", "값 쓰기: 석유 2.5 K -> 2.5 K",
+                                "값 쓰기: 세계 시장 여론 최고"]
+    assert told(lib) == ("세계 시장 여론 최고", "")
+
+
+def test_more_requests_do_not_need_money_and_stock(lib, game):
+    """묶음은 서로 기대지 않는다: 국고 · 재고의 자리를 못 찾은 게임에서도 더 쓰는 값은 쓴다. 유지는 쉰다."""
+    lib.srtoybox_test_values(None)
+    keep(lib, TREASURY, 50e9)
+    assert not ask(lib, TREASURY, ADD, 1e9) and ask_more(lib, TECH)
+    lib.srtoybox_keeper_tick_at(1000)
+    assert game.tech(176) == 131.0 and game.treasury(176) == 14.43e9 and told(lib) == ("기술 수준 130 -> 131", "")
+
+
+def test_a_request_is_not_taken_for_a_group_that_is_off(lib, game):
+    """그 묶음의 자리를 못 찾았으면 그 요청만 받지 않는다. 다른 묶음과 국고 · 재고는 그대로 받는다."""
+    lib.srtoybox_test_more(ctypes.byref(toybox.MoreLayout(**{**MORE, "tech": 0})))
+    assert not ask_more(lib, TECH)
+    assert ask_more(lib, OPINION) and ask_more(lib, RELATION, 1106, NEUTRAL) and ask(lib, TREASURY, ADD, 1.0)
+    assert text(lib.srtoybox_more_off, MORE_TECH) == "이 게임 판에서는 쓸 수 없습니다 (값의 자리를 주지 않았습니다)"
+    assert text(lib.srtoybox_more_off, MORE_OPINION) == "" and lib.srtoybox_keeper_more(7, 0, 0.0) == -1
+    lib.srtoybox_keeper_tick()
+    assert game.tech(176) == 130.0 and game.opinion(176) == [1.0, 1.0, 1.0]
+
+
+def test_a_failed_relation_write_turns_all_value_writing_off(lib, game, tmp_path):
+    """쓰기가 실패하면 묶음 1 의 규칙 그대로 그 실행에서는 값 쓰기 전체를 끈다(돈 · 물자 · 유지 포함). 반쪽은 남지 않는다."""
+    game.lock(141)                                             # 고른 나라의 객체가 읽기 전용 쪽에 있다
+    mine = game.snapshot(176)
+    assert ask_more(lib, RELATION, 1106, BEST) and ask_more(lib, TECH)
+    lib.srtoybox_keeper_tick()
+    assert game.snapshot(176) == mine                          # 플레이어 쪽 칸도, 뒤따르던 요청도 쓰지 않았다
+    assert text(lib.srtoybox_values_off) == FAILED_OFF
+    assert [text(lib.srtoybox_more_off, group) for group in (MORE_TECH, MORE_OPINION, MORE_RELATIONS)] == [FAILED_OFF] * 3
+    assert not ask_more(lib, TECH) and not ask(lib, TREASURY, ADD, 1e9)
+    assert logged(tmp_path) == ["값 쓰기 실패 (관계 — 폴란드 (1106)) — 값 쓰기를 끕니다"]
+
+
+def test_a_failed_tech_write_says_so(lib, game, tmp_path):
+    game.lock(176)
+    game.play(176)
+    assert ask_more(lib, TECH) and ask_more(lib, OPINION)
+    lib.srtoybox_keeper_tick()
+    assert game.tech(176) == 130.0 and game.opinion(176) == [0.5, 0.25, 0.75]
+    assert logged(tmp_path) == ["값 쓰기 실패 (기술 수준) — 값 쓰기를 끕니다"] and told(lib)[0] == ""

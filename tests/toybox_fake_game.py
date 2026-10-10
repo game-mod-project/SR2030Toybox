@@ -8,11 +8,14 @@ import ctypes
 import struct
 from ctypes import wintypes
 
-from srkit.toybox import GameAddresses, ValueLayout
+from srkit.toybox import GameAddresses, MoreLayout, ValueLayout
 
 MULTIPLAYER, OPTIONS, PROGRAM, MODE, INDEX, COUNT, POINTER, WORLD_POINTER, TABLE = 0x10, 0x14, 0x18, 0x1C, 0x20, 0x24, 0x28, 0x30, 0x1000
 LAYOUT = dict(world_pointer=WORLD_POINTER, treasury=0x40, stock_first=0x60, stock_step=0x10, used_first=0x18, used_step=0x84)
-OBJECT_SIZE = 0x200
+# 더 쓰는 값의 자리: 기술 수준, 여론의 세 칸, 지역 인덱스로 찾는 표 셋(가짜 게임의 표는 256칸 — 인덱스 255 까지 쓴다)
+MORE = dict(tech=0x130, opinion0=0x134, opinion1=0x138, opinion2=0x150, relation0=0x200, relation1=0x600, casus=0xA00)
+RELATION_TABLES = ("relation0", "relation1", "casus")
+OBJECT_SIZE = 0x1000
 
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 kernel32.VirtualAlloc.restype = ctypes.c_void_p
@@ -27,6 +30,7 @@ class FakeGame:
         self.at = GameAddresses(handler=0, context=0x40, multiplayer=MULTIPLAYER, options=OPTIONS, program_state=PROGRAM,
                                 mode_state=MODE, player_index=INDEX, player_pointer=POINTER, region_table=TABLE, region_count=COUNT)
         self.layout = ValueLayout(**LAYOUT)
+        self.more = MoreLayout(**MORE)
         self.objects: dict[int, ctypes.Array] = {}
         self.where: dict[int, int] = {}                           # 지역 객체가 지금 있는 주소(lock 으로 옮기면 바뀐다)
         self.world = (ctypes.c_ubyte * 0x800)()                   # 세계 자료 객체: "이 물자를 쓰는가"의 표가 있다
@@ -82,6 +86,27 @@ class FakeGame:
 
     def set_stock(self, index: int, slot: int, value: float) -> None:
         self._write(index, LAYOUT["stock_first"] + LAYOUT["stock_step"] * slot, "<f", value)
+
+    def tech(self, index: int) -> float:
+        return self._read(index, MORE["tech"], "<f")
+
+    def set_tech(self, index: int, value: float) -> None:
+        self._write(index, MORE["tech"], "<f", value)
+
+    def opinion(self, index: int) -> list[float]:
+        return [self._read(index, MORE[name], "<f") for name in ("opinion0", "opinion1", "opinion2")]
+
+    def set_opinion(self, index: int, values: tuple[float, float, float]) -> None:
+        for name, value in zip(("opinion0", "opinion1", "opinion2"), values):
+            self._write(index, MORE[name], "<f", value)
+
+    def relation(self, index: int, other: int) -> list[float]:
+        """index 의 지역 객체가 other(인덱스)에 대해 가진 값: [관계 표 1, 관계 표 2, 전쟁 명분]."""
+        return [self._read(index, MORE[name] + 4 * other, "<f") for name in RELATION_TABLES]
+
+    def set_relation(self, index: int, other: int, values: tuple[float, float, float]) -> None:
+        for name, value in zip(RELATION_TABLES, values):
+            self._write(index, MORE[name] + 4 * other, "<f", value)
 
     def snapshot(self, index: int) -> bytes:
         """그 지역 객체의 지금 바이트 전부."""

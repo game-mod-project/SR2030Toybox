@@ -12,7 +12,8 @@
     uv run python scripts/gamedrive.py key VK [VK...]         # 가상 키 코드(16진/10진), 이름(ESC, ENTER, SPACE), 글자(S), 조합(CTRL+SHIFT+S)
     uv run python scripts/gamedrive.py show                  # 화면 밖에 둔 게임 창을 화면으로 가져온다(직접 볼 때)
     uv run python scripts/gamedrive.py peek [지역 번호]       # 이 도구가 띄운 게임의 메모리에서 ToyBox 가 보는 값을 읽는다(읽기만, JSON).
-                                                              # 번호를 주면 플레이어 대신 그 지역의 국고 · 재고를 읽는다
+                                                              # 번호를 주면 플레이어 대신 그 지역의 국고 · 재고 · 기술 수준 · 여론을 읽고,
+                                                              # 플레이어와 그 지역 사이의 관계 여섯 칸도 읽는다
     uv run python scripts/gamedrive.py stop                   # 이 도구가 띄운 게임만 끝낸다 (--all: 전부)
 
 이 도구는 **자기가 띄운 게임만** 다룬다(build/gamedrive-pids.json 에 기록). 사용자가 직접 켠 게임에는 캡처·입력·종료를 하지 않는다.
@@ -379,12 +380,33 @@ def need_window(cfg: config.Config) -> tuple[int, str, tuple[int, int]]:
     return win
 
 
+def peek_more(read, more: dict[str, int], player: int, me: int, who: int) -> dict:
+    """더 쓰는 값(기술 수준 · 세계 시장 여론 · 관계)을 읽는다(읽기만). 못 찾은 묶음(자리 0)의 것은 결과에 없다.
+
+    read(주소, 형식) 은 값 하나를 읽는 함수, more 는 srkit.toybox.locate 가 찾은 자리. who 는 값을 읽을 지역 객체,
+    player 는 플레이어의 지역 객체, me 는 플레이어의 인덱스다. who 가 플레이어가 아니면 둘 사이의 관계도 읽는다:
+    mine 은 플레이어 객체의 표에서 그 지역의 칸, theirs 는 그 지역 객체의 표에서 플레이어의 칸 — 저마다 [관계 표 1, 관계 표 2, 전쟁 명분].
+    """
+    out: dict = {}
+    if more["tech"]:
+        out["tech"] = read(who + more["tech"], "<f")
+    if more["opinion0"]:
+        out["opinion"] = [read(who + more[name], "<f") for name in ("opinion0", "opinion1", "opinion2")]
+    if more["relation0"] and who != player:
+        them = read(who + 4, "<H")
+        tables = ("relation0", "relation1", "casus")
+        out["relations"] = {"mine": [read(player + more[name] + 4 * them, "<f") for name in tables],
+                            "theirs": [read(who + more[name] + 4 * me, "<f") for name in tables]}
+    return out
+
+
 def peek_game(cfg: config.Config, number: int | None = None) -> dict:
     """이 도구가 띄운 게임의 메모리에서 ToyBox 가 보는 것을 읽는다(읽기만). 주소는 srkit locate 와 같은 방법(서명)으로 찾는다.
 
     ToyBox 의 창에 보이는 값이 아니라 게임의 메모리 그 자체다 — ToyBox 가 쓴 값과 치트 허용 비트를 따로 확인하는 데 쓴다.
-    number 를 주면 국고 · 재고를 플레이어 대신 그 번호의 지역 객체에서 읽는다(지역 표에서 찾는다. 결과의 region 이 그 번호다) —
-    플레이하는 나라를 바꾼 뒤 앞 나라의 값이 그대로인지 볼 때 쓴다.
+    number 를 주면 국고 · 재고 · 기술 수준 · 여론을 플레이어 대신 그 번호의 지역 객체에서 읽고(지역 표에서 찾는다. 결과의 region 이
+    그 번호다), 플레이어와 그 지역 사이의 관계(relations)도 읽는다 — 플레이하는 나라를 바꾼 뒤 앞 나라의 값이 그대로인지,
+    관계의 단추가 양쪽 객체에 썼는지 볼 때 쓴다.
     """
     import struct
 
@@ -434,6 +456,7 @@ def peek_game(cfg: config.Config, number: int | None = None) -> dict:
             out["stock"] = [read(who + values["stock_first"] + values["stock_step"] * i, "<f") for i in range(toybox.STOCK_SLOTS)]
             out["used"] = [bool((read(world + values["used_first"] + values["used_step"] * i, "<f") or 0) > 0)
                            for i in range(toybox.STOCK_SLOTS)] if world else None
+            out.update(peek_more(read, found.more, player, out["player_index"], who))
         return out
     finally:
         kernel32.CloseHandle(process)

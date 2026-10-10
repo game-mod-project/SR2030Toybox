@@ -1,5 +1,7 @@
 #include "keeper.h"
 
+#include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <deque>
 #include <mutex>
@@ -7,6 +9,7 @@
 #include "game.h"
 #include "log.h"
 #include "products.h"
+#include "regions.h"
 #include "runner_win.h"
 
 namespace {
@@ -31,6 +34,57 @@ std::string target_name(int slot)
 std::string shown(int slot, double value)
 {
     return slot == TREASURY ? short_number(value) : short_amount(value);
+}
+
+// 그 요청이 쓰는 값을 쓸 수 없는 까닭. 쓸 수 있으면 빈 글. 묶음마다 따로다.
+std::string request_off(const Request &r)
+{
+    return r.slot == TECH ? game_more_off(MORE_TECH) : r.slot == OPINION ? game_more_off(MORE_OPINION)
+        : r.slot == RELATION ? game_more_off(MORE_RELATIONS) : game_values_off();
+}
+
+// 수를 있는 그대로 적는다: 130, 130.5
+std::string plain(double value)
+{
+    char text[32];
+    snprintf(text, sizeof(text), "%.6g", value);
+    return text;
+}
+
+// 더 쓰는 값의 요청 하나(기술 수준 · 여론 · 관계). 국고 · 재고는 읽지 않는다 — 그 묶음을 못 찾은 게임에서도 된다.
+// 값 쓰기가 꺼졌으면(실패) false — 남은 요청을 버린다. g_lock 을 쥔 채로 부른다.
+bool apply_more(const Request &r)
+{
+    Wrote wrote = Wrote::Off;
+    std::string what;
+    if (r.slot == TECH) {
+        const GameMore now = game_more();
+        if (!now.ok || !std::isfinite(now.tech) || now.tech < 0.0f) {
+            g_notice = "기술 수준을 읽을 수 없어 쓰지 않았습니다.";
+            return true;
+        }
+        if (now.tech + 1.0f > TECH_LIMIT) {
+            g_notice = "기술 수준이 한도(999)라 쓰지 않았습니다.";
+            return true;
+        }
+        what = "기술 수준 " + plain(now.tech) + " -> " + plain(now.tech + 1.0f);
+        wrote = game_write_tech(now.tech + 1.0f);
+    } else if (r.slot == OPINION) {
+        what = "세계 시장 여론 최고";
+        wrote = game_write_opinion();
+    } else {
+        what = std::string(r.amount > 0.5 ? "관계 최고" : "관계 중립") + " — " + region_label(r.region) + " (" + std::to_string(r.region) + ")";
+        wrote = game_write_relation(r.region, static_cast<float>(r.amount));
+    }
+    if (wrote == Wrote::Done) {
+        g_last = what;
+        log_line("값 쓰기: %s", what.c_str());
+        return true;
+    }
+    if (wrote == Wrote::Failed || wrote == Wrote::Off)
+        return false;                          // 까닭은 그 단추의 자리에 보인다(game_more_off)
+    g_notice = wrote == Wrote::NoTarget ? "그 나라는 이번 판에 없어 쓰지 않았습니다." : LEFT_GAME;
+    return true;
 }
 
 // 한 칸(국고나 물자 하나)에 대한 셈: 지금 값(*from)과 쓸 값(*to).
@@ -104,6 +158,13 @@ bool drain()
     while (!g_queue.empty()) {
         const Request r = g_queue.front();
         g_queue.pop_front();
+        if (r.slot <= TECH) {                  // 더 쓰는 값: 국고 · 재고와 따로다
+            if (!apply_more(r)) {
+                g_queue.clear();
+                return false;
+            }
+            continue;
+        }
         const GameValues now = game_values();  // 요청마다 다시 읽는다 — 앞의 요청이 값을 바꿨다
         if (!now.ok) {
             g_queue.clear();
@@ -152,7 +213,7 @@ void keep_check()
 bool keeper_enqueue(const Request &request)
 {
     std::lock_guard<std::mutex> lock(g_lock);
-    if (g_queue.size() >= MAX_QUEUE || !game_values_off().empty())
+    if (g_queue.size() >= MAX_QUEUE || !request_off(request).empty())
         return false;
     g_queue.push_back(request);
     return true;
@@ -171,7 +232,7 @@ void keeper_tick(unsigned long long now_ms)
         g_keep_at = now_ms;
     }
     const GameState game = game_state();
-    if (runner_faulted() || !game_values_off().empty()) {
+    if (runner_faulted() || !game_writes()) {
         g_queue.clear();                       // 까닭은 창이 보인다(빨간 경고, 탭의 한 줄). 유지도 쉰다
         return;
     }
@@ -184,7 +245,7 @@ void keeper_tick(unsigned long long now_ms)
     }
     if (!g_queue.empty() && !drain())
         return;
-    if (due)
+    if (due && game_values_off().empty())      // 유지는 국고와 물자다 — 그 자리를 못 찾은 게임에서는 쉰다
         keep_check();                          // 단추의 요청을 쓴 뒤에 본다 — 방금 내린 값도 바닥 아래면 올린다
 }
 

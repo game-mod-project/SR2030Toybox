@@ -11,6 +11,7 @@
 #include "features.h"
 #include "log.h"
 #include "products.h"
+#include "regions.h"
 
 namespace {
 
@@ -27,6 +28,9 @@ ValueLayout g_layout;     // 값의 자리
 bool g_values;            // 그것을 찾았다
 char g_values_why[200];   // 못 찾은 까닭
 bool g_write_failed;      // 값 쓰기가 실패했다 — 이번 실행에서는 더 쓰지 않는다
+MoreLayout g_more;        // 더 쓰는 값의 자리(못 찾은 묶음의 것은 0)
+int g_more_groups;        // 찾은 묶음의 비트
+char g_more_why[MORE_GROUPS][MORE_WHY];   // 묶음마다 못 찾은 까닭
 
 typedef void (*Handler)(void *context, const char *line);
 
@@ -199,11 +203,121 @@ bool located(const uint8_t **base, GameAddresses *at)
 }
 
 // 맞지 않은 서명을 로그에 적는다 — 셋 가운데 둘로 찾았어도, 다음 업데이트에서 깨질 것을 미리 안다.
+void log_unmatched(const SigRow &row, int number)
+{
+    if (row.count != 1)
+        log_line("맞지 않은 서명: %s #%d (%s)", row.name, number, row.count == 0 ? "안 맞음" : "여러 번 맞음");
+}
+
 void log_unmatched(const SigRow *rows, int n)
 {
     for (int i = 0; i < n; i++)
-        if (rows[i].count != 1)
-            log_line("맞지 않은 서명: %s #%d (%s)", rows[i].name, i % STATE_SIGS + 1, rows[i].count == 0 ? "안 맞음" : "여러 번 맞음");
+        log_unmatched(rows[i], i % STATE_SIGS + 1);
+}
+
+// 그 번호의 나라(이번 판에 실제로 있는 것)의 객체와 인덱스. 없으면 false.
+bool find_region(const uint8_t *base, const GameAddresses &at, int number, uint64_t *object, int *index)
+{
+    int32_t count = 0;
+    if (number <= 0 || !peek_at(base, at.region_count, &count) || count < 1 || count >= MAX_REGIONS)
+        return false;
+    std::vector<uint64_t> table(static_cast<size_t>(count) + 1);
+    if (!peek(base + at.region_table, table.data(), table.size() * sizeof(uint64_t)))
+        return false;
+    for (int i = 1; i <= count; i++) {
+        Region r = {};
+        if (peek_region(table[static_cast<size_t>(i)], &r) && usable(r, i) && in_play(r) && r.number == number) {
+            *object = table[static_cast<size_t>(i)];
+            *index = i;
+            return true;
+        }
+    }
+    return false;
+}
+
+// 플레이어와 그 번호의 나라: 두 객체의 주소와 인덱스. 판정은 Wrote 로(Done 이면 넷을 채웠다).
+Wrote find_pair(const uint8_t *base, const GameAddresses &at, int number, bool writing, uint64_t *mine, int *me, uint64_t *theirs,
+                int *them)
+{
+    int32_t index = 0;
+    const GameState s = read_player(base, at, mine);
+    if (!s.in_game || (writing && s.multiplayer) || !peek_at(base, at.player_index, &index) || index < 1 || index >= MAX_REGIONS)
+        return Wrote::NotInGame;
+    *me = index;
+    if (number == s.player || !find_region(base, at, number, theirs, them))
+        return Wrote::NoTarget;
+    return Wrote::Done;
+}
+
+// 한 나라와의 관계가 놓인 여섯 칸의 주소: [0 … 2] 플레이어 객체의 그 나라 칸(관계 표 둘 · 전쟁 명분), [3 … 5] 그 나라 객체의 플레이어 칸.
+void relation_cells(const MoreLayout &more, uint64_t mine, int me, uint64_t theirs, int them, uint64_t *cells)
+{
+    const uint32_t tables[3] = {more.relation[0], more.relation[1], more.casus};
+    for (int i = 0; i < 3; i++) {
+        cells[i] = mine + tables[i] + 4ull * static_cast<uint64_t>(them);
+        cells[3 + i] = theirs + tables[i] + 4ull * static_cast<uint64_t>(me);
+    }
+}
+
+// float 여러 칸을 쓴다. 쓰기 전에 모든 칸이 읽기 · 쓰기 쪽인지 본다 — 반쪽만 쓰고 멈추는 일을 줄인다. done 에 쓴 칸의 수.
+Wrote poke_floats(const uint64_t *cells, const float *values, int n, int *done)
+{
+    *done = 0;
+    for (int i = 0; i < n; i++)
+        if (!writable(cells[i], sizeof(float)))
+            return Wrote::Failed;
+    for (int i = 0; i < n; i++) {
+        if (!poke(cells[i], &values[i], sizeof(float)))
+            return Wrote::Failed;
+        ++*done;
+    }
+    return Wrote::Done;
+}
+
+// 값을 쓸 수 없는 까닭(found: 그 묶음의 자리를 찾았는가, why: 못 찾은 까닭). g_lock 을 쥔 채로 부른다.
+std::string off_text(bool found, const char *why)
+{
+    if (!g_located || !reading_wanted())
+        return "게임 상태를 읽을 수 있을 때만 씁니다.";
+    if (!found)
+        return std::string("이 게임 판에서는 쓸 수 없습니다 (") + why + ")";
+    if (!write_wanted())
+        return "값 쓰기를 껐습니다 (SRTOYBOX_WRITE=0)";
+    if (g_write_failed)
+        return "값 쓰기가 실패해 껐습니다. 게임을 다시 시작하면 다시 시도합니다.";
+    return std::string();
+}
+
+// 묶음의 비트 → 까닭이 든 줄(0 지식, 1 여론, 2 관계). 묶음이 아니면 -1.
+int more_index(int group)
+{
+    return group == MORE_TECH ? 0 : group == MORE_OPINION ? 1 : group == MORE_RELATIONS ? 2 : -1;
+}
+
+// 지금의 "게임"과 더 쓰는 값의 자리. 그 묶음을 쓸 수 없으면 false.
+bool more_ready(int group, const uint8_t **base, GameAddresses *at, MoreLayout *more)
+{
+    if (!game_more_off(group).empty())
+        return false;
+    std::lock_guard<std::mutex> lock(g_lock);
+    *base = g_base;
+    *at = g_at;
+    *more = g_more;
+    return true;
+}
+
+// 더 쓰는 값의 쓰기가 실패했다: 이번 실행에서는 값 쓰기 전체를 끄고 로그에 적는다.
+Wrote write_failed(const std::string &what, int cells, int done)
+{
+    {
+        std::lock_guard<std::mutex> lock(g_lock);
+        g_write_failed = true;
+    }
+    if (done > 0)
+        log_line("값 쓰기 실패 (%s, %d칸 가운데 %d칸을 쓴 뒤) — 값 쓰기를 끕니다", what.c_str(), cells, done);
+    else
+        log_line("값 쓰기 실패 (%s) — 값 쓰기를 끕니다", what.c_str());
+    return Wrote::Failed;
 }
 
 // 프로세스의 게임에 값 하나를 쓴다. slot 이 음수면 국고.
@@ -303,6 +417,80 @@ Wrote write_stock(const uint8_t *base, const GameAddresses &at, const ValueLayou
     return poke(where, &value, sizeof(value)) ? Wrote::Done : Wrote::Failed;
 }
 
+GameMore read_more(const uint8_t *base, const GameAddresses &at, const MoreLayout &more)
+{
+    GameMore v;
+    uint64_t object = 0;
+    if (!read_player(base, at, &object).in_game || (more.tech != 0 && !peek_in(object, more.tech, &v.tech)))
+        return v;
+    for (int i = 0; i < 3; i++)
+        if (more.opinion[i] != 0 && !peek_in(object, more.opinion[i], &v.opinion[i]))
+            return v;
+    v.ok = true;
+    return v;
+}
+
+Relation read_relation(const uint8_t *base, const GameAddresses &at, const MoreLayout &more, int number)
+{
+    Relation r;
+    uint64_t mine = 0, theirs = 0, cells[6];
+    int me = 0, them = 0;
+    if (more.relation[0] == 0 || more.relation[1] == 0 || more.casus == 0
+        || find_pair(base, at, number, false, &mine, &me, &theirs, &them) != Wrote::Done)
+        return r;
+    relation_cells(more, mine, me, theirs, them, cells);
+    for (int i = 0; i < 3; i++)
+        if (!peek(reinterpret_cast<const void *>(cells[i]), &r.mine[i], sizeof(float))
+            || !peek(reinterpret_cast<const void *>(cells[3 + i]), &r.theirs[i], sizeof(float)))
+            return r;
+    r.ok = true;
+    return r;
+}
+
+Wrote write_tech(const uint8_t *base, const GameAddresses &at, const MoreLayout &more, float value)
+{
+    uint64_t object = 0;
+    if (more.tech == 0)
+        return Wrote::Off;
+    if (!std::isfinite(value) || value < 0.0f)
+        return Wrote::BadValue;
+    const GameState s = read_player(base, at, &object);
+    if (!s.in_game || s.multiplayer)
+        return Wrote::NotInGame;
+    return poke(object + more.tech, &value, sizeof(value)) ? Wrote::Done : Wrote::Failed;
+}
+
+Wrote write_opinion(const uint8_t *base, const GameAddresses &at, const MoreLayout &more, int *done)
+{
+    uint64_t object = 0;
+    *done = 0;
+    if (more.opinion[0] == 0 || more.opinion[1] == 0 || more.opinion[2] == 0)
+        return Wrote::Off;
+    const GameState s = read_player(base, at, &object);
+    if (!s.in_game || s.multiplayer)
+        return Wrote::NotInGame;
+    const uint64_t cells[3] = {object + more.opinion[0], object + more.opinion[1], object + more.opinion[2]};
+    const float best[3] = {1.0f, 1.0f, 1.0f};
+    return poke_floats(cells, best, 3, done);
+}
+
+Wrote write_relation(const uint8_t *base, const GameAddresses &at, const MoreLayout &more, int number, float level, int *done)
+{
+    uint64_t mine = 0, theirs = 0, cells[6];
+    int me = 0, them = 0;
+    *done = 0;
+    if (more.relation[0] == 0 || more.relation[1] == 0 || more.casus == 0)
+        return Wrote::Off;
+    if (!std::isfinite(level) || level < -1.0f || level > 1.0f)
+        return Wrote::BadValue;
+    const Wrote found = find_pair(base, at, number, true, &mine, &me, &theirs, &them);
+    if (found != Wrote::Done)
+        return found;
+    relation_cells(more, mine, me, theirs, them, cells);
+    const float values[6] = {level, level, 0.0f, level, level, 0.0f};
+    return poke_floats(cells, values, 6, done);
+}
+
 void game_init()
 {
     if (!reading_wanted()) {
@@ -333,6 +521,12 @@ void game_init_from(const uint8_t *base, size_t size)
     char value_why[160] = "";
     const bool values = state && locate_values(base, size, &layout, value_rows, value_why, sizeof(value_why))
         && locate_fits(at, layout, value_why, sizeof(value_why));
+
+    // 새 찾기: 더 쓰는 값(기술 수준 · 세계 시장 여론 · 관계) — 묶음마다 따로 찾는다. 값 묶음을 찾았으면 그 칸들과 겹치지 않아야 한다
+    MoreLayout more = {};
+    SigRow more_rows[MORE_WANTED * STATE_SIGS];
+    char more_why[MORE_GROUPS][MORE_WHY] = {};
+    const int groups = state ? locate_more(base, size, values ? &layout : nullptr, &more, more_rows, more_why) : 0;
     const unsigned long long took = GetTickCount64() - started;
 
     // 옛 찾기(전환 기간에만): 아직 내장 치트로 도는 기능의 직접 실행이 쓴다. 상태를 읽지 못하면 그 기능들도 글쇠 방식이라 찾지 않는다
@@ -350,6 +544,9 @@ void game_init_from(const uint8_t *base, size_t size)
         g_values = values;
         g_write_failed = false;
         snprintf(g_values_why, sizeof(g_values_why), "%s", value_why);
+        g_more = more;
+        g_more_groups = groups;
+        memcpy(g_more_why, more_why, sizeof(g_more_why));
     }
     if (!state) {
         log_line("게임 상태를 읽을 수 없습니다 (%s) — 글쇠 방식", why);
@@ -368,8 +565,30 @@ void game_init_from(const uint8_t *base, size_t size)
                      layout.stock_first, layout.stock_step, STOCK_SLOTS);
         log_unmatched(value_rows, VALUE_WANTED * STATE_SIGS);
     }
+    static const char *const MISSING[MORE_GROUPS] = {"기술 수준을 쓸 수 없습니다 (%s)", "세계 시장 여론을 쓸 수 없습니다 (%s)",
+                                                     "관계를 쓸 수 없습니다 (%s)"};
+    if (groups != 0) {
+        char found[160] = "";
+        size_t used = 0;
+        const auto add = [&](const char *format, uint32_t a, uint32_t b, uint32_t c) {
+            used += static_cast<size_t>(snprintf(found + used, sizeof(found) - used, format, used == 0 ? "" : " · ", a, b, c));
+        };
+        if (groups & MORE_TECH)
+            add("%s기술 수준 +0x%X", more.tech, 0, 0);
+        if (groups & MORE_OPINION)
+            add("%s세계 시장 여론 +0x%X +0x%X +0x%X", more.opinion[0], more.opinion[1], more.opinion[2]);
+        if (groups & MORE_RELATIONS)
+            add("%s관계 +0x%X +0x%X 전쟁 명분 +0x%X", more.relation[0], more.relation[1], more.casus);
+        log_line(write_wanted() ? "값을 더 씁니다 (%s)" : "값을 더 쓰지 않습니다 (SRTOYBOX_WRITE=0. %s)", found);
+    }
+    for (int g = 0; g < MORE_GROUPS; g++)
+        if ((groups & (1 << g)) == 0)
+            log_line(MISSING[g], more_why[g]);
+    for (int i = 0; i < MORE_WANTED * STATE_SIGS; i++)   // 찾은 묶음에서만: 셋 가운데 둘로 찾았을 때 맞지 않은 하나
+        if ((groups & (1 << locate_more_group(i / STATE_SIGS))) != 0)
+            log_unmatched(more_rows[i], i % STATE_SIGS + 1);
     if (can_call)
-        log_line("옛 방식(내장 치트)으로 도는 기능이 %d개 남아 있습니다 (명령 처리 함수 +0x%X)", FEATURE_COUNT, at.handler);
+        log_line("옛 방식(내장 치트)으로 도는 기능이 %d개 남아 있습니다 (명령 처리 함수 +0x%X)", cheat_feature_count(), at.handler);
     else
         log_line("명령 처리 함수를 찾지 못했습니다 (%s) — 내장 치트로 도는 기능은 글쇠 방식", legacy);
 }
@@ -417,6 +636,10 @@ void game_set_for_test(const uint8_t *base, const GameAddresses *at, void *handl
     g_values = false;
     g_write_failed = false;
     snprintf(g_values_why, sizeof(g_values_why), "값의 자리를 주지 않았습니다");
+    g_more = MoreLayout();
+    g_more_groups = 0;
+    for (int g = 0; g < MORE_GROUPS; g++)
+        snprintf(g_more_why[g], MORE_WHY, "값의 자리를 주지 않았습니다");
 }
 
 void game_set_values_for_test(const ValueLayout *layout)
@@ -424,6 +647,16 @@ void game_set_values_for_test(const ValueLayout *layout)
     std::lock_guard<std::mutex> lock(g_lock);
     g_layout = layout != nullptr ? *layout : ValueLayout();
     g_values = layout != nullptr;
+    g_write_failed = false;
+}
+
+void game_set_more_for_test(const MoreLayout *layout)
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    g_more = layout != nullptr ? *layout : MoreLayout();
+    g_more_groups = (g_more.tech != 0 ? MORE_TECH : 0)
+        | (g_more.opinion[0] != 0 && g_more.opinion[1] != 0 && g_more.opinion[2] != 0 ? MORE_OPINION : 0)
+        | (g_more.relation[0] != 0 && g_more.relation[1] != 0 && g_more.casus != 0 ? MORE_RELATIONS : 0);
     g_write_failed = false;
 }
 
@@ -449,15 +682,88 @@ bool game_call(const char *line, unsigned long *code)
 std::string game_values_off()
 {
     std::lock_guard<std::mutex> lock(g_lock);
-    if (!g_located || !reading_wanted())
-        return "게임 상태를 읽을 수 있을 때만 씁니다.";
-    if (!g_values)
-        return std::string("이 게임 판에서는 쓸 수 없습니다 (") + g_values_why + ")";
-    if (!write_wanted())
-        return "값 쓰기를 껐습니다 (SRTOYBOX_WRITE=0)";
-    if (g_write_failed)
-        return "값 쓰기가 실패해 껐습니다. 게임을 다시 시작하면 다시 시도합니다.";
-    return std::string();
+    return off_text(g_values, g_values_why);
+}
+
+bool game_writes()
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    return g_located && reading_wanted() && write_wanted() && !g_write_failed;
+}
+
+std::string game_more_off(int group)
+{
+    const int index = more_index(group);
+    std::lock_guard<std::mutex> lock(g_lock);
+    return index < 0 ? std::string("없는 묶음입니다") : off_text((g_more_groups & group) != 0, g_more_why[index]);
+}
+
+GameMore game_more()
+{
+    const uint8_t *base = nullptr;
+    GameAddresses at = {};
+    MoreLayout more = {};
+    {
+        std::lock_guard<std::mutex> lock(g_lock);
+        if (!g_located || !reading_wanted())
+            return GameMore();
+        base = g_base;
+        at = g_at;
+        more = g_more;
+    }
+    return read_more(base, at, more);
+}
+
+Relation game_relation(int number)
+{
+    const uint8_t *base = nullptr;
+    GameAddresses at = {};
+    MoreLayout more = {};
+    {
+        std::lock_guard<std::mutex> lock(g_lock);
+        if (!g_located || !reading_wanted())
+            return Relation();
+        base = g_base;
+        at = g_at;
+        more = g_more;
+    }
+    return read_relation(base, at, more, number);
+}
+
+Wrote game_write_tech(float value)
+{
+    const uint8_t *base = nullptr;
+    GameAddresses at = {};
+    MoreLayout more = {};
+    if (!more_ready(MORE_TECH, &base, &at, &more))
+        return Wrote::Off;
+    const Wrote wrote = write_tech(base, at, more, value);
+    return wrote == Wrote::Failed ? write_failed("기술 수준", 1, 0) : wrote;
+}
+
+Wrote game_write_opinion()
+{
+    const uint8_t *base = nullptr;
+    GameAddresses at = {};
+    MoreLayout more = {};
+    int done = 0;
+    if (!more_ready(MORE_OPINION, &base, &at, &more))
+        return Wrote::Off;
+    const Wrote wrote = write_opinion(base, at, more, &done);
+    return wrote == Wrote::Failed ? write_failed("세계 시장 여론", 3, done) : wrote;
+}
+
+Wrote game_write_relation(int number, float level)
+{
+    const uint8_t *base = nullptr;
+    GameAddresses at = {};
+    MoreLayout more = {};
+    int done = 0;
+    if (!more_ready(MORE_RELATIONS, &base, &at, &more))
+        return Wrote::Off;
+    const Wrote wrote = write_relation(base, at, more, number, level, &done);
+    return wrote == Wrote::Failed
+        ? write_failed("관계 — " + region_label(number) + " (" + std::to_string(number) + ")", 6, done) : wrote;
 }
 
 GameValues game_values()
