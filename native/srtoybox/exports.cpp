@@ -3,6 +3,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -17,6 +18,7 @@
 #include "products.h"
 #include "prologue.h"
 #include "regions.h"
+#include "research.h"
 #include "runner.h"
 #include "settings.h"
 #include "sigs.h"
@@ -58,6 +60,74 @@ struct RecordingSink : Sink {
     void key(Act act, int value) override { line(act == Act::Down ? "DOWN" : act == Act::Up ? "UP" : "CHAR", value); }
     unsigned long long now_ms() override { return now; }
 };
+
+// 테스트가 글로 주는 연구의 표. 한 줄에 하나:
+//   slots <기술 자리 수> <설계 자리 수>
+//   t <번호> <분류> <수준> <선행 0> <선행 1> <보유> <묶음이 있다>
+//   d <번호> <연구 대상> <게임이 건너뛰는 설계> <보유> <묶음이 있다> <선행 0> <선행 1> <선행 2> <선행 3>
+//   q <종류> <번호> <깃발 0(16진수)> <깃발 1(16진수)>
+ResearchTables tables_from(const std::string &text)
+{
+    ResearchTables t;
+    std::istringstream lines(text);
+    std::string line, word;
+    while (std::getline(lines, line)) {
+        std::istringstream in(line);
+        int mine = 0, housed = 0, open = 0, held = 0;
+        in >> word;
+        if (word == "slots") {
+            in >> t.tech_slots >> t.design_slots;
+        } else if (word == "t") {
+            TechRow row;
+            in >> row.id >> row.kind >> row.level >> row.needs[0] >> row.needs[1] >> mine >> housed;
+            row.mine = mine != 0;
+            row.housed = housed != 0;
+            t.techs.push_back(row);
+        } else if (word == "d") {
+            DesignRow row;
+            in >> row.id >> open >> held >> mine >> housed >> row.needs[0] >> row.needs[1] >> row.needs[2] >> row.needs[3];
+            row.open = open != 0;
+            row.held = held != 0;
+            row.mine = mine != 0;
+            row.housed = housed != 0;
+            t.designs.push_back(row);
+        } else if (word == "q") {
+            QueueRow row;
+            in >> row.kind >> row.id >> std::hex >> row.flags[0] >> row.flags[1];
+            t.queue.push_back(row);
+        }
+    }
+    research_mark_queued(&t);
+    return t;
+}
+
+// 테스트가 글로 주는 "무엇을": "items t1 t2 d5" · "level 120" · "queue".
+ResearchWhat what_from(const std::string &text)
+{
+    ResearchWhat what;
+    std::istringstream in(text);
+    std::string word;
+    in >> word;
+    if (word == "level") {
+        what.kind = ResearchWhat::Level;
+        in >> what.level;
+    } else if (word == "queue") {
+        what.kind = ResearchWhat::Queue;
+    } else {
+        while (in >> word)
+            if (word.size() > 1)
+                (word[0] == 't' ? what.techs : what.designs).push_back(atoi(word.c_str() + 1));
+    }
+    return what;
+}
+
+std::string numbers(const char *name, const std::vector<int> &values)
+{
+    std::string text = name;
+    for (int value : values)
+        text += ' ' + std::to_string(value);
+    return text + '\n';
+}
 
 }  // namespace
 
@@ -300,6 +370,27 @@ EXPORT int srtoybox_locate_research_fits(const ResearchLayout *research, const V
 EXPORT int srtoybox_research_shape(char *out, int size)
 {
     return put(locate_research_shape(), out, size);
+}
+
+// 테스트: 연구의 규칙(research_plan)을 글로 준 표(tables_from)와 "무엇을"(what_from)에 돌린다. action: 0 완료, 1 미완료.
+// can_house: 묶음이 없는 항목에 새 묶음을 걸 수 있는가(0 이면 그런 항목을 건너뛴다).
+// 나오는 글은 일곱 줄이다: "techs 1 2 3" / "designs 5" / "nodes 0 1" / "asked <고른 기술의 수> <고른 설계의 수>" /
+// "skipped <건너뛴 항목의 수>" / "queued t3 d5"(표에서 대기열에 있는 것으로 읽힌 항목) / "text <알림의 글>".
+EXPORT int srtoybox_research_plan(const char *tables, int action, const char *what, int can_house, char *out, int size)
+{
+    const ResearchTables t = tables_from(tables != nullptr ? tables : "");
+    const Research how = action == 0 ? Research::Complete : Research::Revoke;
+    const ResearchPlan plan = research_plan(t, how, what_from(what != nullptr ? what : ""), can_house != 0);
+    std::string queued = "queued";
+    for (const TechRow &row : t.techs)
+        if (row.queued)
+            queued += " t" + std::to_string(row.id);
+    for (const DesignRow &row : t.designs)
+        if (row.queued)
+            queued += " d" + std::to_string(row.id);
+    return put(numbers("techs", plan.techs) + numbers("designs", plan.designs) + numbers("nodes", plan.nodes)
+               + "asked " + std::to_string(plan.asked_techs) + ' ' + std::to_string(plan.asked_designs) + "\nskipped "
+               + std::to_string(plan.skipped) + '\n' + queued + "\ntext " + research_summary(plan, how), out, size);
 }
 
 // 두 묶음의 대조(locate_fits). 0 이면 맞는다. -1 이면 error 에 까닭.
