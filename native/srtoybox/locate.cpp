@@ -374,6 +374,9 @@ const struct ActWanted {
      {"41 F7 84 09 [u32] 00 20 00 00 F3 41 0F 10 84 09 F0 89 36 00 74 05 0F 28 D0",
       "42 F7 84 29 [u32] 00 00 02 00 F3 42 0F 10 84 29 00 8A 36 00 75 08 F3 0F 58 C3",
       "42 F7 84 39 [u32] 00 40 00 00 F3 42 0F 10 94 39 F4 89 36 00 74 05 0F 28 C2 EB 0F"}},
+    // 최강 부대 묶음: 그 지역이 그 유형의 부대를 내놓는 칸을 찾는 함수
+    {"deploy_hex", "배치 칸을 찾는 함수", 0,
+     {"41 B8 02 00 00 00 32 DB E8 [rip]", "45 8B C6 48 8D 94 24 38 01 00 00 E8 [rip]", "48 8D 55 A8 48 8B 8D 08 01 00 00 E8 [rip]"}},
 };
 static_assert(sizeof(ActLayout) == ACT_WANTED * sizeof(uint32_t), "ActLayout 의 필드는 표 ACTS 의 순서대로 uint32_t 다");
 

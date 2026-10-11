@@ -9,6 +9,7 @@
 #include <mutex>
 
 #include "game.h"
+#include "techs.h"
 #include "log.h"
 #include "products.h"
 #include "regions.h"
@@ -27,7 +28,7 @@ struct Act {
     int region;                             // 식민지로 삼을 나라 · 전쟁의 둘째 나라. 부대 생성: 설계마다의 수량
     std::vector<int> designs;               // 부대 생성: 만들 부대 설계의 번호들
 };
-const int BECOME = -1, NOVICHOK = -2, TREATY = -3, ANNEX = -4, SPAWN = -5, SUPPLY = -6;   // SUPPLY: region 이 1 이면 채우기, 0 이면 비우기
+const int BECOME = -1, NOVICHOK = -2, TREATY = -3, ANNEX = -4, SPAWN = -5, SUPPLY = -6, BEST = -7;   // SUPPLY: region 이 1 이면 채우기, 0 이면 비우기
 std::deque<Act> g_acts;                     // 게임의 함수를 부르는 요청(식민지로 삼을 나라의 번호) — 연구 요청보다 먼저, 틱마다 하나
 
 // 이번 틱에 잠금을 놓고 할 일 하나: 게임의 함수를 부르는 요청이거나 연구 요청.
@@ -375,13 +376,14 @@ void run_act(const Act &act)
     unsigned long code = 0;
     const bool fight = act.attacker > 0, become = act.attacker == BECOME, novichok = act.attacker == NOVICHOK;
     const bool treaty = act.attacker == TREATY, annex = act.attacker == ANNEX, spawn = act.attacker == SPAWN;
-    const bool supply = act.attacker == SUPPLY;
+    const bool supply = act.attacker == SUPPLY, best = act.attacker == BEST;   // BEST: region 이 수량, designs[0] 이 영역
     int hexes = 0, made = 0, hex_x = 0, hex_y = 0, skipped = 0;
-    const Wrote wrote = supply ? game_supply(act.region != 0, &made, &skipped) : spawn ? game_spawn(act.designs.data(), static_cast<int>(act.designs.size()), act.region, &code, &made, &hex_x, &hex_y)
+    const Wrote wrote = best ? game_best(act.designs[0], act.region, &code, &made)
+        : supply ? game_supply(act.region != 0, &made, &skipped) : spawn ? game_spawn(act.designs.data(), static_cast<int>(act.designs.size()), act.region, &code, &made, &hex_x, &hex_y)
         : fight ? game_fight(act.attacker, act.region, &code) : become ? game_become(act.region, &code)
         : novichok ? game_novichok(act.region, &code) : treaty ? game_treaty(act.region, &code)
         : annex ? game_annex(act.region, &code, &hexes) : game_colonize(act.region, &code);
-    runner_leave_call(wrote != Wrote::Crashed ? nullptr : spawn ? "부대를 만드는" : fight ? "전쟁을 붙이는" : become ? "플레이하는 나라를 바꾸는"
+    runner_leave_call(wrote != Wrote::Crashed ? nullptr : spawn || best ? "부대를 만드는" : fight ? "전쟁을 붙이는" : become ? "플레이하는 나라를 바꾸는"
                       : novichok ? "지도자를 바꾸는" : treaty ? "동맹을 맺는" : annex ? "병합하는" : "식민지화하는", code);
 
     std::lock_guard<std::mutex> lock(g_lock);
@@ -391,7 +393,18 @@ void run_act(const Act &act)
         log_line("병합 — %s: %d칸을 넘긴 뒤 예외", who.c_str(), hexes);
     if (spawn && wrote == Wrote::Crashed)      // 몇 기까지 만들었는지 남긴다
         log_line("부대 생성: %d기를 만든 뒤 예외", made);
-    if (supply && wrote == Wrote::Done && made == 0) {
+    if (best && wrote == Wrote::Crashed)
+        log_line("최강 부대 묶음: 병과 %d종을 만든 뒤 예외", made);
+    if (best && wrote == Wrote::Done && made == 0) {
+        g_notice = "그 영역의 부대 설계가 없습니다.";
+    } else if (best && wrote == Wrote::Done) {
+        g_last = "최강 부대 묶음 — " + (act.designs[0] >= 0 ? domain_label(act.designs[0]) : std::string("모든 영역")) + " · 병과 "
+            + std::to_string(made) + "종 × " + std::to_string(act.region) + "기";
+        log_line("게임의 함수: %s", g_last.c_str());
+    } else if (best && wrote == Wrote::BadValue) {
+        g_notice = "게임의 부대 설계 표를 읽을 수 없어 하지 않았습니다.";
+        log_line("%s", g_notice.c_str());
+    } else if (supply && wrote == Wrote::Done && made == 0) {
         g_notice = skipped > 0 ? "고른 부대가 모두 남의 부대라 하지 않았습니다." : "고른 부대가 없습니다 — 게임에서 내 부대를 고르십시오.";
     } else if (supply && wrote == Wrote::Done) {
         g_last = std::string(act.region != 0 ? "보급 채우기" : "보급 비우기") + " — 부대 " + std::to_string(made) + "기"
@@ -502,6 +515,15 @@ bool keeper_enqueue_become(int region)
     if (g_acts.size() >= RESEARCH_QUEUE || !game_act_off(ACT_BECOME).empty())
         return false;
     g_acts.push_back({BECOME, region});
+    return true;
+}
+
+bool keeper_enqueue_best(int domain, int each)
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    if (g_acts.size() >= RESEARCH_QUEUE || !game_act_off(ACT_BEST).empty())
+        return false;
+    g_acts.push_back({BEST, each, {domain}});
     return true;
 }
 

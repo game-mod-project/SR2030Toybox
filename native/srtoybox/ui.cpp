@@ -96,6 +96,8 @@ std::string asking_label(const Feature &f, int region)
 // 쓸 수 없으면 단추 자리에 까닭 한 줄만 그린다(그 줄에만. 같은 탭의 다른 줄은 그대로다). 내장 치트로 되돌아가지 않는다.
 // 단추를 그렸으면(쓸 수 있으면) true.
 // compact: 설명 글을 줄로 그리지 않고 단추의 풍선말로 보인다(연구 탭 — 단추 셋이 한 줄에 놓인다).
+int g_best_domain = -1;   // 최강 부대 묶음의 영역(design_domain 의 번호. -1 이면 모든 영역)
+
 // "지도에서 고른 칸"의 글(부대 생성의 줄과 설계도 목록이 같이 쓴다)
 std::string hex_label(bool on_hex, int x, int y)
 {
@@ -115,9 +117,10 @@ bool direct_row(const Feature &f, const GameState &game, bool compact)
     const bool annex = f.direct == Direct::Annex;
     const bool spawn = f.direct == Direct::Spawn;
     const bool supply = f.direct == Direct::Supply;
-    const bool act = f.direct == Direct::Colonize || fight || become || novichok || treaty || annex || spawn || supply;   // 게임의 함수를 부르는 줄
+    const bool best = f.direct == Direct::Best;
+    const bool act = f.direct == Direct::Colonize || fight || become || novichok || treaty || annex || spawn || supply || best;   // 게임의 함수를 부르는 줄
     const std::string off = !game.known ? std::string("게임 상태를 읽을 수 있을 때만 씁니다.")
-        : research ? game_research_off() : act ? game_act_off(supply ? ACT_SUPPLY : spawn ? ACT_SPAWN : fight ? ACT_FIGHT : become ? ACT_BECOME : novichok ? ACT_ELECT : treaty ? ACT_TREATY : annex ? ACT_ANNEX : ACT_COLONIZE)
+        : research ? game_research_off() : act ? game_act_off(best ? ACT_BEST : supply ? ACT_SUPPLY : spawn ? ACT_SPAWN : fight ? ACT_FIGHT : become ? ACT_BECOME : novichok ? ACT_ELECT : treaty ? ACT_TREATY : annex ? ACT_ANNEX : ACT_COLONIZE)
         : game_more_off(group);
     ImGui::PushID(f.id);
     if (!off.empty()) {
@@ -135,6 +138,22 @@ bool direct_row(const Feature &f, const GameState &game, bool compact)
             }
             note(std::string("value:") + f.id, std::to_string(stored));
             value = stored;
+            ImGui::SameLine();
+        }
+        if (best) {                                                          // 최강 부대 묶음: 받을 영역(육 · 공 · 해. 처음은 모든 영역)
+            static const char *const NAMES[] = {"모든 영역", "육군", "공군", "해군"};
+            ImGui::SetNextItemWidth(110.0f);
+            if (ImGui::BeginCombo("##domain", NAMES[g_best_domain + 1])) {
+                for (int d = -1; d < 3; d++) {
+                    if (ImGui::Selectable(NAMES[d + 1], d == g_best_domain)) {
+                        g_best_domain = d;
+                        g_confirm.clear();
+                    }
+                    note("best:domain:" + std::to_string(d), NAMES[d + 1]);
+                }
+                ImGui::EndCombo();
+            }
+            note("best:domain", NAMES[g_best_domain + 1]);
             ImGui::SameLine();
         }
         const auto named = [](int number) { return region_label(number) + " (" + std::to_string(number) + ")"; };
@@ -181,7 +200,7 @@ bool direct_row(const Feature &f, const GameState &game, bool compact)
         }
         if (pressed && act) {
             g_confirm.clear();
-            g_notice = (supply ? keeper_enqueue_supply(true) : spawn ? keeper_enqueue_spawn({static_cast<int>(value)}, 1) : fight ? keeper_enqueue_fight(on_map, g_picked) : become ? keeper_enqueue_become(g_picked)
+            g_notice = (best ? keeper_enqueue_best(g_best_domain, static_cast<int>(value)) : supply ? keeper_enqueue_supply(true) : spawn ? keeper_enqueue_spawn({static_cast<int>(value)}, 1) : fight ? keeper_enqueue_fight(on_map, g_picked) : become ? keeper_enqueue_become(g_picked)
                         : novichok ? keeper_enqueue_novichok(g_picked) : treaty ? keeper_enqueue_treaty(g_picked)
                         : annex ? keeper_enqueue_annex(g_picked) : keeper_enqueue_colonize(g_picked))
                 ? "" : "대기 중인 요청이 많아 받지 못했습니다.";

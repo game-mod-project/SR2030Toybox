@@ -109,17 +109,26 @@ struct ActLayout {
     uint32_t map_hex;          // dword(자료). "지도에서 고른 칸" — 낮은 word 가 가로, 높은 word 가 세로. 0 이면 고르지 않았다. 읽기만 한다
     uint32_t picked_units;     // qword(자료). 게임에서 고른 부대들의 목록의 첫 노드(없으면 0). 노드: +8 다음 노드, +0x18 부대 객체. 읽기만 한다
     uint32_t upgrades;         // 상수: 세계 객체 안의 "부대 개량의 보정" 표에서 첫 레코드의 깃발(dword)의 자리. 읽기만 한다
+    uint32_t deploy_hex;       // uint32 *f(void *지역 객체, uint32 *out, int 유형): 그 지역이 그 유형(설계의 DESIGN_MOVE)의 부대를 내놓는 칸을 out 에 적고 돌려준다
 };
 
 // 찾을 것의 비트(ActLayout 의 필드 순서)
 const int ACT_COLONIZE = 1, ACT_FIGHT = 2, ACT_BECOME = 4, ACT_ELECT = 8, ACT_NEWS = 16, ACT_MAP_PICK = 32, ACT_INDEX2 = 64,
           ACT_POINTER2 = 128, ACT_LEADERS = 256, ACT_LEADER_ID = 512, ACT_TREATY = 1024, ACT_TREATIES = 2048,
           ACT_ANNEX = 4096, ACT_MAP = 8192, ACT_SPAWN = 16384, ACT_MAP_HEX = 32768,
-          ACT_PICKED_UNITS = 65536, ACT_UPGRADES = 131072;
+          ACT_PICKED_UNITS = 65536, ACT_UPGRADES = 131072, ACT_DEPLOY = 262144;
+const int ACT_BEST = ACT_DEPLOY | ACT_SPAWN;   // 최강 부대 묶음: game_act_off 에 주는 이름(배치 칸 함수와 부대 만들기 함수)
 const int ACT_SUPPLY = ACT_PICKED_UNITS | ACT_UPGRADES;   // 보급 채우기 · 비우기: game_act_off 에 주는 이름(둘 다 찾아야 한다)
 const int SPAWN_MAX_EQUIP = 21999;   // 게임이 받는 부대 설계 번호의 끝(내장 치트 spawnunit 의 검사와 같다)
 const int SPAWN_LIMIT = 200;         // ToyBox 가 한 번에 만드는 부대의 끝(설계의 수 × 수량)
-const int ACT_WANTED = 18;
+const int ACT_WANTED = 19;
+// 최강 부대 묶음(내장 치트 darran 의 "받기" 쪽): 병과마다 이 능력치(설계의 DESIGN_STATS + 4 × 번호, float)가 가장 높은 설계를 고른다.
+// −1 인 병과(수송 · 미사일 · 공중 수송)는 받지 않는다. 치트의 표(실행 파일의 자료) 그대로다 — build 21347933.
+const int BEST_CLASSES = 20;
+const int BEST_STAT[BEST_CLASSES] = {0, 0, 1, 1, 1, 1, -1, 1, -1, 4, 1, 3, 2, 4, -1, 7, 6, 6, 6, 7};
+const uint32_t DESIGN_STATS = 0x84;         // float × … 능력치들
+const uint32_t DESIGN_MOVE = 0x12;          // byte. 유형(배치 칸 함수의 셋째 인자)
+const int BEST_EACH_MAX = 10;               // 병과마다 받는 수의 끝(치트는 7)
 // 부대 객체의 꼴(보급 채우기 — 내장 치트 stranded 가 읽고 쓰는 자리들. 서명에 박혀 있지 않다 — 쓰기 전에 설계 포인터가 설계 표 안인지로 지킨다)
 const uint32_t UNIT_READ = 0x238;           // 읽을 크기(설계 포인터까지)
 const uint32_t UNIT_OWNER = 0x1E;           // word. 그 부대의 주인인 지역의 인덱스

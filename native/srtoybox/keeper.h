@@ -50,6 +50,8 @@ bool keeper_enqueue_novichok(int region);
 bool keeper_enqueue_treaty(int region);
 // 그 나라의 땅을 모두 플레이어의 것으로 만든다. 같은 줄에 선다.
 bool keeper_enqueue_annex(int region);
+// 최강 부대 묶음을 받는다(game_best). domain 이 -1 이면 모든 영역. 받지 못하면 거짓.
+bool keeper_enqueue_best(int domain, int each);
 // 게임에서 고른 내 부대의 보급을 가득(fill) 또는 0 으로 쓴다(game_supply). 받지 못하면 거짓.
 bool keeper_enqueue_supply(bool fill);
 // 게임의 지도에서 고른 칸에 그 설계들의 부대를 each 기씩 만든다(game_spawn). 받지 못하면 거짓.
