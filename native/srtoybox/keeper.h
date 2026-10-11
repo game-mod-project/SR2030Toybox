@@ -78,6 +78,10 @@ bool keeper_enqueue_research(const ResearchRequest &request);
 // 연구 요청은 keeper 의 잠금을 놓고 처리한다 — 게임의 함수가 안에서 ToyBox 로 되돌아와도(타이머 · 단추) 서로 기다리지 않는다.
 // 그 함수에서 예외가 나면 오류 가드를 건다(runner_win.h): 그 뒤로 ToyBox 는 아무것도 실행하지도 쓰지도 않는다.
 void keeper_tick(unsigned long long now_ms);
+// 게임 창(HWND)을 알려 준다 — "즉시 승리"가 그 창에 메시지를 보낸다. 창을 가진 스레드에서 틱 앞에 부른다.
+void keeper_set_window(void *window);
+// 즉시 승리(game_victory). 받지 못하면 거짓.
+bool keeper_enqueue_victory();
 // 마지막으로 쓴 것: "국고 14.43 B -> 24.43 B" · "석유 2.5 M -> 3.5 M" · "모든 물자 11개" · "기술 수준 130 -> 131" ·
 // "세계 시장 여론 최고" · "관계 최고 — 폴란드 (1106)" · "기술 12개(선행 5개 포함) · 부대 설계 1개를 완료로 — 대기열" ·
 // "대기열에서 2개를 뺌 — 대기열". 없으면 빈 글
