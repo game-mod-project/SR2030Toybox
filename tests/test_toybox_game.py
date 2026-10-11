@@ -129,18 +129,18 @@ def act_sigs(lib):
 
 BUILD_ACTS = {"colonize": 0x771FB0, "fight": 0x6FEB60, "become": 0x6E8D50, "elect": 0x6E7AC0, "news": 0x6EF3C0, "map_pick": 0x1764320,
               "player_index2": 0x18294EC, "player_pointer2": 0x1829600, "leader_table": 0x1B058D8, "leader_id": 0xAC,
-              "treaty": 0x70CBD0, "treaties": 0x1A3B0, "annex": 0x741530, "map": 0x1829020, "spawn": 0x79E2F0, "map_hex": 0x1764338, "picked_units": 0x17697F0, "upgrades": 0x368A24}
+              "treaty": 0x70CBD0, "treaties": 0x1A3B0, "annex": 0x741530, "map": 0x1829020, "spawn": 0x79E2F0, "map_hex": 0x1764338, "picked_units": 0x17697F0, "upgrades": 0x368A24, "deploy_hex": 0x6EC490}
 
 
 def test_the_called_functions_are_found_by_their_call_sites(lib, act_sigs, game_dir):
     """3단계 4: 부르는 게임의 함수(식민지화)는 그것을 부르는 자리의 서명 셋이 모두 한 번씩 맞고 같은 주소를 내야 찾은 것이다 —
     그 주소가 함수 표에 있는 함수의 시작이어야 한다. 하나라도 어긋나면 못 찾은 것으로 친다(엉뚱한 함수를 부르지 않는다)."""
-    assert [name for name, _ in act_sigs] == [name for name in toybox.ACT_FIELDS for _ in range(3)] and len({t for _, t in act_sigs}) == 54
+    assert [name for name, _ in act_sigs] == [name for name in toybox.ACT_FIELDS for _ in range(3)] and len({t for _, t in act_sigs}) == 57
     acts = toybox_fake_exe.ACTS
-    assert toybox.acts_of(lib, toybox_fake_exe.sig_image(act_sigs))[:2] == (acts, [""] * 18)
+    assert toybox.acts_of(lib, toybox_fake_exe.sig_image(act_sigs))[:2] == (acts, [""] * 19)
     found, why, _ = toybox.acts_of(lib, toybox_fake_exe.sig_image(act_sigs, broken={1}))
     assert found == {**acts, "colonize": 0} and "식민지화 함수" in why[0] and "3개 가운데 2개" in why[0]   # 셋 가운데 둘로는 찾지 않는다
-    assert why[1:] == [""] * 17                                                                          # 저마다 따로 찾는다
+    assert why[1:] == [""] * 18                                                                          # 저마다 따로 찾는다
     found, why, _ = toybox.acts_of(lib, toybox_fake_exe.sig_image(act_sigs, stray={5}))
     assert found == {**acts, "fight": 0} and "전쟁 함수" in why[1] and "서로 다른" in why[1]
     found, why, _ = toybox.acts_of(lib, toybox_fake_exe.sig_image(act_sigs, targets={"colonize": toybox_fake_exe.COLONIZE + 4}))
@@ -152,7 +152,7 @@ def test_the_called_functions_are_found_by_their_call_sites(lib, act_sigs, game_
     found, why, _ = toybox.acts_of(lib, toybox_fake_exe.sig_image(act_sigs, targets={"leader_id": 0}))
     assert found == {**acts, "leader_id": 0} and why[9] == "지도자 번호의 자리: 찾은 자리가 범위 밖입니다"
     found, why, rows = toybox.acts_of(lib, installed_image(game_dir))                                    # build 21347933
-    assert found == BUILD_ACTS and why == [""] * 18 and [row.count for row in rows] == [1] * 54
+    assert found == BUILD_ACTS and why == [""] * 19 and [row.count for row in rows] == [1] * 57
 
 
 def installed_image(game_dir) -> bytes:

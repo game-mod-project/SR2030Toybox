@@ -16,13 +16,14 @@ BECOME = TEXT + 0xD80                         # 가짜 "플레이 지역을 바�
 ELECT, NEWS = TEXT + 0xE00, TEXT + 0xE80      # 가짜 "새 지도자를 세우는 함수" · "알림 함수" — 〃
 TREATY = TEXT + 0xF00                         # 가짜 "조약 함수" — 〃
 ANNEX = TEXT + 0xF80                          # 가짜 "칸의 주인을 바꾸는 함수" — 〃
-SPAWN = TEXT + 0x1000                         # 가짜 "부대를 만드는 함수" — 〃
+SPAWN = TEXT + 0x900                          # 가짜 "부대를 만드는 함수" — 〃
+DEPLOY = TEXT + 0x980                         # 가짜 "배치 칸을 찾는 함수" — 〃
 # 새 찾기(부르는 게임의 함수와 그것들이 쓰는 전역 · 상수)의 가짜 주소와 값
 ACTS = {"colonize": COLONIZE, "fight": FIGHT, "become": BECOME, "elect": ELECT, "news": NEWS, "map_pick": DATA + 0x68,
         "player_index2": DATA + 0x74, "player_pointer2": DATA + 0x78, "leader_table": DATA + 0x88, "leader_id": 0x9C,
-        "treaty": TREATY, "treaties": 0x7000, "annex": ANNEX, "map": DATA + 0x90, "spawn": SPAWN, "map_hex": DATA + 0xA0, "picked_units": DATA + 0xA8, "upgrades": 0x2C6C}
+        "treaty": TREATY, "treaties": 0x7000, "annex": ANNEX, "map": DATA + 0x90, "spawn": SPAWN, "map_hex": DATA + 0xA0, "picked_units": DATA + 0xA8, "upgrades": 0x2C6C, "deploy_hex": DEPLOY}
 ACT_FUNCTIONS = [(COLONIZE, COLONIZE + 0x40), (FIGHT, FIGHT + 0x40), (BECOME, BECOME + 0x40), (ELECT, ELECT + 0x40), (NEWS, NEWS + 0x40),
-                 (TREATY, TREATY + 0x40), (ANNEX, ANNEX + 0x40), (SPAWN, SPAWN + 0x40)]
+                 (TREATY, TREATY + 0x40), (ANNEX, ANNEX + 0x40), (SPAWN, SPAWN + 0x40), (DEPLOY, DEPLOY + 0x40)]
 WORLD = DATA + 0x180                          # 지역 표 = WORLD + 0x80
 ANCHOR = RDATA                                # "cheat allowcheats"
 # 새 찾기(상태 묶음)의 가짜 주소
@@ -123,7 +124,7 @@ def sig_image(sigs: list[tuple[str, str]], *, broken=(), twice=(), stray=(), tar
     broken · twice · stray 는 sigs 의 칸 번호들이다: 심지 않는다 / 한 번 더 심는다(두 번 맞는다) / 옆의 값을 가리키게 심는다.
     targets 로 가짜 주소 · 값을 바꾼다(STATE · VALUES · MORE · RESEARCH 의 이름으로).
     """
-    image = into if into is not None else shell([(RECOMPUTE, RECOMPUTE + 0x40), *ACT_FUNCTIONS, (PLANT, TEXT + 0x2000)])
+    image = into if into is not None else shell(sorted([(RECOMPUTE, RECOMPUTE + 0x40), *ACT_FUNCTIONS, (PLANT, TEXT + 0x2000)]))
     at = {**STATE, **VALUES, **MORE, **RESEARCH, **ACTS, **(targets or {})}
     places: dict[str, int] = {}
     for i, (name, text) in enumerate(sigs):
@@ -144,8 +145,9 @@ def build(sigs: list[tuple[str, str]] | None = None, *, extra_anchor: bool = Fal
 
     나머지 인자는 옛 찾기가 거부해야 하는 흠을 하나씩 낸다.
     """
-    image = shell([(HANDLER, HANDLER + 0x200), (CALLER, CALLER + 0x20), (CALLER + 0x20, CALLER + 0x100), (RECOMPUTE, RECOMPUTE + 0x40),
-                   *ACT_FUNCTIONS, (PLANT, TEXT + 0x2000)])
+    # 함수 표는 주소 순이어야 한다(앞의 셋은 그대로 첫 세 칸이다 — 아래에서 셋째 칸을 고친다)
+    image = shell(sorted([(HANDLER, HANDLER + 0x200), (CALLER, CALLER + 0x20), (CALLER + 0x20, CALLER + 0x100), (RECOMPUTE, RECOMPUTE + 0x40),
+                          *ACT_FUNCTIONS, (PLANT, TEXT + 0x2000)]))
     unwind = RDATA + 0x800
     put(image, unwind + 0x10, bytes([0x21, 0, 0, 0]) + struct.pack("<III", CALLER, CALLER + 0x20, unwind))   # UNW_FLAG_CHAININFO
     struct.pack_into("<I", image, PDATA + 12 * 2 + 8, unwind + 0x10)           # 부르는 함수의 뒤 조각은 앞 조각에 묶인다

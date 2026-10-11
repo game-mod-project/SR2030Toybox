@@ -165,6 +165,7 @@ ANNEX = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ct
 SPAWN = ctypes.WINFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_uint32, ctypes.c_bool, ctypes.c_bool,
                            ctypes.c_void_p, ctypes.c_bool, ctypes.c_int, ctypes.c_bool)   # 게임의 "부대 만들기"
 PICKED_UNITS, UPGRADES = 0xA8, 0x2C6C           # 가짜 게임의 "고른 부대의 목록"(첫 노드의 포인터)과 세계 객체 안의 개량 보정 표의 자리
+DEPLOY = ctypes.WINFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int)   # 게임의 "배치 칸 찾기"
 MAP_HEX = 0xA0                                  # 가짜 게임의 "지도에서 고른 칸"(dword: 가로 | 세로 << 16. 0 이면 고르지 않았다)
 MAP_PICK = 0x70                                 # 가짜 게임의 "지도에서 고른 지역": 이 자리의 포인터가 가리키는 word(바로 뒤 0x78)가 인덱스다
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
@@ -681,14 +682,22 @@ def fake_game(hook: str, handler: int | None = None, values: bool = True, more: 
         fake.spawned.append([struct.unpack("<H", ctypes.string_at(region + 8, 2))[0], design, count, hex_, int(f1), int(f2), out_ or 0, int(f3), z, int(f4)])
         return 0
     fake.spawn = SPAWN(spawn)
-    toybox.srtoybox_test_acts.argtypes = [ctypes.c_void_p] * 9
+    fake.deployed = []                                         # 가짜 "배치 칸 찾기"가 불린 인자들: [지역 번호, 유형]
+
+    def deploy(region, out_, move):
+        fake.deployed.append([struct.unpack("<H", ctypes.string_at(region + 8, 2))[0], move])
+        ctypes.memmove(out_, struct.pack("<I", 0x00070000 | (40 + move)), 4)      # 유형마다 다른 칸: (40 + 유형, 7)
+        return out_
+    fake.deploy = DEPLOY(deploy)
+    toybox.srtoybox_test_acts.argtypes = [ctypes.c_void_p] * 10
     if os.environ.get("PROBE_NO_ACTS") != "1":
-        toybox.srtoybox_test_acts((ctypes.c_uint32 * 18)(1, 1, 1, 1, 1, MAP_PICK, INDEX2, POINTER2, LEADERS, LEADER_ID, 1, TREATIES, 1, MAP, 1, MAP_HEX,
-                                                         PICKED_UNITS, UPGRADES),
+        toybox.srtoybox_test_acts((ctypes.c_uint32 * 19)(1, 1, 1, 1, 1, MAP_PICK, INDEX2, POINTER2, LEADERS, LEADER_ID, 1, TREATIES, 1, MAP, 1, MAP_HEX,
+                                                         PICKED_UNITS, UPGRADES, 1),
                                   ctypes.cast(fake.colonize, ctypes.c_void_p), ctypes.cast(fake.fight, ctypes.c_void_p),
                                   ctypes.cast(fake.become, ctypes.c_void_p), ctypes.cast(fake.elect, ctypes.c_void_p),
                                   ctypes.cast(fake.news, ctypes.c_void_p), ctypes.cast(fake.treaty, ctypes.c_void_p),
-                                  ctypes.cast(fake.annex, ctypes.c_void_p), ctypes.cast(fake.spawn, ctypes.c_void_p))
+                                  ctypes.cast(fake.annex, ctypes.c_void_p), ctypes.cast(fake.spawn, ctypes.c_void_p),
+                                  ctypes.cast(fake.deploy, ctypes.c_void_p))
     fake.recomputed = []
     fake.recompute = RECOMPUTE(lambda _world, index: fake.recomputed.append(index))     # 게임이 살아 있는 동안 붙들어 둔다
     if research:
@@ -1566,6 +1575,38 @@ def run_research(hook: str, mode: str) -> int:
         toybox_dll = ctypes.WinDLL(str(Path(hook).with_name("srtoybox.dll")))
         toybox_dll.srtoybox_owner_names(0, 1, names, len(names))
         out["owners_of_tech_1"] = names.value.decode("utf-8")
+    elif mode == "research_best":                             # 최강 부대 묶음(3단계 5): 병과마다 능력치가 가장 높은 설계를, 게임이 정한 배치 칸에
+        lab = fake.lab
+        for number in range(1, 64):                           # 이 판의 설계는 아래 넷뿐이게 한다(빈 자리 = 첫 칸이 0)
+            struct.pack_into("<Q", lab.designs, number * 0x168, 0)
+
+        def design(number, cls, stat, value, move):
+            lab.design(number, cls=cls, name=b"Best")
+            struct.pack_into("<f", lab.designs, number * 0x168 + 0x84 + 4 * stat, value)
+            lab.designs[number * 0x168 + 0x12] = move
+        design(20, 2, 1, 5.0, 0)                              # 전차(육군. 능력치 1번): 5
+        design(21, 2, 1, 9.0, 0)                              # 전차: 9 — 이것이 뽑힌다
+        design(22, 16, 6, 3.0, 3)                             # 주력함(해군. 능력치 6번)
+        design(23, 8, 0, 99.0, 0)                             # 미사일 — 받지 않는 병과다
+        game.click("tab:부대")
+        game.wait(0.8)
+        out["domain"] = game.facts()["best:domain"][3]
+        press("run:darran")
+        out["asking"], out["first"] = game.facts()["run:darran"][3], list(fake.spawned)
+        press("run:darran")                                   # 모든 영역, 7기씩
+        out["all"], out["deployed"], out["wrote"] = list(fake.spawned), list(fake.deployed), game.shown("wrote")
+        game.click("best:domain")
+        game.click("best:domain:0")                           # 육군만
+        game.wait(0.2)
+        press("run:darran")
+        press("run:darran")
+        out["land"], out["wrote_land"] = fake.spawned[len(out["all"]):], game.shown("wrote")
+        game.click("best:domain")
+        game.click("best:domain:1")                           # 공군 — 이 판에는 없다
+        game.wait(0.2)
+        press("run:darran")
+        press("run:darran")
+        out["air_calls"], out["air"] = len(fake.spawned), game.shown("unwritten")
     elif mode == "research_supply":                           # 보급 채우기(3단계 5): 고른 내 부대의 보급 두 칸을 "가득"으로 · 0 으로
         lab = fake.lab
         lab.design(20, cls=0, name=b"Truck")
