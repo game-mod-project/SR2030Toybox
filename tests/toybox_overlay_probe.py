@@ -164,6 +164,7 @@ MAP = 0x98                                      # 가짜 게임의 지도 객체
 ANNEX = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_bool, ctypes.c_bool)   # 게임의 "칸의 주인 바꾸기"
 SPAWN = ctypes.WINFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_uint32, ctypes.c_bool, ctypes.c_bool,
                            ctypes.c_void_p, ctypes.c_bool, ctypes.c_int, ctypes.c_bool)   # 게임의 "부대 만들기"
+PICKED_UNITS, UPGRADES = 0xA8, 0x2C6C           # 가짜 게임의 "고른 부대의 목록"(첫 노드의 포인터)과 세계 객체 안의 개량 보정 표의 자리
 MAP_HEX = 0xA0                                  # 가짜 게임의 "지도에서 고른 칸"(dword: 가로 | 세로 << 16. 0 이면 고르지 않았다)
 MAP_PICK = 0x70                                 # 가짜 게임의 "지도에서 고른 지역": 이 자리의 포인터가 가리키는 word(바로 뒤 0x78)가 인덱스다
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
@@ -682,7 +683,8 @@ def fake_game(hook: str, handler: int | None = None, values: bool = True, more: 
     fake.spawn = SPAWN(spawn)
     toybox.srtoybox_test_acts.argtypes = [ctypes.c_void_p] * 9
     if os.environ.get("PROBE_NO_ACTS") != "1":
-        toybox.srtoybox_test_acts((ctypes.c_uint32 * 16)(1, 1, 1, 1, 1, MAP_PICK, INDEX2, POINTER2, LEADERS, LEADER_ID, 1, TREATIES, 1, MAP, 1, MAP_HEX),
+        toybox.srtoybox_test_acts((ctypes.c_uint32 * 18)(1, 1, 1, 1, 1, MAP_PICK, INDEX2, POINTER2, LEADERS, LEADER_ID, 1, TREATIES, 1, MAP, 1, MAP_HEX,
+                                                         PICKED_UNITS, UPGRADES),
                                   ctypes.cast(fake.colonize, ctypes.c_void_p), ctypes.cast(fake.fight, ctypes.c_void_p),
                                   ctypes.cast(fake.become, ctypes.c_void_p), ctypes.cast(fake.elect, ctypes.c_void_p),
                                   ctypes.cast(fake.news, ctypes.c_void_p), ctypes.cast(fake.treaty, ctypes.c_void_p),
@@ -1564,6 +1566,46 @@ def run_research(hook: str, mode: str) -> int:
         toybox_dll = ctypes.WinDLL(str(Path(hook).with_name("srtoybox.dll")))
         toybox_dll.srtoybox_owner_names(0, 1, names, len(names))
         out["owners_of_tech_1"] = names.value.decode("utf-8")
+    elif mode == "research_supply":                           # 보급 채우기(3단계 5): 고른 내 부대의 보급 두 칸을 "가득"으로 · 0 으로
+        lab = fake.lab
+        lab.design(20, cls=0, name=b"Truck")
+        at = 20 * 0x168
+        struct.pack_into("<ff", lab.designs, at + 0x78, 10.0, 0.0)          # 첫째 칸의 용량 10
+        struct.pack_into("<f", lab.designs, at + 0x80, 4.0)                 # 둘째 칸의 용량 4
+        struct.pack_into("<8H", lab.designs, at + 0x38, 1, 0, 0, 0, 0, 0, 0, 0)   # 효과를 주는 기술: 1(독일 · 폴란드가 보유)
+        struct.pack_into("<4H4f", lab.techs, 1 * 0x88 + 0xC, 0xA6, 0xA5, 0, 0, 0.5, 0.25, 0.0, 0.0)   # 첫째 × 1.5, 둘째 × 1.25
+        record = 0x800 + UPGRADES + 5 * 0x78                  # 병과 0 · 칸 0 · 단계 1 의 레코드(번호 5)의 깃발
+        fake.poke(record, "<I", 1 << 18)                      # 둘째 칸의 값은 곱하지 않고 그대로 쓴다
+        fake.poke(record - 0x68 + 4 * 16, "<f", 0.1)          # 첫째 칸 × 1.1
+        fake.poke(record - 0x68 + 4 * 18, "<f", 7.0)          # 둘째 칸 = 7
+
+        def unit(owner):
+            raw = (ctypes.c_ubyte * 0x238)()
+            struct.pack_into("<H", raw, 0x1E, owner)
+            struct.pack_into("<ff", raw, 0x80, 1.0, 1.0)
+            struct.pack_into("<f", raw, 0x90, 2.0)            # 규모 2
+            raw[0xDC], raw[0xE7], raw[0xF8] = 1, 1, 0x40
+            struct.pack_into("<Q", raw, 0x230, ctypes.addressof(lab.designs) + at)
+            return raw
+        mine, theirs = unit(176), unit(141)
+        nodes = [(ctypes.c_ubyte * 0x30)(), (ctypes.c_ubyte * 0x30)()]
+        struct.pack_into("<Q", nodes[0], 8, ctypes.addressof(nodes[1]))
+        struct.pack_into("<Q", nodes[0], 0x18, ctypes.addressof(mine))
+        struct.pack_into("<Q", nodes[1], 0x18, ctypes.addressof(theirs))
+        stores = lambda raw: [round(v, 3) for v in struct.unpack_from("<ff", raw, 0x80)]
+        game.click("tab:부대")
+        game.wait(0.8)
+        out["unpicked"], out["off_click"] = game.facts()["supply:picked"][3], game.click("run:stranded")
+        fake.poke(PICKED_UNITS, "<Q", ctypes.addressof(nodes[0]))           # 게임에서 부대 둘을 골랐다(하나는 폴란드의 것)
+        game.wait(0.3)
+        out["picked"] = game.facts()["supply:picked"][3]
+        press("run:stranded")
+        out["filled"], out["theirs"], out["wrote"] = stores(mine), stores(theirs), game.shown("wrote")
+        press("empty:stranded")
+        out["emptied"], out["wrote_empty"] = stores(mine), game.shown("wrote")
+        struct.pack_into("<Q", theirs, 0x230, 0)              # 부대 객체로 보이지 않는 것이 목록에 있다 — 하나도 쓰지 않는다
+        press("run:stranded")
+        out["broken"], out["after_broken"] = game.shown("unwritten"), stores(mine)
     elif mode == "research_spawn":                               # 부대 생성(3단계 5): 게임의 지도에서 고른 칸에, 게임의 함수로
         game.click("tab:부대")
         game.wait(0.8)
@@ -1576,8 +1618,10 @@ def run_research(hook: str, mode: str) -> int:
         out["picked"] = game.facts()["spawn:hex"][3]
         press("run:spawnunit")                                # 입력란의 번호(2413)는 가짜 판의 표에 없다
         out["missing"], out["missing_calls"] = game.shown("unwritten"), list(fake.spawned)
+        scroll_to(game, "item:12")
         game.click("item:11")
         game.click("item:12")
+        scroll_to(game, "list:spawn", up=True)
         press("list:spawn")                                   # 고른 설계 둘을 하나씩
         out["spawned"], out["wrote"] = list(fake.spawned), game.shown("wrote")
         fake.poke(MAP_HEX, "<I", 9 | 2 << 16)                 # 지도(8 × 4) 밖의 칸 — 고르지 않은 것으로 친다

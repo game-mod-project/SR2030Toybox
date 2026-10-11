@@ -79,9 +79,9 @@ def test_feature_table(dll):
     # 게임에 넣는 글이 없다. 나머지 열하나가 내장 치트로 돈다
     assert {f["id"]: f["how"] for f in fs if f["how"] != "cheat"} == {
         "technology": "tech_level", "e=mc2": "queue_done", "finalexam": "tech_up", "shelovesme": "opinion_best",
-        "love": "relation_best", "neutral": "relation_neutral", "populate": "people_add", "approval": "approval_best", "colonize": "colonize", "fight": "fight", "becomeregion": "become", "novichok": "novichok", "treaty": "treaty", "annex": "annex", "spawnunit": "spawn"}
+        "love": "relation_best", "neutral": "relation_neutral", "populate": "people_add", "approval": "approval_best", "colonize": "colonize", "fight": "fight", "becomeregion": "become", "novichok": "novichok", "treaty": "treaty", "annex": "annex", "spawnunit": "spawn", "stranded": "supply"}
     cheats = [f for f in fs if f["how"] == "cheat"]
-    assert len(cheats) == 4 == dll.srtoybox_cheat_feature_count() and len({f["command"] for f in cheats}) == 4
+    assert len(cheats) == 3 == dll.srtoybox_cheat_feature_count() and len({f["command"] for f in cheats}) == 3
     assert [f["id"] for f in fs][:3] == ["technology", "e=mc2", "finalexam"]            # 줄의 자리는 옮기기 전과 같다
     assert [(f["label"], f["default"], f["min"], f["max"]) for f in fs[:2]] == [("기술 수준 N 이하 전부 보유", 120, 1, 255),
                                                                               ("대기열의 연구 즉시 완료", 0, 0, 0)]
@@ -123,7 +123,7 @@ def test_command_text(dll):
     # 값을 받는 내장 치트(spawnunit <번호>)는 이제 없다 — 부대 생성은 게임의 함수를 직접 부른다
     assert text(dll.srtoybox_command, b"darran", 999, 1106) == "cheat darran"                  # 값도 대상도 없는 기능은 둘 다 무시한다
     # 나라를 대상으로 하는 내장 치트(…  <지역 번호>)는 이제 없다 — 외교·영토 탭의 줄은 모두 직접 한다
-    for moved in (b"technology", b"e=mc2", b"finalexam", b"shelovesme", b"love", b"neutral", b"populate", b"approval", b"colonize", b"fight", b"becomeregion", b"novichok", b"treaty", b"annex", b"spawnunit"):   # 직접 쓰는 줄은 게임에 넣을 글이 없다
+    for moved in (b"technology", b"e=mc2", b"finalexam", b"shelovesme", b"love", b"neutral", b"populate", b"approval", b"colonize", b"fight", b"becomeregion", b"novichok", b"treaty", b"annex", b"spawnunit", b"stranded"):   # 직접 쓰는 줄은 게임에 넣을 글이 없다
         assert text(dll.srtoybox_command, moved, 120, 1106) is None
     assert text(dll.srtoybox_command, b"depopulate", 0, 0) is None                             # 표에 없는 것은 만들지 않는다
     assert text(dll.srtoybox_command, b"treasury", 1, 0) is None                               # 지운 기능 — 국고는 돈 탭이 직접 한다
@@ -1181,6 +1181,19 @@ def test_the_units_tab_lists_designs_by_domain_and_registers_them(dll, cfg, tmp_
     assert got["asking"] == "모든 설계도 해제 — 한 번 더 누르면 실행합니다" and got["held_asking"] == got["after_every"]
     assert got["after_none"] == [[1, 2, 3, 4, 6], [], [1, 2], [11, 13]] and got["wrote_none"] == "부대 설계 5개를 미완료로 — 모든 설계도"
     assert got["owners_of_tech_1"] == "폴란드"                               # 풍선말의 글: 보유한 다른 나라 모두(플레이어는 뺀다)
+    assert got["lines"] == [] and got["text"] == "" and got["options"] == 0
+
+
+def test_the_supply_of_picked_units_is_filled_without_the_cheat(dll, cfg, tmp_path):
+    """보급 채우기(3단계 5, 사용자가 정했다 2026-10-11 — 내장 치트의 셈을 그대로): 게임에서 고른 부대 가운데 내 부대의 보급 두 칸을
+    "가득"(규모 × 설계의 용량 × 개량의 보정 × 보유한 기술의 효과)으로 쓴다. 남의 부대는 건너뛴다. 옆의 "비우기"는 0 으로.
+    목록에 부대 객체로 보이지 않는 것이 있으면 하나도 쓰지 않는다. 게임에 넣는 글(치트)은 없다."""
+    got = json.loads(_probe(cfg, tmp_path, "research_supply"))
+    assert got["unpicked"] == "고른 부대: 없음 — 게임에서 내 부대를 고르십시오" and got["picked"] == "고른 부대: 2기 (내 부대 1기)"
+    assert got["filled"] == [33.0, 8.75] and got["theirs"] == [1.0, 1.0]    # 2 × 10 × 1.1 × 1.5 / 7(그대로) × 1.25
+    assert got["wrote"] == "보급 채우기 — 부대 1기 (남의 부대 1기는 건너뜀)"
+    assert got["emptied"] == [0.0, 0.0] and got["wrote_empty"] == "보급 비우기 — 부대 1기 (남의 부대 1기는 건너뜀)"
+    assert got["broken"] == "게임의 부대 정보를 읽을 수 없어 하지 않았습니다." and got["after_broken"] == [0.0, 0.0]
     assert got["lines"] == [] and got["text"] == "" and got["options"] == 0
 
 

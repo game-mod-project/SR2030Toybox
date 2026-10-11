@@ -27,7 +27,7 @@ struct Act {
     int region;                             // 식민지로 삼을 나라 · 전쟁의 둘째 나라. 부대 생성: 설계마다의 수량
     std::vector<int> designs;               // 부대 생성: 만들 부대 설계의 번호들
 };
-const int BECOME = -1, NOVICHOK = -2, TREATY = -3, ANNEX = -4, SPAWN = -5;
+const int BECOME = -1, NOVICHOK = -2, TREATY = -3, ANNEX = -4, SPAWN = -5, SUPPLY = -6;   // SUPPLY: region 이 1 이면 채우기, 0 이면 비우기
 std::deque<Act> g_acts;                     // 게임의 함수를 부르는 요청(식민지로 삼을 나라의 번호) — 연구 요청보다 먼저, 틱마다 하나
 
 // 이번 틱에 잠금을 놓고 할 일 하나: 게임의 함수를 부르는 요청이거나 연구 요청.
@@ -375,8 +375,9 @@ void run_act(const Act &act)
     unsigned long code = 0;
     const bool fight = act.attacker > 0, become = act.attacker == BECOME, novichok = act.attacker == NOVICHOK;
     const bool treaty = act.attacker == TREATY, annex = act.attacker == ANNEX, spawn = act.attacker == SPAWN;
-    int hexes = 0, made = 0, hex_x = 0, hex_y = 0;
-    const Wrote wrote = spawn ? game_spawn(act.designs.data(), static_cast<int>(act.designs.size()), act.region, &code, &made, &hex_x, &hex_y)
+    const bool supply = act.attacker == SUPPLY;
+    int hexes = 0, made = 0, hex_x = 0, hex_y = 0, skipped = 0;
+    const Wrote wrote = supply ? game_supply(act.region != 0, &made, &skipped) : spawn ? game_spawn(act.designs.data(), static_cast<int>(act.designs.size()), act.region, &code, &made, &hex_x, &hex_y)
         : fight ? game_fight(act.attacker, act.region, &code) : become ? game_become(act.region, &code)
         : novichok ? game_novichok(act.region, &code) : treaty ? game_treaty(act.region, &code)
         : annex ? game_annex(act.region, &code, &hexes) : game_colonize(act.region, &code);
@@ -390,7 +391,19 @@ void run_act(const Act &act)
         log_line("병합 — %s: %d칸을 넘긴 뒤 예외", who.c_str(), hexes);
     if (spawn && wrote == Wrote::Crashed)      // 몇 기까지 만들었는지 남긴다
         log_line("부대 생성: %d기를 만든 뒤 예외", made);
-    if (spawn && wrote == Wrote::Done) {
+    if (supply && wrote == Wrote::Done && made == 0) {
+        g_notice = skipped > 0 ? "고른 부대가 모두 남의 부대라 하지 않았습니다." : "고른 부대가 없습니다 — 게임에서 내 부대를 고르십시오.";
+    } else if (supply && wrote == Wrote::Done) {
+        g_last = std::string(act.region != 0 ? "보급 채우기" : "보급 비우기") + " — 부대 " + std::to_string(made) + "기"
+            + (skipped > 0 ? " (남의 부대 " + std::to_string(skipped) + "기는 건너뜀)" : std::string());
+        log_line("값 쓰기: %s", g_last.c_str());
+    } else if (supply && wrote == Wrote::BadValue) {
+        g_notice = "게임의 부대 정보를 읽을 수 없어 하지 않았습니다.";
+        log_line("%s", g_notice.c_str());
+    } else if (supply && wrote == Wrote::Failed) {
+        g_notice = "부대의 보급 칸에 쓰지 못했습니다.";
+        log_line("%s", g_notice.c_str());
+    } else if (spawn && wrote == Wrote::Done) {
         g_last = "부대 생성 — " + (act.designs.size() == 1 ? "설계 " + std::to_string(act.designs[0])
                                                           : "설계 " + std::to_string(act.designs.size()) + "종")
             + " · " + std::to_string(made) + "기 · 칸 (" + std::to_string(hex_x) + ", " + std::to_string(hex_y) + ")";
@@ -489,6 +502,15 @@ bool keeper_enqueue_become(int region)
     if (g_acts.size() >= RESEARCH_QUEUE || !game_act_off(ACT_BECOME).empty())
         return false;
     g_acts.push_back({BECOME, region});
+    return true;
+}
+
+bool keeper_enqueue_supply(bool fill)
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    if (g_acts.size() >= RESEARCH_QUEUE || !game_act_off(ACT_SUPPLY).empty())
+        return false;
+    g_acts.push_back({SUPPLY, fill ? 1 : 0, {}});
     return true;
 }
 

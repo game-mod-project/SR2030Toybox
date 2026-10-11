@@ -317,10 +317,11 @@ const struct MoreWanted {
 
 // 부르는 게임의 함수. 그 함수를 부르는 자리의 서명이다(uv run srkit sig-mine <함수의 RVA> --back 2) — 인자를 싣는 명령까지 넣었다.
 const uint32_t ACT_CONSTANT = 0xFFFF;
+const uint32_t ACT_WORLD_CONSTANT = 0xFFFE;   // 상수: 세계 객체(큰 전역 구조체) 안의 자리 — 지역 객체 안의 자리보다 훨씬 멀다
 const struct ActWanted {
     const char *name;                       // srkit locate 와 테스트가 본다(ActLayout 의 필드 순서와 같다)
     const char *label;                      // 로그와 창에 나오는 이름
-    uint32_t bytes;                         // 자료면 그 크기(4 · 8). 함수면 0, 상수(구조체 안의 자리)면 ACT_CONSTANT
+    uint32_t bytes;                         // 자료면 그 크기(4 · 8). 함수면 0, 상수(구조체 안의 자리)면 ACT_CONSTANT · ACT_WORLD_CONSTANT
     const char *sigs[STATE_SIGS];
 } ACTS[ACT_WANTED] = {
     {"colonize", "식민지화 함수", 0,
@@ -365,6 +366,14 @@ const struct ActWanted {
      {"C6 44 24 20 00 44 8B 48 48 E8 [rip]", "44 88 64 24 28 C6 44 24 20 00 E8 [rip]", "44 88 7C 24 28 C6 44 24 20 01 E8 [rip]"}},
     {"map_hex", "지도에서 고른 칸", 4,
      {"83 3D [rip+1] 00 0F B7 05 ? ? ? ? 75 05 66 85 C0 74 3C", "8B 0D [rip] 0F 1F 44 00 00 89 4C 24 70", "8B 05 [rip] 3B C8 74 08 3B DA"}},
+    // 보급 채우기: 게임에서 고른 부대들의 목록과, 세계 객체 안의 개량 보정 표(깃발의 자리 — 서명마다 그 깃발의 비트와 짝인 값의 자리가 함께 박혀 있다:
+    // 비트 13 ↔ 깃발 − 0x34, 비트 17 ↔ − 0x24, 비트 14 ↔ − 0x30 — "값 n 은 깃발 − 0x68 + 4n" 이라는 꼴)
+    {"picked_units", "고른 부대의 목록", 8,
+     {"48 8B 1D [rip] 33 ED 8B FD 48 85 DB", "48 8B 15 [rip] 48 89 54 24 78 48 85 D2", "48 8B 1D [rip] 45 32 FF 48 85 DB"}},
+    {"upgrades", "개량 보정 표의 자리", ACT_WORLD_CONSTANT,
+     {"41 F7 84 09 [u32] 00 20 00 00 F3 41 0F 10 84 09 F0 89 36 00 74 05 0F 28 D0",
+      "42 F7 84 29 [u32] 00 00 02 00 F3 42 0F 10 84 29 00 8A 36 00 75 08 F3 0F 58 C3",
+      "42 F7 84 39 [u32] 00 40 00 00 F3 42 0F 10 94 39 F4 89 36 00 74 05 0F 28 C2 EB 0F"}},
 };
 static_assert(sizeof(ActLayout) == ACT_WANTED * sizeof(uint32_t), "ActLayout 의 필드는 표 ACTS 의 순서대로 uint32_t 다");
 
@@ -805,7 +814,12 @@ int search_acts(const uint8_t *image, size_t size, ActLayout *out, SigRow *rows,
             snprintf(why[w], MORE_WHY, "%s: 찾은 주소가 함수의 시작이 아닙니다", ACTS[w].label);
             continue;
         }
-        if (ACTS[w].bytes == ACT_CONSTANT) {
+        if (ACTS[w].bytes == ACT_WORLD_CONSTANT) {
+            if (value[0] == 0 || value[0] >= 0x1000000) {
+                snprintf(why[w], MORE_WHY, "%s: 찾은 자리가 범위 밖입니다", ACTS[w].label);
+                continue;
+            }
+        } else if (ACTS[w].bytes == ACT_CONSTANT) {
             if (!offset_ok(value[0])) {
                 snprintf(why[w], MORE_WHY, "%s: 찾은 자리가 범위 밖입니다", ACTS[w].label);
                 continue;
