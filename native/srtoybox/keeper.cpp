@@ -28,7 +28,7 @@ struct Act {
     int region;                             // 식민지로 삼을 나라 · 전쟁의 둘째 나라. 부대 생성: 설계마다의 수량
     std::vector<int> designs;               // 부대 생성: 만들 부대 설계의 번호들
 };
-const int BECOME = -1, NOVICHOK = -2, TREATY = -3, ANNEX = -4, SPAWN = -5, SUPPLY = -6, BEST = -7, VICTORY = -8, GUI = -9;
+const int BECOME = -1, NOVICHOK = -2, TREATY = -3, ANNEX = -4, SPAWN = -5, SUPPLY = -6, BEST = -7, VICTORY = -8, GUI = -9, STAT = -10;   // STAT: region 이 무엇을(+ 16 이면 전부에), designs[0] 이 퍼센트
 void *g_window;                             // 게임 창(HWND) — "즉시 승리"의 메시지를 받을 곳   // SUPPLY: region 이 1 이면 채우기, 0 이면 비우기
 std::deque<Act> g_acts;                     // 게임의 함수를 부르는 요청(식민지로 삼을 나라의 번호) — 연구 요청보다 먼저, 틱마다 하나
 
@@ -385,10 +385,12 @@ void run_act(const Act &act)
         std::lock_guard<std::mutex> lock(g_lock);
         window = g_window;
     }
-    const bool gui = act.attacker == GUI;
+    const bool gui = act.attacker == GUI, stat = act.attacker == STAT;
+    const bool everyone = (supply && (act.region & 2) != 0) || (stat && (act.region & 16) != 0);   // 내 부대 전부에
     bool hidden = false;
     const Wrote wrote = gui ? game_gui_toggle(&code, &hidden) : victory ? game_victory(window) : best ? game_best(act.designs[0], act.region, &code, &made)
-        : supply ? game_supply(act.region != 0, &made, &skipped) : spawn ? game_spawn(act.designs.data(), static_cast<int>(act.designs.size()), act.region, &code, &made, &hex_x, &hex_y)
+        : stat ? game_unit_stat(act.region & 15, static_cast<float>(act.designs[0]) / 100.0f, everyone, &made, &skipped)
+        : supply ? game_supply((act.region & 1) != 0, everyone, &made, &skipped) : spawn ? game_spawn(act.designs.data(), static_cast<int>(act.designs.size()), act.region, &code, &made, &hex_x, &hex_y)
         : fight ? game_fight(act.attacker, act.region, &code) : become ? game_become(act.region, &code)
         : novichok ? game_novichok(act.region, &code) : treaty ? game_treaty(act.region, &code)
         : annex ? game_annex(act.region, &code, &hexes) : game_colonize(act.region, &code);
@@ -427,17 +429,21 @@ void run_act(const Act &act)
     } else if (best && wrote == Wrote::BadValue) {
         g_notice = "게임의 부대 설계 표를 읽을 수 없어 하지 않았습니다.";
         log_line("%s", g_notice.c_str());
-    } else if (supply && wrote == Wrote::Done && made == 0) {
-        g_notice = skipped > 0 ? "고른 부대가 모두 남의 부대라 하지 않았습니다." : "고른 부대가 없습니다 — 게임에서 내 부대를 고르십시오.";
-    } else if (supply && wrote == Wrote::Done) {
-        g_last = std::string(act.region != 0 ? "보급 채우기" : "보급 비우기") + " — 부대 " + std::to_string(made) + "기"
-            + (skipped > 0 ? " (남의 부대 " + std::to_string(skipped) + "기는 건너뜀)" : std::string());
+    } else if ((supply || stat) && wrote == Wrote::Done && made == 0) {
+        g_notice = everyone ? "내 부대가 없습니다." : skipped > 0 ? "고른 부대가 모두 남의 부대라 하지 않았습니다."
+            : "고른 부대가 없습니다 — 게임에서 내 부대를 고르십시오.";
+    } else if ((supply || stat) && wrote == Wrote::Done) {
+        static const char *const STATS[STAT_COUNT] = {"경험", "사기", "효율"};
+        const std::string what = stat ? std::string(STATS[act.region & 15]) + " " + std::to_string(act.designs[0]) + "%"
+            : (act.region & 1) != 0 ? std::string("보급 채우기") : std::string("보급 비우기");
+        g_last = what + (everyone ? " — 내 부대 전부 · " + std::to_string(made) + "기" : " — 부대 " + std::to_string(made) + "기")
+            + (!everyone && skipped > 0 ? " (남의 부대 " + std::to_string(skipped) + "기는 건너뜀)" : std::string());
         log_line("값 쓰기: %s", g_last.c_str());
-    } else if (supply && wrote == Wrote::BadValue) {
+    } else if ((supply || stat) && wrote == Wrote::BadValue) {
         g_notice = "게임의 부대 정보를 읽을 수 없어 하지 않았습니다.";
         log_line("%s", g_notice.c_str());
-    } else if (supply && wrote == Wrote::Failed) {
-        g_notice = "부대의 보급 칸에 쓰지 못했습니다.";
+    } else if ((supply || stat) && wrote == Wrote::Failed) {
+        g_notice = stat ? "부대의 상태 칸에 쓰지 못했습니다." : "부대의 보급 칸에 쓰지 못했습니다.";
         log_line("%s", g_notice.c_str());
     } else if (spawn && wrote == Wrote::Done) {
         g_last = "부대 생성 — " + (act.designs.size() == 1 ? "설계 " + std::to_string(act.designs[0])
@@ -574,12 +580,22 @@ bool keeper_enqueue_best(int domain, int each)
     return true;
 }
 
-bool keeper_enqueue_supply(bool fill)
+bool keeper_enqueue_supply(bool fill, bool all)
 {
     std::lock_guard<std::mutex> lock(g_lock);
-    if (g_acts.size() >= RESEARCH_QUEUE || !game_act_off(ACT_SUPPLY).empty())
+    if (g_acts.size() >= RESEARCH_QUEUE || !game_act_off(all ? ACT_SUPPLY_ALL : ACT_SUPPLY).empty())
         return false;
-    g_acts.push_back({SUPPLY, fill ? 1 : 0, {}});
+    g_acts.push_back({SUPPLY, (fill ? 1 : 0) | (all ? 2 : 0), {}});
+    return true;
+}
+
+bool keeper_enqueue_unit_stat(int which, int percent, bool all)
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    if (g_acts.size() >= RESEARCH_QUEUE || which < 0 || which >= STAT_COUNT || percent < 0 || percent > 100
+        || !game_act_off(all ? ACT_UNITS : ACT_PICKED_UNITS).empty())
+        return false;
+    g_acts.push_back({STAT, which | (all ? 16 : 0), {percent}});
     return true;
 }
 

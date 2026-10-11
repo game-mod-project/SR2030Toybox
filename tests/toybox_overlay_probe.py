@@ -164,6 +164,7 @@ MAP = 0x98                                      # 가짜 게임의 지도 객체
 ANNEX = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_bool, ctypes.c_bool)   # 게임의 "칸의 주인 바꾸기"
 SPAWN = ctypes.WINFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_uint32, ctypes.c_bool, ctypes.c_bool,
                            ctypes.c_void_p, ctypes.c_bool, ctypes.c_int, ctypes.c_bool)   # 게임의 "부대 만들기"
+UNITS = 0xD0                                    # 가짜 게임의 세계의 부대 목록(첫 부대의 포인터. 부대의 +8 로 이어진다)
 UI_FLAGS, GUI, GUI_VTABLE = 0xC0, 0xC8, 0x3F00  # 가짜 게임의 화면의 깃발(dword) · GUI 객체의 포인터 · 그 객체의 함수 표(8칸)
 GUISET = ctypes.WINFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint32, ctypes.c_int, ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p,
                             ctypes.c_int, ctypes.c_int, ctypes.c_int)   # GUI 객체의 가상 함수 "깃발을 바꾼다"
@@ -724,9 +725,9 @@ def fake_game(hook: str, handler: int | None = None, values: bool = True, more: 
     fake.deploy = DEPLOY(deploy)
     toybox.srtoybox_test_acts.argtypes = [ctypes.c_void_p] * 10
     if os.environ.get("PROBE_NO_ACTS") != "1":
-        toybox.srtoybox_test_acts((ctypes.c_uint32 * 24)(1, 1, 1, 1, 1, MAP_PICK, INDEX2, POINTER2, LEADERS, LEADER_ID, 1, TREATIES, 1, MAP, 1, MAP_HEX,
+        toybox.srtoybox_test_acts((ctypes.c_uint32 * 25)(1, 1, 1, 1, 1, MAP_PICK, INDEX2, POINTER2, LEADERS, LEADER_ID, 1, TREATIES, 1, MAP, 1, MAP_HEX,
                                                          PICKED_UNITS, UPGRADES, GAME_OVER, WINNERS, UI_FLAGS, GUI, GUI_VTABLE,
-                                                         1),
+                                                         1, UNITS),
                                   ctypes.cast(fake.colonize, ctypes.c_void_p), ctypes.cast(fake.fight, ctypes.c_void_p),
                                   ctypes.cast(fake.become, ctypes.c_void_p), ctypes.cast(fake.elect, ctypes.c_void_p),
                                   ctypes.cast(fake.news, ctypes.c_void_p), ctypes.cast(fake.treaty, ctypes.c_void_p),
@@ -1716,6 +1717,29 @@ def run_research(hook: str, mode: str) -> int:
         out["picked"] = game.facts()["supply:picked"][3]
         press("run:stranded")
         out["filled"], out["theirs"], out["wrote"] = stores(mine), stores(theirs), game.shown("wrote")
+        # 내 부대 전부: 세계의 부대 목록에서 주인이 독일이고 시설이 아닌 것 — mine 과 second. 폴란드의 것과 독일의 시설은 건너뛴다
+        facility, second = unit(176), unit(176)
+        struct.pack_into("<I", facility, 0xF4, 0x2000)
+        for before, after in ((mine, theirs), (theirs, facility), (facility, second)):
+            struct.pack_into("<Q", before, 8, ctypes.addressof(after))
+        fake.poke(UNITS, "<Q", ctypes.addressof(mine))
+        stat = lambda raw: [round(v, 2) for v in struct.unpack_from("<3f", raw, 0x9C)]      # 효율 · 경험 · 사기
+
+        def push(name):
+            scroll_to(game, name, up=True)
+            press(name)
+        struct.pack_into("<ff", mine, 0x80, 0.0, 0.0)
+        push("units:fill_all")
+        out["all_filled"] = [stores(u) for u in (mine, theirs, facility, second)]
+        out["wrote_all"] = game.shown("wrote")
+        push("units:stat_picked")                             # 경험 100% 를 고른 부대(mine · theirs)에
+        out["stat_picked"], out["wrote_picked"] = [stat(u) for u in (mine, theirs, facility, second)], game.shown("wrote")
+        game.click("units:stat")
+        game.click("units:stat:1")                            # 사기
+        game.wait(0.2)
+        push("units:stat_all")
+        out["stat_all"], out["wrote_stat_all"] = [stat(u) for u in (mine, theirs, facility, second)], game.shown("wrote")
+        scroll_to(game, "empty:stranded", up=True)
         press("empty:stranded")
         out["emptied"], out["wrote_empty"] = stores(mine), game.shown("wrote")
         struct.pack_into("<Q", theirs, 0x230, 0)              # 부대 객체로 보이지 않는 것이 목록에 있다 — 하나도 쓰지 않는다
@@ -1733,8 +1757,9 @@ def run_research(hook: str, mode: str) -> int:
         out["picked"] = game.facts()["spawn:hex"][3]
         press("run:spawnunit")                                # 입력란의 번호(2413)는 가짜 판의 표에 없다
         out["missing"], out["missing_calls"] = game.shown("unwritten"), list(fake.spawned)
-        scroll_to(game, "item:12")
+        scroll_to(game, "item:11")
         game.click("item:11")
+        scroll_to(game, "item:12")
         game.click("item:12")
         scroll_to(game, "list:spawn", up=True)
         press("list:spawn")                                   # 고른 설계 둘을 하나씩

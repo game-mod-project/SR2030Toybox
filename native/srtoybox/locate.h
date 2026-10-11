@@ -115,6 +115,7 @@ struct ActLayout {
     uint32_t gui;              // qword(자료). GUI 객체의 포인터(없으면 0). 읽기만 한다
     uint32_t gui_vtable;       // 그 객체의 가상 함수 표(읽기 전용 자료의 RVA). 객체의 표가 이것일 때만 표의 GUI_SET 번째 함수를 부른다
     uint32_t deploy_hex;       // uint32 *f(void *지역 객체, uint32 *out, int 유형): 그 지역이 그 유형(설계의 DESIGN_MOVE)의 부대를 내놓는 칸을 out 에 적고 돌려준다
+    uint32_t units;            // qword(자료). 세계의 모든 부대(시설 포함)의 목록의 첫 부대(없으면 0). 부대의 UNIT_NEXT 로 이어진다. 읽기만 한다
 };
 
 // 찾을 것의 비트(ActLayout 의 필드 순서)
@@ -122,7 +123,8 @@ const int ACT_COLONIZE = 1, ACT_FIGHT = 2, ACT_BECOME = 4, ACT_ELECT = 8, ACT_NE
           ACT_POINTER2 = 128, ACT_LEADERS = 256, ACT_LEADER_ID = 512, ACT_TREATY = 1024, ACT_TREATIES = 2048,
           ACT_ANNEX = 4096, ACT_MAP = 8192, ACT_SPAWN = 16384, ACT_MAP_HEX = 32768,
           ACT_PICKED_UNITS = 65536, ACT_UPGRADES = 131072, ACT_GAME_OVER = 262144,
-          ACT_WINNERS = 524288, ACT_UI_FLAGS = 1048576, ACT_GUI_OBJECT = 2097152, ACT_GUI_VTABLE = 4194304, ACT_DEPLOY = 8388608;
+          ACT_WINNERS = 524288, ACT_UI_FLAGS = 1048576, ACT_GUI_OBJECT = 2097152, ACT_GUI_VTABLE = 4194304, ACT_DEPLOY = 8388608,
+          ACT_UNITS = 16777216;
 const int ACT_GUI = ACT_UI_FLAGS | ACT_GUI_OBJECT | ACT_GUI_VTABLE;   // GUI 숨기기/보이기: game_act_off 에 주는 이름
 const uint32_t GUI_HIDDEN = 0x20000;        // 화면의 깃발에서 "GUI 를 숨긴다"
 const uint32_t GUI_OBJECT_FLAGS = 0x2C;     // dword. GUI 객체의 깃발(표를 찾는 서명에 이 자리가 박혀 있다). 비트 GUI_OBJECT_HIDDEN 이 숨김
@@ -132,9 +134,17 @@ const int ACT_VICTORY = ACT_GAME_OVER | ACT_WINNERS;   // 즉시 승리: game_ac
 const unsigned VICTORY_MESSAGE = 0x8002, VICTORY_WPARAM = 0x63;   // 게임 창에 보내는 메시지(내장 치트 instantwin 이 PostMessageA 로 보내는 그대로)
 const int ACT_BEST = ACT_DEPLOY | ACT_SPAWN;   // 최강 부대 묶음: game_act_off 에 주는 이름(배치 칸 함수와 부대 만들기 함수)
 const int ACT_SUPPLY = ACT_PICKED_UNITS | ACT_UPGRADES;   // 보급 채우기 · 비우기: game_act_off 에 주는 이름(둘 다 찾아야 한다)
+// 부대의 상태 쓰기: game_act_off 에 주는 이름 — 고른 부대에(ACT_PICKED_UNITS) / 내 부대 전부에(ACT_UNITS) / 내 부대 전부의 보급(ACT_SUPPLY | ACT_UNITS)
+const int ACT_SUPPLY_ALL = ACT_SUPPLY | ACT_UNITS;
 const int SPAWN_MAX_EQUIP = 21999;   // 게임이 받는 부대 설계 번호의 끝(내장 치트 spawnunit 의 검사와 같다)
 const int SPAWN_LIMIT = 200;         // ToyBox 가 한 번에 만드는 부대의 끝(설계의 수 × 수량)
-const int ACT_WANTED = 24;
+const int ACT_WANTED = 25;
+const uint32_t UNIT_NEXT = 0x08;            // qword. 세계의 부대 목록에서 다음 부대
+const uint32_t UNIT_FACILITY = 0x2000;      // UNIT_FLAGS4 의 비트: 시설이다(부대가 아니다)
+// 부대의 상태 셋(float, 0 … 1) — 게임의 부대 카드의 막대. 새 판에서의 값의 분포로 가렸다(효율 0.72 … 1 · 사기 0.8 … 1 은 모든 부대에, 경험은 거의 0)
+const uint32_t UNIT_EFFICIENCY = 0x9C, UNIT_EXPERIENCE = 0xA0, UNIT_MORALE = 0xA4;
+const int STAT_EXPERIENCE = 0, STAT_MORALE = 1, STAT_EFFICIENCY = 2, STAT_COUNT = 3;   // game_unit_stat 의 "무엇을"
+const int UNITS_LIMIT = 500000;             // 세계의 부대 목록에서 이만큼까지만 본다
 // 최강 부대 묶음(내장 치트 darran 의 "받기" 쪽): 병과마다 이 능력치(설계의 DESIGN_STATS + 4 × 번호, float)가 가장 높은 설계를 고른다.
 // −1 인 병과(수송 · 미사일 · 공중 수송)는 받지 않는다. 치트의 표(실행 파일의 자료) 그대로다 — build 21347933.
 const int BEST_CLASSES = 20;
