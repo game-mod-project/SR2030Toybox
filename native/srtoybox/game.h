@@ -208,6 +208,9 @@ Wrote game_annex(int number, unsigned long *code, int *hexes);
 void game_set_acts_for_test(const ActLayout *layout, void *colonize, void *fight, void *become, void *elect, void *news, void *treaty,
                             void *annex);
 
+// 그 기술(design 이 거짓) · 부대 설계를 보유한 다른 나라(플레이어는 뺀다)의 이름을 모두, ", " 로 이어서(읽기만 — 목록의 풍선말).
+// 읽을 수 없거나 아무도 없으면 빈 글. 이름표에 없는 지역은 "#인덱스".
+std::string game_owner_names(bool design, int id);
 // 연구를 쓸 수 없는 까닭(창에 그대로 보인다). 쓸 수 있으면 빈 글. 다른 묶음과 따로다.
 std::string game_research_off();
 // 지금의 연구의 표(read_research). 연구 묶음을 못 찾았으면 false 와 그 까닭.

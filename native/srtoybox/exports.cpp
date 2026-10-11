@@ -379,10 +379,12 @@ EXPORT int srtoybox_locate_research_fits(const ResearchLayout *research, const V
 }
 
 // 테스트: 연구 목록의 줄(research_rows)을 글로 준 표(tables_from)에 돌린다. show 는 Show 의 번호, kind 는 분류 · 병과(-1 이면 전체).
-// 한 줄에 "번호|이름|분류 · 병과의 이름|수준 · 연도|상태|다른 나라의 수|고른 나라가 보유(0/1)".
-EXPORT int srtoybox_research_rows(const char *tables, int designs, int show, int kind, const char *find, char *out, int size)
+// 한 줄에 "번호|이름|분류 · 병과의 이름|수준 · 연도|상태|다른 나라의 수|고른 나라가 보유(0/1)|선행 기술(needs_label)".
+// domain 은 부대 설계의 영역(-1 이면 전체).
+EXPORT int srtoybox_research_rows(const char *tables, int designs, int show, int kind, int domain, const char *find, char *out, int size)
 {
     ListFilter filter;
+    filter.domain = domain;
     filter.designs = designs != 0;
     filter.show = static_cast<Show>(show);
     filter.kind = kind;
@@ -390,8 +392,21 @@ EXPORT int srtoybox_research_rows(const char *tables, int designs, int show, int
     std::string text;
     for (const ListRow &row : research_rows(tables_from(tables != nullptr ? tables : ""), filter))
         text += std::to_string(row.id) + '|' + row.name + '|' + (filter.designs ? design_class_label(row.kind) : tech_kind_label(row.kind)) + '|'
-            + std::to_string(row.level) + '|' + state_label(row.state) + '|' + std::to_string(row.others) + '|' + (row.picked ? "1" : "0") + '\n';
+            + std::to_string(row.level) + '|' + state_label(row.state) + '|' + std::to_string(row.others) + '|' + (row.picked ? "1" : "0") + '|' + needs_label(row) + '\n';
     return put(text, out, size);
+}
+
+// 테스트: 그 기술(design 0) · 부대 설계(1)를 보유한 다른 나라의 이름(목록의 풍선말).
+EXPORT int srtoybox_owner_names(int design, int id, char *out, int size)
+{
+    return put(game_owner_names(design != 0, id), out, size);
+}
+
+// 테스트: 병과 → 영역의 번호와 이름("0\t육군").
+EXPORT int srtoybox_design_domain(int cls, char *out, int size)
+{
+    const int domain = design_domain(cls);
+    return put(std::to_string(domain) + '\t' + (domain < 0 ? std::string() : domain_label(domain)), out, size);
 }
 
 // 테스트: 이름표. "기술의 이름\n분류의 이름\n병과의 이름\nraw(게임 메모리의 글)를 UTF-8 로 바꾼 글".

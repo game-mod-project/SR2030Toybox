@@ -1047,18 +1047,20 @@ q 1 2 1 0
 
 def test_research_list_rows_follow_the_view(dll):
     """목록의 줄: 보기 여섯 · 분류 · 찾기로 거르고, 수준(연도) · 번호의 순서로 놓는다. 상태는 보유 > 연구 중 > 미보유."""
-    dll.srtoybox_research_rows.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int]
-    rows = lambda designs, show, kind=-1, find="": text(dll.srtoybox_research_rows, LIST_TABLES.encode(), designs, show, kind,
-                                                        find.encode("utf-8")).splitlines()
+    dll.srtoybox_research_rows.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_char_p,
+                                           ctypes.c_char_p, ctypes.c_int]
+    rows = lambda designs, show, kind=-1, find="", domain=-1: text(dll.srtoybox_research_rows, LIST_TABLES.encode(), designs, show, kind,
+                                                                   domain, find.encode("utf-8")).splitlines()
     ids = lambda *a, **k: [int(line.split("|")[0]) for line in rows(*a, **k)]
-    assert rows(0, 0) == ["1|고효율 핵융합 발전|전쟁|10|보유|1|1", "2|개량 폐기물 소각|과학|20|연구 중|1|1", "49|비생식 복제|의료|20|미보유|2|0",
-                          "3|물 절약|과학|30|미보유|0|0"]                    # 전체: 수준 · 번호의 순서
+    assert rows(0, 0) == ["1|고효율 핵융합 발전|전쟁|10|보유|1|1|-", "2|개량 폐기물 소각|과학|20|연구 중|1|1|보유",
+                          "49|비생식 복제|의료|20|미보유|2|0|-", "3|물 절약|과학|30|미보유|0|0|0/1"]                    # 전체: 수준 · 번호의 순서
     assert ids(0, 1) == [1] and ids(0, 2) == [2, 49, 3]                     # 자국 보유 / 자국 미보유
     assert ids(0, 3) == [2, 49]                                             # 타국만 보유
     assert ids(0, 4) == [1, 2] and ids(0, 5) == [2]                         # 고른 나라의 보유 / 고른 나라에서 가져올 것
     assert ids(0, 0, kind=3) == [2, 3] and ids(0, 2, kind=5) == [49]        # 분류
     assert ids(0, 0, find="복제") == [49] and ids(0, 0, find="CLONING") == [49] and ids(0, 0, find="4") == [49]   # 이름(한글 · 영문) · 번호
-    assert rows(1, 0) == ["10|Leopard_2A4|보병|1950|보유|0|0", "12|#12|공중 수송|1960|미보유|0|0", "11|Panther|전차|1995|미보유|1|1"]
+    assert rows(1, 0) == ["10|Leopard_2A4|보병|1950|보유|0|0|보유", "12|#12|공중 수송|1960|미보유|0|0|-",
+                          "11|Panther|전차|1995|미보유|1|1|-"]
     assert ids(1, 0, kind=2) == [11] and ids(1, 0, find="pan") == [11] and ids(1, 5) == [11]
 
 
@@ -1088,17 +1090,19 @@ def test_the_research_list_completes_and_revokes_what_is_picked(dll, cfg, tmp_pa
     assert got["rows"] == RESEARCH_BUTTONS                                  # 위의 단추 셋은 그대로다
     assert got["picked"] == "고른 나라: 없음 — 외교·영토 탭에서 고릅니다"
     # 보유국의 칸은 보유한 다른 나라의 이름이다(가짜 판의 덴마크는 지역 표에 없어 인덱스로 적힌다)
-    assert got["first"] == {"2": "0|개량 폐기물 소각|전쟁|20|연구 중|폴란드", "3": "0|물 절약|전쟁|30|미보유|", "7": "0|미사일 발사 사일로|전쟁|70|미보유|#150"}
+    assert got["first"] == {"2": "0|개량 폐기물 소각|전쟁|20|연구 중|보유|폴란드", "3": "0|물 절약|전쟁|30|미보유|0/1|",
+                            "7": "0|미사일 발사 사일로|전쟁|70|미보유|-|#150"}     # 다섯째 칸은 선행 기술을 보유했는가
     # 보유국으로 거른다: 폴란드가 보유한 것 가운데 자국 미보유. 고른 나라가 그 나라가 되고 그 나라의 열이 생긴다. "전체"로 돌려도 열은 남는다
     assert got["owners"] == ["전체", "폴란드 (1106)"] and got["owner"] == "폴란드 (1106)" and got["owner_all"] == "전체"
-    assert got["by_owner"] == {"2": "0|개량 폐기물 소각|전쟁|20|연구 중|폴란드|보유"} and got["picked_owner"] == "고른 나라: 폴란드 (1106)"
+    assert got["by_owner"] == {"2": "0|개량 폐기물 소각|전쟁|20|연구 중|보유|폴란드|보유"} and got["picked_owner"] == "고른 나라: 폴란드 (1106)"
     assert got["count"] == "보이는 것 3개 · 고른 것 0개" and got["count_chosen"] == "보이는 것 3개 · 고른 것 2개"
     assert got["after_done"] == LIST_DONE and got["wrote_done"] == "기술 3개(선행 1개 포함)를 완료로 — 고른 것"
     assert got["left"] == {} and got["count_left"] == "보이는 것 0개 · 고른 것 2개(보이지 않는 것 2개)"
-    assert list(got["mine"]) == ["1", "2", "3", "4", "6", "7"] and got["mine"]["3"] == "1|물 절약|전쟁|30|보유||"
+    assert list(got["mine"]) == ["1", "2", "3", "4", "6", "7"] and got["mine"]["3"] == "1|물 절약|전쟁|30|보유|보유||"
     # 머리 줄을 누르면 그 열로 놓는다: 이름 ↑ · 이름 ↓ · 보유국(수) ↑ · 수준 ↑. 같은 값끼리는 수준 · 번호의 순서가 남는다
     assert got["sorted"] == [["2", "6", "1", "3", "7", "4"], ["4", "7", "3", "1", "6", "2"], ["3", "6", "4", "7", "1", "2"], ["1", "2", "3", "4", "6", "7"]]
-    assert got["designs"] == {"10": "0|Unit|보병|1950|보유||", "13": "0|Unit|보병|1950|보유|폴란드|보유", "14": "0|Unit|보병|1950|보유||"}
+    assert got["designs"] == {"10": "0|Unit|보병|1950|보유|보유||", "13": "0|Unit|보병|1950|보유|보유|폴란드|보유",
+                              "14": "0|Unit|보병|1950|보유|보유||"}
     assert got["count_designs"] == "보이는 것 3개 · 고른 것 0개"
     assert got["asking"] == "보이는 것 전부 미완료 — 한 번 더 누르면 실행합니다" and got["held_asking"] == LIST_DONE   # 첫 누름은 쓰지 않는다
     assert got["wrote_undo"] == "부대 설계 3개를 미완료로 — 보이는 것" and got["designs_after"] == {}
@@ -1159,3 +1163,36 @@ def test_annex_hands_every_hex_of_the_picked_country_to_the_player(dll, cfg, tmp
     assert got["again"] == 6 and got["none"] == "그 나라의 땅이 없습니다 — 덴마크 (1201)"
     assert got["broken"] == "게임의 지도를 읽을 수 없어 하지 않았습니다." and got["broken_calls"] == 6
     assert got["lines"] == [] and got["text"] == "" and got["options"] == 0
+
+
+def test_the_units_tab_lists_designs_by_domain_and_registers_them(dll, cfg, tmp_path):
+    """부대 탭의 설계도 목록(사용자의 요구, 2026-10-11): 부대 설계만, 영역(육 · 공 · 해 · 미사일)으로 거르고, 단추의 이름은 등록 · 해제다.
+    줄마다 선행 기술을 보유했는가("보유" · "0/1")와 보유국이 나온다. "모든 설계도 등록"은 거르개와 상관없이 모든 설계를 — 선행 기술도 함께 —
+    보유로 만들고, "모든 설계도 해제"는 한 번 더 눌러야 실행되며 처음부터 가진 자국 설계도 뺀다. 다른 나라의 보유는 그대로다."""
+    got = json.loads(_probe(cfg, tmp_path, "research_units"))
+    assert got["buttons"] == {"list:domain": "전체", "list:show": "자국 미보유", "list:kind": "전체", "list:owner": "전체",
+                              "list:clear": "고르기 풀기", "list:done": "고른 것 등록", "list:undo": "고른 것 해제",
+                              "list:all_done": "보이는 것 전부 등록", "list:all_undo": "보이는 것 전부 해제",
+                              "list:every_done": "모든 설계도 등록", "list:every_undo": "모든 설계도 해제"}
+    # 설계 12 의 선행(기술 4)은 독일이 보유했고, 설계 11 의 선행(기술 3)은 아니다
+    assert got["first"] == {"12": "0|Unit|보병|1950|미보유|보유|", "11": "0|Unit|전차|1995|연구 중|0/1|폴란드"}
+    assert got["air"] == {} and got["land"] == got["first"]                 # 보병 · 전차는 육군이다
+    assert got["after_every"] == [[1, 2, 3, 4, 6], [10, 11, 12, 13, 14], [1, 2], [11, 13]]      # 설계 다섯 + 선행 기술 2 · 3
+    assert got["wrote_every"] == "기술 2개(선행 2개 포함) · 부대 설계 2개를 완료로 — 모든 설계도"
+    assert got["asking"] == "모든 설계도 해제 — 한 번 더 누르면 실행합니다" and got["held_asking"] == got["after_every"]
+    assert got["after_none"] == [[1, 2, 3, 4, 6], [], [1, 2], [11, 13]] and got["wrote_none"] == "부대 설계 5개를 미완료로 — 모든 설계도"
+    assert got["owners_of_tech_1"] == "폴란드"                               # 풍선말의 글: 보유한 다른 나라 모두(플레이어는 뺀다)
+    assert got["lines"] == [] and got["text"] == "" and got["options"] == 0
+
+
+def test_design_domains_and_prerequisites(dll):
+    """병과 → 영역(헬리콥터는 공군, 미사일은 따로), 영역으로 거르기, 줄의 "선행 기술" 칸."""
+    domain = lambda cls: text(dll.srtoybox_design_domain, cls).split("\t")
+    assert [domain(c)[1] for c in (0, 6, 7, 8, 9, 14, 15, 20, 21)] == ["육군", "육군", "공군", "미사일", "공군", "공군", "해군", "해군", "시설"]
+    assert domain(22) == ["-1", ""] and domain(-1) == ["-1", ""]
+    dll.srtoybox_research_rows.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_char_p,
+                                           ctypes.c_char_p, ctypes.c_int]
+    rows = lambda designs, domain=-1: [line.split("|") for line in text(dll.srtoybox_research_rows, LIST_TABLES.encode(), designs, 0, -1,
+                                                                        domain, b"").splitlines()]
+    assert [r[0] for r in rows(1, 0)] == ["10", "11"] and [r[0] for r in rows(1, 1)] == ["12"] and rows(1, 2) == []   # 보병 · 전차 / 공중 수송
+    assert {r[0]: r[7] for r in rows(0)} == {"1": "-", "2": "보유", "3": "0/1", "49": "-"}      # 기술 2 의 선행 1 은 보유, 3 의 선행 2 는 아니다

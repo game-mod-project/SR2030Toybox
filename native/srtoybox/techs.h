@@ -13,6 +13,10 @@ std::string tech_kind_label(int kind);       // 기술의 분류(1 … 6): "전�
 std::string design_class_label(int cls);     // 부대 설계의 병과(0 … 21): "보병". 표에 없으면 번호
 const int TECH_KINDS = 6;                    // 분류는 1 … 6
 const int DESIGN_CLASSES = 22;               // 병과는 0 … 21
+// 부대 설계의 영역: 0 육군 · 1 공군 · 2 해군 · 3 미사일 · 4 시설(병과에서 정해진다 — 헬리콥터는 공군)
+const int DOMAINS = 5;
+int design_domain(int cls);                  // 병과가 범위 밖이면 -1
+std::string domain_label(int domain);        // "육군". 범위 밖이면 번호
 
 // 게임 메모리의 글을 UTF-8 로. size 는 바이트 수(0 을 만나면 거기서 끝난다).
 // 한글화가 옮긴 이름은 SR-UTF8(src/srkit/srutf8.py · native/srhook/srdecode.c 와 같은 규칙)이고, 원본의 이름은 CP1252 다 —
@@ -35,6 +39,7 @@ struct ListFilter {
     int kind = -1;                // 분류(기술) · 병과(부대 설계). -1 이면 전체
     std::string find;             // 이름이나 번호의 일부(영문은 대소문자를 가리지 않는다). 비었으면 전부
     bool by_picked = false;       // 보유국으로 거른다: 고른 나라가 보유한 것만(보기와 함께 건다)
+    int domain = -1;              // 부대 설계의 영역(design_domain). -1 이면 전체. 기술의 목록에서는 보지 않는다
 };
 
 const int STATE_NONE = 0, STATE_QUEUED = 1, STATE_MINE = 2;   // 미보유 · 연구 중 · 보유
@@ -48,7 +53,14 @@ struct ListRow {
     int others = 0;               // 보유한 다른 나라의 수
     int owners[2] = {};           // 그 가운데 앞의 둘(지역 인덱스. 없으면 0)
     bool picked = false;          // 고른 나라가 보유했다
+    int needs = 0;                // 선행 기술의 수(표에 있는 것만)
+    int needs_mine = 0;           // 그 가운데 플레이어가 보유한 것
+    int need_ids[4] = {};         // 선행 기술의 번호(없는 자리는 0)
 };
+
+std::string needs_label(const ListRow &row);   // 선행 기술: 없으면 "-", 모두 보유면 "보유", 아니면 "2/3"
+// 선행 기술마다 한 줄: "복합강 장갑 — 보유". 선행이 없으면 빈 글.
+std::string needs_detail(const ListRow &row, const ResearchTables &tables);
 
 std::string state_label(int state);   // "미보유" · "연구 중" · "보유"
 

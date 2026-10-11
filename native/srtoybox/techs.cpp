@@ -76,6 +76,29 @@ bool shown(Show show, bool mine, bool picked, int others)
     }
 }
 
+// 기술 번호 → 플레이어가 보유했는가(표에 없으면 -1).
+std::vector<signed char> tech_owned(const ResearchTables &tables)
+{
+    std::vector<signed char> owned(static_cast<size_t>(tables.tech_slots > 0 ? tables.tech_slots : 0), -1);
+    for (const TechRow &t : tables.techs)
+        if (t.id >= 0 && static_cast<size_t>(t.id) < owned.size())
+            owned[static_cast<size_t>(t.id)] = t.mine ? 1 : 0;
+    return owned;
+}
+
+template <class Row, int N>
+void fill_needs(ListRow *out, const Row &row, const int (&needs)[N], const std::vector<signed char> &owned)
+{
+    (void)row;
+    for (int n = 0; n < N; n++) {
+        const int id = needs[n];
+        if (id <= 0 || static_cast<size_t>(id) >= owned.size() || owned[static_cast<size_t>(id)] < 0)
+            continue;                            // 없는 자리 · 표에 없는 기술(게임도 건너뛴다)
+        out->need_ids[out->needs++] = id;
+        out->needs_mine += owned[static_cast<size_t>(id)];
+    }
+}
+
 template <class Row>
 void fill(ListRow *out, const Row &row)
 {
@@ -183,6 +206,34 @@ std::string game_text_to_utf8(const char *text, size_t size)
     return out;
 }
 
+int design_domain(int cls)
+{
+    return cls < 0 || cls >= DESIGN_CLASSES ? -1 : cls <= 6 ? 0 : cls == 8 ? 3 : cls <= 14 ? 1 : cls <= 20 ? 2 : 4;
+}
+
+std::string domain_label(int domain)
+{
+    static const char *const DOMAIN_NAMES[DOMAINS] = {"육군", "공군", "해군", "미사일", "시설"};
+    return domain >= 0 && domain < DOMAINS ? std::string(DOMAIN_NAMES[domain]) : std::to_string(domain);
+}
+
+std::string needs_label(const ListRow &row)
+{
+    return row.needs == 0 ? "-" : row.needs_mine == row.needs ? "보유" : std::to_string(row.needs_mine) + "/" + std::to_string(row.needs);
+}
+
+std::string needs_detail(const ListRow &row, const ResearchTables &tables)
+{
+    const std::vector<signed char> owned = tech_owned(tables);
+    std::string out;
+    for (int n = 0; n < row.needs; n++) {
+        const int id = row.need_ids[n];
+        const bool mine = static_cast<size_t>(id) < owned.size() && owned[static_cast<size_t>(id)] > 0;
+        out += (out.empty() ? "" : "\n") + tech_label(id) + " — " + (mine ? "보유" : "미보유");
+    }
+    return out;
+}
+
 std::string state_label(int state)
 {
     return state == STATE_MINE ? "보유" : state == STATE_QUEUED ? "연구 중" : "미보유";
@@ -191,9 +242,10 @@ std::string state_label(int state)
 std::vector<ListRow> research_rows(const ResearchTables &tables, const ListFilter &filter)
 {
     std::vector<ListRow> rows;
+    const std::vector<signed char> owned = tech_owned(tables);
     if (filter.designs) {
         for (const DesignRow &d : tables.designs) {
-            if ((filter.kind >= 0 && d.cls != filter.kind) || !shown(filter.show, d.mine, d.picked, d.others) || (filter.by_picked && !d.picked))
+            if ((filter.domain >= 0 && design_domain(d.cls) != filter.domain) || (filter.kind >= 0 && d.cls != filter.kind) || !shown(filter.show, d.mine, d.picked, d.others) || (filter.by_picked && !d.picked))
                 continue;
             ListRow row;
             fill(&row, d);
@@ -202,6 +254,7 @@ std::vector<ListRow> research_rows(const ResearchTables &tables, const ListFilte
                 continue;
             row.kind = d.cls;
             row.level = 1900 + d.year;
+            fill_needs(&row, d, d.needs, owned);
             rows.push_back(row);
         }
     } else {
@@ -217,6 +270,7 @@ std::vector<ListRow> research_rows(const ResearchTables &tables, const ListFilte
             row.name = tech_label(t.id);
             row.kind = t.kind;
             row.level = t.level;
+            fill_needs(&row, t, t.needs, owned);
             rows.push_back(row);
         }
     }
