@@ -1721,7 +1721,9 @@ def run_research(hook: str, mode: str) -> int:
         facility, second, region = unit(176), unit(176), unit(176)
         struct.pack_into("<I", facility, 0xF4, 0x2000)
         struct.pack_into("<Q", region, 0x230, ctypes.addressof(lab.designs))   # 설계 0번: 게임이 지역마다 하나씩 두는 객체 — 부대가 아니다
-        for before, after in ((mine, theirs), (theirs, facility), (facility, region), (region, second)):
+        unbuilt = unit(176)
+        struct.pack_into("<I", unbuilt, 0xF4, 0x800)          # 아직 지도에 없는 부대(생산 중으로 보인다) — 건드리지 않는다
+        for before, after in ((mine, theirs), (theirs, facility), (facility, region), (region, unbuilt), (unbuilt, second)):
             struct.pack_into("<Q", before, 8, ctypes.addressof(after))
         fake.poke(UNITS, "<Q", ctypes.addressof(mine))
         stat = lambda raw: [round(v, 2) for v in struct.unpack_from("<3f", raw, 0x9C)]      # 효율 · 경험 · 사기
@@ -1732,7 +1734,7 @@ def run_research(hook: str, mode: str) -> int:
         struct.pack_into("<ff", mine, 0x80, 0.0, 0.0)
         push("units:fill_all")
         out["all_filled"] = [stores(u) for u in (mine, theirs, facility, second)]
-        out["region_object"] = stores(region)
+        out["region_object"], out["unbuilt"] = stores(region), stores(unbuilt)
         out["wrote_all"] = game.shown("wrote")
         push("units:stat_picked")                             # 경험 100% 를 고른 부대(mine · theirs)에
         out["stat_picked"], out["wrote_picked"] = [stat(u) for u in (mine, theirs, facility, second)], game.shown("wrote")
@@ -1742,6 +1744,7 @@ def run_research(hook: str, mode: str) -> int:
         push("units:stat_all")
         out["stat_all"], out["wrote_stat_all"] = [stat(u) for u in (mine, theirs, facility, second)], game.shown("wrote")
         out["region_object"] += stat(region)
+        out["unbuilt"] += stat(unbuilt)
         scroll_to(game, "empty:stranded", up=True)
         press("empty:stranded")
         out["emptied"], out["wrote_empty"] = stores(mine), game.shown("wrote")
