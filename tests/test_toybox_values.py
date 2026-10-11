@@ -13,7 +13,7 @@ WRITE, NOTHING, REFUSE = 0, 1, 2          # 〃 Verdict
 NAN, INF = float("nan"), float("inf")
 DONE, NOT_IN_GAME, NOT_USED, BAD_VALUE, FAILED, OFF, NO_TARGET = range(7)   # native/srtoybox/game.h 의 Wrote
 TREASURY, ALL_STOCK = -1, -2                                        # 쓰기의 대상: 국고 / 쓰는 물자 모두. 0 … 11 은 그 칸의 재고
-READS, CALLS, WRITES = 1, 2, 4                                      # srtoybox_game_flags 의 비트
+READS, WRITES = 1, 4                                                # srtoybox_game_flags 의 비트(2 는 없어졌다 — 명령 처리 함수를 부르지 않는다)
 CAN_TECH, CAN_OPINION, CAN_RELATIONS, CAN_PEOPLE, CAN_APPROVAL = 8, 16, 32, 128, 256   # 〃 더 쓰는 값의 묶음마다(64 는 연구)
 TECH_TO, OPINION_BEST, RELATION_TO, PEOPLE_ADD, APPROVAL_BEST = 0, 1, 2, 3, 4   # srtoybox_more_write 의 what
 MORE_TECH, MORE_OPINION, MORE_RELATIONS = 1, 2, 4                   # native/srtoybox/locate.h 의 묶음의 비트
@@ -38,7 +38,7 @@ def lib(cfg):
                                          ctypes.c_int]
     lib.srtoybox_values_write.argtypes = [ctypes.c_void_p, pointer(toybox.GameAddresses), pointer(toybox.ValueLayout), ctypes.c_int,
                                           ctypes.c_double]
-    lib.srtoybox_test_game.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
+    lib.srtoybox_test_game.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
     lib.srtoybox_test_values.argtypes = [ctypes.c_void_p]
     lib.srtoybox_more_read.argtypes = [ctypes.c_void_p, pointer(toybox.GameAddresses), pointer(toybox.MoreLayout), ctypes.c_char_p,
                                        ctypes.c_int]
@@ -451,7 +451,7 @@ def init(lib, image: bytes, tmp_path, monkeypatch) -> tuple[int, str, str]:
         lib.srtoybox_test_init(image, len(image))
         flags, off = lib.srtoybox_game_flags(), text(lib.srtoybox_values_off)
     finally:
-        lib.srtoybox_test_game(None, None, None)              # 이미지를 놓기 전에 이 프로세스의 "게임"을 비운다
+        lib.srtoybox_test_game(None, None)              # 이미지를 놓기 전에 이 프로세스의 "게임"을 비운다
     log = tmp_path / "toybox.log"
     return flags, off, log.read_text(encoding="utf-8") if log.is_file() else ""
 
@@ -470,7 +470,7 @@ def init_more(lib, image: bytes, tmp_path, monkeypatch) -> tuple[int, list[str],
         flags = lib.srtoybox_game_flags()
         off = [text(lib.srtoybox_more_off, group) for group in (MORE_TECH, MORE_OPINION, MORE_RELATIONS)]
     finally:
-        lib.srtoybox_test_game(None, None, None)
+        lib.srtoybox_test_game(None, None)
     log = tmp_path / "toybox.log"
     return flags, off, log.read_text(encoding="utf-8") if log.is_file() else ""
 
@@ -549,23 +549,23 @@ def test_startup_drops_a_group_that_sits_on_the_treasury(lib, all_sigs, more_sig
 
 
 def test_startup_finds_the_state_and_the_values_without_any_cheat(lib, all_sigs, tmp_path, monkeypatch):
-    """치트가 없는 빌드: 상태를 읽고 값을 쓴다. 명령 처리 함수는 없다 — 그것으로 도는 기능만 글쇠 방식이다."""
+    """치트가 없는 빌드: 상태를 읽고 값을 쓴다. 치트의 문자열 · 명령 처리 함수는 찾지도 않는다."""
     state, values = all_sigs
     flags, off, log = init(lib, toybox_fake_exe.sig_image(state + values), tmp_path, monkeypatch)
     assert flags == READS | WRITES and off == ""
     assert "게임 상태를 읽습니다 (서명 21개 가운데 21개" in log
     assert "값을 씁니다 (국고 +0x1230, 재고 +0x2000 간격 0x20 × 12)" in log
-    assert "명령 처리 함수를 찾지 못했습니다" in log and "맞지 않은 서명" not in log
+    assert "명령 처리 함수" not in log and "내장 치트" not in log and "맞지 않은 서명" not in log
 
 
 def test_startup_without_the_values_keeps_everything_else(lib, all_sigs, tmp_path, monkeypatch):
     """값 묶음만 못 찾으면 돈 탭만 꺼진다. 까닭이 로그와 창에 같은 글로 남는다."""
     state, _values = all_sigs
     flags, off, log = init(lib, toybox_fake_exe.build(state), tmp_path, monkeypatch)
-    assert flags == READS | CALLS
+    assert flags == READS
     assert off == "이 게임 판에서는 쓸 수 없습니다 (세계 자료 포인터: 서명 3개 가운데 0개)"
     assert "값을 쓸 수 없습니다 (세계 자료 포인터: 서명 3개 가운데 0개)" in log
-    assert "옛 방식(내장 치트)으로 도는 기능이" in log
+    assert "명령 처리 함수" not in log and "내장 치트" not in log      # 치트의 닻이 든 이미지에서도 옛 찾기를 돌리지 않는다
 
 
 def test_startup_names_the_signatures_that_did_not_match(lib, all_sigs, tmp_path, monkeypatch):
@@ -590,7 +590,7 @@ def test_startup_drops_the_values_when_the_two_searches_clash(lib, all_sigs, tmp
 def test_startup_with_everything(lib, all_sigs, tmp_path, monkeypatch):
     state, values = all_sigs
     flags, off, _log = init(lib, toybox_fake_exe.build(state + values), tmp_path, monkeypatch)
-    assert flags == READS | CALLS | WRITES and off == ""
+    assert flags == READS | WRITES and off == ""
 
 
 @pytest.mark.parametrize("image", [b"", bytes(0x1000)], ids=["empty", "zeros"])
@@ -605,13 +605,13 @@ def game(lib, tmp_path, monkeypatch):
     """이 프로세스의 "게임"을 독일로 진행 중인 가짜 게임으로 바꾼다. 로그는 tmp_path 에 남는다."""
     monkeypatch.setenv("SRTOYBOX_HOME", str(tmp_path))
     fake = germany()
-    lib.srtoybox_test_game(fake.base, ctypes.byref(fake.at), None)
+    lib.srtoybox_test_game(fake.base, ctypes.byref(fake.at))
     lib.srtoybox_test_values(ctypes.byref(fake.layout))
     lib.srtoybox_test_more(ctypes.byref(fake.more))
     lib.srtoybox_keeper_reset()
     yield fake
     lib.srtoybox_keeper_reset()
-    lib.srtoybox_test_game(None, None, None)
+    lib.srtoybox_test_game(None, None)
 
 
 def ask(lib, slot: int, change: int, amount: float) -> bool:

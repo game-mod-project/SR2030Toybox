@@ -19,8 +19,7 @@ EXCLUDED = {
     "hate", "liberate", "revolt", "resettutorial", "allowcheats",
 }
 TABS = ["연구", "인구·여론", "외교·영토", "부대", "화면·진행"]     # 기능 표의 탭. "돈" · "물자" 탭은 기능 표가 아니라 전용 화면이 그린다
-TEXT_CALLS = ["srtoybox_feature_info", "srtoybox_command", "srtoybox_plan", "srtoybox_simulate",
-              "srtoybox_settings_normalize", "srtoybox_settings_file", "srtoybox_hotkey_name"]
+TEXT_CALLS = ["srtoybox_feature_info", "srtoybox_settings_normalize", "srtoybox_settings_file", "srtoybox_hotkey_name"]
 
 
 @pytest.fixture(scope="module")
@@ -30,9 +29,6 @@ def dll(cfg):
         pytest.skip("ToyBox DLL 미빌드 (srkit toybox-build)")
     lib = ctypes.CDLL(str(path))
     lib.srtoybox_feature_info.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
-    lib.srtoybox_command.argtypes = [ctypes.c_char_p, ctypes.c_longlong, ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
-    lib.srtoybox_plan.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int]
-    lib.srtoybox_simulate.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
     lib.srtoybox_settings_normalize.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int]
     lib.srtoybox_settings_store.argtypes = [ctypes.c_char_p]
     lib.srtoybox_settings_file.argtypes = [ctypes.c_char_p, ctypes.c_int]
@@ -117,87 +113,6 @@ def test_only_cheats_that_were_seen_working_and_reach_what_the_user_chose(dll, c
             assert target in ("지정한 지역", "고른 지역", "플레이어"), (f["id"], target)
         else:
             assert target.startswith("플레이어") or target == "고른 부대", (f["id"], target)
-
-
-def test_command_text(dll):
-    # 값을 받는 내장 치트(spawnunit <번호>)는 이제 없다 — 부대 생성은 게임의 함수를 직접 부른다
-    assert text(dll.srtoybox_command, b"fullmapshow", 999, 1106) is None                  # 값도 대상도 없는 기능은 둘 다 무시한다
-    # 나라를 대상으로 하는 내장 치트(…  <지역 번호>)는 이제 없다 — 외교·영토 탭의 줄은 모두 직접 한다
-    for moved in (b"technology", b"e=mc2", b"finalexam", b"shelovesme", b"love", b"neutral", b"populate", b"approval", b"colonize", b"fight", b"becomeregion", b"novichok", b"treaty", b"annex", b"spawnunit", b"stranded", b"darran", b"instantwin", b"fullmapshow"):   # 직접 쓰는 줄은 게임에 넣을 글이 없다
-        assert text(dll.srtoybox_command, moved, 120, 1106) is None
-    assert text(dll.srtoybox_command, b"depopulate", 0, 0) is None                             # 표에 없는 것은 만들지 않는다
-    assert text(dll.srtoybox_command, b"treasury", 1, 0) is None                               # 지운 기능 — 국고는 돈 탭이 직접 한다
-    assert text(dll.srtoybox_command, b"products", 1, 0) is None                               # 〃 — 물자는 물자 탭이
-    assert text(dll.srtoybox_command, b"fullmapshow", 1, 0, size=4) is None                     # 버퍼가 작으면 넘치지 않고 -1
-
-
-def expected_plan(command: str) -> list[str]:
-    """gamedrive.py 가 밖에서 넣는 것과 같은 순서: 설정 창 열기 → cheat allowcheats → 명령 → ESC."""
-    out = ["MODS 1", "DOWN 17", "DOWN 16", "DOWN 83", "WAIT 50", "UP 83", "WAIT 100", "UP 16", "UP 17", "WAIT 200", "MODS 0",
-           "WAIT 300"]
-    for line in ("cheat allowcheats", command):
-        for ch in line:
-            out += [f"CHAR {ord(ch)}", "WAIT 30"]
-        out += ["DOWN 13", "WAIT 50", "UP 13", "WAIT 300"]
-    return out + ["DOWN 27", "WAIT 50", "UP 27", "WAIT 300"]
-
-
-def typed_keys(command: str) -> str:
-    """글쇠 방식으로 그 명령을 넣을 때 게임이 받는 것(프로브의 Game.text 와 같은 표기): 글자는 그대로, 누름은 <이름>."""
-    keys = {13: "<Enter>", 27: "<Esc>", 83: "<S>", 17: "<Ctrl>", 16: "<Shift>"}
-    steps = [step.split() for step in expected_plan(command)]
-    return "".join(chr(int(v)) if act == "CHAR" else keys[int(v)] for act, v in steps if act in ("CHAR", "DOWN"))
-
-
-def test_plan_follows_the_route_checked_in_game(dll):
-    plan = text(dll.srtoybox_plan, b"cheat treasury 1234").splitlines()
-    assert plan == expected_plan("cheat treasury 1234")
-    assert plan.index("MODS 0") < min(i for i, step in enumerate(plan) if step.startswith("CHAR"))   # 수정키를 뗀 뒤에 글자를 넣는다
-
-
-def test_plan_refuses_text_the_game_input_cannot_take(dll):
-    for bad in (b"", "cheat 한글".encode("utf-8"), b"cheat a\nb", b"cheat a\tb", b"x" * 65, b"cheat \x7f"):
-        assert text(dll.srtoybox_plan, bad) is None, bad
-    assert text(dll.srtoybox_plan, b"x" * 64) is not None
-
-
-def events(log: str) -> list[tuple[int, str]]:
-    return [(int(t), f"{act} {value}") for t, act, value in (line.split() for line in log.splitlines() if not line.startswith("REJECT"))]
-
-
-def assert_gaps_kept(evs: list[tuple[int, str]], plan: list[str]) -> None:
-    """계획의 WAIT 만큼은 반드시 벌어져 있어야 한다(프레임이 빨라도 게임이 읽을 시간을 준다)."""
-    assert [step for _, step in evs] == [step for step in plan if not step.startswith("WAIT")]
-    at, owed, last = 0, 0, None
-    for step in plan:
-        if step.startswith("WAIT"):
-            owed += int(step.split()[1])
-            continue
-        t = evs[at][0]
-        if last is not None:
-            assert t - last >= owed, (step, t - last, owed)
-        at, owed, last = at + 1, 0, t
-
-
-def test_runner_keeps_the_gaps_however_fast_it_is_ticked(dll):
-    for tick_ms in (1, 10, 16, 40):
-        evs = events(text(dll.srtoybox_simulate, b"cheat georgew", tick_ms))
-        assert_gaps_kept(evs, expected_plan("cheat georgew"))
-
-
-def test_runner_runs_commands_in_order(dll):
-    evs = events(text(dll.srtoybox_simulate, b"cheat georgew\ncheat populate", 10))
-    first, second = expected_plan("cheat georgew"), expected_plan("cheat populate")
-    assert_gaps_kept(evs, first + second)                       # 첫 명령의 마지막 WAIT 가 둘째 명령 앞의 간격이 된다
-
-
-def test_runner_takes_eight_and_rejects_the_rest(dll):
-    """단추를 연달아 눌러도 8개까지만 받는다. 받은 것은 순서대로 끝까지 들어간다."""
-    commands = [f"cheat treasury {n}" for n in range(1, 11)]
-    log = text(dll.srtoybox_simulate, "\n".join(commands).encode(), 10)
-    assert [line for line in log.splitlines() if line.startswith("REJECT")] == ["REJECT cheat treasury 9", "REJECT cheat treasury 10"]
-    assert_gaps_kept(events(log), [step for c in commands[:8] for step in expected_plan(c)])
-    assert text(dll.srtoybox_simulate, "cheat 한글".encode("utf-8"), 10) == "REJECT cheat 한글\n"   # 넣을 수 없는 글은 받지 않는다
 
 
 KEEP_DEFAULTS = "keep.treasury=0\nkeep.treasury.value=0\n" + "".join(f"keep.stock.{slot}=0\nkeep.stock.{slot}.value=0\n"
