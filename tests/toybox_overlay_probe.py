@@ -605,7 +605,7 @@ def fake_game(hook: str, handler: int | None = None, values: bool = True, more: 
     recompute 는 "효과를 다시 셈" 자리에 둘 함수의 주소다 — 주지 않으면 불린 지역 인덱스를 fake.recomputed 에 적는 함수를 둔다.
     """
     toybox = ctypes.WinDLL(str(Path(hook).with_name("srtoybox.dll")))
-    toybox.srtoybox_test_game.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
+    toybox.srtoybox_test_game.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
     toybox.srtoybox_test_values.argtypes = [ctypes.c_void_p]
     toybox.srtoybox_test_more.argtypes = [ctypes.c_void_p]
     fake = FakeGame()
@@ -618,7 +618,7 @@ def fake_game(hook: str, handler: int | None = None, values: bool = True, more: 
     fake.set_opinion(176, (0.5, 0.25, 0.75))
     fake.set_relation(176, 141, (0.25, -0.5, 0.75))
     fake.set_relation(141, 176, (0.125, 0.5, 1.0))
-    toybox.srtoybox_test_game(fake.base, ctypes.byref(fake.at), handler)
+    toybox.srtoybox_test_game(fake.base, ctypes.byref(fake.at))
     if values:
         toybox.srtoybox_test_values(ctypes.byref(fake.layout))
     if more is not None:

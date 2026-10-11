@@ -43,10 +43,9 @@
 #include "research.h"
 
 struct GameState {
-    bool known = false;         // 주소를 찾았고(새 찾기 — 서명), 읽은 값이 서로 맞는다. 거짓이면 내장 치트로 도는 기능은 글쇠 방식으로 동작한다
+    bool known = false;         // 주소를 찾았고(서명), 읽은 값이 서로 맞는다. 거짓이면 모든 단추가 꺼진다
     bool in_game = false;       // 게임을 진행 중이다
     bool multiplayer = false;
-    bool cheats_on = false;     // 치트 허용 비트. 옛 찾기가 옵션 묶음을 찾았을 때만 읽는다(못 찾았으면 늘 false)
     int player = 0;             // 플레이어 지역의 번호(in_game 일 때만)
     int index = 0;              // 플레이어 지역의 인덱스(in_game 일 때만) — 지역 표의 그 칸이 플레이어 객체임을 확인한 값이다
     int regions = 0;            // 지역 수(in_game 일 때만)
@@ -152,11 +151,6 @@ void game_init_from(const uint8_t *base, size_t size);   // 그 일의 몸통(�
 GameState game_state();            // 지금의 상태. 부를 때마다 읽는다 — 플레이어는 게임 중에 바뀔 수 있다(cheat becomeregion)
 std::vector<int> game_regions();
 bool game_reads();                 // 상태 묶음을 찾았다(게임을 읽는다)
-bool game_can_call();              // 명령 처리 함수의 주소를 안다
-// 명령 처리 함수에 한 줄을 넘긴다 — 게임이 설정 창의 입력줄에서 하는 것과 같은 호출이다.
-// 창 스레드에서, 게임이 진행 중일 때만 부른다(함수는 그것을 검사하지 않고 플레이어 포인터를 그대로 따라간다).
-// 함수 안에서 예외가 나면 잡고 false 를 돌려준다(code 에 예외 코드). 그 뒤로 게임의 상태는 믿을 수 없다.
-bool game_call(const char *line, unsigned long *code);
 
 std::string game_values_off();     // 값을 쓸 수 없는 까닭(창에 그대로 보인다). 쓸 수 있으면 빈 글
 GameValues game_values();          // 지금의 값. 부를 때마다 읽는다
@@ -260,7 +254,7 @@ Wrote game_write_research(Research action, const ResearchWhat &what, ResearchDon
 
 // 테스트: 이 프로세스의 "게임"을 가짜 메모리로 바꾼다. handler 는 명령 처리 함수 자리에 둘 함수(없으면 nullptr).
 // 값의 자리는 비워 두고 값 쓰기의 실패 표시도 지운다 — 자리는 game_set_values_for_test 로 따로 준다.
-void game_set_for_test(const uint8_t *base, const GameAddresses *at, void *handler);
+void game_set_for_test(const uint8_t *base, const GameAddresses *at);
 void game_set_values_for_test(const ValueLayout *layout);
 // 더 쓰는 값의 자리를 준다 — 자리가 0 이 아닌 묶음을 찾은 것으로 친다. nullptr 이면 모두 못 찾은 것으로.
 void game_set_more_for_test(const MoreLayout *layout);

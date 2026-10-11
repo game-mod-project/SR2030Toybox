@@ -9,7 +9,6 @@
 #include <string>
 #include <vector>
 
-#include "command.h"
 #include "features.h"
 #include "game.h"
 #include "imgui.h"
@@ -239,41 +238,6 @@ bool direct_row(const Feature &f, const GameState &game, bool compact)
     return off.empty();
 }
 
-// 아직 내장 치트로 도는 줄: 누르면 명령을 실행기의 대기열에 넣는다.
-void row(const Feature &f, const GameState &game)
-{
-    ImGui::PushID(f.id);
-    long long value = 0;
-    if (f.has_value) {
-        long long &stored = g_settings.values[f.id];
-        ImGui::SetNextItemWidth(150.0f);
-        if (ImGui::InputScalar("##value", ImGuiDataType_S64, &stored)) {
-            stored = stored < f.min ? f.min : stored > f.max ? f.max : stored;
-            save_settings(g_settings);
-        }
-        value = stored;
-        ImGui::SameLine();
-    }
-    const int region = f.target == Target::Player ? game.player : f.target == Target::Picked ? g_picked : 0;
-    const bool missing = f.target != Target::None && region <= 0;   // 플레이어를 모르거나 나라를 고르지 않았다
-    const bool asking = f.confirm && g_confirm == f.id;
-    const std::string label = asking ? asking_label(f, region) : f.label;
-    ImGui::BeginDisabled(missing);
-    const bool pressed = ImGui::Button((label + "###run").c_str());
-    note(std::string("run:") + f.id, label);
-    if (pressed) {
-        if (f.confirm && !asking) {
-            g_confirm = f.id;
-        } else {
-            g_confirm.clear();
-            g_notice = runner_enqueue(build_command(f, value, region)) ? "" : "대기 중인 명령이 많아 받지 못했습니다.";
-        }
-    }
-    ImGui::EndDisabled();
-    ImGui::TextDisabled("%s", f.help);
-    ImGui::Spacing();
-    ImGui::PopID();
-}
 
 // 이번 게임에 있는 나라의 목록과 지금 고른 나라. "고른 나라" 줄을 그린다 — 탭의 구르는 내용 밖에.
 // none: 고른 나라가 없을 때의 글(탭마다 다르다 — 고르는 목록은 "외교·영토" 탭에만 있다).
@@ -950,7 +914,7 @@ void settings_tab()
 // 상태 줄: ToyBox 가 게임을 어떻게 보고 있는지 한 줄로.
 void status_line(const GameState &game)
 {
-    const std::string state = !game.known ? "게임 상태를 읽을 수 없습니다 — 글쇠 방식으로 동작합니다"
+    const std::string state = !game.known ? "게임 상태를 읽을 수 없습니다 — 단추가 꺼져 있습니다"
         : game.multiplayer ? "멀티플레이에서는 동작하지 않습니다"
         : !game.in_game ? "게임을 진행 중이 아닙니다 — 단추가 꺼져 있습니다"
         : "플레이 중: " + region_label(game.player) + " (" + std::to_string(game.player) + ")";
@@ -1086,12 +1050,9 @@ void ui_draw()
                         ImGui::BeginDisabled(blocked);
                         if (diplomacy)
                             picker(view);
-                        bool cheats = false, direct_ok = false;
+                        bool direct_ok = false;
                         for (int j = i; j < FEATURE_COUNT && strcmp(FEATURES[j].tab, tab) == 0; j++) {
-                            if (FEATURES[j].direct == Direct::None) {
-                                cheats = true;
-                                row(FEATURES[j], game);
-                            } else if (direct_row(FEATURES[j], game, research)) {
+                            if (direct_row(FEATURES[j], game, research)) {
                                 direct_ok = true;
                                 if (research && j + 1 < FEATURE_COUNT && strcmp(FEATURES[j + 1].tab, tab) == 0)
                                     ImGui::SameLine();   // 연구 탭의 단추들은 한 줄에 — 아래는 목록의 자리다
@@ -1102,10 +1063,8 @@ void ui_draw()
                             item_list(g_research_list, false, game, blocked);
                         else if (strcmp(tab, UNITS_TAB) == 0)
                             item_list(g_units_list, true, game, blocked);
-                        if (!cheats) {                   // 이 탭의 바닥 안내는 글쇠 방식과 상관없다
-                            values_tab = true;
-                            values_ok = direct_ok;
-                        }
+                        values_tab = true;
+                        values_ok = direct_ok;
                     }
                 }
                 ImGui::EndChild();
@@ -1121,12 +1080,6 @@ void ui_draw()
         }
         const float top = ImGui::GetCursorPosY();
         ImGui::Separator();
-        const int pending = runner_pending();
-        const std::string last = runner_last();
-        if (pending > 0)
-            ImGui::Text("넣는 중: %s (남은 것 %d)", last.c_str(), pending);
-        else if (!last.empty())
-            ImGui::Text("마지막으로 넣은 것: %s", last.c_str());
         const std::string wrote = keeper_last();
         if (!wrote.empty()) {
             ImGui::Text("마지막으로 쓴 값: %s", wrote.c_str());
@@ -1145,21 +1098,15 @@ void ui_draw()
             ImGui::TextWrapped("%s", trouble.c_str());
             note("trouble", trouble);
         }
-        // 게임 화면에 무슨 일이 생기는지. 게임을 읽을 수 있으면 게임 밖에서는 단추가 꺼져 있으므로(상태 줄이 그렇게 말한다) 띄우지 않는다.
-        // 직접 실행에서는 게임의 설정 창이 뜨지 않는 대신, 열려 있던 패널이 스스로 다시 그려지지 않는다 — 일시 정지 중에도,
-        // 시간이 흐르는 중에도(같은 날 안에서) [확인: 게임]
-        // 내장 치트로 도는 줄이 없는 탭(돈 · 물자 · 연구)은 글쇠 방식과 상관없다 — 쓸 수 있으면 늘 바로 바뀌고, 쓸 수 없으면 까닭의 줄이 전부다.
-        const char *const direct = "값은 바로 바뀝니다. 게임 화면의 숫자는 그 패널을 누르거나 다시 열 때 따라옵니다.";
-        const char *const hint = game.known && blocked ? nullptr
-            : values_tab ? (values_ok ? direct : nullptr)
-            : game.known && runner_direct() ? direct
-            : "단추를 누르면 게임의 설정 창이 잠깐 열렸다 닫힙니다.";
+        // 게임 화면에 무슨 일이 생기는지. 게임 밖에서는 단추가 꺼져 있으므로(상태 줄이 그렇게 말한다) 띄우지 않는다.
+        // 열려 있던 게임의 패널은 스스로 다시 그려지지 않는다 — 일시 정지 중에도, 시간이 흐르는 중에도(같은 날 안에서) [확인: 게임]
+        // 쓸 수 없는 탭에서는 까닭의 줄이 전부다.
+        const char *const hint = (game.known && blocked) || !values_tab || !values_ok ? nullptr
+            : "값은 바로 바뀝니다. 게임 화면의 숫자는 그 패널을 누르거나 다시 열 때 따라옵니다.";
         if (hint != nullptr) {
             ImGui::TextWrapped("%s", hint);
             note("hint", hint);
         }
-        if (!game.known && !values_tab)   // 게임을 읽지 못하면 내장 치트로 도는 단추를 끌 수 없다
-            ImGui::TextWrapped("게임을 진행하는 중에만 누르십시오. 메뉴나 로비에서는 글자가 다른 곳에 들어갈 수 있습니다.");
         g_footer = ImGui::GetCursorPosY() - top;
     }
     const ImVec2 pos = ImGui::GetWindowPos(), size = ImGui::GetWindowSize();

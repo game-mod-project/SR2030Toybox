@@ -2,7 +2,7 @@
 // 넣는 기준: docs/07 에서 검증이 [확인: 효과]인 치트 가운데 불리해지지 않는 것 — 대상이 "플레이어" · "고른 부대"이거나,
 // 사용자가 창이나 지도에서 고른 나라 하나에만 닿는 것("외교·영토" 탭. 2026-10-07 에 사용자가 범위를 정했다).
 // tests/test_toybox.py 가 이 표를 docs/07 과 대조한다.
-// 줄은 두 가지다: 아직 내장 치트로 도는 줄(command 를 게임에 넣는다)과, ToyBox 가 값을 직접 쓰는 줄(direct — 3단계 2 부터).
+// 줄은 모두 ToyBox 가 직접 하는 줄이다(direct 가 무엇을 하는지 — 값을 쓰거나 게임의 함수를 부른다). 내장 치트로 도는 줄은 없다(command 는 늘 빈 글).
 // 직접 쓰는 줄은 자리와 이름만 표에 두고, 하는 일은 keeper 의 요청이다 — 내장 치트를 거치지 않는다.
 // 연구의 두 줄(technology · e=mc2)은 3단계 3 에서 직접 쓰는 줄이 됐다 — 기술 · 부대 설계의 보유 비트를 쓴다(research.h).
 #pragma once
@@ -14,7 +14,7 @@ enum class Target {
     Picked,   // 창의 목록에서 고른 나라
 };
 
-// 내장 치트를 거치지 않고 ToyBox 가 직접 쓰는 일의 종류. None 이면 아직 내장 치트로 도는 줄이다.
+// ToyBox 가 직접 하는 일의 종류. None 은 쓰이지 않는다(내장 치트로 도는 줄의 자리였다).
 enum class Direct {
     None,
     TechUp,            // 플레이어의 기술 수준 +1
@@ -53,6 +53,6 @@ struct Feature {
 
 extern const Feature FEATURES[];
 extern const int FEATURE_COUNT;
-int cheat_feature_count();   // 아직 내장 치트로 도는 줄의 수
+int cheat_feature_count();   // 내장 치트로 도는 줄의 수 — 이제 늘 0 이다(테스트가 그것을 본다)
 
 const Feature *find_feature(const char *id);

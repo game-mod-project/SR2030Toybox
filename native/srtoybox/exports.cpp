@@ -7,7 +7,6 @@
 #include <string>
 #include <vector>
 
-#include "command.h"
 #include "features.h"
 #include "game.h"
 #include "input.h"
@@ -20,7 +19,6 @@
 #include "regions.h"
 #include "research.h"
 #include "techs.h"
-#include "runner.h"
 #include "runner_win.h"
 #include "settings.h"
 #include "sigs.h"
@@ -51,17 +49,6 @@ std::string rows_text(const SigRow *rows, int n)
     }
     return text;
 }
-
-// 보내는 대신 적어 두는 Sink. 시계는 부르는 쪽이 돌린다.
-struct RecordingSink : Sink {
-    unsigned long long now = 0;
-    std::string log;
-
-    void line(const char *what, int value) { log += std::to_string(now) + ' ' + what + ' ' + std::to_string(value) + '\n'; }
-    void mods(bool on) override { line("MODS", on ? 1 : 0); }
-    void key(Act act, int value) override { line(act == Act::Down ? "DOWN" : act == Act::Up ? "UP" : "CHAR", value); }
-    unsigned long long now_ms() override { return now; }
-};
 
 // 테스트가 글로 주는 연구의 표. 한 줄에 하나:
 //   slots <기술 자리 수> <설계 자리 수>
@@ -167,44 +154,6 @@ EXPORT int srtoybox_feature_info(int index, char *out, int size)
         + (f.confirm ? "1" : "0") + '\t' + f.help + '\t' + targets[static_cast<int>(f.target)] + '\t'
         + how[static_cast<int>(f.direct)];
     return put(line, out, size);
-}
-
-EXPORT int srtoybox_command(const char *id, long long value, int region, char *out, int size)
-{
-    const Feature *f = id == nullptr ? nullptr : find_feature(id);
-    const std::string command = f == nullptr ? std::string() : build_command(*f, value, region);
-    return command.empty() ? -1 : put(command, out, size);
-}
-
-EXPORT int srtoybox_plan(const char *command, char *out, int size)
-{
-    const std::vector<Action> plan = plan_command(command == nullptr ? "" : command);
-    return plan.empty() ? -1 : put(describe(plan), out, size);
-}
-
-// 명령들(줄바꿈으로 나눈다)을 한꺼번에 대기열에 넣고 가짜 시계로 끝까지 돌린다.
-// 줄마다 "<밀리초> <동작> <값>". 받지 못한 명령은 맨 앞에 "REJECT <명령>".
-EXPORT int srtoybox_simulate(const char *commands, int tick_ms, char *out, int size)
-{
-    Runner runner;
-    RecordingSink sink;
-    const std::string all = commands == nullptr ? "" : commands;
-    std::string rejected;
-    size_t pos = 0;
-    while (pos < all.size()) {
-        size_t end = all.find('\n', pos);
-        if (end == std::string::npos)
-            end = all.size();
-        const std::string one = all.substr(pos, end - pos);
-        if (!runner.enqueue(one))
-            rejected += "REJECT " + one + '\n';
-        pos = end + 1;
-    }
-    for (int guard = 0; runner.busy() && guard < 1000000; guard++) {
-        runner.tick(sink);
-        sink.now += static_cast<unsigned long long>(tick_ms > 0 ? tick_ms : 1);
-    }
-    return put(rejected + sink.log, out, size);
 }
 
 EXPORT int srtoybox_settings_normalize(const char *ini, char *out, int size)
@@ -520,14 +469,14 @@ EXPORT int srtoybox_game_state(const unsigned char *base, const GameAddresses *a
     for (int number : read_regions(base, *at))
         regions += (regions.empty() ? "" : ",") + std::to_string(number);
     return put("known=" + std::to_string(s.known) + " in_game=" + std::to_string(s.in_game) + " multiplayer="
-               + std::to_string(s.multiplayer) + " cheats=" + std::to_string(s.cheats_on) + " player=" + std::to_string(s.player)
+               + std::to_string(s.multiplayer) + " player=" + std::to_string(s.player)
                + " regions=" + regions, out, size);
 }
 
 // 테스트: 이 프로세스의 "게임"을 가짜 메모리로 바꾼다(주소 찾기의 결과를 덮어쓴다).
-EXPORT void srtoybox_test_game(const unsigned char *base, const GameAddresses *at, void *handler)
+EXPORT void srtoybox_test_game(const unsigned char *base, const GameAddresses *at)
 {
-    game_set_for_test(base, at, handler);
+    game_set_for_test(base, at);
 }
 
 // 테스트: 가짜 메모리에서 값을 읽는다. "ok=1 treasury=14430000000 used=100100010000 stock=1000,0,0,2500,…"
@@ -709,11 +658,11 @@ EXPORT void srtoybox_test_init(const unsigned char *image, unsigned long long si
     game_init_from(image, static_cast<size_t>(size));
 }
 
-// 테스트: 이 프로세스의 "게임"에 대해 아는 것. 비트 1 = 상태를 읽는다, 2 = 명령 처리 함수를 부를 수 있다, 4 = 값(국고 · 재고)을 쓸 수 있다,
+// 테스트: 이 프로세스의 "게임"에 대해 아는 것. 비트 1 = 상태를 읽는다, 4 = 값(국고 · 재고)을 쓸 수 있다,
 // 8 = 기술 수준을, 16 = 세계 시장 여론을, 32 = 관계를, 64 = 연구를 쓸 수 있다.
 EXPORT int srtoybox_game_flags(void)
 {
-    return (game_reads() ? 1 : 0) | (game_can_call() ? 2 : 0) | (game_values_off().empty() ? 4 : 0)
+    return (game_reads() ? 1 : 0) | (game_values_off().empty() ? 4 : 0)
         | (game_more_off(MORE_TECH).empty() ? 8 : 0) | (game_more_off(MORE_OPINION).empty() ? 16 : 0)
         | (game_more_off(MORE_RELATIONS).empty() ? 32 : 0) | (game_research_off().empty() ? 64 : 0)
         | (game_more_off(MORE_PEOPLE).empty() ? 128 : 0) | (game_more_off(MORE_APPROVAL).empty() ? 256 : 0)    // 인구 · 지지율

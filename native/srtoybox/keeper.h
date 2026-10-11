@@ -74,7 +74,7 @@ bool keeper_enqueue(const Request &request);
 bool keeper_enqueue_research(const ResearchRequest &request);
 // 대기열을 비우고, 때가 됐으면 유지를 보고, 연구 요청을 하나 처리한다. 게임 창을 가진 스레드에서 부른다(now_ms: 흐르는 시계, 밀리초).
 // 게임 밖 · 멀티플레이 · 오류 가드 뒤에는 남은 요청을 버리고 유지는 쉰다.
-// 게임의 함수(옮기지 않은 기능의 직접 실행, 연구의 "효과를 다시 셈") 안에서 다시 온 틱이면 아무것도 하지 않는다.
+// 게임의 함수(연구의 "효과를 다시 셈" 등) 안에서 다시 온 틱이면 아무것도 하지 않는다.
 // 연구 요청은 keeper 의 잠금을 놓고 처리한다 — 게임의 함수가 안에서 ToyBox 로 되돌아와도(타이머 · 단추) 서로 기다리지 않는다.
 // 그 함수에서 예외가 나면 오류 가드를 건다(runner_win.h): 그 뒤로 ToyBox 는 아무것도 실행하지도 쓰지도 않는다.
 void keeper_tick(unsigned long long now_ms);

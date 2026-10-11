@@ -597,12 +597,12 @@ def text(call, *args, size: int = 4096) -> str:
 def test_research_is_off_until_its_place_is_known(lib):
     """연구는 제 묶음을 찾았을 때만 쓴다. 못 찾았으면 까닭을 그대로 보인다 — 내장 치트로 되돌아가지 않는다."""
     fake, lab_ = lab()
-    lib.srtoybox_test_game.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
+    lib.srtoybox_test_game.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
     lib.srtoybox_test_research.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
     lib.srtoybox_research_off.argtypes = [ctypes.c_char_p, ctypes.c_int]
     hook = RECOMPUTE(lambda world, index: None)
     try:
-        lib.srtoybox_test_game(fake.base, ctypes.byref(fake.at), None)
+        lib.srtoybox_test_game(fake.base, ctypes.byref(fake.at))
         assert not lib.srtoybox_game_flags() & CAN_RESEARCH
         assert text(lib.srtoybox_research_off) == "이 게임 판에서는 쓸 수 없습니다 (연구의 자리를 주지 않았습니다)"
         lib.srtoybox_test_research(ctypes.byref(lab_.layout), ctypes.cast(hook, ctypes.c_void_p))
@@ -610,7 +610,7 @@ def test_research_is_off_until_its_place_is_known(lib):
         lib.srtoybox_test_research(None, None)
         assert not lib.srtoybox_game_flags() & CAN_RESEARCH
     finally:
-        lib.srtoybox_test_game(None, None, None)
+        lib.srtoybox_test_game(None, None)
     assert text(lib.srtoybox_research_off) == "게임 상태를 읽을 수 있을 때만 씁니다."
 
 
@@ -624,14 +624,14 @@ def sigs(lib):
 def startup(lib, image: bytes, tmp_path, monkeypatch) -> tuple[int, str, list[str]]:
     """게임이 뜰 때의 찾기(game_init_from)를 그 이미지에 돌린다: (아는 것의 비트, 연구를 쓸 수 없는 까닭, 로그의 줄들 — 때를 뗀 것)."""
     lib.srtoybox_test_init.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong]
-    lib.srtoybox_test_game.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
+    lib.srtoybox_test_game.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
     lib.srtoybox_research_off.argtypes = [ctypes.c_char_p, ctypes.c_int]
     monkeypatch.setenv("SRTOYBOX_HOME", str(tmp_path))
     try:
         lib.srtoybox_test_init(image, len(image))
         flags, off = lib.srtoybox_game_flags(), text(lib.srtoybox_research_off)
     finally:
-        lib.srtoybox_test_game(None, None, None)              # 이미지를 놓기 전에 이 프로세스의 "게임"을 비운다
+        lib.srtoybox_test_game(None, None)              # 이미지를 놓기 전에 이 프로세스의 "게임"을 비운다
     log = tmp_path / "toybox.log"
     return flags, off, [line.split(" ", 2)[2] for line in log.read_text(encoding="utf-8").splitlines()] if log.is_file() else []
 
@@ -732,18 +732,18 @@ class Playing:
 @pytest.fixture
 def playing(lib, tmp_path, monkeypatch):
     monkeypatch.setenv("SRTOYBOX_HOME", str(tmp_path))
-    lib.srtoybox_test_game.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
+    lib.srtoybox_test_game.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
     lib.srtoybox_test_research.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
     lib.srtoybox_research_off.argtypes = [ctypes.c_char_p, ctypes.c_int]
     lib.srtoybox_keeper_research.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p]
     lib.srtoybox_keeper_text.argtypes = lib.srtoybox_runner_text.argtypes = [ctypes.c_char_p, ctypes.c_int]
     game = Playing(lib, tmp_path)
-    lib.srtoybox_test_game(game.fake.base, ctypes.byref(game.fake.at), None)
+    lib.srtoybox_test_game(game.fake.base, ctypes.byref(game.fake.at))
     lib.srtoybox_test_research(ctypes.byref(game.lab.layout), ctypes.cast(game.hook, ctypes.c_void_p))
     lib.srtoybox_keeper_reset()
     yield game
     lib.srtoybox_keeper_reset()                              # 오류 가드도 지운다 — 다음 테스트는 멈추지 않은 ToyBox 에서 시작한다
-    lib.srtoybox_test_game(None, None, None)
+    lib.srtoybox_test_game(None, None)
 
 
 MINE = ([1, 4, 6], [10, 13, 14])                             # lab() 에서 독일이 보유한 것

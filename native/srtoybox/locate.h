@@ -6,8 +6,8 @@
 //           locate_values  값을 읽고 쓰는 자리(국고 칸, 재고 칸 …). 같은 규칙의 서명으로.
 //           locate_more    더 쓰는 값의 자리(기술 수준, 세계 시장 여론, 관계). 기능마다 한 묶음 — 따로 찾고 따로 실패한다.
 //           locate_research 연구: 기술 · 부대 설계의 표, 지역별 연구 목록, 지역의 효과를 다시 셈하는 게임의 함수.
-//   옛 찾기 locate_legacy  치트 명령 처리 함수와 그 둘레의 셋. "cheat allowcheats" 문자열을 닻으로. 아직 내장 치트로 도는
-//                          기능이 쓴다 — 모든 기능을 옮긴 뒤(3단계의 마지막 묶음) 직접 실행 · 글쇠 방식과 함께 지운다.
+//   옛 찾기 locate_legacy  치트 명령 처리 함수와 그 둘레의 셋. "cheat allowcheats" 문자열을 닻으로.
+//                          **실행 중인 ToyBox 는 부르지 않는다**(2026-10-11) — 검증 도구(gamedrive.py peek 의 치트 허용 비트)와 테스트의 대조만 쓴다.
 #pragma once
 
 #include <cstddef>

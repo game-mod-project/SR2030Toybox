@@ -29,8 +29,6 @@ std::mutex g_lock;
 const uint8_t *g_base;
 GameAddresses g_at;
 bool g_located, g_told;
-void *g_handler;          // 명령 처리 함수
-void *g_context;          // 그 첫 인자(게임이 넘기는 것과 같은 전역 객체)
 ValueLayout g_layout;     // 값의 자리
 bool g_values;            // 그것을 찾았다
 char g_values_why[200];   // 못 찾은 까닭
@@ -63,7 +61,6 @@ uint32_t g_upgrades;          // 세계 객체 안의 개량 보정 표의 자�
 uint32_t g_map;               // 지도 객체의 포인터가 든 전역(RVA. 못 찾았으면 0)
 char g_act_why[ACT_WANTED][MORE_WHY];   // 부르는 함수마다 못 찾은 까닭
 
-typedef void (*Handler)(void *context, const char *line);
 
 bool env_is_zero(const char *name)
 {
@@ -71,7 +68,7 @@ bool env_is_zero(const char *name)
     return GetEnvironmentVariableA(name, value, sizeof(value)) == 1 && value[0] == '0';
 }
 
-// 탈출구: SRTOYBOX_READ=0 이면 게임을 읽지 않는다 — 1단계처럼 단추가 늘 켜져 있고 글쇠 방식으로 동작한다.
+// 탈출구: SRTOYBOX_READ=0 이면 게임을 읽지 않는다 — 모든 단추가 꺼진다(ToyBox 가 게임을 잘못 읽어 탈이 날 때 끄는 길이다)
 // ToyBox 가 게임 안인데도 "게임 밖"으로 잘못 알아(다른 빌드, 보지 못한 화면) 단추가 꺼진 채 풀리지 않을 때 쓴다.
 bool reading_wanted()
 {
@@ -84,18 +81,6 @@ bool write_wanted()
 {
     static const bool wanted = !env_is_zero("SRTOYBOX_WRITE");
     return wanted;
-}
-
-// 구조적 예외(잘못된 주소 접근 등)를 잡는다. __try 가 든 함수에는 소멸자가 있는 지역 변수를 둘 수 없어 따로 뗐다.
-bool guarded_call(Handler handler, void *context, const char *line, unsigned long *code)
-{
-    __try {
-        handler(context, line);
-        return true;
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
-        *code = GetExceptionCode();
-        return false;
-    }
 }
 
 // 게임의 "지역의 효과를 다시 셈"을 부른다. 예외는 잡아 code 에 적는다.
@@ -408,18 +393,15 @@ GameState read_player(const uint8_t *base, const GameAddresses &at, uint64_t *ob
 {
     GameState s;
     uint8_t multiplayer = 0;
-    uint32_t options = 0;
     int32_t program = 0, mode = 0, index = 0, count = 0;
     uint64_t pointer = 0, slot = 0;
     if (base == nullptr || !peek_at(base, at.multiplayer, &multiplayer)
-        || (at.options != 0 && !peek_at(base, at.options, &options))
         || !peek_at(base, at.program_state, &program) || !peek_at(base, at.mode_state, &mode)
         || !peek_at(base, at.player_index, &index) || !peek_at(base, at.player_pointer, &pointer)
         || !peek_at(base, at.region_count, &count))
         return s;
     s.known = true;
     s.multiplayer = multiplayer != 0;
-    s.cheats_on = (options & 0x40) != 0;
     if (mode != 2 || program != 1 || pointer == 0)
         return s;   // 게임 밖(메뉴 · 로비). 인덱스는 낡은 값이 남으므로 보지 않는다
 
@@ -1195,7 +1177,7 @@ Wrote write_research(const uint8_t *base, const GameAddresses &at, const Researc
 void game_init()
 {
     if (!reading_wanted()) {
-        log_line("게임 상태를 읽지 않습니다 (SRTOYBOX_READ=0) — 글쇠 방식");
+        log_line("게임 상태를 읽지 않습니다 (SRTOYBOX_READ=0) — 단추가 꺼집니다");
         return;
     }
     const uint8_t *base = reinterpret_cast<const uint8_t *>(GetModuleHandleW(nullptr));
@@ -1240,17 +1222,12 @@ void game_init_from(const uint8_t *base, size_t size)
         && (!values || locate_research_fits(research, layout, research_why, sizeof(research_why)));
     const unsigned long long took = GetTickCount64() - started;
 
-    // 옛 찾기(전환 기간에만): 아직 내장 치트로 도는 기능의 직접 실행이 쓴다. 상태를 읽지 못하면 그 기능들도 글쇠 방식이라 찾지 않는다
-    const char *legacy = state ? locate_legacy(base, size, &at) : "게임 상태를 읽지 못했습니다";
-    const bool can_call = state && legacy == nullptr;
     {
         std::lock_guard<std::mutex> lock(g_lock);
         g_base = base;
         g_at = at;
         g_located = state;
         g_told = false;
-        g_handler = can_call ? const_cast<uint8_t *>(base) + at.handler : nullptr;
-        g_context = can_call ? const_cast<uint8_t *>(base) + at.context : nullptr;
         g_layout = layout;
         g_values = values;
         g_write_failed = false;
@@ -1343,7 +1320,7 @@ void game_init_from(const uint8_t *base, size_t size)
             log_line("최강 부대 묶음을 쓸 수 없습니다 (%s)", (acting & ACT_DEPLOY) == 0 ? act_why[23] : act_why[14]);
     }
     if (!state) {
-        log_line("게임 상태를 읽을 수 없습니다 (%s) — 글쇠 방식", why);
+        log_line("게임 상태를 읽을 수 없습니다 (%s) — 단추가 꺼집니다", why);
         return;
     }
     log_line("게임 상태를 읽습니다 (서명 %d개 가운데 %d개, %llu ms)", STATE_WANTED * STATE_SIGS, matched, took);
@@ -1392,10 +1369,6 @@ void game_init_from(const uint8_t *base, size_t size)
                  research.tech_table, research.design_table, research.lists, research.recompute);
     else
         log_line("연구를 쓸 수 없습니다 (%s)", research_why);
-    if (can_call)
-        log_line("옛 방식(내장 치트)으로 도는 기능이 %d개 남아 있습니다 (명령 처리 함수 +0x%X)", cheat_feature_count(), at.handler);
-    else
-        log_line("명령 처리 함수를 찾지 못했습니다 (%s) — 내장 치트로 도는 기능은 글쇠 방식", legacy);
 }
 
 GameState game_state()
@@ -1409,7 +1382,7 @@ GameState game_state()
         std::lock_guard<std::mutex> lock(g_lock);
         if (!g_told) {
             g_told = true;
-            log_line("게임에서 읽은 값이 서로 맞지 않습니다 — 글쇠 방식");
+            log_line("게임에서 읽은 값이 서로 맞지 않습니다 — 단추가 꺼집니다");
         }
     }
     return s;
@@ -1428,15 +1401,13 @@ bool game_reads()
     return g_located && reading_wanted();
 }
 
-void game_set_for_test(const uint8_t *base, const GameAddresses *at, void *handler)
+void game_set_for_test(const uint8_t *base, const GameAddresses *at)
 {
     std::lock_guard<std::mutex> lock(g_lock);
     g_base = base;
     g_at = at != nullptr ? *at : GameAddresses();
     g_located = base != nullptr && at != nullptr;
     g_told = false;
-    g_handler = g_located ? handler : nullptr;
-    g_context = g_located ? const_cast<uint8_t *>(base) + g_at.context : nullptr;
     g_layout = ValueLayout();
     g_values = false;
     g_write_failed = false;
@@ -1482,25 +1453,6 @@ void game_set_more_for_test(const MoreLayout *layout)
         | (g_more.people[0] != 0 && g_more.people[1] != 0 ? MORE_PEOPLE : 0)
         | (g_more.approval != 0 ? MORE_APPROVAL : 0);
     g_write_failed = false;
-}
-
-bool game_can_call()
-{
-    std::lock_guard<std::mutex> lock(g_lock);
-    return g_located && g_handler != nullptr && reading_wanted();
-}
-
-bool game_call(const char *line, unsigned long *code)
-{
-    Handler handler = nullptr;
-    void *context = nullptr;
-    {
-        std::lock_guard<std::mutex> lock(g_lock);
-        handler = reinterpret_cast<Handler>(g_handler);
-        context = g_context;
-    }
-    *code = 0;
-    return handler != nullptr && guarded_call(handler, context, line, code);
 }
 
 std::string game_values_off()

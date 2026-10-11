@@ -714,7 +714,7 @@ def germany() -> FakeGame:
 
 
 def test_game_state_in_a_game(lib):
-    assert state(lib, germany()) == {"known": "1", "in_game": "1", "multiplayer": "0", "cheats": "0", "player": "1499",
+    assert state(lib, germany()) == {"known": "1", "in_game": "1", "multiplayer": "0", "player": "1499",
                                      "regions": "1106,1201,1499"}
 
 
@@ -722,7 +722,7 @@ def test_game_state_outside_a_game(lib):
     """메뉴 · 로비: 플레이어 포인터가 비어 있다. 인덱스에 낡은 값이 남아 있어도 진행 중이 아니다."""
     fake = germany()
     fake.menu()
-    assert state(lib, fake) == {"known": "1", "in_game": "0", "multiplayer": "0", "cheats": "0", "player": "0", "regions": ""}
+    assert state(lib, fake) == {"known": "1", "in_game": "0", "multiplayer": "0", "player": "0", "regions": ""}
 
 
 def test_game_state_in_a_lobby_that_already_has_a_player_pointer(lib):
@@ -731,27 +731,27 @@ def test_game_state_in_a_lobby_that_already_has_a_player_pointer(lib):
     fake = germany()
     fake.poke(PROGRAM, "<i", 3)
     fake.poke(MODE, "<i", 1)
-    assert state(lib, fake) == {"known": "1", "in_game": "0", "multiplayer": "0", "cheats": "0", "player": "0", "regions": ""}
+    assert state(lib, fake) == {"known": "1", "in_game": "0", "multiplayer": "0", "player": "0", "regions": ""}
 
 
-def test_game_state_reads_the_cheat_bit_and_the_multiplayer_flag(lib):
+def test_game_state_reads_the_multiplayer_flag_and_not_the_cheat_bit(lib):
+    """멀티플레이 표시는 읽는다. 치트 허용 비트는 읽지 않는다 — ToyBox 는 내장 치트를 쓰지 않는다(그 비트가 어떻든 상태는 같다)."""
     fake = germany()
-    fake.poke(OPTIONS, "<I", 0x6072B0C1)
     fake.poke(MULTIPLAYER, "<B", 1)
     got = state(lib, fake)
-    assert got["cheats"] == "1" and got["multiplayer"] == "1"
-    fake.poke(OPTIONS, "<I", 0x6072B081)            # 비트 0x40 만 꺼진 값(다른 비트는 다른 옵션이다)
-    assert state(lib, fake)["cheats"] == "0"
+    assert got["multiplayer"] == "1" and "cheats" not in got
+    fake.poke(OPTIONS, "<I", 0x6072B0C1)            # 치트 허용(비트 0x40)이 켜진 값
+    assert state(lib, fake) == got
 
 
 def test_game_state_without_the_legacy_addresses(lib):
-    """옛 찾기가 실패하면(치트가 없는 빌드) 옵션 묶음의 주소가 없다(0). 그래도 상태는 읽는다 — 치트 허용만 모르고, 꺼진 것으로 친다."""
+    """상태를 읽는 데에 옛 찾기의 주소(옵션 묶음 · 명령 처리 함수)는 쓰이지 않는다 — 실행 중인 ToyBox 는 옛 찾기를 돌리지 않는다."""
     fake = germany()
     fake.at.options = 0
     fake.at.handler = 0
     fake.at.context = 0
     fake.poke(OPTIONS, "<I", 0x40)
-    assert state(lib, fake) == {"known": "1", "in_game": "1", "multiplayer": "0", "cheats": "0", "player": "1499",
+    assert state(lib, fake) == {"known": "1", "in_game": "1", "multiplayer": "0", "player": "1499",
                                 "regions": "1106,1201,1499"}
 
 
