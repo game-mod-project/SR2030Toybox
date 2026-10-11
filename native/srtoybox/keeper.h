@@ -50,6 +50,8 @@ bool keeper_enqueue_novichok(int region);
 bool keeper_enqueue_treaty(int region);
 // 그 나라의 땅을 모두 플레이어의 것으로 만든다. 같은 줄에 선다.
 bool keeper_enqueue_annex(int region);
+// 게임의 지도에서 고른 칸에 그 설계들의 부대를 each 기씩 만든다(game_spawn). 받지 못하면 거짓.
+bool keeper_enqueue_spawn(const std::vector<int> &designs, int each);
 
 // 최소 유지: 켜진 항목이 바닥보다 작아지면 바닥으로 올린다. KEEP_EVERY_MS 마다 보고, 설정 창이 닫혀 있어도 돈다.
 // 플레이하는 나라가 바뀌면 그 뒤로는 새 나라의 값을 본다. 물자는 이번 판에서 쓰는 것만 올린다.

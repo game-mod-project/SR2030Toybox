@@ -79,9 +79,9 @@ def test_feature_table(dll):
     # 게임에 넣는 글이 없다. 나머지 열하나가 내장 치트로 돈다
     assert {f["id"]: f["how"] for f in fs if f["how"] != "cheat"} == {
         "technology": "tech_level", "e=mc2": "queue_done", "finalexam": "tech_up", "shelovesme": "opinion_best",
-        "love": "relation_best", "neutral": "relation_neutral", "populate": "people_add", "approval": "approval_best", "colonize": "colonize", "fight": "fight", "becomeregion": "become", "novichok": "novichok", "treaty": "treaty", "annex": "annex"}
+        "love": "relation_best", "neutral": "relation_neutral", "populate": "people_add", "approval": "approval_best", "colonize": "colonize", "fight": "fight", "becomeregion": "become", "novichok": "novichok", "treaty": "treaty", "annex": "annex", "spawnunit": "spawn"}
     cheats = [f for f in fs if f["how"] == "cheat"]
-    assert len(cheats) == 5 == dll.srtoybox_cheat_feature_count() and len({f["command"] for f in cheats}) == 5
+    assert len(cheats) == 4 == dll.srtoybox_cheat_feature_count() and len({f["command"] for f in cheats}) == 4
     assert [f["id"] for f in fs][:3] == ["technology", "e=mc2", "finalexam"]            # 줄의 자리는 옮기기 전과 같다
     assert [(f["label"], f["default"], f["min"], f["max"]) for f in fs[:2]] == [("기술 수준 N 이하 전부 보유", 120, 1, 255),
                                                                               ("대기열의 연구 즉시 완료", 0, 0, 0)]
@@ -120,18 +120,15 @@ def test_only_cheats_that_were_seen_working_and_reach_what_the_user_chose(dll, c
 
 
 def test_command_text(dll):
-    assert text(dll.srtoybox_command, b"spawnunit", 140, 0) == "cheat spawnunit 140"
-    assert text(dll.srtoybox_command, b"spawnunit", 0, 0) == "cheat spawnunit 1"               # 범위로 잘라 맞춘다
-    assert text(dll.srtoybox_command, b"spawnunit", -5, 0) == "cheat spawnunit 1"
-    assert text(dll.srtoybox_command, b"spawnunit", 10**12, 0) == "cheat spawnunit 99999"
+    # 값을 받는 내장 치트(spawnunit <번호>)는 이제 없다 — 부대 생성은 게임의 함수를 직접 부른다
     assert text(dll.srtoybox_command, b"darran", 999, 1106) == "cheat darran"                  # 값도 대상도 없는 기능은 둘 다 무시한다
     # 나라를 대상으로 하는 내장 치트(…  <지역 번호>)는 이제 없다 — 외교·영토 탭의 줄은 모두 직접 한다
-    for moved in (b"technology", b"e=mc2", b"finalexam", b"shelovesme", b"love", b"neutral", b"populate", b"approval", b"colonize", b"fight", b"becomeregion", b"novichok", b"treaty", b"annex"):   # 직접 쓰는 줄은 게임에 넣을 글이 없다
+    for moved in (b"technology", b"e=mc2", b"finalexam", b"shelovesme", b"love", b"neutral", b"populate", b"approval", b"colonize", b"fight", b"becomeregion", b"novichok", b"treaty", b"annex", b"spawnunit"):   # 직접 쓰는 줄은 게임에 넣을 글이 없다
         assert text(dll.srtoybox_command, moved, 120, 1106) is None
     assert text(dll.srtoybox_command, b"depopulate", 0, 0) is None                             # 표에 없는 것은 만들지 않는다
     assert text(dll.srtoybox_command, b"treasury", 1, 0) is None                               # 지운 기능 — 국고는 돈 탭이 직접 한다
     assert text(dll.srtoybox_command, b"products", 1, 0) is None                               # 〃 — 물자는 물자 탭이
-    assert text(dll.srtoybox_command, b"spawnunit", 1, 0, size=4) is None                      # 버퍼가 작으면 넘치지 않고 -1
+    assert text(dll.srtoybox_command, b"darran", 1, 0, size=4) is None                         # 버퍼가 작으면 넘치지 않고 -1
 
 
 def expected_plan(command: str) -> list[str]:
@@ -1173,7 +1170,9 @@ def test_the_units_tab_lists_designs_by_domain_and_registers_them(dll, cfg, tmp_
     assert got["buttons"] == {"list:domain": "전체", "list:show": "자국 미보유", "list:kind": "전체", "list:owner": "전체",
                               "list:clear": "고르기 풀기", "list:done": "고른 것 등록", "list:undo": "고른 것 해제",
                               "list:all_done": "보이는 것 전부 등록", "list:all_undo": "보이는 것 전부 해제",
-                              "list:every_done": "모든 설계도 등록", "list:every_undo": "모든 설계도 해제"}
+                              "list:every_done": "모든 설계도 등록", "list:every_undo": "모든 설계도 해제",
+                              "list:each": "1", "list:spawn": "고른 것을 수량만큼 생성",
+                              "list:hex": "지도에서 고른 칸: 없음 — 게임의 지도에서 칸을 고르십시오"}
     # 설계 12 의 선행(기술 4)은 독일이 보유했고, 설계 11 의 선행(기술 3)은 아니다
     assert got["first"] == {"12": "0|Unit|보병|1950|미보유|보유|", "11": "0|Unit|전차|1995|연구 중|0/1|폴란드"}
     assert got["air"] == {} and got["land"] == got["first"]                 # 보병 · 전차는 육군이다
@@ -1182,6 +1181,20 @@ def test_the_units_tab_lists_designs_by_domain_and_registers_them(dll, cfg, tmp_
     assert got["asking"] == "모든 설계도 해제 — 한 번 더 누르면 실행합니다" and got["held_asking"] == got["after_every"]
     assert got["after_none"] == [[1, 2, 3, 4, 6], [], [1, 2], [11, 13]] and got["wrote_none"] == "부대 설계 5개를 미완료로 — 모든 설계도"
     assert got["owners_of_tech_1"] == "폴란드"                               # 풍선말의 글: 보유한 다른 나라 모두(플레이어는 뺀다)
+    assert got["lines"] == [] and got["text"] == "" and got["options"] == 0
+
+
+def test_units_are_made_on_the_hex_picked_on_the_map_without_the_cheat(dll, cfg, tmp_path):
+    """부대 생성(3단계 5, 사용자가 승인했다 2026-10-11): 게임의 지도에서 고른 칸에, 게임의 "부대 만들기"를 내장 치트와 같은 인자
+    (플레이어의 지역 객체, 설계의 번호, 1, 칸, 0 여섯)로 부른다. 칸을 고르지 않았으면 단추가 꺼져 있고, 표에 없는 설계면 하나도 만들지 않는다.
+    목록에서는 고른 설계마다 수량만큼. 지도 밖의 칸은 고르지 않은 것으로 친다. 게임에 넣는 글(치트)은 없다."""
+    got = json.loads(_probe(cfg, tmp_path, "research_spawn"))
+    none = "지도에서 고른 칸: 없음 — 게임의 지도에서 칸을 고르십시오"
+    assert got["unpicked"] == [none, none] and got["picked"] == "지도에서 고른 칸: (3, 2)" and got["outside"] == none
+    assert got["missing"] == "그 번호의 부대 설계가 없어 하지 않았습니다." and got["missing_calls"] == []
+    hex_ = 3 | 2 << 16
+    assert got["spawned"] == [[1499, 11, 1, hex_, 0, 0, 0, 0, 0, 0], [1499, 12, 1, hex_, 0, 0, 0, 0, 0, 0]]
+    assert got["wrote"] == "부대 생성 — 설계 2종 · 2기 · 칸 (3, 2)"
     assert got["lines"] == [] and got["text"] == "" and got["options"] == 0
 
 

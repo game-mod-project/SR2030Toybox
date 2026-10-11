@@ -51,6 +51,8 @@ uint32_t g_leaders, g_leader_id;   // 지도자 표의 포인터가 든 전역(R
 void *g_treaty;               // 게임의 "조약"(못 찾았으면 nullptr)
 uint32_t g_treaties;          // 지역 객체에서 조약 표의 자리(못 찾았으면 0)
 void *g_annex;                // 게임의 "칸의 주인 바꾸기"(못 찾았으면 nullptr)
+void *g_spawn;                // 게임의 "부대 만들기"(못 찾았으면 nullptr)
+uint32_t g_map_hex;           // "지도에서 고른 칸"이 든 전역(RVA. 못 찾았으면 0)
 uint32_t g_map;               // 지도 객체의 포인터가 든 전역(RVA. 못 찾았으면 0)
 char g_act_why[ACT_WANTED][MORE_WHY];   // 부르는 함수마다 못 찾은 까닭
 
@@ -128,6 +130,24 @@ struct HexRef {
 static_assert(sizeof(HexRef) == 0x28, "칸의 묶음은 0x28 바이트다");
 
 typedef void (*Annex)(HexRef *hex, int owner, int z1, int z2, bool f1, bool f2);
+// 게임의 "부대 만들기": 내장 치트 spawnunit 이 부르는 그대로 — (지역 객체, 설계의 번호, 1, 칸, 0, 0, NULL, 0, 0, 0)
+typedef void *(*Spawn)(void *region, int design, int count, uint32_t hex, bool f1, bool f2, void **out, bool f3, int z, bool f4);
+
+// 게임의 "부대 만들기"를 설계마다 each 번 부른다. 예외는 잡아 code 에 적는다 — 그때까지 만든 수는 made 에 있다.
+bool guarded_spawn(Spawn spawn, void *region, const int *designs, int n, int each, uint32_t hex, int *made, unsigned long *code)
+{
+    __try {
+        for (int i = 0; i < n; i++)
+            for (int k = 0; k < each; k++) {
+                spawn(region, designs[i], 1, hex, false, false, nullptr, false, 0, false);
+                ++*made;
+            }
+        return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        *code = GetExceptionCode();
+        return false;
+    }
+}
 
 // 게임의 "칸의 주인 바꾸기"를 칸마다 부른다. 예외는 잡아 code 에 적는다. *done 에 부른 칸의 수.
 bool guarded_annex(Annex annex, uint64_t map, uint64_t hexes, uint64_t side_a, uint64_t side_b, int width, const int *list, int n,
@@ -1213,6 +1233,8 @@ void game_init_from(const uint8_t *base, size_t size)
         g_treaties = (acting & ACT_TREATIES) != 0 ? acts.treaties : 0;
         g_annex = (acting & ACT_ANNEX) != 0 ? const_cast<uint8_t *>(base) + acts.annex : nullptr;
         g_map = (acting & ACT_MAP) != 0 ? acts.map : 0;
+        g_spawn = (acting & ACT_SPAWN) != 0 ? const_cast<uint8_t *>(base) + acts.spawn : nullptr;
+        g_map_hex = (acting & ACT_MAP_HEX) != 0 ? acts.map_hex : 0;
         memcpy(g_act_why, act_why, sizeof(g_act_why));
     }
     if (state) {
@@ -1246,6 +1268,10 @@ void game_init_from(const uint8_t *base, size_t size)
             log_line("게임의 함수를 부릅니다 (칸의 주인 바꾸기 +0x%X, 지도 +0x%X)", acts.annex, acts.map);
         else
             log_line("병합을 쓸 수 없습니다 (%s)", (acting & ACT_ANNEX) == 0 ? act_why[12] : act_why[13]);
+        if ((acting & ACT_SPAWN) != 0 && (acting & ACT_MAP_HEX) != 0)
+            log_line("게임의 함수를 부릅니다 (부대 만들기 +0x%X, 지도에서 고른 칸 +0x%X)", acts.spawn, acts.map_hex);
+        else
+            log_line("부대 생성을 쓸 수 없습니다 (%s)", (acting & ACT_SPAWN) == 0 ? act_why[14] : act_why[15]);
     }
     if (!state) {
         log_line("게임 상태를 읽을 수 없습니다 (%s) — 글쇠 방식", why);
@@ -1353,8 +1379,8 @@ void game_set_for_test(const uint8_t *base, const GameAddresses *at, void *handl
     g_research = ResearchLayout();
     g_research_found = false;
     g_recompute = nullptr;
-    g_colonize = g_fight = g_become = g_elect = g_news = g_treaty = g_annex = nullptr;
-    g_map_pick = g_index2 = g_pointer2 = g_leaders = g_leader_id = g_treaties = g_map = 0;
+    g_colonize = g_fight = g_become = g_elect = g_news = g_treaty = g_annex = g_spawn = nullptr;
+    g_map_hex = g_map_pick = g_index2 = g_pointer2 = g_leaders = g_leader_id = g_treaties = g_map = 0;
     for (int w = 0; w < ACT_WANTED; w++)
         snprintf(g_act_why[w], MORE_WHY, "%s", "함수의 자리를 주지 않았습니다");
     snprintf(g_research_why, sizeof(g_research_why), "연구의 자리를 주지 않았습니다");
@@ -1576,6 +1602,12 @@ std::string game_act_off(int act)
         return off_text(g_colonize != nullptr, g_act_why[0]);
     if (act == ACT_FIGHT)                      // 함수와 "지도에서 고른 지역"을 둘 다 찾아야 한다
         return off_text(g_fight != nullptr && g_map_pick != 0, g_fight == nullptr ? g_act_why[1] : g_act_why[5]);
+    if (act == ACT_SPAWN) {                    // 부대 생성: 함수 · 지도에서 고른 칸 · 지도 객체(칸이 지도 안인가) · 부대 설계 표(연구 묶음)
+        if (g_spawn != nullptr && g_map_hex != 0 && g_map != 0 && !g_research_found)
+            return g_research_why;
+        return off_text(g_spawn != nullptr && g_map_hex != 0 && g_map != 0,
+                        g_spawn == nullptr ? g_act_why[14] : g_map_hex == 0 ? g_act_why[15] : g_act_why[13]);
+    }
     if (act == ACT_ANNEX)                      // 병합: 함수와 지도 객체
         return off_text(g_annex != nullptr && g_map != 0, g_annex == nullptr ? g_act_why[12] : g_act_why[13]);
     if (act == ACT_TREATY)                     // 동맹 맺기: 함수와 조약 표의 자리(이미 맺었는지 읽는다)
@@ -1587,6 +1619,84 @@ std::string game_act_off(int act)
         return off_text(g_become != nullptr && g_index2 != 0 && g_pointer2 != 0,
                         g_become == nullptr ? g_act_why[2] : g_index2 == 0 ? g_act_why[6] : g_act_why[7]);
     return "없는 기능입니다";
+}
+
+namespace {
+
+// "지도에서 고른 칸"을 읽는다: dword — 낮은 word 가 가로, 높은 word 가 세로. 0 이면 고르지 않은 것이다(게임도 그렇게 본다).
+// 지도 안의 칸일 때만 참.
+bool picked_hex(const uint8_t *base, uint32_t where, uint32_t map_where, uint32_t *hex, int *x, int *y)
+{
+    uint64_t map = 0;
+    uint8_t head[MAP_COUNT + 4] = {};
+    if (!peek_at(base, where, hex) || *hex == 0 || !peek_at(base, map_where, &map) || map == 0
+        || !peek(reinterpret_cast<const void *>(map), head, sizeof(head)))
+        return false;
+    const int32_t width = field<int32_t>(head, MAP_WIDTH), count = field<int32_t>(head, MAP_COUNT);
+    *x = static_cast<int>(*hex & 0xFFFF);
+    *y = static_cast<int>(*hex >> 16);
+    return width >= 1 && width <= 0xFFFF && count >= width && count % width == 0 && *x < width && *y < count / width;
+}
+
+}  // namespace
+
+bool game_map_hex(int *x, int *y)
+{
+    const uint8_t *base = nullptr;
+    GameAddresses at = {};
+    uint32_t where = 0, map_where = 0;
+    {
+        std::lock_guard<std::mutex> lock(g_lock);
+        if (!g_located || !reading_wanted() || g_map_hex == 0 || g_map == 0)
+            return false;
+        base = g_base;
+        at = g_at;
+        where = g_map_hex;
+        map_where = g_map;
+    }
+    uint64_t player = 0;
+    uint32_t hex = 0;
+    return read_player(base, at, &player).in_game && picked_hex(base, where, map_where, &hex, x, y);
+}
+
+Wrote game_spawn(const int *designs, int n, int each, unsigned long *code, int *made, int *x, int *y)
+{
+    *code = 0;
+    *made = *x = *y = 0;
+    if (!game_act_off(ACT_SPAWN).empty())
+        return Wrote::Off;
+    const uint8_t *base = nullptr;
+    GameAddresses at = {};
+    ResearchLayout r = {};
+    Spawn spawn = nullptr;
+    uint32_t where = 0, map_where = 0;
+    {
+        std::lock_guard<std::mutex> lock(g_lock);
+        base = g_base;
+        at = g_at;
+        r = g_research;
+        spawn = reinterpret_cast<Spawn>(g_spawn);
+        where = g_map_hex;
+        map_where = g_map;
+    }
+    uint64_t player = 0, table = 0;
+    int32_t count = 0;
+    uint32_t hex = 0;
+    const GameState s = read_player(base, at, &player);
+    if (!s.in_game || s.multiplayer || player == 0)
+        return Wrote::NotInGame;
+    if (!picked_hex(base, where, map_where, &hex, x, y))
+        return Wrote::NoTarget;
+    if (n < 1 || each < 1 || n > SPAWN_LIMIT || each > SPAWN_LIMIT || n * each > SPAWN_LIMIT || !peek_at(base, r.design_table, &table)
+        || table == 0 || !peek_at(base, r.design_count, &count))
+        return Wrote::BadValue;
+    for (int i = 0; i < n; i++) {              // 하나라도 없는 설계면 하나도 만들지 않는다
+        uint64_t first = 0;
+        if (designs[i] < 1 || designs[i] > SPAWN_MAX_EQUIP || designs[i] >= count
+            || !peek(reinterpret_cast<const void *>(table + static_cast<uint64_t>(designs[i]) * DESIGN_SIZE), &first, sizeof(first)) || first == 0)
+            return Wrote::BadValue;
+    }
+    return guarded_spawn(spawn, reinterpret_cast<void *>(player), designs, n, each, hex, made, code) ? Wrote::Done : Wrote::Crashed;
 }
 
 Wrote game_annex(int number, unsigned long *code, int *hexes)
@@ -1834,9 +1944,11 @@ Wrote game_colonize(int number, unsigned long *code)
 }
 
 void game_set_acts_for_test(const ActLayout *layout, void *colonize, void *fight, void *become, void *elect, void *news, void *treaty,
-                            void *annex)
+                            void *annex, void *spawn)
 {
     std::lock_guard<std::mutex> lock(g_lock);
+    g_spawn = layout != nullptr ? spawn : nullptr;
+    g_map_hex = layout != nullptr ? layout->map_hex : 0;
     g_colonize = layout != nullptr ? colonize : nullptr;
     g_fight = layout != nullptr ? fight : nullptr;
     g_map_pick = layout != nullptr ? layout->map_pick : 0;
@@ -1856,7 +1968,8 @@ void game_set_acts_for_test(const ActLayout *layout, void *colonize, void *fight
     g_map = layout != nullptr ? layout->map : 0;
     const bool given[ACT_WANTED] = {g_colonize != nullptr, g_fight != nullptr, g_become != nullptr, g_elect != nullptr, g_news != nullptr,
                                     g_map_pick != 0, g_index2 != 0, g_pointer2 != 0, g_leaders != 0, g_leader_id != 0,
-                                    g_treaty != nullptr, g_treaties != 0, g_annex != nullptr, g_map != 0};
+                                    g_treaty != nullptr, g_treaties != 0, g_annex != nullptr, g_map != 0,
+                                    g_spawn != nullptr, g_map_hex != 0};
     for (int w = 0; w < ACT_WANTED; w++)
         snprintf(g_act_why[w], MORE_WHY, "%s", given[w] ? "" : "함수의 자리를 주지 않았습니다");
 }

@@ -105,13 +105,17 @@ struct ActLayout {
     uint32_t treaties;         // 상수: 지역 객체 안의 표 — 조약 번호마다 qword 포인터(그 조약을 맺은 지역들의 비트 묶음. 비트의 번호가 지역 인덱스)
     uint32_t annex;            // void f(HexRef *칸, int 새 주인의 인덱스, int 0, int 0, bool, bool): 그 칸의 주인을 바꾼다
     uint32_t map;              // qword(자료). 지도 객체의 포인터 — 읽기만 한다
+    uint32_t spawn;            // void *f(void *지역 객체, int 부대 설계의 번호, int 수, uint32 칸, bool, bool, void **, bool, int, bool): 그 칸에 부대를 만든다
+    uint32_t map_hex;          // dword(자료). "지도에서 고른 칸" — 낮은 word 가 가로, 높은 word 가 세로. 0 이면 고르지 않았다. 읽기만 한다
 };
 
 // 찾을 것의 비트(ActLayout 의 필드 순서)
 const int ACT_COLONIZE = 1, ACT_FIGHT = 2, ACT_BECOME = 4, ACT_ELECT = 8, ACT_NEWS = 16, ACT_MAP_PICK = 32, ACT_INDEX2 = 64,
           ACT_POINTER2 = 128, ACT_LEADERS = 256, ACT_LEADER_ID = 512, ACT_TREATY = 1024, ACT_TREATIES = 2048,
-          ACT_ANNEX = 4096, ACT_MAP = 8192;
-const int ACT_WANTED = 14;      // 찾을 것의 수(ActLayout 의 필드 순서와 같다). 함수 · 자료의 주소 · 상수가 섞여 있다(표 ACTS 가 종류를 안다)
+          ACT_ANNEX = 4096, ACT_MAP = 8192, ACT_SPAWN = 16384, ACT_MAP_HEX = 32768;
+const int SPAWN_MAX_EQUIP = 21999;   // 게임이 받는 부대 설계 번호의 끝(내장 치트 spawnunit 의 검사와 같다)
+const int SPAWN_LIMIT = 200;         // ToyBox 가 한 번에 만드는 부대의 끝(설계의 수 × 수량)
+const int ACT_WANTED = 16;      // 찾을 것의 수(ActLayout 의 필드 순서와 같다). 함수 · 자료의 주소 · 상수가 섞여 있다(표 ACTS 가 종류를 안다)
 // 지도 객체의 꼴 — 칸 수 · 너비의 자리는 지도 객체를 찾는 서명에 박혀 있다(cmp …, [… + 0x88] / mov …, [… + 0x80])
 const uint32_t MAP_HEXES = 0x00;            // qword. 칸 레코드(HEX_SIZE 바이트 × 칸 수)의 포인터. 레코드의 첫 word 가 주인 지역의 인덱스
 const uint32_t MAP_SIDE_A = 0x08;           // qword. 칸마다 8바이트인 배열의 포인터(게임의 "칸" 묶음에 그 칸의 주소가 들어간다)
