@@ -55,6 +55,7 @@ void *g_annex;                // 게임의 "칸의 주인 바꾸기"(못 찾았�
 void *g_spawn;                // 게임의 "부대 만들기"(못 찾았으면 nullptr)
 void *g_deploy;               // 게임의 "배치 칸 찾기"(못 찾았으면 nullptr)
 uint32_t g_map_hex;           // "지도에서 고른 칸"이 든 전역(RVA. 못 찾았으면 0)
+uint32_t g_ui_flags, g_gui, g_gui_vtable;   // 화면의 깃발 · GUI 객체의 포인터 · 그 객체의 함수 표(RVA. 못 찾았으면 0)
 uint32_t g_game_over;         // 판이 끝난 꼴이 든 전역(RVA. 못 찾았으면 0)
 uint32_t g_winners;           // 이긴 지역들의 묶음의 포인터가 든 전역(RVA. 못 찾았으면 0)
 uint32_t g_picked_units;      // 게임에서 고른 부대들의 목록의 첫 노드가 든 전역(RVA. 못 찾았으면 0)
@@ -138,6 +139,20 @@ static_assert(sizeof(HexRef) == 0x28, "칸의 묶음은 0x28 바이트다");
 typedef void (*Annex)(HexRef *hex, int owner, int z1, int z2, bool f1, bool f2);
 // 게임의 "부대 만들기": 내장 치트 spawnunit 이 부르는 그대로 — (지역 객체, 설계의 번호, 1, 칸, 0, 0, NULL, 0, 0, 0)
 typedef void *(*Spawn)(void *region, int design, int count, uint32_t hex, bool f1, bool f2, void **out, bool f3, int z, bool f4);
+
+// GUI 객체의 가상 함수 "깃발을 바꾼다": 내장 치트 fullmapshow 가 부르는 그대로 — (객체, 새 깃발, 0, NULL, 0, NULL, 0, 0, 1)
+typedef void *(*GuiSet)(void *object, uint32_t flags, int a, void *b, int c, void *d, int e, int f, int g);
+
+bool guarded_gui(GuiSet set, void *object, uint32_t flags, unsigned long *code)
+{
+    __try {
+        set(object, flags, 0, nullptr, 0, nullptr, 0, 0, 1);
+        return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        *code = GetExceptionCode();
+        return false;
+    }
+}
 
 // 게임의 "배치 칸 찾기": 지역 객체에 유형마다 적어 둔 칸을 확인해(없으면 찾아) out 에 적고 그 포인터를 돌려준다
 typedef uint32_t *(*Deploy)(void *region, uint32_t *out, int move);
@@ -1263,6 +1278,9 @@ void game_init_from(const uint8_t *base, size_t size)
         g_map = (acting & ACT_MAP) != 0 ? acts.map : 0;
         g_spawn = (acting & ACT_SPAWN) != 0 ? const_cast<uint8_t *>(base) + acts.spawn : nullptr;
         g_map_hex = (acting & ACT_MAP_HEX) != 0 ? acts.map_hex : 0;
+        g_ui_flags = (acting & ACT_UI_FLAGS) != 0 ? acts.ui_flags : 0;
+        g_gui = (acting & ACT_GUI_OBJECT) != 0 ? acts.gui : 0;
+        g_gui_vtable = (acting & ACT_GUI_VTABLE) != 0 ? acts.gui_vtable : 0;
         g_game_over = (acting & ACT_GAME_OVER) != 0 ? acts.game_over : 0;
         g_winners = (acting & ACT_WINNERS) != 0 ? acts.winners : 0;
         g_deploy = (acting & ACT_DEPLOY) != 0 ? const_cast<uint8_t *>(base) + acts.deploy_hex : nullptr;
@@ -1313,10 +1331,16 @@ void game_init_from(const uint8_t *base, size_t size)
             log_line("즉시 승리를 씁니다 (판이 끝난 꼴 +0x%X, 이긴 지역들의 묶음 +0x%X)", acts.game_over, acts.winners);
         else
             log_line("즉시 승리를 쓸 수 없습니다 (%s)", (acting & ACT_GAME_OVER) == 0 ? act_why[18] : act_why[19]);
+        if ((acting & ACT_GUI) == ACT_GUI)
+            log_line("게임의 함수를 부릅니다 (GUI 객체의 함수 표 +0x%X 의 %d번, 화면의 깃발 +0x%X, GUI 객체 +0x%X)", acts.gui_vtable, GUI_SET,
+                     acts.ui_flags, acts.gui);
+        else
+            log_line("GUI 숨기기를 쓸 수 없습니다 (%s)",
+                     (acting & ACT_UI_FLAGS) == 0 ? act_why[20] : (acting & ACT_GUI_OBJECT) == 0 ? act_why[21] : act_why[22]);
         if ((acting & ACT_BEST) == ACT_BEST)
             log_line("게임의 함수를 부릅니다 (배치 칸 찾기 +0x%X — 최강 부대 묶음)", acts.deploy_hex);
         else
-            log_line("최강 부대 묶음을 쓸 수 없습니다 (%s)", (acting & ACT_DEPLOY) == 0 ? act_why[20] : act_why[14]);
+            log_line("최강 부대 묶음을 쓸 수 없습니다 (%s)", (acting & ACT_DEPLOY) == 0 ? act_why[23] : act_why[14]);
     }
     if (!state) {
         log_line("게임 상태를 읽을 수 없습니다 (%s) — 글쇠 방식", why);
@@ -1425,7 +1449,7 @@ void game_set_for_test(const uint8_t *base, const GameAddresses *at, void *handl
     g_research_found = false;
     g_recompute = nullptr;
     g_colonize = g_fight = g_become = g_elect = g_news = g_treaty = g_annex = g_spawn = g_deploy = nullptr;
-    g_game_over = g_winners = g_picked_units = g_upgrades = g_map_hex = g_map_pick = g_index2 = g_pointer2 = g_leaders = g_leader_id = g_treaties = g_map = 0;
+    g_ui_flags = g_gui = g_gui_vtable = g_game_over = g_winners = g_picked_units = g_upgrades = g_map_hex = g_map_pick = g_index2 = g_pointer2 = g_leaders = g_leader_id = g_treaties = g_map = 0;
     for (int w = 0; w < ACT_WANTED; w++)
         snprintf(g_act_why[w], MORE_WHY, "%s", "함수의 자리를 주지 않았습니다");
     snprintf(g_research_why, sizeof(g_research_why), "연구의 자리를 주지 않았습니다");
@@ -1647,6 +1671,9 @@ std::string game_act_off(int act)
         return off_text(g_colonize != nullptr, g_act_why[0]);
     if (act == ACT_FIGHT)                      // 함수와 "지도에서 고른 지역"을 둘 다 찾아야 한다
         return off_text(g_fight != nullptr && g_map_pick != 0, g_fight == nullptr ? g_act_why[1] : g_act_why[5]);
+    if (act == ACT_GUI)                        // GUI 숨기기/보이기: 화면의 깃발 · GUI 객체 · 그 함수 표
+        return off_text(g_ui_flags != 0 && g_gui != 0 && g_gui_vtable != 0,
+                        g_ui_flags == 0 ? g_act_why[20] : g_gui == 0 ? g_act_why[21] : g_act_why[22]);
     if (act == ACT_VICTORY) {                  // 즉시 승리: 전역 둘, 그리고 새 묶음을 걸 때 견줄 기술 표(연구 묶음)
         if (g_game_over != 0 && g_winners != 0 && !g_research_found)
             return g_research_why;
@@ -1655,7 +1682,7 @@ std::string game_act_off(int act)
     if (act == ACT_BEST) {                     // 최강 부대 묶음: 함수 둘과 부대 설계 표(연구 묶음)
         if (g_deploy != nullptr && g_spawn != nullptr && !g_research_found)
             return g_research_why;
-        return off_text(g_deploy != nullptr && g_spawn != nullptr, g_deploy == nullptr ? g_act_why[20] : g_act_why[14]);
+        return off_text(g_deploy != nullptr && g_spawn != nullptr, g_deploy == nullptr ? g_act_why[23] : g_act_why[14]);
     }
     if (act == ACT_SUPPLY) {                   // 보급 채우기: 고른 부대의 목록 · 개량 보정 표 · 기술 표와 부대 설계 표(연구 묶음)
         if (g_picked_units != 0 && g_upgrades != 0 && !g_research_found)
@@ -1906,6 +1933,45 @@ Wrote game_supply(bool fill, int *done, int *skipped)
         ++*done;
     }
     return Wrote::Done;
+}
+
+Wrote game_gui_toggle(unsigned long *code, bool *hidden)
+{
+    *code = 0;
+    *hidden = false;
+    if (!game_act_off(ACT_GUI).empty())
+        return Wrote::Off;
+    const uint8_t *base = nullptr;
+    GameAddresses at = {};
+    uint32_t flags_at = 0, gui_at = 0, table_at = 0;
+    {
+        std::lock_guard<std::mutex> lock(g_lock);
+        base = g_base;
+        at = g_at;
+        flags_at = g_ui_flags;
+        gui_at = g_gui;
+        table_at = g_gui_vtable;
+    }
+    uint64_t player = 0, object = 0, table = 0, set = 0;
+    uint32_t flags = 0, object_flags = 0;
+    if (!read_player(base, at, &player).in_game)
+        return Wrote::NotInGame;
+    const uint64_t flags_cell = reinterpret_cast<uint64_t>(base) + flags_at, want = reinterpret_cast<uint64_t>(base) + table_at;
+    if (!peek_at(base, flags_at, &flags) || !peek_at(base, gui_at, &object))
+        return Wrote::BadValue;
+    // GUI 객체가 있으면: 그 객체의 함수 표가 찾아 둔 표일 때만 부른다 — 아니면 깃발도 쓰지 않는다
+    if (object != 0 && (!peek(reinterpret_cast<const void *>(object), &table, sizeof(table)) || table != want
+                        || !peek(reinterpret_cast<const void *>(table + 8ull * GUI_SET), &set, sizeof(set)) || set == 0
+                        || !peek(reinterpret_cast<const void *>(object + GUI_OBJECT_FLAGS), &object_flags, sizeof(object_flags))))
+        return Wrote::BadValue;
+    const uint32_t next = flags ^ GUI_HIDDEN;
+    if (!writable(flags_cell, sizeof(next)) || !poke(flags_cell, &next, sizeof(next)))
+        return Wrote::Failed;
+    *hidden = (next & GUI_HIDDEN) != 0;
+    if (object == 0)
+        return Wrote::Done;                    // 치트도 객체가 없으면 깃발만 쓴다
+    const uint32_t shown = *hidden ? object_flags | GUI_OBJECT_HIDDEN : object_flags & ~GUI_OBJECT_HIDDEN;
+    return guarded_gui(reinterpret_cast<GuiSet>(set), reinterpret_cast<void *>(object), shown, code) ? Wrote::Done : Wrote::Crashed;
 }
 
 Wrote game_victory(void *window)
@@ -2333,6 +2399,9 @@ void game_set_acts_for_test(const ActLayout *layout, void *colonize, void *fight
 {
     std::lock_guard<std::mutex> lock(g_lock);
     g_deploy = layout != nullptr ? deploy : nullptr;
+    g_ui_flags = layout != nullptr ? layout->ui_flags : 0;
+    g_gui = layout != nullptr ? layout->gui : 0;
+    g_gui_vtable = layout != nullptr ? layout->gui_vtable : 0;
     g_game_over = layout != nullptr ? layout->game_over : 0;
     g_winners = layout != nullptr ? layout->winners : 0;
     g_spawn = layout != nullptr ? spawn : nullptr;
@@ -2360,7 +2429,8 @@ void game_set_acts_for_test(const ActLayout *layout, void *colonize, void *fight
                                     g_map_pick != 0, g_index2 != 0, g_pointer2 != 0, g_leaders != 0, g_leader_id != 0,
                                     g_treaty != nullptr, g_treaties != 0, g_annex != nullptr, g_map != 0,
                                     g_spawn != nullptr, g_map_hex != 0, g_picked_units != 0, g_upgrades != 0,
-                                    g_game_over != 0, g_winners != 0, g_deploy != nullptr};
+                                    g_game_over != 0, g_winners != 0, g_ui_flags != 0, g_gui != 0, g_gui_vtable != 0,
+                                    g_deploy != nullptr};
     for (int w = 0; w < ACT_WANTED; w++)
         snprintf(g_act_why[w], MORE_WHY, "%s", given[w] ? "" : "함수의 자리를 주지 않았습니다");
 }

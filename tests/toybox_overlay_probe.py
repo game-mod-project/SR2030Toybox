@@ -164,6 +164,9 @@ MAP = 0x98                                      # 가짜 게임의 지도 객체
 ANNEX = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_bool, ctypes.c_bool)   # 게임의 "칸의 주인 바꾸기"
 SPAWN = ctypes.WINFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_uint32, ctypes.c_bool, ctypes.c_bool,
                            ctypes.c_void_p, ctypes.c_bool, ctypes.c_int, ctypes.c_bool)   # 게임의 "부대 만들기"
+UI_FLAGS, GUI, GUI_VTABLE = 0xC0, 0xC8, 0x3F00  # 가짜 게임의 화면의 깃발(dword) · GUI 객체의 포인터 · 그 객체의 함수 표(8칸)
+GUISET = ctypes.WINFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint32, ctypes.c_int, ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p,
+                            ctypes.c_int, ctypes.c_int, ctypes.c_int)   # GUI 객체의 가상 함수 "깃발을 바꾼다"
 GAME_OVER, WINNERS = 0xB0, 0xB8                 # 가짜 게임의 "판이 끝난 꼴"(dword)과 이긴 지역들의 묶음의 포인터
 PICKED_UNITS, UPGRADES = 0xA8, 0x2C6C           # 가짜 게임의 "고른 부대의 목록"(첫 노드의 포인터)과 세계 객체 안의 개량 보정 표의 자리
 DEPLOY = ctypes.WINFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int)   # 게임의 "배치 칸 찾기"
@@ -684,6 +687,34 @@ def fake_game(hook: str, handler: int | None = None, values: bool = True, more: 
         fake.spawned.append([struct.unpack("<H", ctypes.string_at(region + 8, 2))[0], design, count, hex_, int(f1), int(f2), out_ or 0, int(f3), z, int(f4)])
         return 0
     fake.spawn = SPAWN(spawn)
+    # GUI 객체: 첫 칸이 함수 표(가짜 게임의 GUI_VTABLE 자리), +0x2C 가 깃발. 표의 5번이 가짜 "깃발을 바꾼다"
+    fake.gui = (ctypes.c_ubyte * 0x40)()
+    fake.gui_calls = []                                        # 불린 인자들: [새 깃발, 나머지 일곱]
+
+    def gui_set(obj, flags, a, b, c, d, e, f, g):
+        fake.gui_calls.append([flags, a, b or 0, c, d or 0, e, f, g])
+        struct.pack_into("<I", fake.gui, 0x2C, flags)          # 게임처럼 객체의 깃발을 바꾼다
+        return obj
+    fake.gui_set = GUISET(gui_set)
+    struct.pack_into("<Q", fake.gui, 0, fake.base + GUI_VTABLE)
+    struct.pack_into("<I", fake.gui, 0x2C, 0x01000000)
+    slot = ctypes.cast(fake.gui_set, ctypes.c_void_p).value
+    if handler in CRASH_STUBS:
+        slot = handler                                         # "GUI 숨기기/보이기"를 누르면 게임의 함수 안에서 접근 위반이 난다
+    elif handler is not None:
+        # handler 는 "게임의 함수가 도는 동안 일어나는 일"을 시험하려고 테스트가 주는 몸통이다(내장 치트의 명령 처리 함수 자리였다).
+        # 이제 ToyBox 가 부르는 게임의 함수 가운데 하나인 GUI 의 "깃발을 바꾼다" 안에서 그 몸통을 돌린다 — 넘기는 글은 그 단추가 하던 치트의 이름이다.
+        inner = HANDLER(handler)
+
+        def through(obj, flags, a, b, c, d, e, f, g):
+            gui_set(obj, flags, a, b, c, d, e, f, g)
+            inner(None, b"cheat fullmapshow")
+            return obj
+        fake.gui_through = GUISET(through)
+        slot = ctypes.cast(fake.gui_through, ctypes.c_void_p).value
+    fake.poke(GUI_VTABLE + 8 * 5, "<Q", slot)
+    fake.poke(GUI, "<Q", ctypes.addressof(fake.gui))
+    fake.poke(UI_FLAGS, "<I", 0x16BCE00A)                      # 게임에서 읽은 값(숨김 비트는 꺼져 있다)
     fake.deployed = []                                         # 가짜 "배치 칸 찾기"가 불린 인자들: [지역 번호, 유형]
 
     def deploy(region, out_, move):
@@ -693,8 +724,9 @@ def fake_game(hook: str, handler: int | None = None, values: bool = True, more: 
     fake.deploy = DEPLOY(deploy)
     toybox.srtoybox_test_acts.argtypes = [ctypes.c_void_p] * 10
     if os.environ.get("PROBE_NO_ACTS") != "1":
-        toybox.srtoybox_test_acts((ctypes.c_uint32 * 21)(1, 1, 1, 1, 1, MAP_PICK, INDEX2, POINTER2, LEADERS, LEADER_ID, 1, TREATIES, 1, MAP, 1, MAP_HEX,
-                                                         PICKED_UNITS, UPGRADES, GAME_OVER, WINNERS, 1),
+        toybox.srtoybox_test_acts((ctypes.c_uint32 * 24)(1, 1, 1, 1, 1, MAP_PICK, INDEX2, POINTER2, LEADERS, LEADER_ID, 1, TREATIES, 1, MAP, 1, MAP_HEX,
+                                                         PICKED_UNITS, UPGRADES, GAME_OVER, WINNERS, UI_FLAGS, GUI, GUI_VTABLE,
+                                                         1),
                                   ctypes.cast(fake.colonize, ctypes.c_void_p), ctypes.cast(fake.fight, ctypes.c_void_p),
                                   ctypes.cast(fake.become, ctypes.c_void_p), ctypes.cast(fake.elect, ctypes.c_void_p),
                                   ctypes.cast(fake.news, ctypes.c_void_p), ctypes.cast(fake.treaty, ctypes.c_void_p),
@@ -728,10 +760,14 @@ def run_gate(hook: str, mode: str) -> int:
     return 0
 
 
+CRASH_STUBS: set[int] = set()   # crash_stub 이 만든 함수들의 주소 — fake_game 이 그것을 GUI 의 함수 자리에 그대로 둔다
+
+
 def crash_stub() -> int:
     """부르면 0 번지에 쓰는 함수(mov dword ptr [0],1 / ret) — 게임의 함수 안에서 나는 접근 위반을 흉내 낸다."""
     code = kernel32.VirtualAlloc(None, 16, 0x3000, 0x40)
     ctypes.memmove(code, bytes([0xC7, 0x04, 0x25, 0, 0, 0, 0, 1, 0, 0, 0, 0xC3]), 12)
+    CRASH_STUBS.add(code)
     return code
 
 
@@ -824,7 +860,7 @@ def run_window(hook: str, mode: str) -> int:
             fake.poke(MULTIPLAYER, "<B", 1)                   # 그 전에 멀티플레이 표시가 섰다
         game.wait(0.5)
         out["dropped"] = list(lines)
-        out["trouble"], out["status"] = game.shown("trouble"), game.shown("status")
+        out["trouble"], out["status"] = game.shown("unwritten"), game.shown("status")
         game.click(BUTTON)                                    # 단추가 꺼져 있다
         game.wait(0.4)
         out["while_off"] = list(lines)
@@ -979,7 +1015,9 @@ def run_money(hook: str, mode: str) -> int:
         lines.append(line.decode())
         if line == b"cheat allowcheats":
             box["fake"].poke(OPTIONS, "<I", box["fake"].peek(OPTIONS, "<I") | 0x40)
-        elif mode == "money_reenter":                         # 게임의 함수가 일하는 도중에 ToyBox 의 타이머가 다시 온다
+        elif mode == "money_reenter":                         # 게임의 함수가 일하는 도중에 국고 요청이 들어오고 ToyBox 의 타이머가 다시 온다
+            game.click(MONEY)
+            game.click("money:+10b")
             inside.append(box["fake"].treasury(176))
             user32.SendMessageW(game.hwnd, WM_TIMER, TIMER_ID, 0)
             inside.append(box["fake"].treasury(176))
@@ -1028,16 +1066,15 @@ def run_money(hook: str, mode: str) -> int:
         out["buttons_after"] = sorted(name for name in game.facts() if name.startswith("money:") and name != "money:off")
     elif mode == "money_reenter":
         game.click(CHEAT_TAB)
-        game.click(BUTTON)                                    # 옮기지 않은 기능 하나(직접 실행)가 대기열에 든다
-        game.click(MONEY)
-        game.click("money:+10b")                              # 국고 요청도 대기열에 든다
+        game.click(BUTTON)                                    # 게임의 함수를 부르는 단추 — 그 안에서 body 가 국고 단추를 누른다
         game.wait(0.5)
         out["inside"], out["after"] = inside, fake.treasury(176)
     elif mode == "money_fault":
         game.click(CHEAT_TAB)
-        game.click(BUTTON)                                    # 옮기지 않은 기능 하나가 대기열에 든다 — 실행되면 죽는다
+        game.click(BUTTON)                                    # 게임의 함수를 부르는 단추 — 그 함수 안에서 죽는다
+        game.wait(0.5)
         game.click(MONEY)
-        game.click("money:+10b")                              # 국고 요청도 대기열에 든다
+        game.click("money:+10b")                              # 오류 가드가 걸린 뒤의 국고 요청
         game.wait(0.5)
         out["after"], out["fault"] = fake.treasury(176), game.shown("fault")
     elif mode == "money_hint":
@@ -1264,7 +1301,9 @@ def run_more(hook: str, mode: str) -> int:
         lines.append(line.decode())
         if line == b"cheat allowcheats":
             box["fake"].poke(OPTIONS, "<I", box["fake"].peek(OPTIONS, "<I") | 0x40)
-        elif mode == "more_reenter":                          # 게임의 함수가 일하는 도중에 ToyBox 의 타이머가 다시 온다
+        elif mode == "more_reenter":                          # 게임의 함수가 일하는 도중에 요청이 들어오고 ToyBox 의 타이머가 다시 온다
+            game.click(RESEARCH)
+            game.click("run:finalexam")
             inside.append(box["fake"].tech(176))
             user32.SendMessageW(game.hwnd, WM_TIMER, TIMER_ID, 0)
             inside.append(box["fake"].tech(176))
@@ -1433,10 +1472,12 @@ def run_more(hook: str, mode: str) -> int:
         out["money_off"] = game.shown("money:off")
     elif mode in ("more_reenter", "more_fault"):
         game.click(CHEAT_TAB)
-        game.click(BUTTON)                                    # 옮기지 않은 기능 하나(직접 실행)가 대기열에 든다
-        game.click(RESEARCH)
-        game.click("run:finalexam")                           # 기술 수준의 요청도 대기열에 든다
+        game.click(BUTTON)                                    # 게임의 함수를 부르는 단추(more_reenter: 그 안에서 body 가 지식 순위를 누른다)
         game.wait(0.5)
+        if mode == "more_fault":
+            game.click(RESEARCH)
+            game.click("run:finalexam")                       # 오류 가드가 걸린 뒤의 요청
+            game.wait(0.5)
         out["inside"], out["fault"] = inside, game.shown("fault")
     out["state"], out["lines"], out["text"], out["options"] = state(), lines, game.text(), fake.peek(OPTIONS, "<I")
     out["treasury"] = fake.treasury(176)
@@ -1577,6 +1618,21 @@ def run_research(hook: str, mode: str) -> int:
         toybox_dll = ctypes.WinDLL(str(Path(hook).with_name("srtoybox.dll")))
         toybox_dll.srtoybox_owner_names(0, 1, names, len(names))
         out["owners_of_tech_1"] = names.value.decode("utf-8")
+    elif mode == "research_gui":                              # GUI 숨기기/보이기(3단계 6): 화면의 깃발을 뒤집고 GUI 객체의 가상 함수를 부른다
+        state = lambda: [hex(fake.peek(UI_FLAGS, "<I")), hex(struct.unpack_from("<I", fake.gui, 0x2C)[0]), list(fake.gui_calls)]
+        fake.poke(GUI_VTABLE + 8 * 5, "<Q", ctypes.cast(fake.gui_set, ctypes.c_void_p).value)   # 몸통 없이, 가짜 함수만
+        game.click("tab:화면·진행")
+        game.wait(0.5)
+        press("run:fullmapshow")
+        out["hidden"], out["wrote"] = state(), game.shown("wrote")
+        press("run:fullmapshow")
+        out["back"], out["wrote_back"] = state(), game.shown("wrote")
+        struct.pack_into("<Q", fake.gui, 0, fake.base + GUI_VTABLE + 8)     # 객체의 함수 표가 찾아 둔 표가 아니다 — 깃발도 쓰지 않는다
+        press("run:fullmapshow")
+        out["other_table"], out["after_other"] = game.shown("unwritten"), state()[:2] + [len(fake.gui_calls)]
+        fake.poke(GUI, "<Q", 0)                               # GUI 객체가 없다 — 깃발만 쓴다(치트도 그렇다)
+        press("run:fullmapshow")
+        out["no_object"] = [hex(fake.peek(UI_FLAGS, "<I")), len(fake.gui_calls)]
     elif mode == "research_victory":                          # 즉시 승리(3단계 6): 전역 둘에 쓰고 게임 창에 메시지를 보낸다
         def state():
             over, bundle = fake.peek(GAME_OVER, "<I"), fake.peek(WINNERS, "<Q")
@@ -1771,42 +1827,19 @@ def run_present_fault(hook: str) -> int:
 
 
 def run_input(hook: str, mode: str = "input") -> int:
-    """글쇠와 누름이 제 쪽으로만 가는가.
-
-    input        넣는 동안 사용자가 9 를 치고 단축키를 누른다. 그 단축키가 Ctrl · Shift 를 눌렀다 떼므로, 넣기가 수정키를 남겼는지는
-                 여기서 가릴 수 없다.
-    input_quiet  아무도 끼어들지 않는다 — 넣기가 Ctrl · Shift 를 눌린 채로 남기면 여기서 드러난다.
-    input_held   넣기 전부터 Ctrl · Shift 가 눌려 있었다(사용자가 쥐고 있다). 실제 키를 누르는 대신 이 스레드의 키 상태표에 적는다
-                 (실제 키가 눌리면 상태표가 그렇게 된다)."""
+    """글쇠와 누름이 제 쪽으로만 가는가: 단축키와 설정 창 위의 누름은 ToyBox 가, 창 밖의 누름은 게임이 받는다.
+    ToyBox 는 게임에 글쇠를 넣지 않는다(text 가 비어 있다)."""
     game = start_game(hook)
     if game is None:
         return 0
-    held, quiet = mode == "input_held", mode != "input"
     out = {"hotkey": game.open()}
-    if held:
-        set_mods(True)
-    before = mods_held()                                      # 넣기 전의 Ctrl · Shift — 넣은 뒤에 이것으로 되돌아와야 한다
-    out["mods_before"] = int(any(before))
-    out["button"] = game.click(BUTTON)                        # 설정 창의 단추 — 게임에 가면 안 된다. 명령이 대기열에 든다
-    if not quiet:
-        out["outside"] = game.click((900, 100))               # 설정 창 밖(창은 40..760 x 60..660 이다) — 게임이 받아야 한다
+    out["button"] = game.click(CHEAT_TAB)                     # 설정 창의 탭 — 게임에 가면 안 된다
+    out["outside"] = game.click((900, 100))                   # 설정 창 밖(창은 40..760 x 60..660 이다) — 게임이 받아야 한다
     game.got.clear()
-    out["typing"] = int(game.pump(lambda: game.has("char", ord("c")), 10))   # 실행기가 치트를 적기 시작했다
-    if not quiet:
-        # 그동안 사용자가 실제 키보드로 9 를 치고(게임에 가면 치트를 받아 적는 줄에 섞인다) 단축키를 누른다(평소처럼 창이 닫혀야 한다)
-        user32.PostMessageW(game.hwnd, WM_KEYDOWN, 0x39, 0x000A0001)
-        user32.PostMessageW(game.hwnd, WM_CHAR, 0x39, 0x000A0001)
-        user32.PostMessageW(game.hwnd, WM_KEYUP, 0x39, 0xC00A0001)
-        game.wait(0.2)
-        out["hotkey_busy"] = game.hotkey(REAL_KEY)
-    out["done"] = int(game.pump(lambda: game.has("up", 0x1B), 20))            # 마지막 글쇠(ESC)까지 들어갔다
-    game.wait(0.6)
-    typed = game.text()
-    out["mods_now"] = int(mods_down())
-    out["mods_left"] = int(mods_left(before))
-    if not quiet:
-        out["title_after"] = game.click(TITLE)                # 넣는 중에 누른 단축키로 창이 닫혔으면 게임이 받는다
-    print(" ".join(f"{k}={v}" for k, v in out.items()) + " text=" + typed)
+    out["hotkey_again"] = game.hotkey(REAL_KEY)               # 실제 키보드의 단축키 — 창이 닫힌다
+    game.wait(0.3)
+    out["title_after"] = game.click(TITLE)                    # 창이 닫혔으니 그 자리의 누름은 게임이 받는다
+    print(" ".join(f"{k}={v}" for k, v in out.items()) + " text=" + game.text())
     return 0
 
 

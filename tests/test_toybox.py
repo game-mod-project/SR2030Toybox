@@ -79,9 +79,9 @@ def test_feature_table(dll):
     # 게임에 넣는 글이 없다. 나머지 열하나가 내장 치트로 돈다
     assert {f["id"]: f["how"] for f in fs if f["how"] != "cheat"} == {
         "technology": "tech_level", "e=mc2": "queue_done", "finalexam": "tech_up", "shelovesme": "opinion_best",
-        "love": "relation_best", "neutral": "relation_neutral", "populate": "people_add", "approval": "approval_best", "colonize": "colonize", "fight": "fight", "becomeregion": "become", "novichok": "novichok", "treaty": "treaty", "annex": "annex", "spawnunit": "spawn", "stranded": "supply", "darran": "best", "instantwin": "victory"}
+        "love": "relation_best", "neutral": "relation_neutral", "populate": "people_add", "approval": "approval_best", "colonize": "colonize", "fight": "fight", "becomeregion": "become", "novichok": "novichok", "treaty": "treaty", "annex": "annex", "spawnunit": "spawn", "stranded": "supply", "darran": "best", "instantwin": "victory", "fullmapshow": "gui"}
     cheats = [f for f in fs if f["how"] == "cheat"]
-    assert len(cheats) == 1 == dll.srtoybox_cheat_feature_count() and len({f["command"] for f in cheats}) == 1
+    assert cheats == [] and dll.srtoybox_cheat_feature_count() == 0      # 내장 치트로 도는 줄은 남지 않았다
     assert [f["id"] for f in fs][:3] == ["technology", "e=mc2", "finalexam"]            # 줄의 자리는 옮기기 전과 같다
     assert [(f["label"], f["default"], f["min"], f["max"]) for f in fs[:2]] == [("기술 수준 N 이하 전부 보유", 120, 1, 255),
                                                                               ("대기열의 연구 즉시 완료", 0, 0, 0)]
@@ -121,9 +121,9 @@ def test_only_cheats_that_were_seen_working_and_reach_what_the_user_chose(dll, c
 
 def test_command_text(dll):
     # 값을 받는 내장 치트(spawnunit <번호>)는 이제 없다 — 부대 생성은 게임의 함수를 직접 부른다
-    assert text(dll.srtoybox_command, b"fullmapshow", 999, 1106) == "cheat fullmapshow"                  # 값도 대상도 없는 기능은 둘 다 무시한다
+    assert text(dll.srtoybox_command, b"fullmapshow", 999, 1106) is None                  # 값도 대상도 없는 기능은 둘 다 무시한다
     # 나라를 대상으로 하는 내장 치트(…  <지역 번호>)는 이제 없다 — 외교·영토 탭의 줄은 모두 직접 한다
-    for moved in (b"technology", b"e=mc2", b"finalexam", b"shelovesme", b"love", b"neutral", b"populate", b"approval", b"colonize", b"fight", b"becomeregion", b"novichok", b"treaty", b"annex", b"spawnunit", b"stranded", b"darran", b"instantwin"):   # 직접 쓰는 줄은 게임에 넣을 글이 없다
+    for moved in (b"technology", b"e=mc2", b"finalexam", b"shelovesme", b"love", b"neutral", b"populate", b"approval", b"colonize", b"fight", b"becomeregion", b"novichok", b"treaty", b"annex", b"spawnunit", b"stranded", b"darran", b"instantwin", b"fullmapshow"):   # 직접 쓰는 줄은 게임에 넣을 글이 없다
         assert text(dll.srtoybox_command, moved, 120, 1106) is None
     assert text(dll.srtoybox_command, b"depopulate", 0, 0) is None                             # 표에 없는 것은 만들지 않는다
     assert text(dll.srtoybox_command, b"treasury", 1, 0) is None                               # 지운 기능 — 국고는 돈 탭이 직접 한다
@@ -408,30 +408,9 @@ def test_keys_and_clicks_reach_only_the_side_they_are_meant_for(dll, cfg, tmp_pa
     assert got["hotkey"] == "toybox"                # 단축키는 게임에 가지 않는다
     assert got["button"] == "none"                  # 설정 창 위의 누름도
     assert got["outside"] == "press+release"        # 설정 창 밖의 누름은 게임이 받는다
-    assert got["typing"] == "1" and got["done"] == "1", got
-    # 게임이 받은 글쇠는 계획 그대로다. 넣는 동안 사용자가 친 9 와 단축키(<0x54>)는 섞이지 않는다
-    assert got["text"] == typed_keys("cheat fullmapshow")
-    assert got["hotkey_busy"] == "toybox"           # 넣는 동안에도 단축키는 ToyBox 의 것이고
-    assert got["title_after"] == "press+release"    # 그래서 창이 닫혔다
-    assert got["mods_left"] == "0"                  # (넣는 중의 단축키가 수정키를 떼므로, 남기는지는 아래 테스트가 가린다)
-
-
-def test_typing_does_not_leave_the_modifiers_down(dll, cfg, tmp_path):
-    """글쇠를 다 넣은 뒤 Ctrl · Shift 가 눌린 채로 남지 않는다. 사용자가 실제로 쥐고 있는 수정키는 남은 것으로 치지 않는다."""
-    got = _fields(_probe(cfg, tmp_path, "input_quiet"))
-    assert got["typing"] == "1" and got["done"] == "1", got
-    assert got["text"] == typed_keys("cheat fullmapshow")
-    assert got["mods_left"] == "0"
-
-
-def test_modifiers_held_before_typing_are_left_as_they_were(dll, cfg, tmp_path):
-    """넣기 전부터 눌려 있던 Ctrl · Shift(사용자가 쥐고 있다)는 넣은 뒤에도 눌린 채다 — 그것은 "남은 것"이 아니다.
-    테스트가 도는 동안 사용자가 같은 PC 에서 수정키를 쓰면 이 스레드의 키 상태표에 그것이 들어온다."""
-    got = _fields(_probe(cfg, tmp_path, "input_held"))
-    assert got["typing"] == "1" and got["done"] == "1", got
-    assert got["text"] == typed_keys("cheat fullmapshow")
-    assert got["mods_before"] == "1" and got["mods_now"] == "1"    # 넣기 전의 상태로 되돌렸다
-    assert got["mods_left"] == "0"                                  # 그러니 넣기가 남긴 것은 없다
+    assert got["hotkey_again"] == "toybox"          # 다시 누른 단축키도 ToyBox 의 것이고
+    assert got["title_after"] == "press+release"    # 그래서 창이 닫혔다 — 그 자리의 누름은 이제 게임이 받는다
+    assert got["text"] == ""                        # ToyBox 는 게임에 글쇠를 넣지 않는다
 
 
 def test_mouse_follows_the_size_the_game_draws_at(dll, cfg, tmp_path):
@@ -464,23 +443,14 @@ def test_a_queued_command_is_dropped_when_the_game_ends_first(dll, cfg, tmp_path
     assert got["button"] == "none" and got["text"] == ""
 
 
-def test_the_typing_route_still_works_in_a_game_toybox_can_read(dll, cfg, tmp_path):
-    got = _fields(_probe(cfg, tmp_path, "gate_typing", env={"SRTOYBOX_DIRECT": "0"}))
-    assert got["text"] == typed_keys("cheat fullmapshow")
-
-
-def test_direct_run_calls_the_games_handler(dll, cfg, tmp_path):
-    """게임 안에서는 글쇠를 넣지 않고 게임의 명령 처리 함수에 바로 넘긴다.
-
-    치트 허용이 꺼져 있으면 먼저 cheat allowcheats 를 부르고, 켜져 있으면 다시 부르지 않는다
-    (메뉴에 나갔다 오면 게임이 꺼 두므로 그때는 다시 부른다).
-    """
+def test_a_button_calls_the_games_function_once_a_press(dll, cfg, tmp_path):
+    """게임의 함수를 부르는 단추("GUI 숨기기/보이기")는 누를 때마다 그 함수를 한 번 부른다. 게임에 글쇠를 넣지 않고,
+    치트 허용을 켜지도 않는다(가짜 게임은 그 함수 안에서 테스트의 몸통을 돌린다 — 넘어오는 글은 그 단추의 이름이다)."""
     got = _fields(_probe(cfg, tmp_path, "direct"))
-    assert got["lines"].replace("_", " ").split("|") == ["cheat allowcheats", "cheat fullmapshow", "cheat fullmapshow",
-                                                        "cheat allowcheats", "cheat fullmapshow"]
+    assert got["lines"].replace("_", " ").split("|") == ["cheat fullmapshow"] * 3
     assert got["text"] == ""                                    # 글쇠는 가지 않는다 — 게임의 설정 창이 뜨지 않는다
     log = (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8")
-    assert log.count("직접 실행: cheat fullmapshow") == 3
+    assert log.count("게임의 함수: GUI ") == 3
 
 
 def test_a_fault_in_the_games_handler_is_caught_and_nothing_runs_after(dll, cfg, tmp_path):
@@ -489,19 +459,13 @@ def test_a_fault_in_the_games_handler_is_caught_and_nothing_runs_after(dll, cfg,
     got = _fields(_probe(cfg, tmp_path, "direct_fault"))
     assert got["lines"] == "" and got["text"] == ""
     log = (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8")
-    assert log.count("직접 실행 중 예외 0xC0000005") == 1         # 한 번 잡은 뒤로는 다시 부르지 않는다
+    assert log.count("GUI 를 바꾸는 중 예외 0xC0000005") == 1     # 한 번 잡은 뒤로는 다시 부르지 않는다
 
 
 def test_the_games_handler_is_not_called_outside_a_game(dll, cfg, tmp_path):
     """명령 처리 함수는 게임이 진행 중인지 검사하지 않고 플레이어 포인터를 따라간다 — 게임 밖에서 부르면 죽는다."""
     got = _fields(_probe(cfg, tmp_path, "direct_menu"))
     assert got["lines"] == "" and got["text"] == ""
-
-
-def test_srtoybox_direct_0_keeps_the_typing_route(dll, cfg, tmp_path):
-    """탈출구: SRTOYBOX_DIRECT=0 이면 명령 처리 함수를 부를 수 있어도 글쇠를 넣는다."""
-    got = _fields(_probe(cfg, tmp_path, "direct_off", env={"SRTOYBOX_DIRECT": "0"}))
-    assert got["lines"] == "" and got["text"] == typed_keys("cheat fullmapshow")
 
 
 @pytest.mark.parametrize("mode", ["reenter_timer", "reenter_keyup", "reenter_present"])
@@ -513,10 +477,10 @@ def test_the_games_handler_may_come_back_into_toybox(dll, cfg, tmp_path, mode):
     """
     got = _fields(_probe(cfg, tmp_path, mode))
     assert got["inside"] == "ok" and got["deepest"] == "1", got
-    assert got["lines"].replace("_", " ").split("|") == ["cheat allowcheats"] + ["cheat fullmapshow"] * 3
+    assert got["lines"].replace("_", " ").split("|") == ["cheat fullmapshow"] * 3
     assert got["text"] == ""
     log = (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8")
-    assert "예외" not in log and log.count("직접 실행: cheat fullmapshow") == 3, log
+    assert "예외" not in log and log.count("게임의 함수: GUI ") == 3, log
 
 
 def test_toybox_keeps_drawing_after_an_exception_passes_through_present(dll, cfg, tmp_path):
@@ -526,16 +490,7 @@ def test_toybox_keeps_drawing_after_an_exception_passes_through_present(dll, cfg
     assert got == {"caught": "1", "drawn": "1"}
 
 
-def test_srtoybox_read_0_turns_the_game_reading_off(dll, cfg, tmp_path):
-    """탈출구: ToyBox 가 게임 안인데도 "게임 밖"으로 잘못 알면(다른 빌드, 보지 못한 화면) 모든 단추가 꺼진 채 풀 길이 없다.
-    SRTOYBOX_READ=0 이면 게임을 읽지 않는다 — 1단계처럼 단추가 늘 켜져 있고 글쇠를 넣는다."""
-    got = _fields(_probe(cfg, tmp_path, "direct_read_off", env={"SRTOYBOX_READ": "0"}))
-    assert got["lines"] == "" and got["text"] == typed_keys("cheat fullmapshow")
-    log = (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8")
-    assert "게임 상태를 읽지 않습니다 (SRTOYBOX_READ=0)" in log, log
-
-
-FAULT_WARNING = "직접 실행 중 오류가 났습니다. 저장하지 말고 게임을 다시 시작하십시오."
+FAULT_WARNING = "GUI 를 바꾸는 중 오류가 났습니다. 저장하지 말고 게임을 다시 시작하십시오."
 
 
 def test_an_irreversible_button_says_what_and_to_whom_before_the_second_press(dll, cfg, tmp_path):
@@ -556,9 +511,7 @@ def test_the_fault_warning_stays_in_sight(dll, cfg, tmp_path):
     assert got["scrolled"] is True and got["scrolled_down"] == FAULT_WARNING
 
 
-@pytest.mark.parametrize("env, in_game", [({}, "값은 바로 바뀝니다. 게임 화면의 숫자는 그 패널을 누르거나 다시 열 때 따라옵니다."),
-                                          ({"SRTOYBOX_DIRECT": "0"}, "단추를 누르면 게임의 설정 창이 잠깐 열렸다 닫힙니다.")],
-                         ids=["direct", "typing"])
+@pytest.mark.parametrize("env, in_game", [({}, "값은 바로 바뀝니다. 게임 화면의 숫자는 그 패널을 누르거나 다시 열 때 따라옵니다.")], ids=["direct"])
 def test_the_hint_is_about_the_game_only_while_in_a_game(dll, cfg, tmp_path, env, in_game):
     """바닥의 안내는 게임 화면에 무슨 일이 생기는지를 말한다. 메뉴에서는 단추가 꺼져 있으므로 띄우지 않는다."""
     got = json.loads(_probe(cfg, tmp_path, "hints", env=env))
@@ -571,9 +524,9 @@ def test_direct_run_is_dropped_when_the_game_stops_being_playable_first(dll, cfg
     """직접 실행의 길에서도: 단추를 누른 뒤 실행되기 전에 게임에서 나가거나 멀티플레이가 되면 게임의 함수를 부르지 않는다
     (그 함수는 게임이 진행 중인지 검사하지 않는다). 그동안 단추는 꺼져 있고, 돌아오면 다시 된다."""
     got = json.loads(_probe(cfg, tmp_path, mode))
-    assert got["dropped"] == [] and got["trouble"] == "게임이 진행 중이 아니어서 실행하지 않았습니다."
+    assert got["dropped"] == [] and got["trouble"] == "게임이 진행 중이 아니어서 쓰지 않았습니다."
     assert got["status"] == status and got["while_off"] == []
-    assert got["lines"] == ["cheat allowcheats", "cheat fullmapshow"]
+    assert got["lines"] == ["cheat fullmapshow"]
 
 
 @pytest.mark.parametrize("mode, status", [("pick_gone", "플레이 중: 독일 (1499)"), ("pick_become", "플레이 중: 폴란드 (1106)")],
@@ -626,7 +579,7 @@ def test_the_money_tab_writes_the_treasury_without_any_cheat(dll, cfg, tmp_path)
 DIRECT_HINT = "값은 바로 바뀝니다. 게임 화면의 숫자는 그 패널을 누르거나 다시 열 때 따라옵니다."
 
 
-@pytest.mark.parametrize("env", [{}, {"SRTOYBOX_DIRECT": "0"}], ids=["direct", "typing"])
+@pytest.mark.parametrize("env", [{}], ids=["direct"])
 def test_the_hint_on_a_value_tab_never_talks_about_the_typing_route(dll, cfg, tmp_path, env):
     """돈 · 물자 탭은 글쇠 방식과 상관없다. 내장 치트로 도는 기능이 글쇠 방식으로 돌 때(SRTOYBOX_DIRECT=0, 옛 찾기 실패)에도
     이 탭들의 바닥 안내는 "게임의 설정 창이 잠깐 열렸다 닫힙니다"가 아니다."""
@@ -676,7 +629,7 @@ def test_a_failed_write_turns_the_money_tab_off_and_says_why(dll, cfg, tmp_path)
 def test_money_is_not_written_while_the_games_handler_is_running(dll, cfg, tmp_path):
     """옮기지 않은 기능의 직접 실행이 게임의 함수 안에 있는 동안 타이머가 다시 와도, 그 안에서는 게임의 메모리에 쓰지 않는다."""
     got = json.loads(_probe(cfg, tmp_path, "money_reenter"))
-    assert got["lines"] == ["cheat allowcheats", "cheat fullmapshow"]
+    assert got["lines"] == ["cheat fullmapshow"]
     assert got["inside"] == [14.43e9, 14.43e9]                  # 그 함수 안에서 다시 온 타이머의 앞뒤
     assert got["after"] == 24.43e9                              # 함수가 끝난 뒤에 쓴다
 
@@ -766,7 +719,7 @@ def test_keep_does_not_write_while_the_games_handler_is_running(dll, cfg, tmp_pa
     """옮기지 않은 기능의 직접 실행이 게임의 함수 안에 있는 동안에는, 유지를 볼 때가 됐어도 게임의 메모리에 쓰지 않는다."""
     got = json.loads(_probe(cfg, tmp_path, "keep_reenter"))
     assert got["before"] == 20e9                                 # 유지가 돌고 있다
-    assert got["lines"] == ["cheat allowcheats", "cheat fullmapshow"]
+    assert got["lines"] == ["cheat fullmapshow"]
     assert got["inside"] == [1e9]                                # 그 함수 안에서 다시 온 타이머는 바닥 아래가 된 국고를 올리지 않았다
     assert got["after"] == 20e9                                  # 함수가 끝난 뒤에 올린다
 
@@ -921,7 +874,7 @@ def test_a_failed_write_of_a_moved_button_turns_value_writing_off_and_says_why(d
 def test_a_moved_button_does_not_write_while_the_games_handler_is_running(dll, cfg, tmp_path):
     """옮기지 않은 기능의 직접 실행이 게임의 함수 안에 있는 동안 타이머가 다시 와도, 그 안에서는 게임의 메모리에 쓰지 않는다."""
     got = json.loads(_probe(cfg, tmp_path, "more_reenter"))
-    assert got["lines"] == ["cheat allowcheats", "cheat fullmapshow"]
+    assert got["lines"] == ["cheat fullmapshow"]
     assert got["inside"] == [130.0, 130.0]                      # 그 함수 안에서 다시 온 타이머의 앞뒤
     assert got["state"]["tech"] == 131.0                        # 함수가 끝난 뒤에 쓴다
 
@@ -943,7 +896,7 @@ RESEARCH_BUTTONS = {"value:technology": "120", "run:technology": "기술 수준 
 RESEARCH_FAULT = "효과를 다시 셈하는 중 오류가 났습니다. 저장하지 말고 게임을 다시 시작하십시오."
 
 
-@pytest.mark.parametrize("env", [{}, {"SRTOYBOX_DIRECT": "0"}], ids=["direct", "typing"])
+@pytest.mark.parametrize("env", [{}], ids=["direct"])
 def test_the_two_research_buttons_write_without_any_cheat(dll, cfg, tmp_path, env):
     """요구 3: "대기열의 연구 즉시 완료"와 "기술 수준 N 이하 전부 보유"는 내장 치트를 거치지 않는다 — 명령 처리 함수를 부르지 않고,
     글쇠를 넣지 않고, 치트 허용 비트를 건드리지 않는다. 단추의 이름과 자리는 그대로다.
@@ -1008,7 +961,7 @@ def test_no_cheat_starts_while_the_game_is_recomputing(dll, cfg, tmp_path):
     """"효과를 다시 셈" 안에서 타이머가 다시 와도 그 안에서는 대기열의 내장 치트를 시작하지 않는다 — 직접 실행과 한 쌍의 깃발을 쓴다."""
     got = json.loads(_probe(cfg, tmp_path, "research_reenter"))
     assert len(got["inside"]) == 2 and got["inside"][0] == got["inside"][1]      # 그 안에서 다시 온 타이머의 앞뒤로 명령 처리 함수가 불린 수
-    assert got["lines"] == ["cheat allowcheats", "cheat fullmapshow", "cheat fullmapshow"]      # 둘째 치트는 그 뒤에 돈다
+    assert got["lines"] == ["cheat fullmapshow", "cheat fullmapshow"]      # 둘째 치트는 그 뒤에 돈다
     assert got["held"] == HELD_QUEUE and got["recomputed"] == [176]
 
 
@@ -1181,6 +1134,19 @@ def test_the_units_tab_lists_designs_by_domain_and_registers_them(dll, cfg, tmp_
     assert got["asking"] == "모든 설계도 해제 — 한 번 더 누르면 실행합니다" and got["held_asking"] == got["after_every"]
     assert got["after_none"] == [[1, 2, 3, 4, 6], [], [1, 2], [11, 13]] and got["wrote_none"] == "부대 설계 5개를 미완료로 — 모든 설계도"
     assert got["owners_of_tech_1"] == "폴란드"                               # 풍선말의 글: 보유한 다른 나라 모두(플레이어는 뺀다)
+    assert got["lines"] == [] and got["text"] == "" and got["options"] == 0
+
+
+def test_the_gui_is_hidden_and_shown_without_the_cheat(dll, cfg, tmp_path):
+    """GUI 숨기기/보이기(3단계 6, 사용자가 승인했다 2026-10-11 — 내장 치트가 하는 그대로): 화면의 깃발에서 숨김 비트(0x20000)를 뒤집고,
+    GUI 객체의 가상 함수(함수 표의 5번)를 (객체, 객체의 깃발에 0x10000 을 켜거나 끈 값, 0, NULL, 0, NULL, 0, 0, 1) 로 부른다.
+    객체의 함수 표가 서명으로 찾아 둔 표가 아니면 깃발도 쓰지 않는다. 객체가 없으면 깃발만 쓴다. 게임에 넣는 글(치트)은 없다."""
+    got = json.loads(_probe(cfg, tmp_path, "research_gui"))
+    hide, show = [0x01010000, 0, 0, 0, 0, 0, 0, 1], [0x01000000, 0, 0, 0, 0, 0, 0, 1]
+    assert got["hidden"] == ["0x16bee00a", "0x1010000", [hide]] and got["wrote"] == "GUI 숨김"
+    assert got["back"] == ["0x16bce00a", "0x1000000", [hide, show]] and got["wrote_back"] == "GUI 보임"
+    assert got["other_table"] == "게임의 GUI 정보를 읽을 수 없어 하지 않았습니다." and got["after_other"] == ["0x16bce00a", "0x1000000", 2]
+    assert got["no_object"] == ["0x16bee00a", 2]
     assert got["lines"] == [] and got["text"] == "" and got["options"] == 0
 
 

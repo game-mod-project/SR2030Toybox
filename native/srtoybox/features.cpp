@@ -36,7 +36,7 @@ const Feature FEATURES[] = {
      Target::None, Direct::Supply},
     {"darran", "부대", "최강 부대 묶음 받기", "병과마다 능력치가 가장 높은 설계의 부대를 입력한 수만큼 받는다. 게임이 정한 배치 자리에 생긴다", "", true, 7, 1, 10, true,
      Target::None, Direct::Best},
-    {"fullmapshow", "화면·진행", "GUI 숨기기/보이기", "게임의 GUI 를 모두 숨긴다. 다시 누르면 돌아온다", "cheat fullmapshow", false, 0, 0, 0, false},
+    {"fullmapshow", "화면·진행", "GUI 숨기기/보이기", "게임의 GUI 를 모두 숨긴다. 다시 누르면 돌아온다", "", false, 0, 0, 0, false, Target::None, Direct::Gui},
     {"instantwin", "화면·진행", "즉시 승리", "승리 창이 뜬다. 이어서 할 수 있다", "", false, 0, 0, 0, true, Target::None, Direct::Victory},
 };
 
