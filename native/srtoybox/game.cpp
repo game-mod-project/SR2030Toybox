@@ -50,6 +50,8 @@ void *g_elect, *g_news;       // 게임의 "새 지도자 세우기" · "알림"
 uint32_t g_leaders, g_leader_id;   // 지도자 표의 포인터가 든 전역(RVA) · 지역 객체에서 지도자 번호의 자리(못 찾았으면 0)
 void *g_treaty;               // 게임의 "조약"(못 찾았으면 nullptr)
 uint32_t g_treaties;          // 지역 객체에서 조약 표의 자리(못 찾았으면 0)
+void *g_annex;                // 게임의 "칸의 주인 바꾸기"(못 찾았으면 nullptr)
+uint32_t g_map;               // 지도 객체의 포인터가 든 전역(RVA. 못 찾았으면 0)
 char g_act_why[ACT_WANTED][MORE_WHY];   // 부르는 함수마다 못 찾은 까닭
 
 typedef void (*Handler)(void *context, const char *line);
@@ -106,6 +108,45 @@ bool guarded_colonize(Colonize colonize, void *region, int other, unsigned long 
 {
     __try {
         colonize(region, other, true);
+        return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        *code = GetExceptionCode();
+        return false;
+    }
+}
+
+// 게임이 칸 하나를 가리킬 때 쓰는 묶음(치트 annex 가 스택에 만드는 그대로 — 0x28 바이트).
+#pragma pack(push, 1)
+struct HexRef {
+    uint64_t map;             // 지도 객체
+    uint64_t hex;             // 그 칸의 레코드
+    uint64_t side_a, side_b;  // 칸마다 8바이트인 두 배열에서 그 칸의 자리
+    uint16_t x, y;            // 가로 · 세로
+    int32_t index;            // 칸의 번호(세로 × 너비 + 가로)
+};
+#pragma pack(pop)
+static_assert(sizeof(HexRef) == 0x28, "칸의 묶음은 0x28 바이트다");
+
+typedef void (*Annex)(HexRef *hex, int owner, int z1, int z2, bool f1, bool f2);
+
+// 게임의 "칸의 주인 바꾸기"를 칸마다 부른다. 예외는 잡아 code 에 적는다. *done 에 부른 칸의 수.
+bool guarded_annex(Annex annex, uint64_t map, uint64_t hexes, uint64_t side_a, uint64_t side_b, int width, const int *list, int n,
+                   int owner, int *done, unsigned long *code)
+{
+    __try {
+        for (int k = 0; k < n; k++) {
+            const int i = list[k];
+            HexRef ref;
+            ref.map = map;
+            ref.hex = hexes + static_cast<uint64_t>(i) * HEX_SIZE;
+            ref.side_a = side_a + static_cast<uint64_t>(i) * 8;
+            ref.side_b = side_b + static_cast<uint64_t>(i) * 8;
+            ref.x = static_cast<uint16_t>(i % width);
+            ref.y = static_cast<uint16_t>(i / width);
+            ref.index = i;
+            annex(&ref, owner, 0, 0, false, false);
+            *done = k + 1;
+        }
         return true;
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         *code = GetExceptionCode();
@@ -1169,6 +1210,8 @@ void game_init_from(const uint8_t *base, size_t size)
         g_leader_id = (acting & ACT_LEADER_ID) != 0 ? acts.leader_id : 0;
         g_treaty = (acting & ACT_TREATY) != 0 ? const_cast<uint8_t *>(base) + acts.treaty : nullptr;
         g_treaties = (acting & ACT_TREATIES) != 0 ? acts.treaties : 0;
+        g_annex = (acting & ACT_ANNEX) != 0 ? const_cast<uint8_t *>(base) + acts.annex : nullptr;
+        g_map = (acting & ACT_MAP) != 0 ? acts.map : 0;
         memcpy(g_act_why, act_why, sizeof(g_act_why));
     }
     if (state) {
@@ -1198,6 +1241,10 @@ void game_init_from(const uint8_t *base, size_t size)
             log_line("게임의 함수를 부릅니다 (조약 +0x%X, 조약 표 +0x%X)", acts.treaty, acts.treaties);
         else
             log_line("동맹 맺기를 쓸 수 없습니다 (%s)", (acting & ACT_TREATY) == 0 ? act_why[10] : act_why[11]);
+        if ((acting & ACT_ANNEX) != 0 && (acting & ACT_MAP) != 0)
+            log_line("게임의 함수를 부릅니다 (칸의 주인 바꾸기 +0x%X, 지도 +0x%X)", acts.annex, acts.map);
+        else
+            log_line("병합을 쓸 수 없습니다 (%s)", (acting & ACT_ANNEX) == 0 ? act_why[12] : act_why[13]);
     }
     if (!state) {
         log_line("게임 상태를 읽을 수 없습니다 (%s) — 글쇠 방식", why);
@@ -1305,8 +1352,8 @@ void game_set_for_test(const uint8_t *base, const GameAddresses *at, void *handl
     g_research = ResearchLayout();
     g_research_found = false;
     g_recompute = nullptr;
-    g_colonize = g_fight = g_become = g_elect = g_news = g_treaty = nullptr;
-    g_map_pick = g_index2 = g_pointer2 = g_leaders = g_leader_id = g_treaties = 0;
+    g_colonize = g_fight = g_become = g_elect = g_news = g_treaty = g_annex = nullptr;
+    g_map_pick = g_index2 = g_pointer2 = g_leaders = g_leader_id = g_treaties = g_map = 0;
     for (int w = 0; w < ACT_WANTED; w++)
         snprintf(g_act_why[w], MORE_WHY, "%s", "함수의 자리를 주지 않았습니다");
     snprintf(g_research_why, sizeof(g_research_why), "연구의 자리를 주지 않았습니다");
@@ -1528,6 +1575,8 @@ std::string game_act_off(int act)
         return off_text(g_colonize != nullptr, g_act_why[0]);
     if (act == ACT_FIGHT)                      // 함수와 "지도에서 고른 지역"을 둘 다 찾아야 한다
         return off_text(g_fight != nullptr && g_map_pick != 0, g_fight == nullptr ? g_act_why[1] : g_act_why[5]);
+    if (act == ACT_ANNEX)                      // 병합: 함수와 지도 객체
+        return off_text(g_annex != nullptr && g_map != 0, g_annex == nullptr ? g_act_why[12] : g_act_why[13]);
     if (act == ACT_TREATY)                     // 동맹 맺기: 함수와 조약 표의 자리(이미 맺었는지 읽는다)
         return off_text(g_treaty != nullptr && g_treaties != 0, g_treaty == nullptr ? g_act_why[10] : g_act_why[11]);
     if (act == ACT_ELECT)                      // 지도자 제거: 함수 둘 · 지도자 표 · 지도자 번호의 자리를 모두 찾아야 한다
@@ -1537,6 +1586,54 @@ std::string game_act_off(int act)
         return off_text(g_become != nullptr && g_index2 != 0 && g_pointer2 != 0,
                         g_become == nullptr ? g_act_why[2] : g_index2 == 0 ? g_act_why[6] : g_act_why[7]);
     return "없는 기능입니다";
+}
+
+Wrote game_annex(int number, unsigned long *code, int *hexes)
+{
+    *code = 0;
+    *hexes = 0;
+    if (!game_act_off(ACT_ANNEX).empty())
+        return Wrote::Off;
+    const uint8_t *base = nullptr;
+    GameAddresses at = {};
+    Annex annex = nullptr;
+    uint32_t where = 0;
+    {
+        std::lock_guard<std::mutex> lock(g_lock);
+        base = g_base;
+        at = g_at;
+        annex = reinterpret_cast<Annex>(g_annex);
+        where = g_map;
+    }
+    uint64_t mine = 0, theirs = 0, map = 0;
+    int me = 0, them = 0;
+    const Wrote found = find_pair(base, at, number, true, &mine, &me, &theirs, &them);
+    if (found != Wrote::Done)
+        return found;
+    uint8_t head[MAP_COUNT + 4] = {};
+    if (!peek_at(base, where, &map) || map == 0 || !peek(reinterpret_cast<const void *>(map), head, sizeof(head)))
+        return Wrote::BadValue;
+    const uint64_t cells = field<uint64_t>(head, MAP_HEXES), side_a = field<uint64_t>(head, MAP_SIDE_A),
+                   side_b = field<uint64_t>(head, MAP_SIDE_B);
+    const int32_t width = field<int32_t>(head, MAP_WIDTH), count = field<int32_t>(head, MAP_COUNT);
+    if (cells == 0 || side_a == 0 || side_b == 0 || width < 1 || width > 0xFFFF || count < width || count % width != 0
+        || count / width > 0xFFFF)
+        return Wrote::BadValue;
+    std::vector<uint8_t> raw(static_cast<size_t>(count) * HEX_SIZE);
+    if (!peek(reinterpret_cast<const void *>(cells), raw.data(), raw.size()))
+        return Wrote::BadValue;
+    std::vector<int> list;
+    for (int i = 0; i < count; i++) {
+        const uint16_t owner = field<uint16_t>(raw.data() + static_cast<size_t>(i) * HEX_SIZE, 0);
+        if (owner >= MAX_REGIONS)
+            return Wrote::BadValue;            // 칸 레코드의 꼴이 다르다 — 한 칸도 부르지 않는다
+        if (owner == them)
+            list.push_back(i);
+    }
+    if (list.empty())
+        return Wrote::Done;                    // 그 나라의 땅이 없다(*hexes 는 0)
+    return guarded_annex(annex, map, cells, side_a, side_b, width, list.data(), static_cast<int>(list.size()), me, hexes, code)
+        ? Wrote::Done : Wrote::Crashed;
 }
 
 Wrote game_treaty(int number, unsigned long *code)
@@ -1735,7 +1832,8 @@ Wrote game_colonize(int number, unsigned long *code)
     return guarded_colonize(colonize, reinterpret_cast<void *>(mine), them, code) ? Wrote::Done : Wrote::Crashed;
 }
 
-void game_set_acts_for_test(const ActLayout *layout, void *colonize, void *fight, void *become, void *elect, void *news, void *treaty)
+void game_set_acts_for_test(const ActLayout *layout, void *colonize, void *fight, void *become, void *elect, void *news, void *treaty,
+                            void *annex)
 {
     std::lock_guard<std::mutex> lock(g_lock);
     g_colonize = layout != nullptr ? colonize : nullptr;
@@ -1753,9 +1851,11 @@ void game_set_acts_for_test(const ActLayout *layout, void *colonize, void *fight
     g_leader_id = layout != nullptr ? layout->leader_id : 0;
     g_treaty = layout != nullptr ? treaty : nullptr;
     g_treaties = layout != nullptr ? layout->treaties : 0;
+    g_annex = layout != nullptr ? annex : nullptr;
+    g_map = layout != nullptr ? layout->map : 0;
     const bool given[ACT_WANTED] = {g_colonize != nullptr, g_fight != nullptr, g_become != nullptr, g_elect != nullptr, g_news != nullptr,
                                     g_map_pick != 0, g_index2 != 0, g_pointer2 != 0, g_leaders != 0, g_leader_id != 0,
-                                    g_treaty != nullptr, g_treaties != 0};
+                                    g_treaty != nullptr, g_treaties != 0, g_annex != nullptr, g_map != 0};
     for (int w = 0; w < ACT_WANTED; w++)
         snprintf(g_act_why[w], MORE_WHY, "%s", given[w] ? "" : "함수의 자리를 주지 않았습니다");
 }

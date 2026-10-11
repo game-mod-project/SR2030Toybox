@@ -103,12 +103,22 @@ struct ActLayout {
     uint32_t leader_id;        // 상수: 지역 객체 안에서 그 지역의 지도자 번호(word)가 든 자리
     uint32_t treaty;           // void f(void *지역 객체, bool 쪽, int 조약 번호, bool 맺는다, int 다른 지역의 인덱스, bool, bool, bool): 조약을 맺거나 깬다
     uint32_t treaties;         // 상수: 지역 객체 안의 표 — 조약 번호마다 qword 포인터(그 조약을 맺은 지역들의 비트 묶음. 비트의 번호가 지역 인덱스)
+    uint32_t annex;            // void f(HexRef *칸, int 새 주인의 인덱스, int 0, int 0, bool, bool): 그 칸의 주인을 바꾼다
+    uint32_t map;              // qword(자료). 지도 객체의 포인터 — 읽기만 한다
 };
 
 // 찾을 것의 비트(ActLayout 의 필드 순서)
 const int ACT_COLONIZE = 1, ACT_FIGHT = 2, ACT_BECOME = 4, ACT_ELECT = 8, ACT_NEWS = 16, ACT_MAP_PICK = 32, ACT_INDEX2 = 64,
-          ACT_POINTER2 = 128, ACT_LEADERS = 256, ACT_LEADER_ID = 512, ACT_TREATY = 1024, ACT_TREATIES = 2048;
-const int ACT_WANTED = 12;      // 찾을 것의 수(ActLayout 의 필드 순서와 같다). 함수 · 자료의 주소 · 상수가 섞여 있다(표 ACTS 가 종류를 안다)
+          ACT_POINTER2 = 128, ACT_LEADERS = 256, ACT_LEADER_ID = 512, ACT_TREATY = 1024, ACT_TREATIES = 2048,
+          ACT_ANNEX = 4096, ACT_MAP = 8192;
+const int ACT_WANTED = 14;      // 찾을 것의 수(ActLayout 의 필드 순서와 같다). 함수 · 자료의 주소 · 상수가 섞여 있다(표 ACTS 가 종류를 안다)
+// 지도 객체의 꼴 — 칸 수 · 너비의 자리는 지도 객체를 찾는 서명에 박혀 있다(cmp …, [… + 0x88] / mov …, [… + 0x80])
+const uint32_t MAP_HEXES = 0x00;            // qword. 칸 레코드(HEX_SIZE 바이트 × 칸 수)의 포인터. 레코드의 첫 word 가 주인 지역의 인덱스
+const uint32_t MAP_SIDE_A = 0x08;           // qword. 칸마다 8바이트인 배열의 포인터(게임의 "칸" 묶음에 그 칸의 주소가 들어간다)
+const uint32_t MAP_SIDE_B = 0x10;           // qword. 〃
+const uint32_t MAP_WIDTH = 0x80;            // dword. 가로 칸 수
+const uint32_t MAP_COUNT = 0x88;            // dword. 칸 수(가로 × 세로)
+const uint32_t HEX_SIZE = 16;
 const int TREATY_ALLIANCE = 1;  // 조약 번호: 동맹(내장 치트 treaty 의 기본값 — 맺으면 조약 13종이 함께 맺어진다)
 // 지도자 표의 꼴 — 표를 찾는 서명 셋에 박혀 있다(imul …, 0xC8 / or dword ptr […+0x28], …)
 const uint32_t LEADER_SIZE = 0xC8;          // 지도자 레코드

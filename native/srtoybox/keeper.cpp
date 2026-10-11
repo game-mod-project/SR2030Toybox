@@ -26,7 +26,7 @@ struct Act {
     int attacker;                           // 전쟁: 지도에서 고른 나라. 0 이면 식민지화, BECOME 이면 "이 나라로 플레이"다
     int region;                             // 식민지로 삼을 나라 · 전쟁의 둘째 나라
 };
-const int BECOME = -1, NOVICHOK = -2, TREATY = -3;
+const int BECOME = -1, NOVICHOK = -2, TREATY = -3, ANNEX = -4;
 std::deque<Act> g_acts;                     // 게임의 함수를 부르는 요청(식민지로 삼을 나라의 번호) — 연구 요청보다 먼저, 틱마다 하나
 
 // 이번 틱에 잠금을 놓고 할 일 하나: 게임의 함수를 부르는 요청이거나 연구 요청.
@@ -373,23 +373,32 @@ void run_act(const Act &act)
 {
     unsigned long code = 0;
     const bool fight = act.attacker > 0, become = act.attacker == BECOME, novichok = act.attacker == NOVICHOK;
-    const bool treaty = act.attacker == TREATY;
+    const bool treaty = act.attacker == TREATY, annex = act.attacker == ANNEX;
+    int hexes = 0;
     const Wrote wrote = fight ? game_fight(act.attacker, act.region, &code) : become ? game_become(act.region, &code)
-        : novichok ? game_novichok(act.region, &code) : treaty ? game_treaty(act.region, &code) : game_colonize(act.region, &code);
+        : novichok ? game_novichok(act.region, &code) : treaty ? game_treaty(act.region, &code)
+        : annex ? game_annex(act.region, &code, &hexes) : game_colonize(act.region, &code);
     runner_leave_call(wrote != Wrote::Crashed ? nullptr : fight ? "전쟁을 붙이는" : become ? "플레이하는 나라를 바꾸는"
-                      : novichok ? "지도자를 바꾸는" : treaty ? "동맹을 맺는" : "식민지화하는", code);
+                      : novichok ? "지도자를 바꾸는" : treaty ? "동맹을 맺는" : annex ? "병합하는" : "식민지화하는", code);
 
     std::lock_guard<std::mutex> lock(g_lock);
     const auto name = [](int number) { return region_label(number) + " (" + std::to_string(number) + ")"; };
     const std::string who = fight ? name(act.attacker) + " -> " + name(act.region) : name(act.region);
-    if (wrote == Wrote::Done) {
+    if (annex && wrote == Wrote::Crashed)      // 반쯤 넘어간 채로 멈췄다 — 몇 칸까지였는지 남긴다
+        log_line("병합 — %s: %d칸을 넘긴 뒤 예외", who.c_str(), hexes);
+    if (annex && wrote == Wrote::Done && hexes == 0) {
+        g_notice = "그 나라의 땅이 없습니다 — " + who;
+    } else if (annex && wrote == Wrote::Done) {
+        g_last = "병합 — " + who + " · " + std::to_string(hexes) + "칸";
+        log_line("게임의 함수: %s", g_last.c_str());
+    } else if (wrote == Wrote::Done) {
         g_last = std::string(fight ? "전쟁 붙이기 — " : become ? "이 나라로 플레이 — " : novichok ? "지도자 제거 — " : treaty ? "동맹 맺기 — "
                              : "식민지화 — ") + who;
         log_line("게임의 함수: %s", g_last.c_str());
     } else if (wrote == Wrote::NotUsed) {
         g_notice = "이미 동맹입니다 — " + who;
     } else if (wrote == Wrote::BadValue) {
-        g_notice = novichok ? "게임의 지도자 표를 읽을 수 없어 하지 않았습니다." : treaty ? "게임의 조약 표를 읽을 수 없어 하지 않았습니다."
+        g_notice = annex ? "게임의 지도를 읽을 수 없어 하지 않았습니다." : novichok ? "게임의 지도자 표를 읽을 수 없어 하지 않았습니다." : treaty ? "게임의 조약 표를 읽을 수 없어 하지 않았습니다."
             : "게임의 플레이어 정보가 서로 맞지 않아 하지 않았습니다.";
         log_line("%s", g_notice.c_str());
     } else if (wrote == Wrote::NoTarget) {
@@ -467,6 +476,15 @@ bool keeper_enqueue_become(int region)
     if (g_acts.size() >= RESEARCH_QUEUE || !game_act_off(ACT_BECOME).empty())
         return false;
     g_acts.push_back({BECOME, region});
+    return true;
+}
+
+bool keeper_enqueue_annex(int region)
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    if (g_acts.size() >= RESEARCH_QUEUE || !game_act_off(ACT_ANNEX).empty())
+        return false;
+    g_acts.push_back({ANNEX, region});
     return true;
 }
 

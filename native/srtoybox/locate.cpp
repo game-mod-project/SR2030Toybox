@@ -355,6 +355,11 @@ const struct ActWanted {
      {"48 8B CE 89 7C 24 20 E8 [rip]", "48 8B CD 89 44 24 20 E8 [rip]", "49 8B CF 44 89 64 24 20 E8 [rip]"}},
     {"treaties", "조약 표의 자리", ACT_CONSTANT,
      {"48 8D 81 [u32] 49 63 E8 44 0F B6 F2", "48 8D 97 [u32] 48 8D 14 C2 48 85 D2", "48 05 [u32] 74 25 48 8B 10 48 85 D2"}},
+    // 병합: 칸의 주인을 바꾸는 함수와 지도 객체(칸 수 +88 · 너비 +80 이 박힌 자리들)
+    {"annex", "칸의 주인을 바꾸는 함수", 0,
+     {"49 8B CC 88 44 24 20 E8 [rip]", "45 33 C9 40 88 74 24 20 E8 [rip]", "45 33 C0 8B D6 E8 [rip] 48 8B 44 24 58"}},
+    {"map", "지도 객체", 8,
+     {"48 8B 35 [rip] FF C7 3B BE 88 00 00 00", "4C 8B 05 [rip] 41 39 98 88 00 00 00 7E 58", "48 8B 05 [rip] 8B 98 80 00 00 00 3B F3"}},
 };
 static_assert(sizeof(ActLayout) == ACT_WANTED * sizeof(uint32_t), "ActLayout 의 필드는 표 ACTS 의 순서대로 uint32_t 다");
 

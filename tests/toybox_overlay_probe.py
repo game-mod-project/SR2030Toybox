@@ -160,6 +160,8 @@ NEWS = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, cty
 TREATIES = 0xE00                                # 가짜 게임의 지역 객체 안의 조약 표의 자리(조약 1 의 비트 묶음 포인터는 +8)
 TREATY = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_bool, ctypes.c_int, ctypes.c_bool, ctypes.c_int, ctypes.c_bool, ctypes.c_bool,
                             ctypes.c_bool)      # 게임의 "조약"
+MAP = 0x98                                      # 가짜 게임의 지도 객체의 포인터
+ANNEX = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_bool, ctypes.c_bool)   # 게임의 "칸의 주인 바꾸기"
 MAP_PICK = 0x70                                 # 가짜 게임의 "지도에서 고른 지역": 이 자리의 포인터가 가리키는 word(바로 뒤 0x78)가 인덱스다
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 user32 = ctypes.WinDLL("user32", use_last_error=True)
@@ -649,12 +651,33 @@ def fake_game(hook: str, handler: int | None = None, values: bool = True, more: 
     fake.treaties = []                                         # 가짜 "조약"이 불린 인자들: [지역 번호, 쪽, 조약 번호, 맺는다, 다른 지역의 인덱스, 깃발 셋]
     fake.treaty = TREATY(lambda region, side, treaty, make, other, a, b, c: fake.treaties.append(
         [number(region), int(side), treaty, int(make), other, int(a), int(b), int(c)]))
-    toybox.srtoybox_test_acts.argtypes = [ctypes.c_void_p] * 7
+    # 지도: 가로 8 × 세로 4 = 32칸. 칸 레코드는 16바이트(첫 word 가 주인의 인덱스), 칸마다 8바이트인 배열 둘
+    owners = [176] * 8 + [150, 150, 141, 141, 150, 0, 176, 141] + [141] * 8 + [150, 176, 176, 150, 0, 0, 141, 150]
+    fake.hexes, fake.side_a, fake.side_b = (ctypes.c_ubyte * (16 * 32))(), (ctypes.c_ubyte * (8 * 32))(), (ctypes.c_ubyte * (8 * 32))()
+    for i, owner in enumerate(owners):
+        struct.pack_into("<H", fake.hexes, 16 * i, owner)
+    fake.map = (ctypes.c_ubyte * 0x90)()
+    struct.pack_into("<QQQ", fake.map, 0, ctypes.addressof(fake.hexes), ctypes.addressof(fake.side_a), ctypes.addressof(fake.side_b))
+    struct.pack_into("<i", fake.map, 0x80, 8)
+    struct.pack_into("<i", fake.map, 0x88, 32)
+    fake.poke(MAP, "<Q", ctypes.addressof(fake.map))
+    fake.owners = lambda: [struct.unpack_from("<H", fake.hexes, 16 * i)[0] for i in range(32)]
+    fake.annexed = []                                          # 가짜 "칸의 주인 바꾸기"가 불린 것: [칸의 번호, 가로, 세로, 새 주인, 인자 넷, 묶음의 주소들이 맞는가]
+
+    def annex(ref, owner, z1, z2, f1, f2):
+        m, h, a, b, x, y, index = struct.unpack("<QQQQHHi", ctypes.string_at(ref, 0x28))
+        right = (m == ctypes.addressof(fake.map) and h == ctypes.addressof(fake.hexes) + 16 * index
+                 and a == ctypes.addressof(fake.side_a) + 8 * index and b == ctypes.addressof(fake.side_b) + 8 * index)
+        fake.annexed.append([index, x, y, owner, z1, z2, int(f1), int(f2), right])
+        struct.pack_into("<H", fake.hexes, 16 * index, owner)  # 게임처럼 그 칸의 주인을 바꾼다
+    fake.annex = ANNEX(annex)
+    toybox.srtoybox_test_acts.argtypes = [ctypes.c_void_p] * 8
     if os.environ.get("PROBE_NO_ACTS") != "1":
-        toybox.srtoybox_test_acts((ctypes.c_uint32 * 12)(1, 1, 1, 1, 1, MAP_PICK, INDEX2, POINTER2, LEADERS, LEADER_ID, 1, TREATIES),
+        toybox.srtoybox_test_acts((ctypes.c_uint32 * 14)(1, 1, 1, 1, 1, MAP_PICK, INDEX2, POINTER2, LEADERS, LEADER_ID, 1, TREATIES, 1, MAP),
                                   ctypes.cast(fake.colonize, ctypes.c_void_p), ctypes.cast(fake.fight, ctypes.c_void_p),
                                   ctypes.cast(fake.become, ctypes.c_void_p), ctypes.cast(fake.elect, ctypes.c_void_p),
-                                  ctypes.cast(fake.news, ctypes.c_void_p), ctypes.cast(fake.treaty, ctypes.c_void_p))
+                                  ctypes.cast(fake.news, ctypes.c_void_p), ctypes.cast(fake.treaty, ctypes.c_void_p),
+                                  ctypes.cast(fake.annex, ctypes.c_void_p))
     fake.recomputed = []
     fake.recompute = RECOMPUTE(lambda _world, index: fake.recomputed.append(index))     # 게임이 살아 있는 동안 붙들어 둔다
     if research:
@@ -816,10 +839,11 @@ def run_window(hook: str, mode: str) -> int:
         game.wait(0.4)
         out["became"] = [call[:2] for call in fake.became]
     elif mode == "confirm_fault":
-        game.click("run:annex")                               # 아직 내장 치트로 도는 줄(두 번 눌러야 한다) — 명령 처리 함수가 죽는다
-        game.click("run:annex")
+        game.click(CHEAT_TAB)                                 # 아직 내장 치트로 도는 줄이 있는 탭 — 명령 처리 함수가 죽는다
+        game.click(BUTTON)
         game.wait(0.4)
         out["at_top"] = game.shown("fault")
+        game.click(DIPLOMACY)                                 # 다른 탭의 아래쪽을 보고 있어도 경고는 남는다
         out["scrolled"] = scroll_to(game, LAST_BUTTON)
         out["scrolled_down"] = game.shown("fault")
     elif mode in ("pick_gone", "pick_become"):
@@ -1310,6 +1334,22 @@ def run_more(hook: str, mode: str) -> int:
         fake.play(176)
         press("run:finalexam")                                # 돌아오면 다시 된다
         out["unwritten_after"] = game.shown("unwritten")
+    elif mode == "more_annex":                                # 병합(3단계 4): 지도에서 그 나라의 칸마다 게임의 함수를 부른다
+        game.click(DIPLOMACY)
+        game.wait(1.2)
+        game.click("row:1201")                                # 덴마크(인덱스 150)
+        press("run:annex")
+        out["asking"], out["first"] = game.facts()["run:annex"][3], list(fake.annexed)
+        press("run:annex")
+        out["annexed"], out["wrote"], out["owners"] = list(fake.annexed), game.shown("wrote"), fake.owners()
+        press("run:annex")
+        press("run:annex")                                    # 한 번 더 — 이제 덴마크의 땅이 없다
+        out["again"], out["none"] = len(fake.annexed), game.shown("unwritten")
+        struct.pack_into("<i", fake.map, 0x88, 30)            # 지도의 꼴이 어긋났다(칸 수가 너비의 배수가 아니다) — 한 칸도 부르지 않는다
+        game.click("row:1106")
+        press("run:annex")
+        press("run:annex")
+        out["broken"], out["broken_calls"] = game.shown("unwritten"), len(fake.annexed)
     elif mode == "more_treaty":                               # 동맹 맺기(3단계 4): 게임의 조약 함수를 네 번 부른다. 이미 동맹이면 부르지 않는다
         game.click(DIPLOMACY)
         game.wait(1.2)

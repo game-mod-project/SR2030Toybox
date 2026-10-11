@@ -25,7 +25,7 @@ const Feature FEATURES[] = {
      Direct::RelationNeutral},
     {"treaty", "외교·영토", "동맹 맺기", "고른 나라와 동맹이 된다(조약 13종). 이미 동맹이면 아무 일도 없다", "", false, 0, 0, 0, false, Target::Picked,
      Direct::Treaty},
-    {"annex", "외교·영토", "병합", "고른 나라의 땅이 내 영토가 된다", "cheat annex", false, 0, 0, 0, true, Target::Picked},
+    {"annex", "외교·영토", "병합", "고른 나라의 땅이 내 영토가 된다", "", false, 0, 0, 0, true, Target::Picked, Direct::Annex},
     {"colonize", "외교·영토", "식민지화", "고른 나라가 내 식민지이자 동맹국이 된다", "", false, 0, 0, 0, true, Target::Picked, Direct::Colonize},
     {"novichok", "외교·영토", "지도자 제거", "고른 나라의 지도자가 죽는다", "", false, 0, 0, 0, true, Target::Picked, Direct::Novichok},
     {"fight", "외교·영토", "전쟁 붙이기", "지도에서 한 나라를 고른 뒤 누른다. 그 나라와 목록에서 고른 나라가 싸운다", "", false, 0, 0, 0, true, Target::Picked, Direct::Fight},
