@@ -164,6 +164,7 @@ MAP = 0x98                                      # 가짜 게임의 지도 객체
 ANNEX = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_bool, ctypes.c_bool)   # 게임의 "칸의 주인 바꾸기"
 SPAWN = ctypes.WINFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_uint32, ctypes.c_bool, ctypes.c_bool,
                            ctypes.c_void_p, ctypes.c_bool, ctypes.c_int, ctypes.c_bool)   # 게임의 "부대 만들기"
+GAME_OVER, WINNERS = 0xB0, 0xB8                 # 가짜 게임의 "판이 끝난 꼴"(dword)과 이긴 지역들의 묶음의 포인터
 PICKED_UNITS, UPGRADES = 0xA8, 0x2C6C           # 가짜 게임의 "고른 부대의 목록"(첫 노드의 포인터)과 세계 객체 안의 개량 보정 표의 자리
 DEPLOY = ctypes.WINFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int)   # 게임의 "배치 칸 찾기"
 MAP_HEX = 0xA0                                  # 가짜 게임의 "지도에서 고른 칸"(dword: 가로 | 세로 << 16. 0 이면 고르지 않았다)
@@ -474,7 +475,8 @@ class Game:
         self.toybox = None
 
     def receive(self, hwnd, message, wparam, lparam):
-        name = {WM_KEYDOWN: "down", WM_KEYUP: "up", WM_CHAR: "char", WM_LBUTTONDOWN: "press", WM_LBUTTONUP: "release"}.get(message)
+        name = {WM_KEYDOWN: "down", WM_KEYUP: "up", WM_CHAR: "char", WM_LBUTTONDOWN: "press", WM_LBUTTONUP: "release",
+                0x8002: "app"}.get(message)                   # 0x8002: "즉시 승리"가 게임 창에 보내는 메시지
         if name:
             self.got.append((name, wparam))
         return user32.DefWindowProcW(hwnd, message, wparam, lparam)
@@ -691,8 +693,8 @@ def fake_game(hook: str, handler: int | None = None, values: bool = True, more: 
     fake.deploy = DEPLOY(deploy)
     toybox.srtoybox_test_acts.argtypes = [ctypes.c_void_p] * 10
     if os.environ.get("PROBE_NO_ACTS") != "1":
-        toybox.srtoybox_test_acts((ctypes.c_uint32 * 19)(1, 1, 1, 1, 1, MAP_PICK, INDEX2, POINTER2, LEADERS, LEADER_ID, 1, TREATIES, 1, MAP, 1, MAP_HEX,
-                                                         PICKED_UNITS, UPGRADES, 1),
+        toybox.srtoybox_test_acts((ctypes.c_uint32 * 21)(1, 1, 1, 1, 1, MAP_PICK, INDEX2, POINTER2, LEADERS, LEADER_ID, 1, TREATIES, 1, MAP, 1, MAP_HEX,
+                                                         PICKED_UNITS, UPGRADES, GAME_OVER, WINNERS, 1),
                                   ctypes.cast(fake.colonize, ctypes.c_void_p), ctypes.cast(fake.fight, ctypes.c_void_p),
                                   ctypes.cast(fake.become, ctypes.c_void_p), ctypes.cast(fake.elect, ctypes.c_void_p),
                                   ctypes.cast(fake.news, ctypes.c_void_p), ctypes.cast(fake.treaty, ctypes.c_void_p),
@@ -1575,6 +1577,22 @@ def run_research(hook: str, mode: str) -> int:
         toybox_dll = ctypes.WinDLL(str(Path(hook).with_name("srtoybox.dll")))
         toybox_dll.srtoybox_owner_names(0, 1, names, len(names))
         out["owners_of_tech_1"] = names.value.decode("utf-8")
+    elif mode == "research_victory":                          # 즉시 승리(3단계 6): 전역 둘에 쓰고 게임 창에 메시지를 보낸다
+        def state():
+            over, bundle = fake.peek(GAME_OVER, "<I"), fake.peek(WINNERS, "<Q")
+            bits = ctypes.string_at(bundle, 128) if bundle else b""
+            return [over, [i for i in range(len(bits) * 8) if bits[i // 8] >> (i % 8) & 1], [list(m) for m in game.got if m[0] == "app"]]
+        game.click(CHEAT_TAB)
+        game.wait(0.5)
+        press("run:instantwin")
+        out["asking"], out["first"] = game.facts()["run:instantwin"][3], state()
+        press("run:instantwin")
+        game.wait(0.3)
+        out["won"], out["wrote"] = state(), game.shown("wrote")
+        press("run:instantwin")
+        press("run:instantwin")                               # 이미 끝난 판
+        game.wait(0.3)
+        out["again"], out["again_messages"] = game.shown("unwritten"), len(state()[2])
     elif mode == "research_best":                             # 최강 부대 묶음(3단계 5): 병과마다 능력치가 가장 높은 설계를, 게임이 정한 배치 칸에
         lab = fake.lab
         for number in range(1, 64):                           # 이 판의 설계는 아래 넷뿐이게 한다(빈 자리 = 첫 칸이 0)

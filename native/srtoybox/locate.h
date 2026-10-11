@@ -109,6 +109,8 @@ struct ActLayout {
     uint32_t map_hex;          // dword(자료). "지도에서 고른 칸" — 낮은 word 가 가로, 높은 word 가 세로. 0 이면 고르지 않았다. 읽기만 한다
     uint32_t picked_units;     // qword(자료). 게임에서 고른 부대들의 목록의 첫 노드(없으면 0). 노드: +8 다음 노드, +0x18 부대 객체. 읽기만 한다
     uint32_t upgrades;         // 상수: 세계 객체 안의 "부대 개량의 보정" 표에서 첫 레코드의 깃발(dword)의 자리. 읽기만 한다
+    uint32_t game_over;        // dword(자료). 판이 끝난 꼴(0: 진행 중. 내장 치트 instantwin 은 1 을 쓴다) — "즉시 승리"가 쓴다
+    uint32_t winners;          // qword(자료). 이긴 지역들의 비트 묶음(OWNERS_BYTES 바이트, 비트의 번호가 지역 인덱스)의 포인터. 없으면 0 — 〃
     uint32_t deploy_hex;       // uint32 *f(void *지역 객체, uint32 *out, int 유형): 그 지역이 그 유형(설계의 DESIGN_MOVE)의 부대를 내놓는 칸을 out 에 적고 돌려준다
 };
 
@@ -116,12 +118,15 @@ struct ActLayout {
 const int ACT_COLONIZE = 1, ACT_FIGHT = 2, ACT_BECOME = 4, ACT_ELECT = 8, ACT_NEWS = 16, ACT_MAP_PICK = 32, ACT_INDEX2 = 64,
           ACT_POINTER2 = 128, ACT_LEADERS = 256, ACT_LEADER_ID = 512, ACT_TREATY = 1024, ACT_TREATIES = 2048,
           ACT_ANNEX = 4096, ACT_MAP = 8192, ACT_SPAWN = 16384, ACT_MAP_HEX = 32768,
-          ACT_PICKED_UNITS = 65536, ACT_UPGRADES = 131072, ACT_DEPLOY = 262144;
+          ACT_PICKED_UNITS = 65536, ACT_UPGRADES = 131072, ACT_GAME_OVER = 262144,
+          ACT_WINNERS = 524288, ACT_DEPLOY = 1048576;
+const int ACT_VICTORY = ACT_GAME_OVER | ACT_WINNERS;   // 즉시 승리: game_act_off 에 주는 이름
+const unsigned VICTORY_MESSAGE = 0x8002, VICTORY_WPARAM = 0x63;   // 게임 창에 보내는 메시지(내장 치트 instantwin 이 PostMessageA 로 보내는 그대로)
 const int ACT_BEST = ACT_DEPLOY | ACT_SPAWN;   // 최강 부대 묶음: game_act_off 에 주는 이름(배치 칸 함수와 부대 만들기 함수)
 const int ACT_SUPPLY = ACT_PICKED_UNITS | ACT_UPGRADES;   // 보급 채우기 · 비우기: game_act_off 에 주는 이름(둘 다 찾아야 한다)
 const int SPAWN_MAX_EQUIP = 21999;   // 게임이 받는 부대 설계 번호의 끝(내장 치트 spawnunit 의 검사와 같다)
 const int SPAWN_LIMIT = 200;         // ToyBox 가 한 번에 만드는 부대의 끝(설계의 수 × 수량)
-const int ACT_WANTED = 19;
+const int ACT_WANTED = 21;
 // 최강 부대 묶음(내장 치트 darran 의 "받기" 쪽): 병과마다 이 능력치(설계의 DESIGN_STATS + 4 × 번호, float)가 가장 높은 설계를 고른다.
 // −1 인 병과(수송 · 미사일 · 공중 수송)는 받지 않는다. 치트의 표(실행 파일의 자료) 그대로다 — build 21347933.
 const int BEST_CLASSES = 20;

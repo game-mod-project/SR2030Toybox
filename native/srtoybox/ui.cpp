@@ -118,9 +118,10 @@ bool direct_row(const Feature &f, const GameState &game, bool compact)
     const bool spawn = f.direct == Direct::Spawn;
     const bool supply = f.direct == Direct::Supply;
     const bool best = f.direct == Direct::Best;
-    const bool act = f.direct == Direct::Colonize || fight || become || novichok || treaty || annex || spawn || supply || best;   // 게임의 함수를 부르는 줄
+    const bool victory = f.direct == Direct::Victory;
+    const bool act = f.direct == Direct::Colonize || fight || become || novichok || treaty || annex || spawn || supply || best || victory;   // 게임의 함수를 부르는 줄
     const std::string off = !game.known ? std::string("게임 상태를 읽을 수 있을 때만 씁니다.")
-        : research ? game_research_off() : act ? game_act_off(best ? ACT_BEST : supply ? ACT_SUPPLY : spawn ? ACT_SPAWN : fight ? ACT_FIGHT : become ? ACT_BECOME : novichok ? ACT_ELECT : treaty ? ACT_TREATY : annex ? ACT_ANNEX : ACT_COLONIZE)
+        : research ? game_research_off() : act ? game_act_off(victory ? ACT_VICTORY : best ? ACT_BEST : supply ? ACT_SUPPLY : spawn ? ACT_SPAWN : fight ? ACT_FIGHT : become ? ACT_BECOME : novichok ? ACT_ELECT : treaty ? ACT_TREATY : annex ? ACT_ANNEX : ACT_COLONIZE)
         : game_more_off(group);
     ImGui::PushID(f.id);
     if (!off.empty()) {
@@ -200,7 +201,7 @@ bool direct_row(const Feature &f, const GameState &game, bool compact)
         }
         if (pressed && act) {
             g_confirm.clear();
-            g_notice = (best ? keeper_enqueue_best(g_best_domain, static_cast<int>(value)) : supply ? keeper_enqueue_supply(true) : spawn ? keeper_enqueue_spawn({static_cast<int>(value)}, 1) : fight ? keeper_enqueue_fight(on_map, g_picked) : become ? keeper_enqueue_become(g_picked)
+            g_notice = (victory ? keeper_enqueue_victory() : best ? keeper_enqueue_best(g_best_domain, static_cast<int>(value)) : supply ? keeper_enqueue_supply(true) : spawn ? keeper_enqueue_spawn({static_cast<int>(value)}, 1) : fight ? keeper_enqueue_fight(on_map, g_picked) : become ? keeper_enqueue_become(g_picked)
                         : novichok ? keeper_enqueue_novichok(g_picked) : treaty ? keeper_enqueue_treaty(g_picked)
                         : annex ? keeper_enqueue_annex(g_picked) : keeper_enqueue_colonize(g_picked))
                 ? "" : "대기 중인 요청이 많아 받지 못했습니다.";

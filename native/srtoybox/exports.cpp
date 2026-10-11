@@ -161,7 +161,7 @@ EXPORT int srtoybox_feature_info(int index, char *out, int size)
     const Feature &f = FEATURES[index];
     static const char *const targets[] = {"none", "player", "picked"};
     static const char *const how[] = {"cheat", "tech_up", "opinion_best", "relation_best", "relation_neutral", "tech_level", "queue_done",
-                                      "people_add", "approval_best", "colonize", "fight", "become", "novichok", "annex", "treaty", "supply", "best", "spawn"};
+                                      "people_add", "approval_best", "colonize", "fight", "become", "novichok", "annex", "treaty", "supply", "best", "spawn", "victory"};
     const std::string line = std::string(f.id) + '\t' + f.tab + '\t' + f.label + '\t' + f.command + '\t' + (f.has_value ? "1" : "0")
         + '\t' + std::to_string(f.def) + '\t' + std::to_string(f.min) + '\t' + std::to_string(f.max) + '\t'
         + (f.confirm ? "1" : "0") + '\t' + f.help + '\t' + targets[static_cast<int>(f.target)] + '\t'
