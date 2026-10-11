@@ -317,7 +317,8 @@ const struct MoreWanted {
 
 // 부르는 게임의 함수. 그 함수를 부르는 자리의 서명이다(uv run srkit sig-mine <함수의 RVA> --back 2) — 인자를 싣는 명령까지 넣었다.
 const uint32_t ACT_CONSTANT = 0xFFFF;
-const uint32_t ACT_WORLD_CONSTANT = 0xFFFE;   // 상수: 세계 객체(큰 전역 구조체) 안의 자리 — 지역 객체 안의 자리보다 훨씬 멀다
+const uint32_t ACT_WORLD_CONSTANT = 0xFFFE;
+const uint32_t ACT_TABLE = 0xFFFD;            // 읽기 전용 자료(가상 함수 표)의 RVA — 8바이트로 줄 맞춰져 있고 이미지 안이어야 한다   // 상수: 세계 객체(큰 전역 구조체) 안의 자리 — 지역 객체 안의 자리보다 훨씬 멀다
 const struct ActWanted {
     const char *name;                       // srkit locate 와 테스트가 본다(ActLayout 의 필드 순서와 같다)
     const char *label;                      // 로그와 창에 나오는 이름
@@ -379,6 +380,15 @@ const struct ActWanted {
      {"44 89 2D [rip] 48 85 DB 75 26", "8B 05 [rip] B9 5A 00 00 00 F7 F1", "83 3D [rip+1] 5A 73 42 4C 8B 0D ? ? ? ?"}},
     {"winners", "이긴 지역들의 묶음", 8,
      {"4C 8B 0D [rip] 4D 85 C9 74 31", "48 89 05 [rip] 8B D3 44 8B C3", "48 89 05 [rip] 83 E7 3F 49 8B D6"}},
+    // GUI 숨기기/보이기: 화면의 깃발들, GUI 객체, 그 객체의 가상 함수 표(표를 거는 생성자들 — 객체의 깃발 자리 +2C 가 함께 박혀 있다)
+    {"ui_flags", "화면의 깃발", 4,
+     {"8B 35 [rip] C1 EE 0B 83 E6 01", "8B 05 [rip] C1 E8 1F 83 E0 01 85 C0", "8B 05 [rip] 41 83 E0 03 0F BA E0 0C"}},
+    {"gui", "GUI 객체", 8,
+     {"48 8B 05 [rip] 48 8D 0D ? ? ? ? 48 89 74 24 30", "48 8B 05 [rip] 48 85 C0 74 07 81 48 28 00 00 02 00 48 8B 05 ? ? ? ?",
+      "48 8B 05 [rip] 45 33 D2 4C 8B C1"}},
+    {"gui_vtable", "GUI 객체의 함수 표", ACT_TABLE,
+     {"48 8D 05 [rip] 48 89 01 C7 41 2C 00 00 00 01", "48 8D 0D [rip] 48 89 08 C7 40 2C 00 00 00 01",
+      "48 8D 05 [rip] 49 89 01 41 C7 41 2C 00 00 00 01"}},
     // 최강 부대 묶음: 그 지역이 그 유형의 부대를 내놓는 칸을 찾는 함수
     {"deploy_hex", "배치 칸을 찾는 함수", 0,
      {"41 B8 02 00 00 00 32 DB E8 [rip]", "45 8B C6 48 8D 94 24 38 01 00 00 E8 [rip]", "48 8D 55 A8 48 8B 8D 08 01 00 00 E8 [rip]"}},
@@ -822,7 +832,12 @@ int search_acts(const uint8_t *image, size_t size, ActLayout *out, SigRow *rows,
             snprintf(why[w], MORE_WHY, "%s: 찾은 주소가 함수의 시작이 아닙니다", ACTS[w].label);
             continue;
         }
-        if (ACTS[w].bytes == ACT_WORLD_CONSTANT) {
+        if (ACTS[w].bytes == ACT_TABLE) {
+            if (value[0] == 0 || value[0] % 8 != 0 || value[0] + 8ull * (GUI_SET + 1) > size) {
+                snprintf(why[w], MORE_WHY, "%s: 찾은 주소가 표의 자리가 아닙니다", ACTS[w].label);
+                continue;
+            }
+        } else if (ACTS[w].bytes == ACT_WORLD_CONSTANT) {
             if (value[0] == 0 || value[0] >= 0x1000000) {
                 snprintf(why[w], MORE_WHY, "%s: 찾은 자리가 범위 밖입니다", ACTS[w].label);
                 continue;

@@ -28,7 +28,7 @@ struct Act {
     int region;                             // 식민지로 삼을 나라 · 전쟁의 둘째 나라. 부대 생성: 설계마다의 수량
     std::vector<int> designs;               // 부대 생성: 만들 부대 설계의 번호들
 };
-const int BECOME = -1, NOVICHOK = -2, TREATY = -3, ANNEX = -4, SPAWN = -5, SUPPLY = -6, BEST = -7, VICTORY = -8;
+const int BECOME = -1, NOVICHOK = -2, TREATY = -3, ANNEX = -4, SPAWN = -5, SUPPLY = -6, BEST = -7, VICTORY = -8, GUI = -9;
 void *g_window;                             // 게임 창(HWND) — "즉시 승리"의 메시지를 받을 곳   // SUPPLY: region 이 1 이면 채우기, 0 이면 비우기
 std::deque<Act> g_acts;                     // 게임의 함수를 부르는 요청(식민지로 삼을 나라의 번호) — 연구 요청보다 먼저, 틱마다 하나
 
@@ -385,12 +385,14 @@ void run_act(const Act &act)
         std::lock_guard<std::mutex> lock(g_lock);
         window = g_window;
     }
-    const Wrote wrote = victory ? game_victory(window) : best ? game_best(act.designs[0], act.region, &code, &made)
+    const bool gui = act.attacker == GUI;
+    bool hidden = false;
+    const Wrote wrote = gui ? game_gui_toggle(&code, &hidden) : victory ? game_victory(window) : best ? game_best(act.designs[0], act.region, &code, &made)
         : supply ? game_supply(act.region != 0, &made, &skipped) : spawn ? game_spawn(act.designs.data(), static_cast<int>(act.designs.size()), act.region, &code, &made, &hex_x, &hex_y)
         : fight ? game_fight(act.attacker, act.region, &code) : become ? game_become(act.region, &code)
         : novichok ? game_novichok(act.region, &code) : treaty ? game_treaty(act.region, &code)
         : annex ? game_annex(act.region, &code, &hexes) : game_colonize(act.region, &code);
-    runner_leave_call(wrote != Wrote::Crashed ? nullptr : spawn || best ? "부대를 만드는" : fight ? "전쟁을 붙이는" : become ? "플레이하는 나라를 바꾸는"
+    runner_leave_call(wrote != Wrote::Crashed ? nullptr : gui ? "GUI 를 바꾸는" : spawn || best ? "부대를 만드는" : fight ? "전쟁을 붙이는" : become ? "플레이하는 나라를 바꾸는"
                       : novichok ? "지도자를 바꾸는" : treaty ? "동맹을 맺는" : annex ? "병합하는" : "식민지화하는", code);
 
     std::lock_guard<std::mutex> lock(g_lock);
@@ -402,7 +404,13 @@ void run_act(const Act &act)
         log_line("부대 생성: %d기를 만든 뒤 예외", made);
     if (best && wrote == Wrote::Crashed)
         log_line("최강 부대 묶음: 병과 %d종을 만든 뒤 예외", made);
-    if (victory && wrote == Wrote::Done) {
+    if (gui && wrote == Wrote::Done) {
+        g_last = hidden ? "GUI 숨김" : "GUI 보임";
+        log_line("게임의 함수: %s", g_last.c_str());
+    } else if (gui && (wrote == Wrote::BadValue || wrote == Wrote::Failed)) {
+        g_notice = wrote == Wrote::BadValue ? "게임의 GUI 정보를 읽을 수 없어 하지 않았습니다." : "화면의 깃발을 쓰지 못했습니다.";
+        log_line("%s", g_notice.c_str());
+    } else if (victory && wrote == Wrote::Done) {
         g_last = "즉시 승리";
         log_line("값 쓰기: %s", g_last.c_str());
     } else if (victory && wrote == Wrote::NotUsed) {
@@ -537,6 +545,15 @@ void keeper_set_window(void *window)
 {
     std::lock_guard<std::mutex> lock(g_lock);
     g_window = window;
+}
+
+bool keeper_enqueue_gui()
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    if (g_acts.size() >= RESEARCH_QUEUE || !game_act_off(ACT_GUI).empty())
+        return false;
+    g_acts.push_back({GUI, 0, {}});
+    return true;
 }
 
 bool keeper_enqueue_victory()

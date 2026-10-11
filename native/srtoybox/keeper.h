@@ -80,6 +80,8 @@ bool keeper_enqueue_research(const ResearchRequest &request);
 void keeper_tick(unsigned long long now_ms);
 // 게임 창(HWND)을 알려 준다 — "즉시 승리"가 그 창에 메시지를 보낸다. 창을 가진 스레드에서 틱 앞에 부른다.
 void keeper_set_window(void *window);
+// GUI 숨기기/보이기(game_gui_toggle). 받지 못하면 거짓.
+bool keeper_enqueue_gui();
 // 즉시 승리(game_victory). 받지 못하면 거짓.
 bool keeper_enqueue_victory();
 // 마지막으로 쓴 것: "국고 14.43 B -> 24.43 B" · "석유 2.5 M -> 3.5 M" · "모든 물자 11개" · "기술 수준 130 -> 131" ·
