@@ -107,15 +107,47 @@ struct ActLayout {
     uint32_t map;              // qword(자료). 지도 객체의 포인터 — 읽기만 한다
     uint32_t spawn;            // void *f(void *지역 객체, int 부대 설계의 번호, int 수, uint32 칸, bool, bool, void **, bool, int, bool): 그 칸에 부대를 만든다
     uint32_t map_hex;          // dword(자료). "지도에서 고른 칸" — 낮은 word 가 가로, 높은 word 가 세로. 0 이면 고르지 않았다. 읽기만 한다
+    uint32_t picked_units;     // qword(자료). 게임에서 고른 부대들의 목록의 첫 노드(없으면 0). 노드: +8 다음 노드, +0x18 부대 객체. 읽기만 한다
+    uint32_t upgrades;         // 상수: 세계 객체 안의 "부대 개량의 보정" 표에서 첫 레코드의 깃발(dword)의 자리. 읽기만 한다
 };
 
 // 찾을 것의 비트(ActLayout 의 필드 순서)
 const int ACT_COLONIZE = 1, ACT_FIGHT = 2, ACT_BECOME = 4, ACT_ELECT = 8, ACT_NEWS = 16, ACT_MAP_PICK = 32, ACT_INDEX2 = 64,
           ACT_POINTER2 = 128, ACT_LEADERS = 256, ACT_LEADER_ID = 512, ACT_TREATY = 1024, ACT_TREATIES = 2048,
-          ACT_ANNEX = 4096, ACT_MAP = 8192, ACT_SPAWN = 16384, ACT_MAP_HEX = 32768;
+          ACT_ANNEX = 4096, ACT_MAP = 8192, ACT_SPAWN = 16384, ACT_MAP_HEX = 32768,
+          ACT_PICKED_UNITS = 65536, ACT_UPGRADES = 131072;
+const int ACT_SUPPLY = ACT_PICKED_UNITS | ACT_UPGRADES;   // 보급 채우기 · 비우기: game_act_off 에 주는 이름(둘 다 찾아야 한다)
 const int SPAWN_MAX_EQUIP = 21999;   // 게임이 받는 부대 설계 번호의 끝(내장 치트 spawnunit 의 검사와 같다)
 const int SPAWN_LIMIT = 200;         // ToyBox 가 한 번에 만드는 부대의 끝(설계의 수 × 수량)
-const int ACT_WANTED = 16;      // 찾을 것의 수(ActLayout 의 필드 순서와 같다). 함수 · 자료의 주소 · 상수가 섞여 있다(표 ACTS 가 종류를 안다)
+const int ACT_WANTED = 18;
+// 부대 객체의 꼴(보급 채우기 — 내장 치트 stranded 가 읽고 쓰는 자리들. 서명에 박혀 있지 않다 — 쓰기 전에 설계 포인터가 설계 표 안인지로 지킨다)
+const uint32_t UNIT_READ = 0x238;           // 읽을 크기(설계 포인터까지)
+const uint32_t UNIT_OWNER = 0x1E;           // word. 그 부대의 주인인 지역의 인덱스
+const uint32_t UNIT_STORE_A = 0x80;         // float. 보급의 첫째 칸(가득 = 규모 × 설계의 DESIGN_CAP_A × 보정) — ToyBox 가 쓴다
+const uint32_t UNIT_STORE_B = 0x84;         // float. 보급의 둘째 칸(가득 = 규모 × 설계의 DESIGN_CAP_B × 보정) — ToyBox 가 쓴다
+const uint32_t UNIT_HELD = 0x88;            // float. 0 일 때만 실은 부대의 몫을 둘째 칸에서 뺀다
+const uint32_t UNIT_SIZE = 0x90;            // float. 부대의 규모
+const uint32_t UNIT_SLOTS = 0xDC;           // byte × 8. 개량의 단계(0 이면 없다)
+const uint32_t UNIT_TECHS_ON = 0xE7;        // byte. 0 이 아니면 설계의 기술 여덟의 효과를 곱한다
+const uint32_t UNIT_FLAGS4 = 0xF4;          // dword. 0x800: 실린 부대일 때 그 부대의 둘째 칸을 세지 않는다
+const uint32_t UNIT_FLAGS = 0xF8;           // byte. 0x40: 개량의 보정을 곱한다
+const uint32_t UNIT_CARGO = 0x130;          // qword. 실은 부대(그 부대의 +0x130 으로 이어진다)
+const uint32_t UNIT_CARRIER = 0x138;        // qword. 이 부대를 실은 부대
+const uint32_t UNIT_DESIGN = 0x230;         // qword. 부대 설계 레코드(부대 설계 표 안)
+const uint32_t DESIGN_CLASS = 0x08;         // byte. 병과
+const uint32_t DESIGN_TECHS = 0x38;         // word × 8. 효과를 주는 기술의 번호
+const uint32_t DESIGN_CARGO_USE = 0x58;     // float. 실릴 때 차지하는 몫(규모를 곱한다)
+const uint32_t DESIGN_CARGO_CAP = 0x60;     // float. 실을 수 있는 몫
+const uint32_t DESIGN_CAP_A = 0x78;         // float. 첫째 칸의 용량
+const uint32_t DESIGN_CAP_B = 0x80;         // float. 둘째 칸의 용량
+const uint32_t TECH_EFFECTS = 0x0C;         // word × 4. 기술의 효과 번호
+const uint32_t TECH_EFFECT_VALUES = 0x14;   // float × 4. 그 효과의 값(1 을 더해 곱한다)
+const uint16_t EFFECT_CAP_A = 0xA6, EFFECT_CAP_B = 0xA5;
+const uint32_t UPGRADE_SIZE = 0x78;         // 개량의 보정 레코드. 번호 = 병과 × 25 + 3 × (칸 + 1) + max(2, 단계 − 1)
+const uint32_t UPGRADE_VALUES = 0x68;       // 깃발에서 이만큼 앞이 값(float)들의 0번째다. 깃발의 비트 n 이 켜져 있으면 값 n 은 곱하지 않고 그대로 쓴다
+const int UPGRADE_CARGO = 14, UPGRADE_CAP_A = 16, UPGRADE_CAP_B = 18;   // 값 · 비트의 번호
+const uint32_t PICKED_NEXT = 0x08, PICKED_UNIT = 0x18;                  // 고른 부대의 목록의 노드
+const int PICKED_LIMIT = 4096;              // 목록에서 이만큼까지만 본다      // 찾을 것의 수(ActLayout 의 필드 순서와 같다). 함수 · 자료의 주소 · 상수가 섞여 있다(표 ACTS 가 종류를 안다)
 // 지도 객체의 꼴 — 칸 수 · 너비의 자리는 지도 객체를 찾는 서명에 박혀 있다(cmp …, [… + 0x88] / mov …, [… + 0x80])
 const uint32_t MAP_HEXES = 0x00;            // qword. 칸 레코드(HEX_SIZE 바이트 × 칸 수)의 포인터. 레코드의 첫 word 가 주인 지역의 인덱스
 const uint32_t MAP_SIDE_A = 0x08;           // qword. 칸마다 8바이트인 배열의 포인터(게임의 "칸" 묶음에 그 칸의 주소가 들어간다)
@@ -171,7 +203,6 @@ const int TECH_NEED_COUNT = 2;
 const uint32_t TECH_OWNERS = 0x50;          // qword. 보유 비트 묶음의 포인터(아무도 보유하지 않았으면 0)
 const uint32_t DESIGN_SIZE = 0x168;         // 부대 설계 레코드. 번호가 곧 자리다
 const uint32_t DESIGN_NAME = 0x00;          // qword. 이름 글의 포인터. 0 이면 빈 자리
-const uint32_t DESIGN_CLASS = 0x08;         // byte. 병과 번호 — 표시에만 쓴다(서명에 박지 못했다)
 const uint32_t DESIGN_YEAR = 0x0A;          // byte. 등장 연도 - 1900 — 〃
 const uint32_t DESIGN_OPEN = 0x20;          // word. 0 이면 연구 대상이 아니다
 const uint32_t DESIGN_NEEDS = 0x34;         // word × DESIGN_NEED_COUNT. 선행 기술의 번호

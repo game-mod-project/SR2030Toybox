@@ -20,7 +20,7 @@ SPAWN = TEXT + 0x1000                         # 가짜 "부대를 만드는 함�
 # 새 찾기(부르는 게임의 함수와 그것들이 쓰는 전역 · 상수)의 가짜 주소와 값
 ACTS = {"colonize": COLONIZE, "fight": FIGHT, "become": BECOME, "elect": ELECT, "news": NEWS, "map_pick": DATA + 0x68,
         "player_index2": DATA + 0x74, "player_pointer2": DATA + 0x78, "leader_table": DATA + 0x88, "leader_id": 0x9C,
-        "treaty": TREATY, "treaties": 0x7000, "annex": ANNEX, "map": DATA + 0x90, "spawn": SPAWN, "map_hex": DATA + 0xA0}
+        "treaty": TREATY, "treaties": 0x7000, "annex": ANNEX, "map": DATA + 0x90, "spawn": SPAWN, "map_hex": DATA + 0xA0, "picked_units": DATA + 0xA8, "upgrades": 0x2C6C}
 ACT_FUNCTIONS = [(COLONIZE, COLONIZE + 0x40), (FIGHT, FIGHT + 0x40), (BECOME, BECOME + 0x40), (ELECT, ELECT + 0x40), (NEWS, NEWS + 0x40),
                  (TREATY, TREATY + 0x40), (ANNEX, ANNEX + 0x40), (SPAWN, SPAWN + 0x40)]
 WORLD = DATA + 0x180                          # 지역 표 = WORLD + 0x80

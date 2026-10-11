@@ -114,9 +114,10 @@ bool direct_row(const Feature &f, const GameState &game, bool compact)
     const bool treaty = f.direct == Direct::Treaty;
     const bool annex = f.direct == Direct::Annex;
     const bool spawn = f.direct == Direct::Spawn;
-    const bool act = f.direct == Direct::Colonize || fight || become || novichok || treaty || annex || spawn;   // 게임의 함수를 부르는 줄
+    const bool supply = f.direct == Direct::Supply;
+    const bool act = f.direct == Direct::Colonize || fight || become || novichok || treaty || annex || spawn || supply;   // 게임의 함수를 부르는 줄
     const std::string off = !game.known ? std::string("게임 상태를 읽을 수 있을 때만 씁니다.")
-        : research ? game_research_off() : act ? game_act_off(spawn ? ACT_SPAWN : fight ? ACT_FIGHT : become ? ACT_BECOME : novichok ? ACT_ELECT : treaty ? ACT_TREATY : annex ? ACT_ANNEX : ACT_COLONIZE)
+        : research ? game_research_off() : act ? game_act_off(supply ? ACT_SUPPLY : spawn ? ACT_SPAWN : fight ? ACT_FIGHT : become ? ACT_BECOME : novichok ? ACT_ELECT : treaty ? ACT_TREATY : annex ? ACT_ANNEX : ACT_COLONIZE)
         : game_more_off(group);
     ImGui::PushID(f.id);
     if (!off.empty()) {
@@ -145,13 +146,14 @@ bool direct_row(const Feature &f, const GameState &game, bool compact)
         }
         int hex_x = 0, hex_y = 0;
         const bool on_hex = spawn && game_map_hex(&hex_x, &hex_y);           // 부대 생성: 게임의 지도에서 고른 칸
-        if (spawn) {
-            const std::string hex = hex_label(on_hex, hex_x, hex_y);
-            ImGui::TextUnformatted(hex.c_str());
-            note("spawn:hex", hex);
-        }
-        // 나라를 고르지 않았다(목록에서 · 전쟁은 지도에서도). 같은 나라끼리는 싸움 붙일 수 없다. 부대 생성은 칸을 골라야 한다
-        ImGui::BeginDisabled((f.target == Target::Picked && g_picked <= 0) || (fight && (on_map <= 0 || on_map == g_picked)) || (spawn && !on_hex));
+        const std::string hex = hex_label(on_hex, hex_x, hex_y);             // 단추 옆에 적는다 — 줄을 따로 쓰면 아래 목록이 밀린다
+        int units = 0, mine = 0;                                             // 보급: 게임에서 고른 부대(내 부대에만 쓴다)
+        const std::string picked = !supply ? std::string() : !game_picked_units(&units, &mine) ? std::string("고른 부대: 읽을 수 없음")
+            : units == 0 ? std::string("고른 부대: 없음 — 게임에서 내 부대를 고르십시오")
+            : "고른 부대: " + std::to_string(units) + "기" + (mine != units ? " (내 부대 " + std::to_string(mine) + "기)" : std::string());
+        // 나라를 고르지 않았다(목록에서 · 전쟁은 지도에서도). 같은 나라끼리는 싸움 붙일 수 없다. 부대 생성은 칸을, 보급은 내 부대를 골라야 한다
+        ImGui::BeginDisabled((f.target == Target::Picked && g_picked <= 0) || (fight && (on_map <= 0 || on_map == g_picked)) || (spawn && !on_hex)
+                             || (supply && mine <= 0));
         const bool asking = f.confirm && g_confirm == f.id;                   // 되돌릴 수 없는 줄은 한 번 더 눌러야 한다
         const std::string label = !asking ? std::string(f.label)
             : fight ? std::string(f.label) + ": " + named(on_map) + " -> " + named(g_picked) + " — 한 번 더 누르면 실행합니다"
@@ -164,9 +166,22 @@ bool direct_row(const Feature &f, const GameState &game, bool compact)
         }
         if (compact && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
             ImGui::SetTooltip("%s", f.help);
+        if (supply) {                                                        // 옆의 단추: 0 으로
+            ImGui::SameLine();
+            if (ImGui::Button("비우기###empty")) {
+                g_confirm.clear();
+                g_notice = keeper_enqueue_supply(false) ? "" : "대기 중인 요청이 많아 받지 못했습니다.";
+            }
+            note(std::string("empty:") + f.id, "비우기");
+        }
+        if (spawn || supply) {                                               // 지금 고른 칸 · 부대(게임에서 고른 것)
+            ImGui::SameLine();
+            ImGui::TextDisabled("%s", (spawn ? hex : picked).c_str());
+            note(spawn ? "spawn:hex" : "supply:picked", spawn ? hex : picked);
+        }
         if (pressed && act) {
             g_confirm.clear();
-            g_notice = (spawn ? keeper_enqueue_spawn({static_cast<int>(value)}, 1) : fight ? keeper_enqueue_fight(on_map, g_picked) : become ? keeper_enqueue_become(g_picked)
+            g_notice = (supply ? keeper_enqueue_supply(true) : spawn ? keeper_enqueue_spawn({static_cast<int>(value)}, 1) : fight ? keeper_enqueue_fight(on_map, g_picked) : become ? keeper_enqueue_become(g_picked)
                         : novichok ? keeper_enqueue_novichok(g_picked) : treaty ? keeper_enqueue_treaty(g_picked)
                         : annex ? keeper_enqueue_annex(g_picked) : keeper_enqueue_colonize(g_picked))
                 ? "" : "대기 중인 요청이 많아 받지 못했습니다.";
