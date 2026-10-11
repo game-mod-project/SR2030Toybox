@@ -141,6 +141,7 @@ const int SPAWN_LIMIT = 200;         // ToyBox 가 한 번에 만드는 부대�
 const int ACT_WANTED = 25;
 const uint32_t UNIT_NEXT = 0x08;            // qword. 세계의 부대 목록에서 다음 부대
 const uint32_t UNIT_FACILITY = 0x2000;      // UNIT_FLAGS4 의 비트: 시설이다(부대가 아니다)
+const uint32_t UNIT_UNBUILT = 0x800;        // 〃: 아직 지도에 없는 부대(칸 (0, 0), 지휘 패널의 수에 들지 않는다 — 생산 중으로 보인다). "내 부대 전부"에서 뺀다
 // 부대의 상태 셋(float, 0 … 1) — 게임의 부대 카드의 막대. 새 판에서의 값의 분포로 가렸다(효율 0.72 … 1 · 사기 0.8 … 1 은 모든 부대에, 경험은 거의 0)
 const uint32_t UNIT_EFFICIENCY = 0x9C, UNIT_EXPERIENCE = 0xA0, UNIT_MORALE = 0xA4;
 const int STAT_EXPERIENCE = 0, STAT_MORALE = 1, STAT_EFFICIENCY = 2, STAT_COUNT = 3;   // game_unit_stat 의 "무엇을"

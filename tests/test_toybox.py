@@ -1108,6 +1108,7 @@ def test_the_supply_of_picked_units_is_filled_without_the_cheat(dll, cfg, tmp_pa
     assert got["stat_all"] == [[0.0, 1.0, 1.0], zero, zero, [0.0, 0.0, 1.0]] and got["wrote_stat_all"] == "사기 100% — 내 부대 전부 · 2기"
     # 게임은 지역마다 설계가 0번인 객체를 하나씩 그 목록에 둔다(게임에서 봤다) — 부대가 아니다. 그것 때문에 거부하지 않고, 거기에 쓰지도 않는다
     assert got["region_object"] == untouched + zero
+    assert got["unbuilt"] == untouched + zero                              # 아직 지도에 없는 부대(깃발 0x800)에도 쓰지 않는다
     assert got["emptied"] == [0.0, 0.0] and got["wrote_empty"] == "보급 비우기 — 부대 1기 (남의 부대 1기는 건너뜀)"
     assert got["broken"] == "게임의 부대 정보를 읽을 수 없어 하지 않았습니다." and got["after_broken"] == [0.0, 0.0]
     assert got["lines"] == [] and got["text"] == "" and got["options"] == 0

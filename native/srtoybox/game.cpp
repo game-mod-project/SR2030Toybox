@@ -1821,6 +1821,7 @@ namespace {
 
 // 세계의 부대 목록에서 그 지역(인덱스)의 부대(시설은 뺀다)의 주소를 모은다. 목록이 말이 안 되면(읽을 수 없다 · 너무 길다) 거짓.
 // 설계가 0번(designs — 부대 설계 표의 첫 자리)인 것은 부대가 아니다: 게임은 지역마다 그런 객체를 하나씩 목록에 둔다(게임에서 봤다) — 뺀다.
+// 그래서 "내 부대 전부" = 지휘 패널의 배치 + 예비(와 첩보원 같은 몇)다.
 bool owned_units(const uint8_t *base, uint32_t where, int owner, uint64_t designs, std::vector<uint64_t> *units)
 {
     uint64_t unit = 0;
@@ -1830,7 +1831,8 @@ bool owned_units(const uint8_t *base, uint32_t where, int owner, uint64_t design
         uint8_t raw[UNIT_READ];
         if (n >= UNITS_LIMIT || !peek(reinterpret_cast<const void *>(unit), raw, sizeof(raw)))
             return false;
-        if (field<uint16_t>(raw, UNIT_OWNER) == owner && (field<uint32_t>(raw, UNIT_FLAGS4) & UNIT_FACILITY) == 0
+        // 깃발 UNIT_UNBUILT 인 것도 뺀다: 그 칸들의 값이 배치 · 예비 부대와 다른 뜻일 수 있다(게임에서 1.00 / 0.20 같은 값이었다) — 건드리지 않는다
+        if (field<uint16_t>(raw, UNIT_OWNER) == owner && (field<uint32_t>(raw, UNIT_FLAGS4) & (UNIT_FACILITY | UNIT_UNBUILT)) == 0
             && field<uint64_t>(raw, UNIT_DESIGN) != designs)
             units->push_back(unit);
         unit = field<uint64_t>(raw, UNIT_NEXT);
