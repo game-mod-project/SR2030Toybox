@@ -11,6 +11,8 @@ const int HOTKEY_CTRL = 1, HOTKEY_SHIFT = 2, HOTKEY_ALT = 4;
 const long long MONEY_AMOUNT_MIN = 1, MONEY_AMOUNT_MAX = 1000000, MONEY_AMOUNT_DEFAULT = 10000;   // 돈 탭의 입력란(백만 달러)
 const long long KEEP_TREASURY_MAX = 1000000;       // 유지할 국고(백만 달러): 0 ~ 1,000,000
 const long long KEEP_STOCK_MAX = 1000000000;       // 유지할 물자의 수량: 0 ~ 1,000,000,000
+const int SETTINGS_MULT_MAX = 1000;                // 배율의 끝(퍼센트). keeper.h 의 MULT_PERCENT_MAX 와 같다
+const int SETTINGS_MULT_CELL_MIN = 1, SETTINGS_MULT_RESEARCH_MIN = 10;   // 〃 MULT_CELL_MIN · MULT_RESEARCH_MIN
 
 struct Settings {
     int hotkey_vk = 0x54;                            // T
@@ -21,6 +23,13 @@ struct Settings {
     bool keep_stock[STOCK_SLOTS] = {};               // 물자마다의 최소 유지. "keep.stock.<칸>"(0 / 1)
     long long keep_stock_value[STOCK_SLOTS] = {};    // 그 수량. "keep.stock.<칸>.value"
     std::map<std::string, long long> values;         // 값이 있는 기능의 id → 값
+    // 배율(keeper.h 의 Mult — 퍼센트, 100 이 "그대로"). "mult.on"(0 / 1), "mult.tax" · "mult.defense" · "mult.social" · "mult.research",
+    // 물자마다 "mult.out.<칸>" · "mult.use.<칸>" · "mult.raw.<칸>"
+    bool mult_on = false;
+    int mult_tax = 100, mult_defense = 100, mult_social = 100, mult_research = 100;
+    int mult_out[MULT_GOODS] = {100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100};
+    int mult_use[MULT_GOODS] = {100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100};
+    int mult_raw[MULT_GOODS] = {100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100};
 };
 
 Settings default_settings();

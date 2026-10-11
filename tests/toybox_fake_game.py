@@ -38,8 +38,8 @@ kernel32.HeapValidate.argtypes = [ctypes.c_void_p, wintypes.DWORD, ctypes.c_void
 
 
 class FakeGame:
-    def __init__(self):
-        self.mem = (ctypes.c_ubyte * 0x4000)()
+    def __init__(self, size: int = 0x4000):
+        self.mem = (ctypes.c_ubyte * size)()
         self.base = ctypes.addressof(self.mem)
         self.at = GameAddresses(handler=0, context=0x40, multiplayer=MULTIPLAYER, options=OPTIONS, program_state=PROGRAM,
                                 mode_state=MODE, player_index=INDEX, player_pointer=POINTER, region_table=TABLE, region_count=COUNT)

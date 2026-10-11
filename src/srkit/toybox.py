@@ -91,6 +91,16 @@ ACT_NAMES = {"colonize": "식민지화 함수(지역 객체, 다른 지역의 �
              "player_index2": "플레이어 인덱스의 둘째 사본(dword)", "player_pointer2": "플레이어 포인터의 둘째 사본(qword)"}
 
 
+MULT_FIELDS = ("mul_table", "day", "tax_total", "army_pay_level", "army_upkeep_level", "army_pay", "army_upkeep", "unit_cost",
+               "research_step")
+MULT_NAMES = {"mul_table": "곱 보정 표(지역 인덱스마다 0x320 바이트, float 200칸 — ToyBox 는 플레이어의 줄에만 쓴다)",
+              "day": "날의 칸(dword. 읽기만 한다)", "tax_total": "연간 세수의 합(지역 객체 안, double. 읽기만 한다)",
+              "army_pay_level": "군 인건비의 지출 수준(지역 객체 안, float. 읽기만 한다)",
+              "army_upkeep_level": "군 유지비의 지출 수준(〃)", "army_pay": "연간 군 인건비의 바탕(〃)",
+              "army_upkeep": "연간 군 유지비의 바탕(〃)", "unit_cost": "어제의 부대 생산비(〃)",
+              "research_step": "연구의 하루치(〃)"}
+
+
 @dataclass
 class SigRow:
     """서명 하나의 결과."""
@@ -123,6 +133,9 @@ class Located:
     acts: dict[str, int] = None      # 새 찾기(서명): 부르는 게임의 함수. 못 찾은 것은 0
     acts_why: list[str] = None       # 함수마다(ACT_FIELDS 순서)의 까닭. 찾았으면 빈 글
     act_rows: list[SigRow] = None
+    mult: dict[str, int] = None      # 새 찾기(서명): 배율. 못 찾은 것은 0
+    mult_why: list[str] = None       # 찾을 것마다(MULT_FIELDS 순서)의 까닭. 찾았으면 빈 글
+    mult_rows: list[SigRow] = None
 
 
 class GameAddresses(ctypes.Structure):
@@ -143,6 +156,10 @@ class ActLayout(ctypes.Structure):
 
 class ResearchLayout(ctypes.Structure):
     _fields_ = [(name, ctypes.c_uint32) for name in RESEARCH_FIELDS]
+
+
+class MultLayout(ctypes.Structure):
+    _fields_ = [(name, ctypes.c_uint32) for name in MULT_FIELDS]
 
 
 def output(cfg: Config) -> Path:
@@ -360,6 +377,16 @@ def legacy_of(lib: ctypes.CDLL, image: bytes) -> tuple[dict[str, int] | None, st
     return {name: getattr(found, name) for name in LEGACY_FIELDS}, ""
 
 
+def mult_of(lib: ctypes.CDLL, image: bytes) -> tuple[dict[str, int], list[str], list[SigRow]]:
+    """새 찾기(배율)를 그 이미지에 돌린다: (이름 → RVA 나 자리 — 못 찾은 것은 0, 찾을 것마다의 까닭, 서명마다의 결과)."""
+    lib.srtoybox_locate_mult.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong, ctypes.POINTER(MultLayout), ctypes.c_char_p, ctypes.c_int,
+                                         ctypes.c_char_p, ctypes.c_int]
+    found, error, rows = MultLayout(), ctypes.create_string_buffer(2048), ctypes.create_string_buffer(8192)
+    lib.srtoybox_locate_mult(image, len(image), ctypes.byref(found), error, len(error), rows, len(rows))
+    why = error.value.decode("utf-8").split("\n")[:len(MULT_FIELDS)]
+    return {name: getattr(found, name) for name in MULT_FIELDS}, why, _sig_rows(rows.value)
+
+
 def locate(cfg: Config) -> Located:
     """설치된 게임의 실행 파일에서 ToyBox 가 쓰는 주소를 찾는다. 게임 안에서 도는 것과 같은 코드(DLL)를 쓴다. 파일을 읽기만 한다.
 
@@ -381,5 +408,6 @@ def locate(cfg: Config) -> Located:
     if clash:
         research, research_why = None, clash  # 게임 안의 ToyBox 도 이때 연구 묶음을 버린다(game_init_from)
     acts, acts_why, act_rows = acts_of(lib, image)
+    mult, mult_why, mult_rows = mult_of(lib, image)
     return Located(state, state_why, rows, ms, values, values_why, value_rows, legacy, legacy_why, more, more_why, more_rows,
-                   research, research_why, research_rows, acts, acts_why, act_rows)
+                   research, research_why, research_rows, acts, acts_why, act_rows, mult, mult_why, mult_rows)

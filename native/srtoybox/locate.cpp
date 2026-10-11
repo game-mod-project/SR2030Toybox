@@ -398,6 +398,37 @@ const struct ActWanted {
 };
 static_assert(sizeof(ActLayout) == ACT_WANTED * sizeof(uint32_t), "ActLayout 의 필드는 표 ACTS 의 순서대로 uint32_t 다");
 
+// 배율(묶음 7). 자료 둘과 지역 객체 안의 자리 일곱 — 모두 치트 코드 밖에서 뽑았다(uv run srkit sig-mine [--offset]).
+// 곱 보정 표의 앞 두 서명에는 지역 하나의 줄(MUL_STEP = 0x320)이 박혀 있다.
+const uint32_t ACT_REGION_TABLE = 0xFFFC;     // 자료: 지역 인덱스마다 MUL_STEP 바이트인 표의 첫 칸(4바이트로 줄 맞춰져 있고 표가 모두 자료 구역 안)
+const ActWanted MULTS[MULT_WANTED] = {
+    {"mul_table", "곱 보정 표", ACT_REGION_TABLE,
+     {"48 69 C8 20 03 00 00 48 8D 04 51 F3 0F 59 9C 30 [u32]", "48 69 C8 20 03 00 00 48 8D 04 51 48 8D 0D ? ? ? ? F3 0F 59 94 08 [u32]",
+      "F3 45 0F 10 94 90 [u32] F3 45 0F 59 D2 45 33 FF"}},
+    {"day", "날의 칸", 4,
+     {"39 3D [rip] 7E 65 8B 81 28 BB 01 00", "39 3D [rip] 7E 68 8B 83 28 BB 01 00", "FF 05 [rip] 45 33 C9 48 8B 0D ? ? ? ?"}},
+    {"tax_total", "연간 세수 칸", ACT_CONSTANT,
+     {"F2 0F 10 97 [u32] F3 0F 10 4E 40 0F 57 C0", "F2 0F 10 86 [u32] 66 0F 2F 86 C0 A6 00 00 76 04",
+      "F2 0F 58 80 [u32] F2 0F 58 05 ? ? ? ? F2 0F 5E C8"}},
+    {"army_pay_level", "군 인건비의 지출 수준 칸", ACT_CONSTANT,
+     {"F3 0F 10 93 [u32] 0F 2F DA 76 51", "B8 [u32] 0F 44 C1 F3 0F 10 34 18", "F3 44 0F 10 B6 [u32] 45 0F 2F F4 76 0F"}},
+    {"army_upkeep_level", "군 유지비의 지출 수준 칸", ACT_CONSTANT,
+     {"F3 0F 10 9B [u32] F2 0F 58 D0 0F 28 C5", "B8 [u32] 41 B8 E0 01 00 00 41 0F 44 C0", "F3 44 0F 10 8B [u32] 45 0F 2F CE F3 41 0F 59 C5"}},
+    {"army_pay", "군 인건비 칸", ACT_CONSTANT,
+     {"F3 0F 59 8B [u32] 0F 2F C1 76 14", "F3 0F 10 87 [u32] 45 8B E5 F3 0F 59 87 DC A6 00 00",
+      "F3 41 0F 58 88 [u32] 66 42 0F 6E 04 00 41 0F B6 40 1C"}},
+    {"army_upkeep", "군 유지비 칸", ACT_CONSTANT,
+     {"F3 0F 10 AB [u32] 45 84 FF B9 DC 01 00 00", "F3 0F 10 AB [u32] 0F 5A C9 F3 0F 58 83 0C 4D 01 00",
+      "F3 0F 10 87 [u32] 45 8B E5 F3 0F 59 87 E0 A6 00 00"}},
+    {"unit_cost", "부대 생산비 칸", ACT_CONSTANT,
+     {"89 81 [u32] 8B 81 98 BB 01 00 89 81 E0 4B 01 00", "F3 0F 58 83 [u32] F3 0F 10 8B E8 A9 00 00 0F 5A C9",
+      "F3 0F 10 9B [u32] F3 44 0F 10 83 FC 4B 01 00 F3 0F 58 CB"}},
+    {"research_step", "연구의 하루치 칸", ACT_CONSTANT,
+     {"F3 0F 5C 83 [u32] 89 47 24 44 0F 2F F8", "F3 0F 10 89 [u32] F3 0F 10 05 ? ? ? ? 0F 2F C1 76 04", "F3 0F 11 83 [u32] 0F 5A C6 66 0F 2F 83"}},
+};
+static_assert(sizeof(MultLayout) == MULT_WANTED * sizeof(uint32_t), "MultLayout 의 필드는 표 MULTS 의 순서대로 uint32_t 다");
+static_assert(MULT_WANTED <= ACT_WANTED, "서명 표의 크기는 가장 큰 표에 맞춘다");
+
 // 연구의 일곱. 같은 규칙으로 뽑되(uv run srkit sig-mine …) 꼴의 상수가 박힌 명령까지 늘렸다(--with · --back · --through-jumps).
 // 서명마다 무엇이 박혀 있는지는 docs/11-game-internals.md 의 표와 tests/test_toybox_game.py 의 RESEARCH_PINS 에 있다:
 //   기술 표        레코드 88h · 보유 묶음 +50h · 묶음 80h 바이트 / 수준 +1 · 빈 자리(+0 이 0)
@@ -807,7 +838,8 @@ void name_rows(const Row *table, int n, SigRow *rows)
 }  // namespace
 
 // 올라와 있는 실행 파일에는 읽을 수 없는 쪽이 있을 수 있다(보호된 구역). 그때도 죽지 않는다 — 여기서 예외가 새면 게임이 뜨다가 죽는다.
-int search_acts(const uint8_t *image, size_t size, ActLayout *out, SigRow *rows, char (*why)[MORE_WHY])
+int search_items(const ActWanted *table, int n, int need, const uint8_t *image, size_t size, uint32_t *fields, SigRow *rows,
+                 char (*why)[MORE_WHY])
 {
     Image im = {};
     im.p = image;
@@ -817,48 +849,63 @@ int search_acts(const uint8_t *image, size_t size, ActLayout *out, SigRow *rows,
     SigHit hits[MAX_TABLE];
     if (image == nullptr || !parse(im))
         snprintf(broken, sizeof(broken), "실행 파일의 머리말을 읽을 수 없습니다");
-    if (broken[0] != '\0' || !scan_table(im, ACTS, ACT_WANTED, rows, sigs, hits, broken, sizeof(broken))) {
-        for (int w = 0; w < ACT_WANTED; w++)
+    if (broken[0] != '\0' || !scan_table(im, table, n, rows, sigs, hits, broken, sizeof(broken))) {
+        for (int w = 0; w < n; w++)
             snprintf(why[w], MORE_WHY, "%s", broken);
         return 0;
     }
     int found = 0;
-    uint32_t *const fields = &out->colonize;
-    for (int w = 0; w < ACT_WANTED; w++) {
+    for (int w = 0; w < n; w++) {
         uint64_t value[SIG_CAPTURES] = {};
         why[w][0] = '\0';
-        if (!vote_item(ACTS, w, "주소를", sigs, hits, value, why[w], MORE_WHY, STATE_SIGS))   // 셋이 모두 맞아야 한다 — 엉뚱한 함수를 부르지 않는다
+        if (!vote_item(table, w, "주소를", sigs, hits, value, why[w], MORE_WHY, need))
             continue;
-        const bool function = ACTS[w].bytes == 0;
+        const bool function = table[w].bytes == 0;
         if (function
             && (value[0] == 0 || value[0] >= size || function_root(im, static_cast<uint32_t>(value[0])) != value[0])) {
-            snprintf(why[w], MORE_WHY, "%s: 찾은 주소가 함수의 시작이 아닙니다", ACTS[w].label);
+            snprintf(why[w], MORE_WHY, "%s: 찾은 주소가 함수의 시작이 아닙니다", table[w].label);
             continue;
         }
-        if (ACTS[w].bytes == ACT_TABLE) {
+        if (table[w].bytes == ACT_TABLE) {
             if (value[0] == 0 || value[0] % 8 != 0 || value[0] + 8ull * (GUI_SET + 1) > size) {
-                snprintf(why[w], MORE_WHY, "%s: 찾은 주소가 표의 자리가 아닙니다", ACTS[w].label);
+                snprintf(why[w], MORE_WHY, "%s: 찾은 주소가 표의 자리가 아닙니다", table[w].label);
                 continue;
             }
-        } else if (ACTS[w].bytes == ACT_WORLD_CONSTANT) {
+        } else if (table[w].bytes == ACT_REGION_TABLE) {
+            if (value[0] == 0 || value[0] % 4 != 0 || value[0] + static_cast<uint64_t>(MUL_STEP) * REGION_SLOTS > size
+                || !in_data(im, static_cast<uint32_t>(value[0]), MUL_STEP * REGION_SLOTS)) {
+                snprintf(why[w], MORE_WHY, "%s: 찾은 주소가 쓸 수 있는 자료 구역이 아닙니다", table[w].label);
+                continue;
+            }
+        } else if (table[w].bytes == ACT_WORLD_CONSTANT) {
             if (value[0] == 0 || value[0] >= 0x1000000) {
-                snprintf(why[w], MORE_WHY, "%s: 찾은 자리가 범위 밖입니다", ACTS[w].label);
+                snprintf(why[w], MORE_WHY, "%s: 찾은 자리가 범위 밖입니다", table[w].label);
                 continue;
             }
-        } else if (ACTS[w].bytes == ACT_CONSTANT) {
+        } else if (table[w].bytes == ACT_CONSTANT) {
             if (!offset_ok(value[0])) {
-                snprintf(why[w], MORE_WHY, "%s: 찾은 자리가 범위 밖입니다", ACTS[w].label);
+                snprintf(why[w], MORE_WHY, "%s: 찾은 자리가 범위 밖입니다", table[w].label);
                 continue;
             }
-        } else if (!function && (value[0] == 0 || value[0] + ACTS[w].bytes > size || value[0] % ACTS[w].bytes != 0
-                                 || !in_data(im, static_cast<uint32_t>(value[0]), ACTS[w].bytes))) {
-            snprintf(why[w], MORE_WHY, "%s: 찾은 주소가 쓸 수 있는 자료 구역이 아닙니다", ACTS[w].label);
+        } else if (!function && (value[0] == 0 || value[0] + table[w].bytes > size || value[0] % table[w].bytes != 0
+                                 || !in_data(im, static_cast<uint32_t>(value[0]), table[w].bytes))) {
+            snprintf(why[w], MORE_WHY, "%s: 찾은 주소가 쓸 수 있는 자료 구역이 아닙니다", table[w].label);
             continue;
         }
         fields[w] = static_cast<uint32_t>(value[0]);
         found |= 1 << w;
     }
     return found;
+}
+
+int search_acts(const uint8_t *image, size_t size, ActLayout *out, SigRow *rows, char (*why)[MORE_WHY])
+{
+    return search_items(ACTS, ACT_WANTED, STATE_SIGS, image, size, &out->colonize, rows, why);   // 셋이 모두 맞아야 한다 — 엉뚱한 함수를 부르지 않는다
+}
+
+int search_mult(const uint8_t *image, size_t size, MultLayout *out, SigRow *rows, char (*why)[MORE_WHY])
+{
+    return search_items(MULTS, MULT_WANTED, STATE_NEED, image, size, &out->mul_table, rows, why);
 }
 
 // __try 가 든 함수에는 소멸자가 있는 지역 변수를 둘 수 없어 찾는 일(search_legacy · search_state · search_values · search_more)과 따로 뗐다.
@@ -916,6 +963,20 @@ int locate_acts(const uint8_t *image, size_t size, ActLayout *out, SigRow *rows,
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         *out = ActLayout();
         for (int w = 0; w < ACT_WANTED; w++)
+            snprintf(why[w], MORE_WHY, "실행 파일에 읽을 수 없는 곳이 있습니다");
+        return 0;
+    }
+}
+
+int locate_mult(const uint8_t *image, size_t size, MultLayout *out, SigRow *rows, char (*why)[MORE_WHY])
+{
+    name_rows(MULTS, MULT_WANTED, rows);
+    *out = MultLayout();
+    __try {
+        return search_mult(image, size, out, rows, why);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        *out = MultLayout();
+        for (int w = 0; w < MULT_WANTED; w++)
             snprintf(why[w], MORE_WHY, "실행 파일에 읽을 수 없는 곳이 있습니다");
         return 0;
     }

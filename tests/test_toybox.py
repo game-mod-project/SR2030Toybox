@@ -117,7 +117,9 @@ def test_only_cheats_that_were_seen_working_and_reach_what_the_user_chose(dll, c
 
 KEEP_DEFAULTS = "keep.treasury=0\nkeep.treasury.value=0\n" + "".join(f"keep.stock.{slot}=0\nkeep.stock.{slot}.value=0\n"
                                                                       for slot in range(12))
-DEFAULTS = "hotkey_vk=84\nhotkey_mods=3\nmoney.amount=10000\n" + KEEP_DEFAULTS + "technology=120\nspawnunit=2413\ndarran=7\n"
+MULT_DEFAULTS = "mult.on=0\nmult.tax=100\nmult.defense=100\nmult.social=100\nmult.research=100\n" + "".join(
+    f"mult.out.{slot}=100\nmult.use.{slot}=100\nmult.raw.{slot}=100\n" for slot in range(11))
+DEFAULTS = "hotkey_vk=84\nhotkey_mods=3\nmoney.amount=10000\n" + KEEP_DEFAULTS + MULT_DEFAULTS + "technology=120\nspawnunit=2413\ndarran=7\n"
 
 
 def kept(**lines: int) -> str:
@@ -158,7 +160,7 @@ def test_keep_settings(dll):
                 "keep.stock.12=1\nkeep.stock.12.value=5\nkeep.stock.-1=1\nkeep.stock.=1\nkeep.stock.x=1\nkeep.stock.3.amount=5\n"
                 "keep.stock.3x=1\nkeep.stock=1\nkeep.stock.123=1\nkeep.stock. 3=1\n") == DEFAULTS
     assert norm("keep.stock.5=1\nkeep.stock.5=x\nkeep.stock.6=1\n") == kept(keep__stock__5=1, keep__stock__6=1)
-    assert len(kept(**{f"keep__stock__{slot}__value": 1000000000 for slot in range(12)}, keep__treasury__value=1000000)) < 1024   # 읽는 쪽은 4096 까지 읽는다
+    assert len(kept(**{f"keep__stock__{slot}__value": 1000000000 for slot in range(12)}, keep__treasury__value=1000000)) < 4096   # 읽는 쪽은 16384 까지 읽는다
 
 
 def test_settings_file_round_trip(dll, tmp_path, monkeypatch):

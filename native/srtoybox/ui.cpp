@@ -44,6 +44,7 @@ bool g_reporting;             // 테스트가 그린 것의 목록을 청했다(
 std::string g_report, g_drawing;   // 지난 프레임의 목록 / 지금 모으는 것
 float g_footer;               // 바닥 줄들(알림 · 안내)의 높이 — 지난 프레임에 잰 것
 Keep g_keep_sent;             // keeper 에 마지막으로 넘긴 최소 유지(저장한 설정과 같다)
+Mult g_mult_sent;             // keeper 에 마지막으로 넘긴 배율(〃)
 // 기술 · 부대 설계의 목록 하나의 상태. 연구 탭의 목록과 부대 탭의 설계도 목록이 저마다 하나씩 갖는다(같은 코드로 그린다 — item_list).
 struct ListState {
     int each = 1;                 // 부대 탭: "고른 것을 수량만큼 생성"의 수량(설계마다)
@@ -319,6 +320,149 @@ void send_keep(bool save)
         save_settings(g_settings);
     keeper_set_keep(want);
     g_keep_sent = want;
+}
+
+Mult mult_of(const Settings &s)
+{
+    Mult m;
+    m.on = s.mult_on;
+    m.tax = s.mult_tax;
+    m.defense = s.mult_defense;
+    m.social = s.mult_social;
+    m.research = s.mult_research;
+    for (int i = 0; i < MULT_GOODS; i++) {
+        m.out[i] = s.mult_out[i];
+        m.use[i] = s.mult_use[i];
+        m.raw[i] = s.mult_raw[i];
+    }
+    return m;
+}
+
+// 창에서 고친 배율을 keeper 에 넘긴다(save 면 설정 파일에도 적는다). 달라진 것이 없으면 아무것도 하지 않는다.
+void send_mult(bool save)
+{
+    const Mult want = mult_of(g_settings);
+    if (want == g_mult_sent)
+        return;
+    if (want.on != g_mult_sent.on || want.on)
+        log_line("배율 %s: 세금 %d%% · 국방비 %d%% · 사회 지출 비용 %d%% · 연구 속도 %d%% · 물자의 배율 %d개", want.on ? "켬" : "끔", want.tax,
+                 want.defense, want.social, want.research,
+                 mult_count(want) - (want.tax != 100) - (want.defense != 100) - (want.social != 100) - (want.research != 100));
+    if (save)
+        save_settings(g_settings);
+    keeper_set_mult(want);
+    g_mult_sent = want;
+}
+
+// 배율의 퍼센트 입력란. 입력을 마쳤을 때(Enter, 다른 곳을 누름, + · − 단추)에만 값이 넘어온다. + · − 는 10 씩(Ctrl 을 누르면 100 씩).
+void mult_input(const char *id, const std::string &name, int *value, int low)
+{
+    ImGui::SetNextItemWidth(110.0f);
+    if (ImGui::InputInt(id, value, 10, 100)) {
+        *value = std::min(MULT_PERCENT_MAX, std::max(low, *value));
+        send_mult(true);
+    }
+    note(name, std::to_string(*value));
+}
+
+// 상태 줄의 뒤에 붙는 글: 배율이 켜져 있고 100 이 아닌 것이 있으면 " · 배율 N개".
+std::string mult_text()
+{
+    const int count = mult_count(g_mult_sent);
+    return g_mult_sent.on && count > 0 ? " · 배율 " + std::to_string(count) + "개" : std::string();
+}
+
+// 배율 탭. 설정이다 — 게임 밖에서도 고칠 수 있다. 찾지 못한 묶음의 줄은 꺼져 있고 그 위에 까닭이 한 줄 있다.
+void mult_tab(const GameState &game)
+{
+    if (ImGui::Checkbox("배율 적용", &g_settings.mult_on))
+        send_mult(true);
+    note("mult:on", g_settings.mult_on ? "1" : "0");
+    ImGui::SameLine();
+    ImGui::TextDisabled("퍼센트 — 100 이 그대로다. 플레이하는 나라에만 듣는다");
+    help("help:mult", "켜 두면 창을 닫아도, 새 판에서도 계속된다. 세금 · 국방비는 날이 바뀔 때 국고에 차이를 더하거나 뺀다(재무 패널의 숫자는 그대로다). "
+                      "연구 속도는 날이 바뀔 때 진행 중인 연구의 남은 기간을 더 줄인다. 생산 · 소비 · 사회 지출 비용은 게임의 보정 값에 곱한다");
+    if (!game_writes() && game.known) {
+        ImGui::TextWrapped("값 쓰기가 꺼져 있어 배율이 쉽니다.");
+        note("mult:off", "값 쓰기가 꺼져 있어 배율이 쉽니다.");
+    }
+    const std::string money = game_mult_off(MULT_PART_MONEY), speed = game_mult_off(MULT_PART_SPEED), cells = game_mult_off(MULT_PART_CELLS);
+    const auto why = [](const char *name, const char *what, const std::string &text) {
+        if (text.empty())
+            return;
+        const std::string line = std::string(what) + "을(를) 쓸 수 없습니다: " + text;
+        ImGui::TextWrapped("%s", line.c_str());
+        note(name, line);
+    };
+    ImGui::SeparatorText("국고 · 연구");
+    why("mult:money:off", "세금 · 국방비의 배율", money);
+    why("mult:speed:off", "연구 속도의 배율", speed);
+    ImGui::BeginDisabled(!money.empty());
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted("세금");
+    ImGui::SameLine();
+    mult_input("##tax", "mult:tax", &g_settings.mult_tax, 0);
+    ImGui::SameLine();
+    ImGui::TextUnformatted("국방비");
+    ImGui::SameLine();
+    mult_input("##defense", "mult:defense", &g_settings.mult_defense, 0);
+    ImGui::EndDisabled();
+    ImGui::BeginDisabled(!cells.empty());
+    ImGui::SameLine();
+    ImGui::TextUnformatted("사회 지출 비용");
+    ImGui::SameLine();
+    mult_input("##social", "mult:social", &g_settings.mult_social, MULT_CELL_MIN);
+    ImGui::EndDisabled();
+    ImGui::BeginDisabled(!speed.empty());
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted("연구 속도");
+    ImGui::SameLine();
+    mult_input("##research", "mult:research", &g_settings.mult_research, MULT_RESEARCH_MIN);
+    ImGui::EndDisabled();
+    const MultStats stats = keeper_mult_stats();
+    const std::string did = "이번 실행: 날마다의 일 " + std::to_string(stats.days) + "일 · 보정 칸 쓰기 " + std::to_string(stats.writes) + "번 · 지금 "
+        + std::to_string(stats.held) + "칸";
+    ImGui::SameLine();
+    ImGui::TextDisabled("%s", did.c_str());
+    note("mult:stats", did);
+    ImGui::SeparatorText("물자");
+    why("mult:cells:off", "물자와 사회 지출 비용의 배율", cells);
+    GameValues now;
+    if (game.known && game.in_game && !game.multiplayer && game_values_off().empty())
+        now = game_values();
+    const ImGuiTableFlags flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV
+        | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY;
+    if (!ImGui::BeginTable("mult", 4, flags))
+        return;
+    ImGui::TableSetupScrollFreeze(1, 1);
+    ImGui::TableSetupColumn("물자");
+    ImGui::TableSetupColumn("생산 %");
+    ImGui::TableSetupColumn("인구 소비 %");
+    ImGui::TableSetupColumn("산업 소비 %");
+    ImGui::TableHeadersRow();
+    ImGui::BeginDisabled(!cells.empty());
+    for (int slot = 0; slot < MULT_GOODS; slot++) {
+        const bool unused = now.ok && !now.used[slot];
+        const std::string name = "mult:" + std::to_string(slot), label = product_label(slot);
+        ImGui::PushID(slot);
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::AlignTextToFramePadding();
+        if (unused)
+            ImGui::TextDisabled("%s", label.c_str());   // 이번 판에서 쓰지 않는 물자 — 설정은 고칠 수 있다
+        else
+            ImGui::TextUnformatted(label.c_str());
+        note(name, label);
+        ImGui::TableNextColumn();
+        mult_input("##out", name + ":out", &g_settings.mult_out[slot], MULT_CELL_MIN);
+        ImGui::TableNextColumn();
+        mult_input("##use", name + ":use", &g_settings.mult_use[slot], MULT_CELL_MIN);
+        ImGui::TableNextColumn();
+        mult_input("##raw", name + ":raw", &g_settings.mult_raw[slot], MULT_CELL_MIN);
+        ImGui::PopID();
+    }
+    ImGui::EndDisabled();
+    ImGui::EndTable();
 }
 
 // 최소 유지의 수량 입력란. 치는 동안의 값(5, 50, 500 …)은 쓰이지 않는다 — ImGui 의 InputScalar 는 입력을 마쳤을 때
@@ -982,7 +1126,7 @@ void status_line(const GameState &game)
         : game.multiplayer ? "멀티플레이에서는 동작하지 않습니다"
         : !game.in_game ? "게임을 진행 중이 아닙니다 — 단추가 꺼져 있습니다"
         : "플레이 중: " + region_label(game.player) + " (" + std::to_string(game.player) + ")";
-    const std::string text = state + keep_text(game);   // 최소 유지가 켜져 있으면 늘 보인다 — 켜 둔 것을 잊지 않게
+    const std::string text = state + keep_text(game) + mult_text();   // 최소 유지 · 배율이 켜져 있으면 늘 보인다 — 켜 둔 것을 잊지 않게
     if (!game.known)
         ImGui::TextDisabled("%s", text.c_str());
     else
@@ -997,6 +1141,7 @@ void ui_init()
     Lock lock(ui_mutex());
     g_settings = load_settings();
     send_keep(false);             // 저장해 둔 최소 유지를 keeper 에 넘긴다 — 창을 한 번도 열지 않아도 돈다
+    send_mult(false);             // 배율도
 }
 
 bool ui_visible()
@@ -1088,6 +1233,14 @@ void ui_draw()
                 values_tab = true;
                 if (ImGui::BeginChild("body", body))
                     values_ok = stock_tab(game, blocked);
+                ImGui::EndChild();
+                ImGui::EndTabItem();
+            }
+            const bool mult = ImGui::BeginTabItem("배율");   // 셋째 탭. 설정이다 — 단추가 없다
+            note("tab:배율", "배율");
+            if (mult) {
+                if (ImGui::BeginChild("body", body))
+                    mult_tab(game);
                 ImGui::EndChild();
                 ImGui::EndTabItem();
             }

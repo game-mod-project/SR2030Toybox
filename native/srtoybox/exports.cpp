@@ -386,6 +386,26 @@ EXPORT int srtoybox_locate_acts(const unsigned char *image, unsigned long long s
     return acts;
 }
 
+// 새 찾기(배율)를 그 이미지에 돌린다. 돌려주는 값은 찾은 것의 비트. error 에는 찾을 것마다 한 줄(찾았으면 빈 줄), rows 는 서명마다의 결과.
+EXPORT int srtoybox_locate_mult(const unsigned char *image, unsigned long long size, MultLayout *out, char *error, int error_size,
+                                char *rows, int rows_size)
+{
+    MultLayout found = {};
+    SigRow table[MULT_WANTED * STATE_SIGS];
+    char why[MULT_WANTED][MORE_WHY] = {};
+    const int mult = locate_mult(image, static_cast<size_t>(size), &found, table, why);
+    if (rows != nullptr)
+        put(rows_text(table, MULT_WANTED * STATE_SIGS), rows, rows_size);
+    std::string lines;
+    for (int w = 0; w < MULT_WANTED; w++)
+        lines += std::string(why[w]) + '\n';
+    if (error != nullptr)
+        put(lines, error, error_size);
+    if (out != nullptr)
+        *out = found;
+    return mult;
+}
+
 // 테스트: 이 프로세스의 "게임"에 부르는 함수의 자리를 준다(srtoybox_test_game 다음에 부른다). colonize 는 그 자리에 둘 함수.
 EXPORT void srtoybox_test_acts(const ActLayout *layout, void *colonize, void *fight, void *become, void *elect, void *news, void *treaty,
                                void *annex, void *spawn, void *deploy)
@@ -747,6 +767,66 @@ EXPORT int srtoybox_keeper_text(char *out, int size)
 }
 
 // 테스트: keeper 와, 그것이 함께 쓰는 실행기의 오류 가드 · "게임의 함수 안" 깃발을 지운다.
+// 테스트: 이 프로세스의 "게임"에 배율의 자리를 준다(srtoybox_test_game 다음에 부른다).
+EXPORT void srtoybox_test_mult(const MultLayout *layout)
+{
+    game_set_mult_for_test(layout);
+}
+
+// 배율의 그 부분(MULT_PART_*)을 쓸 수 없는 까닭. 쓸 수 있으면 빈 글.
+EXPORT int srtoybox_mult_off(int part, char *out, int size)
+{
+    return put(game_mult_off(part), out, size);
+}
+
+// 테스트: 배율의 설정을 고친다. spec 은 빈칸으로 나눈 "키=값"들 — on · tax · defense · social · research · out.<칸> · use.<칸> · raw.<칸>.
+// 적지 않은 것은 그대로다. 모르는 키가 있으면 -1(아무것도 바꾸지 않는다).
+EXPORT int srtoybox_keeper_mult(const char *spec)
+{
+    Mult m = keeper_mult();
+    std::string text = spec == nullptr ? "" : spec;
+    size_t pos = 0;
+    while (pos < text.size()) {
+        size_t end = text.find(' ', pos);
+        if (end == std::string::npos)
+            end = text.size();
+        const std::string pair = text.substr(pos, end - pos);
+        pos = end + 1;
+        if (pair.empty())
+            continue;
+        const size_t eq = pair.find('=');
+        if (eq == std::string::npos)
+            return -1;
+        const std::string key = pair.substr(0, eq);
+        const int n = atoi(pair.c_str() + eq + 1);
+        if (key == "on")
+            m.on = n != 0;
+        else if (key == "tax")
+            m.tax = n;
+        else if (key == "defense")
+            m.defense = n;
+        else if (key == "social")
+            m.social = n;
+        else if (key == "research")
+            m.research = n;
+        else if (key.size() > 4 && key[3] == '.' && atoi(key.c_str() + 4) >= 0 && atoi(key.c_str() + 4) < MULT_GOODS
+                 && (key.compare(0, 3, "out") == 0 || key.compare(0, 3, "use") == 0 || key.compare(0, 3, "raw") == 0))
+            (key[0] == 'o' ? m.out : key[0] == 'u' ? m.use : m.raw)[atoi(key.c_str() + 4)] = n;
+        else
+            return -1;
+    }
+    keeper_set_mult(m);
+    return 0;
+}
+
+// 테스트: "<날마다의 일을 한 날수>\t<곱 보정 칸을 쓴 횟수>\t<지금 ToyBox 의 값이 든 칸의 수>\t<100 이 아닌 배율의 수>".
+EXPORT int srtoybox_mult_stats(char *out, int size)
+{
+    const MultStats s = keeper_mult_stats();
+    return put(std::to_string(s.days) + "\t" + std::to_string(s.writes) + "\t" + std::to_string(s.held) + "\t"
+               + std::to_string(mult_count(keeper_mult())), out, size);
+}
+
 EXPORT void srtoybox_keeper_reset(void)
 {
     keeper_reset_for_test();

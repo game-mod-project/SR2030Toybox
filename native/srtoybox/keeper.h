@@ -117,4 +117,35 @@ std::string keep_active_text(const Keep &keep, const bool *used);
 // 쉬는 동안의 글: " · 유지 3개 켜짐(<까닭>)". 켜진 것이 없으면 빈 글.
 std::string keep_resting_text(const Keep &keep, const char *why);
 
+// 배율(묶음 7 — docs/superpowers/specs/2026-10-11-toybox-stage7-design.md). 모두 퍼센트(100 이 "그대로")이고 on 이 꺼져 있으면 아무것도 쓰지 않는다.
+// 플레이어의 나라에만 듣는다. 설정 창이 닫혀 있어도, 새 판에서도 돈다(저장되는 설정이다).
+//   out · use · raw · social   게임의 곱 보정 표의 플레이어 칸에 곱해 쓴다. KEEP_EVERY_MS 마다 보고, 게임이 다시 셈해 지웠으면 다시 쓴다.
+//                              100 으로 돌리거나 끄면 그 칸이 아직 ToyBox 가 쓴 값일 때 게임의 값으로 되돌린다.
+//   tax · defense              날이 바뀔 때 국고에 (배율 − 1) × 하루치 세수를 더하고 (배율 − 1) × 하루치 국방 지출을 뺀다.
+//   research                   날이 바뀔 때 진행 중인 연구 노드의 남은 기간에서 (배율 − 1) × 하루치를 더 뺀다.
+// 날은 게임의 날의 칸이 1 … MULT_DAYS_MAX 올랐을 때만 센다(그 밖의 변화 — 불러오기 · 새 판 — 와 플레이어가 바뀐 때에는 다시 맞추기만 한다).
+const int MULT_PERCENT_MAX = 1000;             // 모든 배율의 끝
+const int MULT_CELL_MIN = 1;                   // 곱 보정 칸의 배율(생산 · 소비 · 사회 지출 비용)의 처음 — 0 을 쓰지 않는다
+const int MULT_RESEARCH_MIN = 10;              // 연구 속도의 처음
+const uint32_t MULT_DAYS_MAX = 3;
+struct Mult {
+    bool on = false;
+    int tax = 100, defense = 100;              // 0 … MULT_PERCENT_MAX
+    int social = 100;                          // MULT_CELL_MIN … MULT_PERCENT_MAX — 아래 셋도
+    int research = 100;                        // MULT_RESEARCH_MIN … MULT_PERCENT_MAX
+    int out[MULT_GOODS] = {100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100};   // 물자마다의 생산
+    int use[MULT_GOODS] = {100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100};   // 물자마다의 인구 소비
+    int raw[MULT_GOODS] = {100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100};   // 물자마다의 산업 원자재 소비
+};
+bool operator==(const Mult &a, const Mult &b);
+void keeper_set_mult(const Mult &mult);         // 창이 설정을 읽었거나 고쳤다. 다음 틱에 바로 본다
+Mult keeper_mult();
+int mult_count(const Mult &mult);              // 100 이 아닌 배율의 수(on 과 상관없이)
+// 이번 실행에서 배율이 한 일: 날마다의 일을 한 날수, 곱 보정 칸을 쓴 횟수(게임이 지워 다시 쓴 것 포함), 지금 ToyBox 의 값이 든 칸의 수.
+struct MultStats {
+    unsigned long long days = 0, writes = 0;
+    int held = 0;
+};
+MultStats keeper_mult_stats();
+
 void keeper_reset_for_test();

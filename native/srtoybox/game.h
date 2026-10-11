@@ -33,6 +33,9 @@
 // (묶음이 없으면 그 포인터 칸에 새 묶음을 건다). 그리고 게임 창에 메시지 하나를 보낸다(Windows 의 PostMessageA — 게임의 함수가 아니다). 사용자가 정했다(2026-10-11).
 // "고른 부대의 보급"(3단계 5, 내장 치트 stranded 를 옮긴 것)은 게임에서 고른 부대 가운데 플레이어의 부대 객체의 float 두 칸(+0x80 · +0x84)에 쓴다
 // — 플레이어 지역 객체 밖에 쓰는 곳이다. 게임의 함수는 부르지 않는다. 사용자가 정했다(2026-10-11).
+// "배율"(묶음 7)은 플레이어의 곱 보정 줄(모든 지역이 함께 든 표에서 플레이어의 줄)의 칸 마흔하나 — 물자의 산업 소비 · 인구 소비 · 산출, 사회 지출 비용 — 와
+// 플레이어의 연구 목록에서 진행 중인 노드의 남은 기간 칸(float)에 쓴다. 세금 · 국방비의 배율은 국고 칸에 쓴다(이미 쓰는 곳). 다른 지역의 줄에는 쓰지 않는다.
+// 날의 칸(전역)과 지역 객체의 예산 칸 일곱은 읽기만 한다. 게임의 함수는 부르지 않는다. 사용자가 정했다(2026-10-11).
 // 읽기만 하는 전역이 넷 더 있다: 게임에서 고른 부대들의 목록(보급), 그리고 "지도에서 고른 지역"(전쟁의 첫째 나라), 지도 객체(병합이 칸의 주인을 읽는다 · 부대 생성이 칸이 지도 안인지 본다),
 // "지도에서 고른 칸"(부대 생성).
 #pragma once
@@ -258,6 +261,38 @@ bool game_research(int picked, ResearchTables *out, std::string *why);
 // 연구를 완료 · 미완료로 바꾼다(write_research). 쓰기가 실패하면(Wrote::Failed) 값 쓰기 전체를 끄고 로그에 적는다 — 그 뒤로는 Wrote::Off 다.
 // Wrote::Crashed 는 부른 쪽이 처리한다(오류 가드를 건다 — runner_win.h).
 Wrote game_write_research(Research action, const ResearchWhat &what, ResearchDone *done);
+
+// 배율(묶음 7 — docs/superpowers/specs/2026-10-11-toybox-stage7-design.md). 게임의 함수는 부르지 않는다.
+// 쓰는 곳은 둘이다: 플레이어의 곱 보정 줄의 칸(game_write_mult), 플레이어의 연구 목록에서 진행 중인 노드의 남은 기간(game_research_push).
+// 세금 · 국방비는 keeper 가 game_daily 로 하루치를 읽어 국고에 쓴다(game_write_treasury).
+const int MULT_PART_CELLS = 0, MULT_PART_MONEY = 1, MULT_PART_SPEED = 2;   // game_mult_off 의 "무엇을"
+// 그 배율을 쓸 수 없는 까닭(창에 그대로 보인다). 쓸 수 있으면 빈 글. 물자의 생산 · 소비 · 사회 지출 비용은 곱 보정 표를,
+// 세금 · 국방비는 날의 칸 · 예산 칸과 국고 칸(값 묶음)을, 연구 속도는 날의 칸 · 하루치 칸과 연구 목록(연구 묶음)을 찾아야 한다.
+std::string game_mult_off(int part);
+// 플레이어의 곱 보정 줄(MUL_CELLS 칸)을 읽는다. *index 에 플레이어의 지역 인덱스. 진행 중이 아니거나 읽을 수 없으면 거짓. 읽기만 한다.
+bool game_mult_row(float *cells, int *index);
+// 플레이어의 곱 보정 줄의 그 칸(1 … MUL_CELLS - 1)에 value 를 쓴다. 0 보다 크고 MUL_VALUE_MAX 보다 작은 유한한 수만(아니면 BadValue).
+// 쓰기가 실패하면 값 쓰기 전체를 끈다(Wrote::Failed).
+const float MUL_VALUE_MAX = 1000.0f;
+Wrote game_write_mult(int cell, float value);
+// 날마다의 일에 쓰는 값. 못 찾은 묶음의 값은 0 이다.
+struct Daily {
+    bool ok = false;           // 읽었다: 게임을 진행 중이고(멀티플레이가 아니다) 날의 칸을 읽었다
+    int index = 0;             // 플레이어의 지역 인덱스
+    uint32_t day = 0;          // 날의 칸
+    double tax = 0;            // 하루치 세수(달러) = 연간 세수의 합 ÷ 365. 유한한 수가 아니거나 음수면 0
+    double defense = 0;        // 하루치 국방 지출(달러) = (인건비 수준 × 인건비 + 유지비 수준 × 유지비) ÷ 365 + 어제의 부대 생산비. 〃
+    float step = 0;            // 연구의 하루치(일). 유한한 수가 아니거나 0 … DAILY_STEP_MAX 밖이면 0
+};
+const float DAILY_STEP_MAX = 100.0f;
+Daily game_daily();
+// 플레이어의 연구 목록에서 진행 중이고(둘째 깃발의 NODE_ACTIVE) 빠지지 않은 노드마다 남은 기간에서 days 를 뺀다(음수면 더한다).
+// NODE_LEFT_MIN 아래로는 내리지 않는다 — 끝내는 것은 게임이 한다. 읽은 값이 유한한 수가 아니거나 0 이하이거나 NODE_LEFT_MAX 를 넘는 노드는
+// 건드리지 않는다. *nodes 에 고친 노드의 수. 목록을 읽을 수 없으면 Wrote::Unreadable(하나도 쓰지 않는다), 쓰기가 실패하면 Wrote::Failed.
+const float NODE_LEFT_MIN = 0.001f, NODE_LEFT_MAX = 100000.0f;
+Wrote game_research_push(float days, int *nodes);
+// 테스트: 배율의 자리를 준다 — 자리가 0 이 아닌 것을 찾은 것으로 친다. nullptr 이면 모두 못 찾은 것으로.
+void game_set_mult_for_test(const MultLayout *layout);
 
 // 테스트: 이 프로세스의 "게임"을 가짜 메모리로 바꾼다. handler 는 명령 처리 함수 자리에 둘 함수(없으면 nullptr).
 // 값의 자리는 비워 두고 값 쓰기의 실패 표시도 지운다 — 자리는 game_set_values_for_test 로 따로 준다.

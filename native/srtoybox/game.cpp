@@ -40,6 +40,8 @@ ResearchLayout g_research;    // 연구의 자리
 bool g_research_found;        // 그것을 찾았다
 char g_research_why[200];     // 못 찾은 까닭
 void *g_recompute;            // 게임의 "지역의 효과를 다시 셈"
+MultLayout g_mult;            // 배율의 자리(못 찾은 것은 0)
+char g_mult_why[MULT_WANTED][MORE_WHY];   // 찾을 것마다 못 찾은 까닭
 void *g_colonize;             // 게임의 "식민지화"(못 찾았으면 nullptr)
 void *g_fight;                // 게임의 "전쟁"(〃)
 uint32_t g_map_pick;          // "지도에서 고른 지역"의 포인터가 든 전역(RVA. 못 찾았으면 0)
@@ -1221,10 +1223,16 @@ void game_init_from(const uint8_t *base, size_t size)
     const int acting = state ? locate_acts(base, size, &acts, nullptr, act_why) : 0;
     const bool researching = state && locate_research(base, size, at, &research, nullptr, research_why, sizeof(research_why))
         && (!values || locate_research_fits(research, layout, research_why, sizeof(research_why)));
+    // 새 찾기: 배율 — 곱 보정 표 · 날의 칸 · 예산 칸. 따로 찾고 따로 꺼진다
+    MultLayout mult = {};
+    char mult_why[MULT_WANTED][MORE_WHY] = {};
+    const int multiplying = state ? locate_mult(base, size, &mult, nullptr, mult_why) : 0;
     const unsigned long long took = GetTickCount64() - started;
 
     {
         std::lock_guard<std::mutex> lock(g_lock);
+        g_mult = mult;
+        memcpy(g_mult_why, mult_why, sizeof(g_mult_why));
         g_base = base;
         g_at = at;
         g_located = state;
@@ -1369,6 +1377,23 @@ void game_init_from(const uint8_t *base, size_t size)
     for (int i = 0; i < MORE_WANTED * STATE_SIGS; i++)   // 찾은 묶음에서만: 셋 가운데 둘로 찾았을 때 맞지 않은 하나
         if ((groups & (1 << locate_more_group(i / STATE_SIGS))) != 0)
             log_unmatched(more_rows[i], i % STATE_SIGS + 1);
+    if (state) {
+        if (multiplying == (1 << MULT_WANTED) - 1) {
+            log_line("배율을 씁니다 (곱 보정 표 +0x%X · 날의 칸 +0x%X · 연간 세수 +0x%X · 군 인건비 +0x%X × +0x%X · 군 유지비 +0x%X × +0x%X · "
+                     "부대 생산비 +0x%X · 연구의 하루치 +0x%X)",
+                     mult.mul_table, mult.day, mult.tax_total, mult.army_pay_level, mult.army_pay, mult.army_upkeep_level, mult.army_upkeep,
+                     mult.unit_cost, mult.research_step);
+        } else {
+            int missing = 0, first = -1;           // 한 줄로: 처음 못 찾은 것과 그 밖의 수
+            for (int w = 0; w < MULT_WANTED; w++)
+                if ((multiplying & (1 << w)) == 0 && missing++ == 0)
+                    first = w;
+            if (missing > 1)
+                log_line("배율의 일부를 쓸 수 없습니다 (%s 외 %d개)", mult_why[first], missing - 1);
+            else
+                log_line("배율의 일부를 쓸 수 없습니다 (%s)", mult_why[first]);
+        }
+    }
     if (researching)
         log_line(write_wanted() ? "연구를 씁니다 (기술 표 +0x%X · 부대 설계 표 +0x%X · 연구 목록 +0x%X · 다시 셈 +0x%X)"
                                 : "연구를 쓰지 않습니다 (SRTOYBOX_WRITE=0. 기술 표 +0x%X · 부대 설계 표 +0x%X · 연구 목록 +0x%X · 다시 셈 +0x%X)",
@@ -1425,6 +1450,9 @@ void game_set_for_test(const uint8_t *base, const GameAddresses *at)
     g_research = ResearchLayout();
     g_research_found = false;
     g_recompute = nullptr;
+    g_mult = MultLayout();
+    for (int w = 0; w < MULT_WANTED; w++)
+        snprintf(g_mult_why[w], MORE_WHY, "배율의 자리를 주지 않았습니다");
     g_colonize = g_fight = g_become = g_elect = g_news = g_treaty = g_annex = g_spawn = g_deploy = nullptr;
     g_units = g_ui_flags = g_gui = g_gui_vtable = g_game_over = g_winners = g_picked_units = g_upgrades = g_map_hex = g_map_pick = g_index2 = g_pointer2 = g_leaders = g_leader_id = g_treaties = g_map = 0;
     for (int w = 0; w < ACT_WANTED; w++)
@@ -2540,4 +2568,176 @@ Wrote game_write_research(Research action, const ResearchWhat &what, ResearchDon
             log_line("연구 쓰기 실패 (%s) — 값 쓰기를 끕니다", done->why.c_str());
     }
     return wrote;
+}
+
+// ---- 배율(묶음 7) ----
+
+void game_set_mult_for_test(const MultLayout *layout)
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    g_mult = layout != nullptr ? *layout : MultLayout();
+    g_write_failed = false;
+}
+
+std::string game_mult_off(int part)
+{
+    std::string values, research;
+    if (part == MULT_PART_MONEY)
+        values = game_values_off();
+    if (part == MULT_PART_SPEED)
+        research = game_research_off();
+    std::lock_guard<std::mutex> lock(g_lock);
+    const uint32_t *const fields = &g_mult.mul_table;
+    const auto missing = [&](int first, int last) -> const char * {
+        for (int w = first; w <= last; w++)
+            if (fields[w] == 0)
+                return g_mult_why[w][0] != '\0' ? g_mult_why[w] : "배율의 자리를 찾지 못했습니다";
+        return nullptr;
+    };
+    const char *why = nullptr;
+    if (part == MULT_PART_CELLS)
+        why = missing(0, 0);
+    else if (part == MULT_PART_MONEY)
+        why = missing(1, 7);                    // 날의 칸 · 연간 세수 · 국방의 다섯
+    else if (part == MULT_PART_SPEED)
+        why = missing(1, 1) != nullptr ? missing(1, 1) : missing(8, 8);
+    else
+        return "없는 묶음입니다";
+    if (why != nullptr)
+        return why;
+    return part == MULT_PART_MONEY ? values : part == MULT_PART_SPEED ? research : std::string();
+}
+
+bool game_mult_row(float *cells, int *index)
+{
+    if (!game_mult_off(MULT_PART_CELLS).empty())
+        return false;
+    const uint8_t *base = nullptr;
+    GameAddresses at = {};
+    MultLayout mult = {};
+    {
+        std::lock_guard<std::mutex> lock(g_lock);
+        base = g_base;
+        at = g_at;
+        mult = g_mult;
+    }
+    uint64_t player = 0;
+    const GameState s = read_player(base, at, &player);
+    if (!s.in_game || s.multiplayer || s.index <= 0 || s.index >= REGION_SLOTS)
+        return false;
+    *index = s.index;
+    return peek(base + mult.mul_table + static_cast<uint64_t>(MUL_STEP) * s.index, cells, sizeof(float) * MUL_CELLS);
+}
+
+Wrote game_write_mult(int cell, float value)
+{
+    if (!game_mult_off(MULT_PART_CELLS).empty() || !game_writes())
+        return Wrote::Off;
+    const uint8_t *base = nullptr;
+    GameAddresses at = {};
+    MultLayout mult = {};
+    {
+        std::lock_guard<std::mutex> lock(g_lock);
+        base = g_base;
+        at = g_at;
+        mult = g_mult;
+    }
+    uint64_t player = 0;
+    const GameState s = read_player(base, at, &player);
+    if (!s.in_game || s.multiplayer || s.index <= 0 || s.index >= REGION_SLOTS)
+        return Wrote::NotInGame;
+    if (cell < 1 || cell >= MUL_CELLS || !std::isfinite(value) || !(value > 0.0f && value < MUL_VALUE_MAX))
+        return Wrote::BadValue;
+    const uint64_t where = reinterpret_cast<uint64_t>(base) + mult.mul_table + static_cast<uint64_t>(MUL_STEP) * s.index + 4ull * cell;
+    if (!poke(where, &value, sizeof(value)))
+        return write_failed("곱 보정 칸", 1, 0);
+    return Wrote::Done;
+}
+
+Daily game_daily()
+{
+    Daily d;
+    const uint8_t *base = nullptr;
+    GameAddresses at = {};
+    MultLayout mult = {};
+    {
+        std::lock_guard<std::mutex> lock(g_lock);
+        if (!g_located)
+            return d;
+        base = g_base;
+        at = g_at;
+        mult = g_mult;
+    }
+    uint64_t player = 0;
+    const GameState s = read_player(base, at, &player);
+    if (mult.day == 0 || !s.in_game || s.multiplayer || !peek_at(base, mult.day, &d.day))
+        return d;
+    d.ok = true;
+    d.index = s.index;
+    double tax = 0;
+    if (mult.tax_total != 0 && peek_in(player, mult.tax_total, &tax) && std::isfinite(tax) && tax > 0 && tax < 1e18)
+        d.tax = tax / 365.0;
+    float level[2] = {}, cost[2] = {}, units = 0;
+    if (mult.army_pay_level != 0 && mult.army_upkeep_level != 0 && mult.army_pay != 0 && mult.army_upkeep != 0 && mult.unit_cost != 0
+        && peek_in(player, mult.army_pay_level, &level[0]) && peek_in(player, mult.army_upkeep_level, &level[1])
+        && peek_in(player, mult.army_pay, &cost[0]) && peek_in(player, mult.army_upkeep, &cost[1]) && peek_in(player, mult.unit_cost, &units)) {
+        const double yearly = static_cast<double>(level[0]) * cost[0] + static_cast<double>(level[1]) * cost[1];
+        const double daily = yearly / 365.0 + units;
+        if (std::isfinite(daily) && daily > 0 && daily < 1e16 && level[0] >= 0 && level[1] >= 0 && cost[0] >= 0 && cost[1] >= 0 && units >= 0)
+            d.defense = daily;
+    }
+    float step = 0;
+    if (mult.research_step != 0 && peek_in(player, mult.research_step, &step) && std::isfinite(step) && step > 0 && step <= DAILY_STEP_MAX)
+        d.step = step;
+    return d;
+}
+
+Wrote game_research_push(float days, int *nodes)
+{
+    *nodes = 0;
+    if (!game_mult_off(MULT_PART_SPEED).empty() || !game_writes())
+        return Wrote::Off;
+    const uint8_t *base = nullptr;
+    GameAddresses at = {};
+    ResearchLayout r = {};
+    {
+        std::lock_guard<std::mutex> lock(g_lock);
+        base = g_base;
+        at = g_at;
+        r = g_research;
+    }
+    uint64_t player = 0;
+    const GameState s = read_player(base, at, &player);
+    if (!s.in_game || s.multiplayer || s.index <= 0 || s.index >= REGION_SLOTS)
+        return Wrote::NotInGame;
+    if (!std::isfinite(days) || days == 0.0f)
+        return Wrote::BadValue;
+    uint64_t node = 0;
+    if (!peek_at(base, static_cast<uint64_t>(r.world) + r.lists + static_cast<uint64_t>(LIST_STEP) * s.index, &node))
+        return Wrote::Unreadable;
+    std::vector<std::pair<uint64_t, float>> todo;      // 모두 읽은 뒤에 쓴다
+    for (int seen = 0; node != 0; seen++) {
+        uint32_t flags[2] = {};
+        float left = 0;
+        uint64_t next = 0;
+        if (seen >= 65536 || !peek_in(node, NODE_FLAGS, &flags) || !peek_in(node, NODE_LEFT, &left) || !peek_in(node, NODE_NEXT, &next))
+            return Wrote::Unreadable;
+        if ((flags[0] & NODE_GONE) == 0 && (flags[1] & NODE_GONE) == 0 && (flags[1] & NODE_ACTIVE) != 0 && std::isfinite(left) && left > 0.0f
+            && left <= NODE_LEFT_MAX) {
+            float to = left - days;
+            to = to < NODE_LEFT_MIN ? NODE_LEFT_MIN : to > NODE_LEFT_MAX ? NODE_LEFT_MAX : to;
+            if (to != left)
+                todo.push_back({node + NODE_LEFT, to});
+        }
+        node = next;
+    }
+    for (const auto &cell : todo)
+        if (!writable(cell.first, sizeof(float)))
+            return write_failed("연구 노드의 남은 기간", static_cast<int>(todo.size()), 0);
+    for (const auto &cell : todo) {
+        if (!poke(cell.first, &cell.second, sizeof(float)))
+            return write_failed("연구 노드의 남은 기간", static_cast<int>(todo.size()), *nodes);
+        ++*nodes;
+    }
+    return Wrote::Done;
 }
