@@ -30,7 +30,7 @@ const Feature FEATURES[] = {
     {"novichok", "외교·영토", "지도자 제거", "고른 나라의 지도자가 죽는다", "", false, 0, 0, 0, true, Target::Picked, Direct::Novichok},
     {"fight", "외교·영토", "전쟁 붙이기", "지도에서 한 나라를 고른 뒤 누른다. 그 나라와 목록에서 고른 나라가 싸운다", "", false, 0, 0, 0, true, Target::Picked, Direct::Fight},
     {"becomeregion", "외교·영토", "이 나라로 플레이", "플레이하는 나라가 고른 나라로 바뀐다", "", false, 0, 0, 0, true, Target::Picked, Direct::Become},
-    {"spawnunit", "부대", "고른 칸에 부대 생성", "게임의 지도에서 칸을 고른 뒤 누른다. 입력한 설계 번호의 부대 하나가 생긴다(보급은 빈 채). 여럿은 아래 목록에서", "", true, 2413, 1, 21999, false,
+    {"spawnunit", "부대", "고른 칸에 부대 생성", "게임의 지도에서 칸을 고른 뒤 누른다. 입력한 번호의 부대 하나가 생긴다(보급은 빈 채)", "", true, 2413, 1, 21999, false,
      Target::None, Direct::Spawn},
     {"stranded", "부대", "고른 부대 보급 채우기/비우기", "부대를 고른 뒤 누른다. 연료·보급·탄약이 100% 가 되고, 다시 누르면 0% 가 된다", "cheat stranded", false, 0, 0, 0, false},
     {"darran", "부대", "최강 부대 묶음 받기", "병과마다 강한 부대를 한 묶음 받는다", "cheat darran", false, 0, 0, 0, false},
