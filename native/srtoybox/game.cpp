@@ -1380,9 +1380,9 @@ void game_init_from(const uint8_t *base, size_t size)
     if (state) {
         if (multiplying == (1 << MULT_WANTED) - 1) {
             log_line("배율을 씁니다 (곱 보정 표 +0x%X · 날의 칸 +0x%X · 연간 세수 +0x%X · 군 인건비 +0x%X × +0x%X · 군 유지비 +0x%X × +0x%X · "
-                     "부대 생산비 +0x%X · 연구의 하루치 +0x%X)",
+                     "부대 생산비 +0x%X · 연구의 하루치 +0x%X · 사회 지출 +0x%X × +0x%X)",
                      mult.mul_table, mult.day, mult.tax_total, mult.army_pay_level, mult.army_pay, mult.army_upkeep_level, mult.army_upkeep,
-                     mult.unit_cost, mult.research_step);
+                     mult.unit_cost, mult.research_step, mult.social_level, mult.social_cost);
         } else {
             int missing = 0, first = -1;           // 한 줄로: 처음 못 찾은 것과 그 밖의 수
             for (int w = 0; w < MULT_WANTED; w++)
@@ -2582,7 +2582,7 @@ void game_set_mult_for_test(const MultLayout *layout)
 std::string game_mult_off(int part)
 {
     std::string values, research;
-    if (part == MULT_PART_MONEY)
+    if (part == MULT_PART_MONEY || part == MULT_PART_SOCIAL)
         values = game_values_off();
     if (part == MULT_PART_SPEED)
         research = game_research_off();
@@ -2601,11 +2601,13 @@ std::string game_mult_off(int part)
         why = missing(1, 7);                    // 날의 칸 · 연간 세수 · 국방의 다섯
     else if (part == MULT_PART_SPEED)
         why = missing(1, 1) != nullptr ? missing(1, 1) : missing(8, 8);
+    else if (part == MULT_PART_SOCIAL)
+        why = missing(1, 1) != nullptr ? missing(1, 1) : missing(9, 10);
     else
         return "없는 묶음입니다";
     if (why != nullptr)
         return why;
-    return part == MULT_PART_MONEY ? values : part == MULT_PART_SPEED ? research : std::string();
+    return part == MULT_PART_MONEY || part == MULT_PART_SOCIAL ? values : part == MULT_PART_SPEED ? research : std::string();
 }
 
 bool game_mult_row(float *cells, int *index)
@@ -2685,6 +2687,17 @@ Daily game_daily()
         const double daily = yearly / 365.0 + units;
         if (std::isfinite(daily) && daily > 0 && daily < 1e16 && level[0] >= 0 && level[1] >= 0 && cost[0] >= 0 && cost[1] >= 0 && units >= 0)
             d.defense = daily;
+    }
+    float costs[SOCIAL_COUNT] = {}, levels[SOCIAL_COUNT] = {};
+    if (mult.social_cost != 0 && mult.social_level != 0 && peek_in(player, mult.social_cost, &costs) && peek_in(player, mult.social_level, &levels)) {
+        double yearly = 0;
+        bool sane = true;
+        for (int i = 0; i < SOCIAL_COUNT; i++) {
+            sane = sane && std::isfinite(costs[i]) && std::isfinite(levels[i]) && costs[i] >= 0 && levels[i] >= 0 && levels[i] <= 100.0f;
+            yearly += static_cast<double>(costs[i]) * levels[i];
+        }
+        if (sane && std::isfinite(yearly) && yearly > 0 && yearly < 1e18)
+            d.social = yearly / 365.0;
     }
     float step = 0;
     if (mult.research_step != 0 && peek_in(player, mult.research_step, &step) && std::isfinite(step) && step > 0 && step <= DAILY_STEP_MAX)

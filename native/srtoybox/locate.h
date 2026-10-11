@@ -224,15 +224,17 @@ struct MultLayout {
     uint32_t army_upkeep;      // float. 연간 군 유지비의 바탕
     uint32_t unit_cost;        // float. 어제의 부대 생산비(하루치)
     uint32_t research_step;    // float. 연구의 하루치 — 게임이 진행 중인 노드마다 남은 기간에서 이만큼 뺀다
+    uint32_t social_cost;      // float × SOCIAL_COUNT. 사회 지출 여덟 항목의 연간 비용의 바탕
+    uint32_t social_level;     // float × SOCIAL_COUNT. 그 항목들의 지출 수준 — 비용 × 수준 ÷ 365 가 재무 패널의 여덟 줄이다
 };
 
-const int MULT_WANTED = 9;                  // 찾을 것의 수(MultLayout 의 필드 순서와 같다)
-const int MULT_TABLE = 1;                   // 찾은 것의 비트: 곱 보정 표 — 물자의 생산 · 소비, 사회 지출 비용의 배율
+const int MULT_WANTED = 11;                 // 찾을 것의 수(MultLayout 의 필드 순서와 같다)
+const int MULT_TABLE = 1;                   // 찾은 것의 비트: 곱 보정 표 — 물자의 생산 · 소비의 배율
 const int MULT_DAY = 2, MULT_TAX = 4, MULT_ARMY = 8 | 16 | 32 | 64 | 128, MULT_STEP_BIT = 256;
 const uint32_t MUL_STEP = 0x320;            // 곱 보정 표에서 지역 하나의 줄(표를 찾는 서명 둘에 박혀 있다)
 const int MUL_CELLS = 200;                  // 그 줄의 칸 수
 const int MUL_RAW = 24, MUL_USE = 60, MUL_OUT = 72;   // 물자 i 의 산업 원자재 소비 · 인구 소비 · 산출의 칸(+ i, i = 0 … MULT_GOODS - 1)
-const int MUL_SOCIAL = 108, MUL_SOCIAL_COUNT = 8;      // 사회 지출 여덟 항목의 비용의 칸
+const int SOCIAL_COUNT = 8;                 // 사회 지출의 항목 수(보건 · 교육 · 인프라 · 환경 · 가족 수당 · 치안 · 문화 지원 · 사회 보장)
 const int MULT_GOODS = 11;                  // 배율을 두는 물자의 수(재고 칸의 앞 열하나 — 열두째 칸은 쓰지 않는다)
 const uint32_t NODE_LEFT = 0x28;            // float. 연구 노드의 남은 기간(일) — 연구 속도 배율이 쓴다
 const uint32_t NODE_ACTIVE = 0x40000000;    // 둘째 깃발: 진행 중이다(게임이 날마다 남은 기간을 줄이는 노드)
