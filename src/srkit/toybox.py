@@ -67,7 +67,8 @@ RESEARCH_NAMES = {"tech_table": "기술 표의 포인터(qword)", "tech_count": 
 
 # 새 찾기(서명)가 채우는 "부르는 게임의 함수" — native/srtoybox/locate.h 의 ActLayout 과 같은 순서다. 값은 함수의 RVA
 ACT_FIELDS = ["colonize", "fight", "become", "elect", "news", "map_pick", "player_index2", "player_pointer2", "leader_table", "leader_id",
-              "treaty", "treaties", "annex", "map", "spawn", "map_hex", "picked_units", "upgrades", "game_over", "winners", "ui_flags", "gui", "gui_vtable", "deploy_hex", "units"]
+              "treaty", "treaties", "annex", "map", "spawn", "map_hex", "picked_units", "upgrades", "game_over", "winners", "ui_flags", "gui", "gui_vtable", "deploy_hex", "units",
+              "region_name"]
 ACT_NAMES = {"colonize": "식민지화 함수(지역 객체, 다른 지역의 인덱스, 깃발)",
              "fight": "전쟁 함수(지역 객체, 깃발, 다른 지역의 인덱스, 깃발, 깃발)",
              "become": "플레이 지역을 바꾸는 함수(지역 객체, 0)",
@@ -86,6 +87,7 @@ ACT_NAMES = {"colonize": "식민지화 함수(지역 객체, 다른 지역의 �
              "ui_flags": "화면의 깃발들(dword. 비트 0x20000 이 GUI 숨김)", "gui": "GUI 객체의 포인터(qword. 읽기만 한다)",
              "gui_vtable": "GUI 객체의 가상 함수 표(읽기 전용 자료의 RVA — 5번이 깃발을 바꾸는 함수)",
              "units": "세계의 모든 부대(시설 포함)의 목록의 첫 부대(qword. 부대의 +8 로 이어진다. 읽기만 한다)",
+             "region_name": "지역 객체 안의 이름 글의 포인터(qword — 이번 판 · 지금 언어의 이름. 읽기만 한다)",
              "deploy_hex": "배치 칸을 찾는 함수(지역 객체, 받을 자리, 유형)",
              "map_pick": "지도에서 고른 지역(qword — 가리키는 word 가 지역의 인덱스. 읽기만 한다)",
              "player_index2": "플레이어 인덱스의 둘째 사본(dword)", "player_pointer2": "플레이어 포인터의 둘째 사본(qword)"}
@@ -190,6 +192,29 @@ def region_rows(cfg: Config) -> list[tuple[int, str, str]]:
     return [(number, *rows[number]) for number in sorted(rows)]
 
 
+def alias_rows(cfg: Config) -> list[tuple[str, str]]:
+    """모든 지역 번역 테이블(역사 시나리오의 것 포함)에서 (영문 이름, 한글 이름)을 영문의 바이트순으로.
+
+    ToyBox 가 게임에서 읽은 지역 이름(영문)을 한글로 바꿀 때 쓴다 — 역사 시나리오에서는 같은 번호가 다른 나라다.
+    같은 영문 이름이 여러 표에 있으면 현대의 표(REGION_TABLES)가 앞선다. 번역이 빈 행 · 이름이 아닌 긴 글은 뺀다.
+    """
+    tables = [cfg.root / t for t in REGION_TABLES]
+    tables += sorted(p for p in (cfg.root / "mods/korean/translation").glob("*regions*.csv") if p not in tables)
+    rows: dict[str, str] = {}
+    for table in tables:
+        with table.open(encoding="utf-8-sig", newline="") as f:
+            for row in csv.DictReader(f):
+                en, ko = row["en"].strip(), row["ko"].strip()
+                if re.fullmatch(r"REGIONTEXT\|\d+\|0", row["key"]) and en and ko and len(en) <= 60 and not en.startswith("\\"):
+                    rows.setdefault(en, ko)
+    return sorted(rows.items(), key=lambda pair: pair[0].encode("utf-8"))
+
+
+def alias_inc(rows: list[tuple[str, str]]) -> str:
+    """native/srtoybox/regions.cpp 가 끼워 넣는 초기화 목록(한 줄에 이름 하나)."""
+    return "".join(f"{{{c_string(en)}, {c_string(ko)}}},\n" for en, ko in rows)
+
+
 def c_string(text: str) -> str:
     return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
@@ -241,6 +266,7 @@ def build(cfg: Config) -> Path:
     theirs = [imgui / name for name in IMGUI_SOURCES]
     objs = [obj / (p.stem + ".obj") for p in ours + theirs]
     (obj / "regions_table.inc").write_text(regions_inc(region_rows(cfg)), encoding="utf-8", newline="\n")
+    (obj / "regions_alias.inc").write_text(alias_inc(alias_rows(cfg)), encoding="utf-8", newline="\n")
     (obj / "products_table.inc").write_text(products_inc(product_rows(cfg)), encoding="utf-8", newline="\n")
     (obj / "techs_table.inc").write_text(regions_inc(tech_rows(cfg)), encoding="utf-8", newline="\n")
     include = f'/I"{imgui}" /I"{imgui / "backends"}" /I"{obj}" {IMGUI_DEFINES}'

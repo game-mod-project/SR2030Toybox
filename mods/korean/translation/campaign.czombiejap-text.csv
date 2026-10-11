@@ -1,0 +1,16 @@
+﻿key,en,ko,status
+REGIONTEXT|2001|0,Japan,일본,mt
+REGIONTEXT|2001|1,"\42 In early 2020, an infection that began in Wuhan China turns out to be more sinister than anyone could imagine. The infected appear to die, but then rise again.¶¶Japan finds itself uncomfortably close to ground zero of the zombie infection. Asia is the epicenter, but victory over the zombies may still be possible. For now, the goal is just. to survive. ","\42 2020년 초 중국 우한에서 시작된 감염병은 누구도 상상하지 못한 것보다 더 섬뜩한 것으로 드러납니다. 감염자는 죽은 듯하다가 다시 일어섭니다.¶¶일본은 좀비 감염의 진원지와 불편할 만큼 가까운 곳에 놓여 있습니다. 아시아가 진앙이지만, 좀비를 이기는 것이 아직 가능할지도 모릅니다. 지금은 일단 살아남는 것이 목표입니다. ",mt
+LOCALIZE|wintext|0,1,,
+LOCALIZE|wintext|1,2,,
+LOCALIZE|wintext|2,We beat the zombies!,우리가 좀비를 물리쳤습니다!,mt
+LOCALIZE|wintext|3,4,,
+LOCALIZE|wintext|4,5,,
+LOCALIZE|wintext|5,6,,
+LOCALIZE|wintext|6,7,,
+LOCALIZE|wintext|7,8,,
+LOCALIZE|wintext|8,9,,
+LOCALIZE|wintext|9,10,,
+LOCALIZE|losetext|6,You have been Eliminated!  Your region has fallen and you have been forced from office in disgrace.,제거되었습니다! 귀하의 지역이 무너져 불명예스럽게 직에서 쫓겨났습니다.,mt
+LOCALIZE|losetext|8,"There are just too many zombies, we have failed",좀비가 너무 많습니다. 우리는 실패했습니다,mt
+LOCALIZE|losetext|9,You have not been able to meet your objectives and protect your senior leadership from attack.  You have been ousted from power.,목표를 달성하지 못했고 고위 지도부를 공격으로부터 지키지도 못했습니다. 귀하는 권좌에서 쫓겨났습니다.,mt

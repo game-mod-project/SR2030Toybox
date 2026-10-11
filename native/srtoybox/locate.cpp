@@ -395,6 +395,9 @@ const struct ActWanted {
     // 내 부대 전부에 쓰기: 세계의 부대 목록
     {"units", "세계의 부대 목록", 8,
      {"4C 8B 3D [rip] 0F 57 C0 33 C0", "48 8B 15 [rip] 2B D8 4C 8B FA", "48 8B 15 [rip] C1 E8 19 A8 01"}},
+    // 지역의 이름: 판마다 다르다(역사 시나리오의 1188 은 독일, 202 는 다호메이) — 이름표 대신 게임이 지금 쓰는 글을 읽는다
+    {"region_name", "지역 이름의 포인터", ACT_CONSTANT,
+     {"48 8B B3 [u32] 48 85 F6 74 0D", "48 89 BE [u32] 48 85 ED 74 4D", "48 89 BB [u32] 48 8B FD 48 8B 8B 18 BD 01 00"}},
 };
 static_assert(sizeof(ActLayout) == ACT_WANTED * sizeof(uint32_t), "ActLayout 의 필드는 표 ACTS 의 순서대로 uint32_t 다");
 

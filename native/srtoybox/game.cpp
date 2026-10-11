@@ -57,6 +57,7 @@ void *g_deploy;               // 게임의 "배치 칸 찾기"(못 찾았으면 
 uint32_t g_map_hex;           // "지도에서 고른 칸"이 든 전역(RVA. 못 찾았으면 0)
 uint32_t g_ui_flags, g_gui, g_gui_vtable;   // 화면의 깃발 · GUI 객체의 포인터 · 그 객체의 함수 표(RVA. 못 찾았으면 0)
 uint32_t g_units;             // 세계의 부대 목록의 첫 부대가 든 전역(RVA. 못 찾았으면 0)
+uint32_t g_region_name;       // 지역 객체에서 이름 글의 포인터의 자리(못 찾았으면 0)
 uint32_t g_game_over;         // 판이 끝난 꼴이 든 전역(RVA. 못 찾았으면 0)
 uint32_t g_winners;           // 이긴 지역들의 묶음의 포인터가 든 전역(RVA. 못 찾았으면 0)
 uint32_t g_picked_units;      // 게임에서 고른 부대들의 목록의 첫 노드가 든 전역(RVA. 못 찾았으면 0)
@@ -1265,6 +1266,7 @@ void game_init_from(const uint8_t *base, size_t size)
         g_spawn = (acting & ACT_SPAWN) != 0 ? const_cast<uint8_t *>(base) + acts.spawn : nullptr;
         g_map_hex = (acting & ACT_MAP_HEX) != 0 ? acts.map_hex : 0;
         g_units = (acting & ACT_UNITS) != 0 ? acts.units : 0;
+        g_region_name = (acting & ACT_REGION_NAME) != 0 ? acts.region_name : 0;
         g_ui_flags = (acting & ACT_UI_FLAGS) != 0 ? acts.ui_flags : 0;
         g_gui = (acting & ACT_GUI_OBJECT) != 0 ? acts.gui : 0;
         g_gui_vtable = (acting & ACT_GUI_VTABLE) != 0 ? acts.gui_vtable : 0;
@@ -2506,6 +2508,7 @@ void game_set_acts_for_test(const ActLayout *layout, void *colonize, void *fight
     std::lock_guard<std::mutex> lock(g_lock);
     g_deploy = layout != nullptr ? deploy : nullptr;
     g_units = layout != nullptr ? layout->units : 0;
+    g_region_name = layout != nullptr ? layout->region_name : 0;
     g_ui_flags = layout != nullptr ? layout->ui_flags : 0;
     g_gui = layout != nullptr ? layout->gui : 0;
     g_gui_vtable = layout != nullptr ? layout->gui_vtable : 0;
@@ -2537,7 +2540,7 @@ void game_set_acts_for_test(const ActLayout *layout, void *colonize, void *fight
                                     g_treaty != nullptr, g_treaties != 0, g_annex != nullptr, g_map != 0,
                                     g_spawn != nullptr, g_map_hex != 0, g_picked_units != 0, g_upgrades != 0,
                                     g_game_over != 0, g_winners != 0, g_ui_flags != 0, g_gui != 0, g_gui_vtable != 0,
-                                    g_deploy != nullptr, g_units != 0};
+                                    g_deploy != nullptr, g_units != 0, g_region_name != 0};
     for (int w = 0; w < ACT_WANTED; w++)
         snprintf(g_act_why[w], MORE_WHY, "%s", given[w] ? "" : "함수의 자리를 주지 않았습니다");
 }
@@ -2790,4 +2793,45 @@ Wrote game_research_push(float days, int *nodes)
         ++*nodes;
     }
     return Wrote::Done;
+}
+
+// ---- 지역의 이름(게임이 지금 쓰는 글) ----
+
+std::vector<std::pair<int, std::string>> game_region_names()
+{
+    std::vector<std::pair<int, std::string>> out;
+    const uint8_t *base = nullptr;
+    GameAddresses at = {};
+    uint32_t where = 0;
+    {
+        std::lock_guard<std::mutex> lock(g_lock);
+        if (!g_located)
+            return out;
+        base = g_base;
+        at = g_at;
+        where = g_region_name;
+    }
+    int32_t count = 0;
+    if (where == 0 || !read_game(base, at).in_game || !peek_at(base, at.region_count, &count) || count < 1 || count >= MAX_REGIONS)
+        return out;
+    std::vector<uint64_t> table(static_cast<size_t>(count) + 1);
+    if (!peek(base + at.region_table, table.data(), table.size() * sizeof(uint64_t)))
+        return out;
+    for (int i = 1; i <= count; i++) {
+        Region r = {};
+        uint64_t text = 0;
+        char name[NAME_BYTES] = {};
+        if (!peek_region(table[static_cast<size_t>(i)], &r) || !usable(r, i) || !in_play(r) || !peek_in(table[static_cast<size_t>(i)], where, &text)
+            || text == 0)
+            continue;
+        size_t size = sizeof(name) - 1;                 // 글이 쪽의 끝에 걸쳐 있으면 짧게 다시 읽는다
+        while (size >= 8 && !peek(reinterpret_cast<const void *>(text), name, size))
+            size /= 2;
+        if (size < 8)
+            continue;
+        const std::string decoded = game_text_to_utf8(name, size);
+        if (!decoded.empty())
+            out.push_back({r.number, decoded});
+    }
+    return out;
 }
