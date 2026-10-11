@@ -79,9 +79,9 @@ def test_feature_table(dll):
     # 게임에 넣는 글이 없다. 나머지 열하나가 내장 치트로 돈다
     assert {f["id"]: f["how"] for f in fs if f["how"] != "cheat"} == {
         "technology": "tech_level", "e=mc2": "queue_done", "finalexam": "tech_up", "shelovesme": "opinion_best",
-        "love": "relation_best", "neutral": "relation_neutral", "populate": "people_add", "approval": "approval_best", "colonize": "colonize", "fight": "fight", "becomeregion": "become", "novichok": "novichok", "treaty": "treaty"}
+        "love": "relation_best", "neutral": "relation_neutral", "populate": "people_add", "approval": "approval_best", "colonize": "colonize", "fight": "fight", "becomeregion": "become", "novichok": "novichok", "treaty": "treaty", "annex": "annex"}
     cheats = [f for f in fs if f["how"] == "cheat"]
-    assert len(cheats) == 6 == dll.srtoybox_cheat_feature_count() and len({f["command"] for f in cheats}) == 6
+    assert len(cheats) == 5 == dll.srtoybox_cheat_feature_count() and len({f["command"] for f in cheats}) == 5
     assert [f["id"] for f in fs][:3] == ["technology", "e=mc2", "finalexam"]            # 줄의 자리는 옮기기 전과 같다
     assert [(f["label"], f["default"], f["min"], f["max"]) for f in fs[:2]] == [("기술 수준 N 이하 전부 보유", 120, 1, 255),
                                                                               ("대기열의 연구 즉시 완료", 0, 0, 0)]
@@ -90,7 +90,7 @@ def test_feature_table(dll):
         if f["how"] == "cheat":
             assert f["command"] == "cheat " + f["id"]
         else:
-            assert f["command"] == "" and f["confirm"] == (f["id"] in ("colonize", "fight", "becomeregion", "novichok"))   # 동맹 맺기는 한 번에   # 게임의 함수를 부르는 줄은 한 번 더 누른다
+            assert f["command"] == "" and f["confirm"] == (f["id"] in ("colonize", "fight", "becomeregion", "novichok", "annex"))   # 동맹 맺기는 한 번에   # 게임의 함수를 부르는 줄은 한 번 더 누른다
         assert not (f["has_value"] and f["target"] != "none")           # 한 기능의 인자는 하나다
         if f["has_value"]:
             assert f["min"] <= f["default"] <= f["max"]
@@ -125,9 +125,8 @@ def test_command_text(dll):
     assert text(dll.srtoybox_command, b"spawnunit", -5, 0) == "cheat spawnunit 1"
     assert text(dll.srtoybox_command, b"spawnunit", 10**12, 0) == "cheat spawnunit 99999"
     assert text(dll.srtoybox_command, b"darran", 999, 1106) == "cheat darran"                  # 값도 대상도 없는 기능은 둘 다 무시한다
-    assert text(dll.srtoybox_command, b"annex", 0, 1106) == "cheat annex 1106"
-    assert text(dll.srtoybox_command, b"annex", 0, 0) is None                                  # 나라를 고르지 않았으면 만들지 않는다
-    for moved in (b"technology", b"e=mc2", b"finalexam", b"shelovesme", b"love", b"neutral", b"populate", b"approval", b"colonize", b"fight", b"becomeregion", b"novichok", b"treaty"):   # 직접 쓰는 줄은 게임에 넣을 글이 없다
+    # 나라를 대상으로 하는 내장 치트(…  <지역 번호>)는 이제 없다 — 외교·영토 탭의 줄은 모두 직접 한다
+    for moved in (b"technology", b"e=mc2", b"finalexam", b"shelovesme", b"love", b"neutral", b"populate", b"approval", b"colonize", b"fight", b"becomeregion", b"novichok", b"treaty", b"annex"):   # 직접 쓰는 줄은 게임에 넣을 글이 없다
         assert text(dll.srtoybox_command, moved, 120, 1106) is None
     assert text(dll.srtoybox_command, b"depopulate", 0, 0) is None                             # 표에 없는 것은 만들지 않는다
     assert text(dll.srtoybox_command, b"treasury", 1, 0) is None                               # 지운 기능 — 국고는 돈 탭이 직접 한다
@@ -906,6 +905,7 @@ def test_the_moved_buttons_say_why_they_are_off_and_offer_no_cheat(dll, cfg, tmp
         rows[rows.index("run:becomeregion")] = "off:becomeregion"
         rows[rows.index("run:novichok")] = "off:novichok"
         rows[rows.index("run:treaty")] = "off:treaty"
+        rows[rows.index("run:annex")] = "off:annex"
         assert list(got["diplomacy"]) == rows and got["diplomacy"]["off:colonize"] == "식민지화 — " + why
         assert got["diplomacy"]["off:love"] == "관계 최고 — " + why and got["diplomacy"]["off:neutral"] == "관계 중립 — " + why
     assert got["state"] == MORE_START and got["lines"] == [] and got["text"] == ""
@@ -1143,4 +1143,19 @@ def test_treaty_allies_with_the_picked_country_and_never_breaks_an_alliance(dll,
                                [1106, 0, 1, 1, 176, 1, 1, 0], [1106, 1, 1, 1, 176, 1, 1, 0]]
     assert got["wrote"] == "동맹 맺기 — 폴란드 (1106)"
     assert got["again"] == got["treaties"] and got["already"] == "이미 동맹입니다 — 폴란드 (1106)"
+    assert got["lines"] == [] and got["text"] == "" and got["options"] == 0
+
+
+def test_annex_hands_every_hex_of_the_picked_country_to_the_player(dll, cfg, tmp_path):
+    """3단계 4: "병합"은 내장 치트 없이 지도의 칸 가운데 주인이 고른 나라(덴마크, 인덱스 150)인 칸마다 게임의 함수를
+    (그 칸의 묶음, 플레이어의 인덱스 176, 0, 0, 0, 0) 으로 한 번씩 부른다 — 둘째 누름에만. 다른 나라의 칸과 주인 없는 칸은 부르지 않는다.
+    칸의 묶음에는 지도 객체 · 그 칸의 레코드 · 두 배열에서의 그 칸의 자리 · 가로 · 세로 · 번호가 들어 있다.
+    지도의 꼴이 말이 안 되면 한 칸도 부르지 않는다."""
+    got = json.loads(_probe(cfg, tmp_path, "more_annex"))
+    assert got["asking"] == "병합: 덴마크 (1201) — 한 번 더 누르면 실행합니다" and got["first"] == []
+    assert got["annexed"] == [[i, i % 8, i // 8, 176, 0, 0, 0, 0, True] for i in (8, 9, 12, 24, 27, 31)]
+    assert got["wrote"] == "병합 — 덴마크 (1201) · 6칸"
+    assert got["owners"] == [176] * 8 + [176, 176, 141, 141, 176, 0, 176, 141] + [141] * 8 + [176, 176, 176, 176, 0, 0, 141, 176]
+    assert got["again"] == 6 and got["none"] == "그 나라의 땅이 없습니다 — 덴마크 (1201)"
+    assert got["broken"] == "게임의 지도를 읽을 수 없어 하지 않았습니다." and got["broken_calls"] == 6
     assert got["lines"] == [] and got["text"] == "" and got["options"] == 0
