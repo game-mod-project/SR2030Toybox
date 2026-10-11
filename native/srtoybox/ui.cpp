@@ -528,6 +528,17 @@ std::string owners_label(const ListRow &row, const std::vector<int> &regions)
     return row.others > named ? out + " 외 " + std::to_string(row.others - named) : out;
 }
 
+// 긴 글의 풍선말 — 창 밖으로 나가지 않게 줄을 바꾼다(보유국이 수백이다)
+void wrapped_tip(const std::string &text)
+{
+    if (!ImGui::BeginTooltip())
+        return;
+    ImGui::PushTextWrapPos(32.0f * ImGui::GetFontSize());
+    ImGui::TextUnformatted(text.c_str());
+    ImGui::PopTextWrapPos();
+    ImGui::EndTooltip();
+}
+
 // 목록을 머리 줄에서 고른 열로 놓는다. 같은 값끼리는 앞의 순서(수준 · 번호)가 남는다.
 void sort_rows(ListState &L, int column, bool down)
 {
@@ -682,7 +693,38 @@ void item_list(ListState &L, bool units, const GameState &game, bool blocked)
         rebuilt = true;
     }
     const bool with_picked = shot->picked != 0 && shot->picked == g_picked;   // 고른 나라의 열 — 그 나라로 뜬 스냅숏일 때만
-    const float below = (units ? 3.0f : 2.0f) * ImGui::GetFrameHeightWithSpacing();   // 표 아래의 줄들(수 · 단추. 부대 탭은 "모든 설계도"의 줄이 더 있다)
+    const std::string why = game_research_off();
+    const bool off = !why.empty();
+    // 되돌리기 어려운 단추(전부 · 모든 것을 미완료 · 해제)는 한 번 더 눌러야 한다
+    const auto risky = [&](const char *id, const std::string &label, const std::vector<int> &ids, const char *what) {
+        const bool asking = g_confirm == id;
+        const std::string text = asking ? label + " — 한 번 더 누르면 실행합니다" : label;
+        if (ImGui::Button((text + "###" + id).c_str())) {
+            if (asking)
+                list_request(L, Research::Revoke, ids, what);
+            else
+                g_confirm = id;
+        }
+        note(id, text);
+    };
+    if (units) {
+        // 거르개와 상관없이 모든 부대 설계(자국이 처음부터 가진 것도 해제된다 — 사용자가 정했다).
+        // 표 위에 둔다 — 아래에 두면 탭을 끝까지 내려야 보였다
+        std::vector<int> every;
+        every.reserve(shot->tables.designs.size());
+        for (const DesignRow &d : shot->tables.designs)
+            every.push_back(d.id);
+        ImGui::BeginDisabled(off || every.empty());
+        if (ImGui::Button("모든 설계도 등록"))
+            list_request(L, Research::Complete, every, "모든 설계도");
+        note("list:every_done", "모든 설계도 등록");
+        ImGui::SameLine();
+        risky(LIST_UNDO_EVERY, "모든 설계도 해제", every, "모든 설계도");
+        ImGui::EndDisabled();
+        ImGui::SameLine();
+        ImGui::TextDisabled("%d종 · 등록하면 선행 기술도 함께 보유가 된다", static_cast<int>(every.size()));
+    }
+    const float below = 2.0f * ImGui::GetFrameHeightWithSpacing();   // 표 아래의 줄들(수 · 단추)
     const float height = std::max(6.0f * ImGui::GetFrameHeightWithSpacing(), ImGui::GetContentRegionAvail().y - below);
     // 열의 너비는 머리 줄의 경계를 끌어 바꾸고, 머리 줄을 누르면 그 열로 놓는다(한 번 더 누르면 거꾸로)
     const ImGuiTableFlags flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_ScrollY
@@ -693,7 +735,8 @@ void item_list(ListState &L, bool units, const GameState &game, bool blocked)
         ImGui::TableSetupScrollFreeze(0, 1);
         ImGui::TableSetupColumn("##on", ImGuiTableColumnFlags_NoSort | ImGuiTableColumnFlags_NoResize);
         ImGui::TableSetupColumn("이름", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-        ImGui::TableSetupColumn(designs ? "병과" : "분류");
+        // 처음 너비는 보이는 줄에서 잰다 — 긴 병과("전략 폭격기")가 처음에 보이지 않으면 잘린다. 부대 설계는 넉넉히 준다
+        ImGui::TableSetupColumn(designs ? "병과" : "분류", designs ? ImGuiTableColumnFlags_WidthFixed : 0, designs ? 7.0f * ImGui::GetFontSize() : 0.0f);
         ImGui::TableSetupColumn(designs ? "연도" : "수준", ImGuiTableColumnFlags_DefaultSort);
         ImGui::TableSetupColumn("상태");
         ImGui::TableSetupColumn("선행");                              // 선행 기술을 플레이어가 보유했는가: "보유" · "2/3" · "-"(선행이 없다)
@@ -746,9 +789,9 @@ void item_list(ListState &L, bool units, const GameState &game, bool blocked)
                     ImGui::AlignTextToFramePadding();
                     ImGui::TextUnformatted(cells[c].c_str());
                     if (c == 4 && r.needs > 0 && ImGui::IsItemHovered())          // 선행 기술마다 보유했는가
-                        ImGui::SetTooltip("%s", needs_detail(r, shot->tables).c_str());
+                        wrapped_tip(needs_detail(r, shot->tables));
                     else if (c == 5 && r.others > 2 && ImGui::IsItemHovered())    // 칸에는 둘까지만 적는다 — 풍선말에 모두
-                        ImGui::SetTooltip("%s", game_owner_names(designs, r.id).c_str());
+                        wrapped_tip(game_owner_names(designs, r.id));
                 }
                 if (with_picked && ImGui::TableSetColumnIndex(7)) {
                     ImGui::AlignTextToFramePadding();
@@ -785,25 +828,11 @@ void item_list(ListState &L, bool units, const GameState &game, bool blocked)
     // 단추 넷. "고른 것"은 지금 보이지 않는 줄이라도 고른 것 모두에 한다. 쓸 수 없는 까닭은 위의 단추 자리에 적혀 있다
     // (부대 탭에는 연구의 단추가 없다 — 까닭을 여기에 적는다)
     const char *const yes = units ? "등록" : "완료", *const no = units ? "해제" : "미완료";
-    const std::string why = game_research_off();
-    const bool off = !why.empty();
     if (units && off) {
         ImGui::TextWrapped("%s", why.c_str());
         note("list:why", why);
     }
     const std::vector<int> chosen(L.chosen.begin(), L.chosen.end());
-    // 되돌리기 어려운 단추(전부 · 모든 것을 미완료 · 해제)는 한 번 더 눌러야 한다
-    const auto risky = [&](const char *id, const std::string &label, const std::vector<int> &ids, const char *what) {
-        const bool asking = g_confirm == id;
-        const std::string text = asking ? label + " — 한 번 더 누르면 실행합니다" : label;
-        if (ImGui::Button((text + "###" + id).c_str())) {
-            if (asking)
-                list_request(L, Research::Revoke, ids, what);
-            else
-                g_confirm = id;
-        }
-        note(id, text);
-    };
     ImGui::BeginDisabled(off || chosen.empty());
     if (ImGui::Button((std::string("고른 것 ") + yes).c_str()))
         list_request(L, Research::Complete, chosen, "고른 것");
@@ -821,22 +850,6 @@ void item_list(ListState &L, bool units, const GameState &game, bool blocked)
     ImGui::SameLine();
     risky(LIST_UNDO_ALL, std::string("보이는 것 전부 ") + no, visible, "보이는 것");
     ImGui::EndDisabled();
-    if (!units)
-        return;
-    // 거르개와 상관없이 모든 부대 설계(자국이 처음부터 가진 것도 해제된다 — 사용자가 정했다)
-    std::vector<int> every;
-    every.reserve(shot->tables.designs.size());
-    for (const DesignRow &d : shot->tables.designs)
-        every.push_back(d.id);
-    ImGui::BeginDisabled(off || every.empty());
-    if (ImGui::Button("모든 설계도 등록"))
-        list_request(L, Research::Complete, every, "모든 설계도");
-    note("list:every_done", "모든 설계도 등록");
-    ImGui::SameLine();
-    risky(LIST_UNDO_EVERY, "모든 설계도 해제", every, "모든 설계도");
-    ImGui::EndDisabled();
-    ImGui::SameLine();
-    ImGui::TextDisabled("%d종 · 등록하면 선행 기술도 함께 보유가 된다", static_cast<int>(every.size()));
 }
 
 void settings_tab()

@@ -605,7 +605,7 @@ T field(const uint8_t *record, uint32_t offset)
 }
 
 // 보유 묶음에서 플레이어(me)와 고른 나라(them. 없으면 0)의 비트, 그리고 플레이어를 뺀 보유 나라의 수. 묶음이 없으면(0) 아무도 없다.
-// first 에는 플레이어가 아닌 보유 나라 가운데 인덱스가 낮은 둘(없으면 0).
+// first 에는 플레이어가 아닌 보유 나라 가운데 인덱스가 낮은 둘(없으면 0). 비트 0 은 나라가 아니다(지역 인덱스는 1 부터) — 세지 않는다.
 bool owners_of(Span *span, uint64_t owners, int me, int them, bool *mine, bool *picked, int *others, int *first)
 {
     *mine = *picked = false;
@@ -616,11 +616,12 @@ bool owners_of(Span *span, uint64_t owners, int me, int them, bool *mine, bool *
     uint8_t bits[OWNERS_BYTES];
     if (!peek_near(span, owners, bits, sizeof(bits)))
         return false;
+    bits[0] &= 0xFE;
     int count = 0;
     for (uint8_t byte : bits)
         for (; byte != 0; byte = static_cast<uint8_t>(byte & (byte - 1)))
             count++;
-    for (int i = 0, found = 0; i < OWNERS_BYTES * 8 && found < 2; i++)
+    for (int i = 1, found = 0; i < OWNERS_BYTES * 8 && found < 2; i++)
         if (i != me && (bits[i / 8] >> (i % 8) & 1) != 0)
             first[found++] = i;
     *mine = (bits[me / 8] >> (me % 8) & 1) != 0;
