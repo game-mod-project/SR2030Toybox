@@ -67,7 +67,7 @@ def documented(cfg) -> dict[str, tuple[str, str]]:
 
 def test_feature_table(dll):
     fs = features(dll)
-    assert len(fs) == 19 and len({f["id"] for f in fs}) == 19
+    assert len(fs) == 18 and len({f["id"] for f in fs}) == 18
     # 국고와 물자는 내장 치트를 거치지 않는다(돈 탭 · 물자 탭)
     assert not {"treasury", "georgew", "georgeww", "products", "branson", "bezos"} & {f["id"] for f in fs}
     assert [t for i, t in enumerate(f["tab"] for f in fs) if i == 0 or fs[i - 1]["tab"] != t] == TABS   # 탭끼리 모여 있고 이 순서다
@@ -75,7 +75,7 @@ def test_feature_table(dll):
     # 게임에 넣는 글이 없다. 나머지 열하나가 내장 치트로 돈다
     assert {f["id"]: f["how"] for f in fs if f["how"] != "cheat"} == {
         "technology": "tech_level", "e=mc2": "queue_done", "finalexam": "tech_up", "shelovesme": "opinion_best",
-        "love": "relation_best", "neutral": "relation_neutral", "populate": "people_add", "approval": "approval_best", "colonize": "colonize", "fight": "fight", "becomeregion": "become", "novichok": "novichok", "treaty": "treaty", "annex": "annex", "spawnunit": "spawn", "stranded": "supply", "darran": "best", "instantwin": "victory", "fullmapshow": "gui"}
+        "love": "relation_best", "neutral": "relation_neutral", "populate": "people_add", "approval": "approval_best", "colonize": "colonize", "fight": "fight", "becomeregion": "become", "novichok": "novichok", "treaty": "treaty", "annex": "annex", "stranded": "supply", "darran": "best", "instantwin": "victory", "fullmapshow": "gui"}
     cheats = [f for f in fs if f["how"] == "cheat"]
     assert cheats == [] and dll.srtoybox_cheat_feature_count() == 0      # 내장 치트로 도는 줄은 남지 않았다
     assert [f["id"] for f in fs][:3] == ["technology", "e=mc2", "finalexam"]            # 줄의 자리는 옮기기 전과 같다
@@ -90,7 +90,7 @@ def test_feature_table(dll):
         assert not (f["has_value"] and f["target"] != "none")           # 한 기능의 인자는 하나다
         if f["has_value"]:
             assert f["min"] <= f["default"] <= f["max"]
-    assert {f["id"] for f in fs if f["has_value"]} == {"technology", "spawnunit", "darran"}
+    assert {f["id"] for f in fs if f["has_value"]} == {"technology", "darran"}
     assert {f["id"] for f in fs if f["target"] == "player"} == {"approval"}
     assert {f["id"] for f in fs if f["target"] == "picked"} == {"love", "neutral", "treaty", "annex", "colonize", "novichok", "fight",
                                                                 "becomeregion"}
@@ -119,7 +119,7 @@ KEEP_DEFAULTS = "keep.treasury=0\nkeep.treasury.value=0\n" + "".join(f"keep.stoc
                                                                       for slot in range(12))
 MULT_DEFAULTS = "mult.on=0\nmult.tax=100\nmult.defense=100\nmult.social=100\nmult.research=100\n" + "".join(
     f"mult.out.{slot}=100\nmult.use.{slot}=100\nmult.raw.{slot}=100\n" for slot in range(11))
-DEFAULTS = "hotkey_vk=84\nhotkey_mods=3\nmoney.amount=10000\n" + KEEP_DEFAULTS + MULT_DEFAULTS + "technology=120\nspawnunit=2413\ndarran=7\n"
+DEFAULTS = "hotkey_vk=84\nhotkey_mods=3\nmoney.amount=10000\n" + KEEP_DEFAULTS + MULT_DEFAULTS + "technology=120\ndarran=7\n"
 
 
 def kept(**lines: int) -> str:
@@ -136,7 +136,7 @@ def test_settings_fall_back_to_defaults(dll):
     norm = lambda ini: text(dll.srtoybox_settings_normalize, ini.encode("utf-8"))
     assert norm("") == DEFAULTS
     assert norm("\xff garbage\n===\n[x]\nhotkey_vk\n=5\n") == DEFAULTS                      # 깨진 파일
-    assert norm("money.amount=0\ntechnology=0\nspawnunit=12x\n") == DEFAULTS                  # 범위 밖·숫자 아님 → 기본값
+    assert norm("money.amount=0\ntechnology=0\ndarran=12x\nspawnunit=2413\n") == DEFAULTS                  # 범위 밖·숫자 아님 → 기본값
     assert norm("technology=999\n") == DEFAULTS.replace("technology=120", "technology=255")   # 기능 값이 범위보다 크면 끝으로 자른다
     assert norm("technology=abc\n") == DEFAULTS
     assert norm("unknown=5\nfinalexam=7\ndepopulate=1\ntreasury=500\nproducts=5\n") == DEFAULTS   # 모르는 키, 값이 없는 기능, 지운 기능
@@ -168,7 +168,7 @@ def test_settings_file_round_trip(dll, tmp_path, monkeypatch):
     assert text(dll.srtoybox_settings_file) == DEFAULTS                                      # 파일이 없으면 기본값
     assert dll.srtoybox_settings_store(b"hotkey_vk=120\nhotkey_mods=4\ntechnology=140\nkeep.stock.7=1\nkeep.stock.7.value=250000\n") == 1
     saved = kept(keep__stock__7=1, keep__stock__7__value=250000).replace("=84", "=120").replace("mods=3", "mods=4") \
-        .replace("=120\nspawn", "=140\nspawn")
+        .replace("=120\ndarran", "=140\ndarran")
     assert (tmp_path / "toybox.ini").read_text(encoding="utf-8") == saved
     assert text(dll.srtoybox_settings_file) == saved
     (tmp_path / "toybox.ini").write_bytes(b"\xff\xfe\x00broken")
@@ -1037,14 +1037,15 @@ def test_the_units_tab_lists_designs_by_domain_and_registers_them(dll, cfg, tmp_
     줄마다 선행 기술을 보유했는가("보유" · "0/1")와 보유국이 나온다. "모든 설계도 등록"은 거르개와 상관없이 모든 설계를 — 선행 기술도 함께 —
     보유로 만들고, "모든 설계도 해제"는 한 번 더 눌러야 실행되며 처음부터 가진 자국 설계도 뺀다. 다른 나라의 보유는 그대로다."""
     got = json.loads(_probe(cfg, tmp_path, "research_units"))
-    assert got["buttons"] == {"list:domain": "전체", "list:show": "자국 미보유", "list:kind": "전체", "list:owner": "전체",
+    assert got["buttons"] == {"list:domain": "전체", "list:show": "전체", "list:kind": "전체", "list:owner": "전체",   # 보기는 전체부터 — 모두 등록해도 비지 않는다
+                              **{f"list:stat:{s}": "0" for s in range(3)}, **{f"list:stat:{s}:value": "100" for s in range(3)},
                               "list:clear": "고르기 풀기", "list:done": "고른 것 등록", "list:undo": "고른 것 해제",
                               "list:all_done": "보이는 것 전부 등록", "list:all_undo": "보이는 것 전부 해제",
                               "list:every_done": "모든 설계도 등록", "list:every_undo": "모든 설계도 해제",
                               "list:each": "1", "list:spawn": "고른 것을 수량만큼 생성",
                               "list:hex": "지도에서 고른 칸: 없음 — 게임의 지도에서 칸을 고르십시오"}
-    # 설계 12 의 선행(기술 4)은 독일이 보유했고, 설계 11 의 선행(기술 3)은 아니다
-    assert got["first"] == {"12": "0|Unit|보병|1950|미보유|보유|", "11": "0|Unit|전차|1995|연구 중|0/1|폴란드"}
+    # 상태의 열은 부대 탭에서 등록 · 미등록 · 연구 중이다(사용자의 요구, 2026-10-12). 표에 보이는 두 줄: 독일이 보유한 설계 10 과 보유하지 않은 12
+    assert got["first"] == {"10": "0|Unit|보병|1950|등록|보유|", "12": "0|Unit|보병|1950|미등록|보유|"}
     assert got["air"] == {} and got["land"] == got["first"]                 # 보병 · 전차는 육군이다
     assert got["after_every"] == [[1, 2, 3, 4, 6], [10, 11, 12, 13, 14], [1, 2], [11, 13]]      # 설계 다섯 + 선행 기술 2 · 3
     assert got["wrote_every"] == "기술 2개(선행 2개 포함) · 부대 설계 2개를 완료로 — 모든 설계도"
@@ -1122,11 +1123,16 @@ def test_units_are_made_on_the_hex_picked_on_the_map_without_the_cheat(dll, cfg,
     목록에서는 고른 설계마다 수량만큼. 지도 밖의 칸은 고르지 않은 것으로 친다. 게임에 넣는 글(치트)은 없다."""
     got = json.loads(_probe(cfg, tmp_path, "research_spawn"))
     none = "지도에서 고른 칸: 없음 — 게임의 지도에서 칸을 고르십시오"
-    assert got["unpicked"] == [none, none] and got["picked"] == "지도에서 고른 칸: (3, 2)" and got["outside"] == none
-    assert got["missing"] == "그 번호의 부대 설계가 없어 하지 않았습니다." and got["missing_calls"] == []
+    assert got["unpicked"] == none and got["picked"] == "지도에서 고른 칸: (3, 2)" and got["outside"] == none
+    assert "run:spawnunit" not in got["rows"]                    # 번호로 만드는 줄은 없앴다(사용자의 요구, 2026-10-12) — 목록에서 고른다
     hex_ = 3 | 2 << 16
     assert got["spawned"] == [[1499, 11, 1, hex_, 0, 0, 0, 0, 0, 0], [1499, 12, 1, hex_, 0, 0, 0, 0, 0, 0]]
     assert got["wrote"] == "부대 생성 — 설계 2종 · 2기 · 칸 (3, 2)"
+    given = [0.5, 0.25, 0.75]                                    # 가짜 게임이 새 부대에 주는 [효율, 경험, 사기]
+    assert got["plain"] == [given, given]
+    # 경험 · 효율을 켜고 둘을 더: 새로 생긴 부대 둘에만 100 % 를 쓴다(사기는 켜지 않았다 — 그대로). 앞서 만든 둘은 그대로다
+    assert got["stated"] == [given, given, [1.0, 1.0, 0.75], [1.0, 1.0, 0.75]]
+    assert got["wrote_stated"] == "부대 생성 — 설계 2종 · 2기 · 칸 (3, 2) · 상태 2기에"
     assert got["lines"] == [] and got["text"] == "" and got["options"] == 0
 
 
