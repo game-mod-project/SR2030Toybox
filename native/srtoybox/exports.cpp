@@ -386,6 +386,26 @@ EXPORT int srtoybox_locate_acts(const unsigned char *image, unsigned long long s
     return acts;
 }
 
+// 새 찾기(배율)를 그 이미지에 돌린다. 돌려주는 값은 찾은 것의 비트. error 에는 찾을 것마다 한 줄(찾았으면 빈 줄), rows 는 서명마다의 결과.
+EXPORT int srtoybox_locate_mult(const unsigned char *image, unsigned long long size, MultLayout *out, char *error, int error_size,
+                                char *rows, int rows_size)
+{
+    MultLayout found = {};
+    SigRow table[MULT_WANTED * STATE_SIGS];
+    char why[MULT_WANTED][MORE_WHY] = {};
+    const int mult = locate_mult(image, static_cast<size_t>(size), &found, table, why);
+    if (rows != nullptr)
+        put(rows_text(table, MULT_WANTED * STATE_SIGS), rows, rows_size);
+    std::string lines;
+    for (int w = 0; w < MULT_WANTED; w++)
+        lines += std::string(why[w]) + '\n';
+    if (error != nullptr)
+        put(lines, error, error_size);
+    if (out != nullptr)
+        *out = found;
+    return mult;
+}
+
 // 테스트: 이 프로세스의 "게임"에 부르는 함수의 자리를 준다(srtoybox_test_game 다음에 부른다). colonize 는 그 자리에 둘 함수.
 EXPORT void srtoybox_test_acts(const ActLayout *layout, void *colonize, void *fight, void *become, void *elect, void *news, void *treaty,
                                void *annex, void *spawn, void *deploy)

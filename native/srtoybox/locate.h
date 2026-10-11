@@ -212,6 +212,36 @@ int locate_more(const uint8_t *image, size_t size, const ValueLayout *values, Mo
 // 찾을 것(표의 wanted 째. rows 의 칸 번호 / STATE_SIGS)이 든 묶음: 0 지식, 1 여론, 2 관계.
 int locate_more_group(int wanted);
 
+// 배율(묶음 7 — docs/superpowers/specs/2026-10-11-toybox-stage7-design.md). 앞의 둘은 전역의 RVA, 나머지는 지역 객체 안의 자리다.
+struct MultLayout {
+    uint32_t mul_table;        // float. 곱 보정 표의 첫 칸: 지역 인덱스마다 MUL_STEP 바이트, 그 안에 MUL_CELLS 칸(칸 번호 = 기술 효과 번호).
+                               // ToyBox 는 플레이어의 줄의 칸에만 쓴다
+    uint32_t day;              // dword. 날마다 도는 게임의 함수가 1 씩 올린다. 읽기만 한다
+    uint32_t tax_total;        // double. 연간 세수의 합(÷ 365 = 재무 패널의 "일일 세금"). 읽기만 한다 — 아래도
+    uint32_t army_pay_level;   // float. 군 인건비의 지출 수준(1.0 = 100 %)
+    uint32_t army_upkeep_level;   // float. 군 유지비의 지출 수준
+    uint32_t army_pay;         // float. 연간 군 인건비의 바탕
+    uint32_t army_upkeep;      // float. 연간 군 유지비의 바탕
+    uint32_t unit_cost;        // float. 어제의 부대 생산비(하루치)
+    uint32_t research_step;    // float. 연구의 하루치 — 게임이 진행 중인 노드마다 남은 기간에서 이만큼 뺀다
+};
+
+const int MULT_WANTED = 9;                  // 찾을 것의 수(MultLayout 의 필드 순서와 같다)
+const int MULT_TABLE = 1;                   // 찾은 것의 비트: 곱 보정 표 — 물자의 생산 · 소비, 사회 지출 비용의 배율
+const int MULT_DAY = 2, MULT_TAX = 4, MULT_ARMY = 8 | 16 | 32 | 64 | 128, MULT_STEP_BIT = 256;
+const uint32_t MUL_STEP = 0x320;            // 곱 보정 표에서 지역 하나의 줄(표를 찾는 서명 둘에 박혀 있다)
+const int MUL_CELLS = 200;                  // 그 줄의 칸 수
+const int MUL_RAW = 24, MUL_USE = 60, MUL_OUT = 72;   // 물자 i 의 산업 원자재 소비 · 인구 소비 · 산출의 칸(+ i, i = 0 … MULT_GOODS - 1)
+const int MUL_SOCIAL = 108, MUL_SOCIAL_COUNT = 8;      // 사회 지출 여덟 항목의 비용의 칸
+const int MULT_GOODS = 11;                  // 배율을 두는 물자의 수(재고 칸의 앞 열하나 — 열두째 칸은 쓰지 않는다)
+const uint32_t NODE_LEFT = 0x28;            // float. 연구 노드의 남은 기간(일) — 연구 속도 배율이 쓴다
+const uint32_t NODE_ACTIVE = 0x40000000;    // 둘째 깃발: 진행 중이다(게임이 날마다 남은 기간을 줄이는 노드)
+
+// 새 찾기(배율): 찾을 것마다 서명 셋 가운데 STATE_NEED 개 이상이 정확히 한 번 맞고 같은 값을 내야 한다. 따로 찾고 따로 실패한다.
+// 전역 둘은 쓸 수 있는 자료 구역 안의 4 의 배수 자리(표는 MUL_STEP × REGION_SLOTS 바이트가 모두), 자리는 0 보다 크고 0x100000 보다 작다.
+// 돌려주는 값은 찾은 것의 비트. 못 찾은 것의 필드는 0, why 의 그 줄에 까닭(UTF-8). rows: MULT_WANTED * STATE_SIGS 칸이거나 nullptr.
+int locate_mult(const uint8_t *image, size_t size, MultLayout *out, SigRow *rows, char (*why)[MORE_WHY]);
+
 // 연구(3단계 3). 앞의 넷은 전역의 RVA, world 는 전역 객체의 RVA, lists 는 그 객체 안의 자리, recompute 는 함수의 RVA 다.
 struct ResearchLayout {
     uint32_t tech_table;       // qword. 기술 표(레코드 TECH_SIZE 바이트 × 자리 수)의 포인터

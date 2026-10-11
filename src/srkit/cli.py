@@ -200,6 +200,10 @@ def cmd_locate(cfg, _args) -> int:
     _print_sig_rows(found.act_rows)
     for name, why in zip(toybox.ACT_FIELDS, found.acts_why):
         print(f"  찾지 못했습니다: {why}" if why else f"  {found.acts[name]:#010x}  {toybox.ACT_NAMES[name]}")
+    print("새 찾기 — 배율(서명. 셋 가운데 둘 — 따로 찾고 따로 꺼진다. 표와 날의 칸은 주소, 나머지는 지역 객체 안의 자리):")
+    _print_sig_rows(found.mult_rows)
+    for name, why in zip(toybox.MULT_FIELDS, found.mult_why):
+        print(f"  찾지 못했습니다: {why}" if why else f"  {found.mult[name]:#010x}  {toybox.MULT_NAMES[name]}")
     print("새 찾기 — 연구(서명. 셋이 모두 맞아야 한다 — 표와 목록의 꼴이 서명에 박혀 있다. 세계 객체는 주소 · 지역 표까지의 거리):")
     _print_sig_rows(found.research_rows)
     if found.research is None:
