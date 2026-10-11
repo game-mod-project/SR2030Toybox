@@ -606,7 +606,8 @@ void army_rows()
         note("units:stat", STATS[g_stat_which]);
         ImGui::SameLine();
         ImGui::SetNextItemWidth(100.0f);
-        if (ImGui::InputInt("%##percent", &g_stat_percent))
+        // 빠른 걸음(Ctrl 을 누른 채의 + · −)을 10 으로: ImGui 의 기본은 100 이라 한 번에 0 ↔ 100 을 오간다(게임에서 봤다 — 단축키의 Ctrl 이 남아 있을 때)
+        if (ImGui::InputInt("%##percent", &g_stat_percent, 1, 10))
             g_stat_percent = g_stat_percent < 0 ? 0 : g_stat_percent > 100 ? 100 : g_stat_percent;
         note("units:percent", std::to_string(g_stat_percent));
         ImGui::SameLine();
@@ -821,7 +822,7 @@ void item_list(ListState &L, bool units, const GameState &game, bool blocked)
         const std::string where = !spawn_off.empty() ? "부대 생성 — " + spawn_off
             : many ? "한 번에 " + std::to_string(SPAWN_LIMIT) + "기까지입니다" : hex_label(on_hex, hex_x, hex_y);
         ImGui::SetNextItemWidth(100.0f);
-        if (ImGui::InputInt("##each", &L.each))
+        if (ImGui::InputInt("##each", &L.each, 1, 10))                        // 빠른 걸음은 10(기본 100 은 한 번에 한도까지 간다)
             L.each = L.each < 1 ? 1 : L.each > SPAWN_LIMIT ? SPAWN_LIMIT : L.each;
         note("list:each", std::to_string(L.each));
         ImGui::SameLine();
