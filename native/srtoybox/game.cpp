@@ -54,6 +54,7 @@ void *g_spawn;                // 게임의 "부대 만들기"(못 찾았으면 n
 void *g_deploy;               // 게임의 "배치 칸 찾기"(못 찾았으면 nullptr)
 uint32_t g_map_hex;           // "지도에서 고른 칸"이 든 전역(RVA. 못 찾았으면 0)
 uint32_t g_ui_flags, g_gui, g_gui_vtable;   // 화면의 깃발 · GUI 객체의 포인터 · 그 객체의 함수 표(RVA. 못 찾았으면 0)
+uint32_t g_units;             // 세계의 부대 목록의 첫 부대가 든 전역(RVA. 못 찾았으면 0)
 uint32_t g_game_over;         // 판이 끝난 꼴이 든 전역(RVA. 못 찾았으면 0)
 uint32_t g_winners;           // 이긴 지역들의 묶음의 포인터가 든 전역(RVA. 못 찾았으면 0)
 uint32_t g_picked_units;      // 게임에서 고른 부대들의 목록의 첫 노드가 든 전역(RVA. 못 찾았으면 0)
@@ -1255,6 +1256,7 @@ void game_init_from(const uint8_t *base, size_t size)
         g_map = (acting & ACT_MAP) != 0 ? acts.map : 0;
         g_spawn = (acting & ACT_SPAWN) != 0 ? const_cast<uint8_t *>(base) + acts.spawn : nullptr;
         g_map_hex = (acting & ACT_MAP_HEX) != 0 ? acts.map_hex : 0;
+        g_units = (acting & ACT_UNITS) != 0 ? acts.units : 0;
         g_ui_flags = (acting & ACT_UI_FLAGS) != 0 ? acts.ui_flags : 0;
         g_gui = (acting & ACT_GUI_OBJECT) != 0 ? acts.gui : 0;
         g_gui_vtable = (acting & ACT_GUI_VTABLE) != 0 ? acts.gui_vtable : 0;
@@ -1308,6 +1310,10 @@ void game_init_from(const uint8_t *base, size_t size)
             log_line("즉시 승리를 씁니다 (판이 끝난 꼴 +0x%X, 이긴 지역들의 묶음 +0x%X)", acts.game_over, acts.winners);
         else
             log_line("즉시 승리를 쓸 수 없습니다 (%s)", (acting & ACT_GAME_OVER) == 0 ? act_why[18] : act_why[19]);
+        if ((acting & ACT_UNITS) != 0)
+            log_line("내 부대 전부에 씁니다 (세계의 부대 목록 +0x%X)", acts.units);
+        else
+            log_line("내 부대 전부에 쓰기를 쓸 수 없습니다 (%s)", act_why[24]);
         if ((acting & ACT_GUI) == ACT_GUI)
             log_line("게임의 함수를 부릅니다 (GUI 객체의 함수 표 +0x%X 의 %d번, 화면의 깃발 +0x%X, GUI 객체 +0x%X)", acts.gui_vtable, GUI_SET,
                      acts.ui_flags, acts.gui);
@@ -1420,7 +1426,7 @@ void game_set_for_test(const uint8_t *base, const GameAddresses *at)
     g_research_found = false;
     g_recompute = nullptr;
     g_colonize = g_fight = g_become = g_elect = g_news = g_treaty = g_annex = g_spawn = g_deploy = nullptr;
-    g_ui_flags = g_gui = g_gui_vtable = g_game_over = g_winners = g_picked_units = g_upgrades = g_map_hex = g_map_pick = g_index2 = g_pointer2 = g_leaders = g_leader_id = g_treaties = g_map = 0;
+    g_units = g_ui_flags = g_gui = g_gui_vtable = g_game_over = g_winners = g_picked_units = g_upgrades = g_map_hex = g_map_pick = g_index2 = g_pointer2 = g_leaders = g_leader_id = g_treaties = g_map = 0;
     for (int w = 0; w < ACT_WANTED; w++)
         snprintf(g_act_why[w], MORE_WHY, "%s", "함수의 자리를 주지 않았습니다");
     snprintf(g_research_why, sizeof(g_research_why), "연구의 자리를 주지 않았습니다");
@@ -1636,6 +1642,16 @@ std::string game_act_off(int act)
             return g_research_why;
         return off_text(g_deploy != nullptr && g_spawn != nullptr, g_deploy == nullptr ? g_act_why[23] : g_act_why[14]);
     }
+    if (act == ACT_UNITS || act == ACT_PICKED_UNITS || act == ACT_SUPPLY_ALL) {   // 부대의 상태 · 내 부대 전부의 보급
+        const bool all = act != ACT_PICKED_UNITS, supply = act == ACT_SUPPLY_ALL;
+        if (all && g_units == 0)
+            return off_text(false, g_act_why[24]);
+        if (!all && g_picked_units == 0)
+            return off_text(false, g_act_why[16]);
+        if (supply && g_upgrades == 0)
+            return off_text(false, g_act_why[17]);
+        return g_research_found ? std::string() : std::string(g_research_why);   // 부대 설계 표(부대 객체인지 가린다)
+    }
     if (act == ACT_SUPPLY) {                   // 보급 채우기: 고른 부대의 목록 · 개량 보정 표 · 기술 표와 부대 설계 표(연구 묶음)
         if (g_picked_units != 0 && g_upgrades != 0 && !g_research_found)
             return g_research_why;
@@ -1801,6 +1817,75 @@ bool picked_units(const uint8_t *base, uint32_t where, std::vector<uint64_t> *un
 
 }  // namespace
 
+namespace {
+
+// 세계의 부대 목록에서 그 지역(인덱스)의 부대(시설은 뺀다)의 주소를 모은다. 목록이 말이 안 되면(읽을 수 없다 · 너무 길다) 거짓.
+bool owned_units(const uint8_t *base, uint32_t where, int owner, std::vector<uint64_t> *units)
+{
+    uint64_t unit = 0;
+    if (!peek_at(base, where, &unit))
+        return false;
+    for (int n = 0; unit != 0; n++) {
+        uint8_t raw[UNIT_FLAGS4 + 4];
+        if (n >= UNITS_LIMIT || !peek(reinterpret_cast<const void *>(unit), raw, sizeof(raw)))
+            return false;
+        if (field<uint16_t>(raw, UNIT_OWNER) == owner && (field<uint32_t>(raw, UNIT_FLAGS4) & UNIT_FACILITY) == 0)
+            units->push_back(unit);
+        unit = field<uint64_t>(raw, UNIT_NEXT);
+    }
+    return true;
+}
+
+}  // namespace
+
+Wrote game_unit_stat(int which, float value, bool all, int *done, int *skipped)
+{
+    *done = *skipped = 0;
+    static const uint32_t CELLS[STAT_COUNT] = {UNIT_EXPERIENCE, UNIT_MORALE, UNIT_EFFICIENCY};
+    if (!game_act_off(all ? ACT_UNITS : ACT_PICKED_UNITS).empty())
+        return Wrote::Off;
+    const uint8_t *base = nullptr;
+    GameAddresses at = {};
+    ResearchLayout r = {};
+    uint32_t where = 0;
+    {
+        std::lock_guard<std::mutex> lock(g_lock);
+        base = g_base;
+        at = g_at;
+        r = g_research;
+        where = all ? g_units : g_picked_units;
+    }
+    uint64_t player = 0;
+    SupplyTables t = {};
+    std::vector<uint64_t> units, targets;
+    const GameState s = read_player(base, at, &player);
+    if (!s.in_game || s.multiplayer)
+        return Wrote::NotInGame;
+    if (which < 0 || which >= STAT_COUNT || !(value >= 0.0f && value <= 1.0f) || !peek_at(base, r.design_table, &t.designs) || t.designs == 0
+        || !peek_at(base, r.design_count, &t.design_count) || t.design_count < 2
+        || !(all ? owned_units(base, where, s.index, &units) : picked_units(base, where, &units)))
+        return Wrote::BadValue;
+    for (uint64_t unit : units) {              // 모두 읽은 뒤에 쓴다 — 하나라도 부대 객체로 보이지 않으면 하나도 쓰지 않는다
+        uint8_t raw[UNIT_READ], design[DESIGN_SIZE];
+        if (!read_unit(t, unit, raw, design))
+            return Wrote::BadValue;
+        if (field<uint16_t>(raw, UNIT_OWNER) != s.index || (field<uint32_t>(raw, UNIT_FLAGS4) & UNIT_FACILITY) != 0) {
+            ++*skipped;                        // 남의 부대 · 시설에는 쓰지 않는다
+            continue;
+        }
+        targets.push_back(unit);
+    }
+    for (uint64_t unit : targets)
+        if (!writable(unit + CELLS[which], sizeof(float)))
+            return Wrote::Failed;
+    for (uint64_t unit : targets) {
+        if (!poke(unit + CELLS[which], &value, sizeof(value)))
+            return Wrote::Failed;
+        ++*done;
+    }
+    return Wrote::Done;
+}
+
 bool game_picked_units(int *all, int *mine)
 {
     *all = *mine = 0;
@@ -1830,10 +1915,10 @@ bool game_picked_units(int *all, int *mine)
     return true;
 }
 
-Wrote game_supply(bool fill, int *done, int *skipped)
+Wrote game_supply(bool fill, bool all, int *done, int *skipped)
 {
     *done = *skipped = 0;
-    if (!game_act_off(ACT_SUPPLY).empty())
+    if (!game_act_off(all ? ACT_SUPPLY_ALL : ACT_SUPPLY).empty())
         return Wrote::Off;
     const uint8_t *base = nullptr;
     GameAddresses at = {};
@@ -1844,7 +1929,7 @@ Wrote game_supply(bool fill, int *done, int *skipped)
         base = g_base;
         at = g_at;
         r = g_research;
-        where = g_picked_units;
+        where = all ? g_units : g_picked_units;
         upgrades = g_upgrades;
     }
     uint64_t player = 0;
@@ -1855,7 +1940,7 @@ Wrote game_supply(bool fill, int *done, int *skipped)
         return Wrote::NotInGame;
     if (!peek_at(base, r.design_table, &t.designs) || t.designs == 0 || !peek_at(base, r.design_count, &t.design_count) || t.design_count < 2
         || !peek_at(base, r.tech_table, &t.techs) || t.techs == 0 || !peek_at(base, r.tech_count, &t.tech_count) || t.tech_count < 1
-        || !picked_units(base, where, &units))
+        || !(all ? owned_units(base, where, s.index, &units) : picked_units(base, where, &units)))
         return Wrote::BadValue;
     t.upgrades = reinterpret_cast<uint64_t>(base) + r.world + upgrades;
     struct Target {
@@ -1868,8 +1953,8 @@ Wrote game_supply(bool fill, int *done, int *skipped)
         Target target = {unit, {0.0f, 0.0f}};
         if (!read_unit(t, unit, raw, design))
             return Wrote::BadValue;
-        if (field<uint16_t>(raw, UNIT_OWNER) != s.index) {
-            ++*skipped;                        // 남의 부대에는 쓰지 않는다
+        if (field<uint16_t>(raw, UNIT_OWNER) != s.index || (field<uint32_t>(raw, UNIT_FLAGS4) & UNIT_FACILITY) != 0) {
+            ++*skipped;                        // 남의 부대 · 시설에는 쓰지 않는다
             continue;
         }
         if (fill && !supply_full(t, raw, design, &target.values[0], &target.values[1]))
@@ -2351,6 +2436,7 @@ void game_set_acts_for_test(const ActLayout *layout, void *colonize, void *fight
 {
     std::lock_guard<std::mutex> lock(g_lock);
     g_deploy = layout != nullptr ? deploy : nullptr;
+    g_units = layout != nullptr ? layout->units : 0;
     g_ui_flags = layout != nullptr ? layout->ui_flags : 0;
     g_gui = layout != nullptr ? layout->gui : 0;
     g_gui_vtable = layout != nullptr ? layout->gui_vtable : 0;
@@ -2382,7 +2468,7 @@ void game_set_acts_for_test(const ActLayout *layout, void *colonize, void *fight
                                     g_treaty != nullptr, g_treaties != 0, g_annex != nullptr, g_map != 0,
                                     g_spawn != nullptr, g_map_hex != 0, g_picked_units != 0, g_upgrades != 0,
                                     g_game_over != 0, g_winners != 0, g_ui_flags != 0, g_gui != 0, g_gui_vtable != 0,
-                                    g_deploy != nullptr};
+                                    g_deploy != nullptr, g_units != 0};
     for (int w = 0; w < ACT_WANTED; w++)
         snprintf(g_act_why[w], MORE_WHY, "%s", given[w] ? "" : "함수의 자리를 주지 않았습니다");
 }

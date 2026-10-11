@@ -566,6 +566,69 @@ void wrapped_tip(const std::string &text)
     ImGui::EndTooltip();
 }
 
+int g_stat_which = STAT_EXPERIENCE, g_stat_percent = 100;   // 부대의 상태: 무엇을 · 몇 퍼센트로
+
+// 부대 탭의 "내 부대" 줄 둘: 내 부대 전부의 보급, 그리고 부대의 상태(경험 · 사기 · 효율)를 고른 부대에 / 내 부대 전부에.
+// 내 부대 = 세계의 부대 목록에서 주인이 플레이어이고 시설이 아닌 것(예비 부대도 든다). 쓸 수 없으면 그 자리에 까닭을 적는다.
+void army_rows()
+{
+    static const char *const STATS[STAT_COUNT] = {"경험", "사기", "효율"};
+    const std::string busy = "대기 중인 요청이 많아 받지 못했습니다.";
+    const std::string supply_off = game_act_off(ACT_SUPPLY_ALL), all_off = game_act_off(ACT_UNITS), picked_off = game_act_off(ACT_PICKED_UNITS);
+    ImGui::PushID("army");
+    if (!supply_off.empty()) {
+        const std::string line = "내 부대 전부 보급 채우기 — " + supply_off;
+        ImGui::TextWrapped("%s", line.c_str());
+        note("off:units:fill_all", line);
+    } else {
+        if (ImGui::Button("내 부대 전부 보급 채우기")) {
+            g_confirm.clear();
+            g_notice = keeper_enqueue_supply(true, true) ? "" : busy;
+        }
+        note("units:fill_all", "내 부대 전부 보급 채우기");
+        ImGui::SameLine();
+        ImGui::TextDisabled("배치 · 예비의 내 부대 모두(시설은 뺀다)");
+    }
+    if (!all_off.empty() && !picked_off.empty()) {
+        const std::string line = "부대의 상태 — " + picked_off;
+        ImGui::TextWrapped("%s", line.c_str());
+        note("off:units:stat", line);
+    } else {
+        ImGui::SetNextItemWidth(80.0f);
+        if (ImGui::BeginCombo("##stat", STATS[g_stat_which])) {
+            for (int i = 0; i < STAT_COUNT; i++) {
+                if (ImGui::Selectable(STATS[i], i == g_stat_which))
+                    g_stat_which = i;
+                note("units:stat:" + std::to_string(i), STATS[i]);
+            }
+            ImGui::EndCombo();
+        }
+        note("units:stat", STATS[g_stat_which]);
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(100.0f);
+        if (ImGui::InputInt("%##percent", &g_stat_percent))
+            g_stat_percent = g_stat_percent < 0 ? 0 : g_stat_percent > 100 ? 100 : g_stat_percent;
+        note("units:percent", std::to_string(g_stat_percent));
+        ImGui::SameLine();
+        ImGui::BeginDisabled(!picked_off.empty());
+        if (ImGui::Button("고른 부대에")) {
+            g_confirm.clear();
+            g_notice = keeper_enqueue_unit_stat(g_stat_which, g_stat_percent, false) ? "" : busy;
+        }
+        note("units:stat_picked", "고른 부대에");
+        ImGui::EndDisabled();
+        ImGui::SameLine();
+        ImGui::BeginDisabled(!all_off.empty());
+        if (ImGui::Button("내 부대 전부에")) {
+            g_confirm.clear();
+            g_notice = keeper_enqueue_unit_stat(g_stat_which, g_stat_percent, true) ? "" : busy;
+        }
+        note("units:stat_all", "내 부대 전부에");
+        ImGui::EndDisabled();
+    }
+    ImGui::PopID();
+}
+
 // 목록을 머리 줄에서 고른 열로 놓는다. 같은 값끼리는 앞의 순서(수준 · 번호)가 남는다.
 void sort_rows(ListState &L, int column, bool down)
 {
@@ -1050,8 +1113,11 @@ void ui_draw()
                         ImGui::BeginDisabled(blocked);
                         if (diplomacy)
                             picker(view);
+                        // 부대 탭은 줄이 많다 — 접을 수 있게 한다(접으면 아래의 설계도 목록이 넓어진다)
+                        const bool units_tab = strcmp(tab, UNITS_TAB) == 0;
+                        const bool rows = !units_tab || ImGui::CollapsingHeader("부대 기능 (접으면 아래 목록이 넓어집니다)", ImGuiTreeNodeFlags_DefaultOpen);
                         bool direct_ok = false;
-                        for (int j = i; j < FEATURE_COUNT && strcmp(FEATURES[j].tab, tab) == 0; j++) {
+                        for (int j = i; rows && j < FEATURE_COUNT && strcmp(FEATURES[j].tab, tab) == 0; j++) {
                             if (direct_row(FEATURES[j], game, research)) {
                                 direct_ok = true;
                                 if (research && j + 1 < FEATURE_COUNT && strcmp(FEATURES[j + 1].tab, tab) == 0)
@@ -1061,8 +1127,14 @@ void ui_draw()
                         ImGui::EndDisabled();
                         if (research)
                             item_list(g_research_list, false, game, blocked);
-                        else if (strcmp(tab, UNITS_TAB) == 0)
+                        else if (strcmp(tab, UNITS_TAB) == 0) {
+                            if (rows) {
+                                ImGui::BeginDisabled(blocked);
+                                army_rows();
+                                ImGui::EndDisabled();
+                            }
                             item_list(g_units_list, true, game, blocked);
+                        }
                         values_tab = true;
                         values_ok = direct_ok;
                     }

@@ -67,7 +67,7 @@ RESEARCH_NAMES = {"tech_table": "기술 표의 포인터(qword)", "tech_count": 
 
 # 새 찾기(서명)가 채우는 "부르는 게임의 함수" — native/srtoybox/locate.h 의 ActLayout 과 같은 순서다. 값은 함수의 RVA
 ACT_FIELDS = ["colonize", "fight", "become", "elect", "news", "map_pick", "player_index2", "player_pointer2", "leader_table", "leader_id",
-              "treaty", "treaties", "annex", "map", "spawn", "map_hex", "picked_units", "upgrades", "game_over", "winners", "ui_flags", "gui", "gui_vtable", "deploy_hex"]
+              "treaty", "treaties", "annex", "map", "spawn", "map_hex", "picked_units", "upgrades", "game_over", "winners", "ui_flags", "gui", "gui_vtable", "deploy_hex", "units"]
 ACT_NAMES = {"colonize": "식민지화 함수(지역 객체, 다른 지역의 인덱스, 깃발)",
              "fight": "전쟁 함수(지역 객체, 깃발, 다른 지역의 인덱스, 깃발, 깃발)",
              "become": "플레이 지역을 바꾸는 함수(지역 객체, 0)",
@@ -85,6 +85,7 @@ ACT_NAMES = {"colonize": "식민지화 함수(지역 객체, 다른 지역의 �
              "game_over": "판이 끝난 꼴(dword. 0 이면 진행 중)", "winners": "이긴 지역들의 비트 묶음의 포인터(qword)",
              "ui_flags": "화면의 깃발들(dword. 비트 0x20000 이 GUI 숨김)", "gui": "GUI 객체의 포인터(qword. 읽기만 한다)",
              "gui_vtable": "GUI 객체의 가상 함수 표(읽기 전용 자료의 RVA — 5번이 깃발을 바꾸는 함수)",
+             "units": "세계의 모든 부대(시설 포함)의 목록의 첫 부대(qword. 부대의 +8 로 이어진다. 읽기만 한다)",
              "deploy_hex": "배치 칸을 찾는 함수(지역 객체, 받을 자리, 유형)",
              "map_pick": "지도에서 고른 지역(qword — 가리키는 word 가 지역의 인덱스. 읽기만 한다)",
              "player_index2": "플레이어 인덱스의 둘째 사본(dword)", "player_pointer2": "플레이어 포인터의 둘째 사본(qword)"}

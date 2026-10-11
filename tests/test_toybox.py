@@ -1099,6 +1099,13 @@ def test_the_supply_of_picked_units_is_filled_without_the_cheat(dll, cfg, tmp_pa
     assert got["unpicked"] == "고른 부대: 없음 — 게임에서 내 부대를 고르십시오" and got["picked"] == "고른 부대: 2기 (내 부대 1기)"
     assert got["filled"] == [33.0, 8.75] and got["theirs"] == [1.0, 1.0]    # 2 × 10 × 1.1 × 1.5 / 7(그대로) × 1.25
     assert got["wrote"] == "보급 채우기 — 부대 1기 (남의 부대 1기는 건너뜀)"
+    # 내 부대 전부(세분화, 사용자가 승인했다 2026-10-11): 세계의 부대 목록에서 독일의 부대 둘만 — 폴란드의 부대와 독일의 시설에는 쓰지 않는다
+    full, untouched = [33.0, 8.75], [1.0, 1.0]
+    assert got["all_filled"] == [full, untouched, untouched, full] and got["wrote_all"] == "보급 채우기 — 내 부대 전부 · 2기"
+    # 부대의 상태: [효율, 경험, 사기]. 경험 100% 를 고른 부대 가운데 내 부대에만, 사기 100% 를 내 부대 전부에
+    zero = [0.0, 0.0, 0.0]
+    assert got["stat_picked"] == [[0.0, 1.0, 0.0], zero, zero, zero] and got["wrote_picked"] == "경험 100% — 부대 1기 (남의 부대 1기는 건너뜀)"
+    assert got["stat_all"] == [[0.0, 1.0, 1.0], zero, zero, [0.0, 0.0, 1.0]] and got["wrote_stat_all"] == "사기 100% — 내 부대 전부 · 2기"
     assert got["emptied"] == [0.0, 0.0] and got["wrote_empty"] == "보급 비우기 — 부대 1기 (남의 부대 1기는 건너뜀)"
     assert got["broken"] == "게임의 부대 정보를 읽을 수 없어 하지 않았습니다." and got["after_broken"] == [0.0, 0.0]
     assert got["lines"] == [] and got["text"] == "" and got["options"] == 0

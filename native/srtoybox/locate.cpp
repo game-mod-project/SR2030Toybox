@@ -392,6 +392,9 @@ const struct ActWanted {
     // 최강 부대 묶음: 그 지역이 그 유형의 부대를 내놓는 칸을 찾는 함수
     {"deploy_hex", "배치 칸을 찾는 함수", 0,
      {"41 B8 02 00 00 00 32 DB E8 [rip]", "45 8B C6 48 8D 94 24 38 01 00 00 E8 [rip]", "48 8D 55 A8 48 8B 8D 08 01 00 00 E8 [rip]"}},
+    // 내 부대 전부에 쓰기: 세계의 부대 목록
+    {"units", "세계의 부대 목록", 8,
+     {"4C 8B 3D [rip] 0F 57 C0 33 C0", "48 8B 15 [rip] 2B D8 4C 8B FA", "48 8B 15 [rip] C1 E8 19 A8 01"}},
 };
 static_assert(sizeof(ActLayout) == ACT_WANTED * sizeof(uint32_t), "ActLayout 의 필드는 표 ACTS 의 순서대로 uint32_t 다");
 
