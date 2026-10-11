@@ -908,3 +908,11 @@ def test_items_nobody_holds_are_skipped_and_counted_when_a_set_cannot_be_made(pl
     playing.tick()
     assert playing.told() == ("기술 1개를 완료로 — 고른 것", skipped.format(1))
     assert playing.log() == [skipped.format(2), "연구 완료 (고른 것): 기술 1개", skipped.format(1)]
+
+
+def test_bit_zero_of_the_owners_is_not_a_country(lib):
+    """보유 묶음의 비트 0 은 나라가 아니다(지역 인덱스는 1 부터) — 게임의 표에는 켜져 있는 항목이 있다. 보유국으로 세지 않는다."""
+    fake, lab_ = lab()
+    before = read(lib, fake, lab_)["techs"][1]["others"]
+    lab_.own(TECH, 1, 0)
+    assert read(lib, fake, lab_)["techs"][1]["others"] == before
