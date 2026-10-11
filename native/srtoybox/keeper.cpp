@@ -27,6 +27,7 @@ struct Act {
     int attacker;                           // 전쟁: 지도에서 고른 나라. 0 이면 식민지화, BECOME 이면 "이 나라로 플레이"다
     int region;                             // 식민지로 삼을 나라 · 전쟁의 둘째 나라. 부대 생성: 설계마다의 수량
     std::vector<int> designs;               // 부대 생성: 만들 부대 설계의 번호들
+    std::vector<int> stats;                 // 부대 생성: 만든 부대의 경험 · 사기 · 효율의 퍼센트(-1 이면 그대로). 비었으면 모두 그대로
 };
 const int BECOME = -1, NOVICHOK = -2, TREATY = -3, ANNEX = -4, SPAWN = -5, SUPPLY = -6, BEST = -7, VICTORY = -8, GUI = -9, STAT = -10;   // STAT: region 이 무엇을(+ 16 이면 전부에), designs[0] 이 퍼센트
 void *g_window;                             // 게임 창(HWND) — "즉시 승리"의 메시지를 받을 곳   // SUPPLY: region 이 1 이면 채우기, 0 이면 비우기
@@ -392,6 +393,11 @@ void run_act(const Act &act)
     unsigned long code = 0;
     const bool fight = act.attacker > 0, become = act.attacker == BECOME, novichok = act.attacker == NOVICHOK;
     const bool treaty = act.attacker == TREATY, annex = act.attacker == ANNEX, spawn = act.attacker == SPAWN;
+    float stat_values[STAT_COUNT] = {-1.0f, -1.0f, -1.0f};   // 부대 생성: 만든 부대의 상태(0 … 1. 음수면 그대로)
+    for (int s = 0; s < STAT_COUNT && s < static_cast<int>(act.stats.size()); s++)
+        stat_values[s] = act.stats[s] < 0 ? -1.0f : (act.stats[s] > 100 ? 100 : act.stats[s]) / 100.0f;
+    const float *const spawn_stats = act.stats.empty() ? nullptr : stat_values;
+    int stated = 0;
     const bool supply = act.attacker == SUPPLY, best = act.attacker == BEST;   // BEST: region 이 수량, designs[0] 이 영역
     int hexes = 0, made = 0, hex_x = 0, hex_y = 0, skipped = 0;
     const bool victory = act.attacker == VICTORY;
@@ -405,7 +411,7 @@ void run_act(const Act &act)
     bool hidden = false;
     const Wrote wrote = gui ? game_gui_toggle(&code, &hidden) : victory ? game_victory(window) : best ? game_best(act.designs[0], act.region, &code, &made)
         : stat ? game_unit_stat(act.region & 15, static_cast<float>(act.designs[0]) / 100.0f, everyone, &made, &skipped)
-        : supply ? game_supply((act.region & 1) != 0, everyone, &made, &skipped) : spawn ? game_spawn(act.designs.data(), static_cast<int>(act.designs.size()), act.region, &code, &made, &hex_x, &hex_y)
+        : supply ? game_supply((act.region & 1) != 0, everyone, &made, &skipped) : spawn ? game_spawn(act.designs.data(), static_cast<int>(act.designs.size()), act.region, spawn_stats, &code, &made, &stated, &hex_x, &hex_y)
         : fight ? game_fight(act.attacker, act.region, &code) : become ? game_become(act.region, &code)
         : novichok ? game_novichok(act.region, &code) : treaty ? game_treaty(act.region, &code)
         : annex ? game_annex(act.region, &code, &hexes) : game_colonize(act.region, &code);
@@ -463,8 +469,13 @@ void run_act(const Act &act)
     } else if (spawn && wrote == Wrote::Done) {
         g_last = "부대 생성 — " + (act.designs.size() == 1 ? "설계 " + std::to_string(act.designs[0])
                                                           : "설계 " + std::to_string(act.designs.size()) + "종")
-            + " · " + std::to_string(made) + "기 · 칸 (" + std::to_string(hex_x) + ", " + std::to_string(hex_y) + ")";
+            + " · " + std::to_string(made) + "기 · 칸 (" + std::to_string(hex_x) + ", " + std::to_string(hex_y) + ")"
+            + (stated > 0 ? " · 상태 " + std::to_string(stated) + "기에" : std::string());
         log_line("게임의 함수: %s", g_last.c_str());
+        if (stated < 0) {                      // 부대는 만들었는데 새 부대를 찾지 못했다
+            g_notice = "부대는 만들었지만 상태는 쓰지 못했습니다 — 게임의 부대 목록에서 새 부대를 찾을 수 없습니다.";
+            log_line("%s", g_notice.c_str());
+        }
     } else if (spawn && wrote == Wrote::NoTarget) {
         g_notice = "지도에서 칸을 고르지 않아 하지 않았습니다 — 게임의 지도에서 칸을 고르십시오.";
     } else if (spawn && wrote == Wrote::BadValue) {
@@ -614,12 +625,12 @@ bool keeper_enqueue_unit_stat(int which, int percent, bool all)
     return true;
 }
 
-bool keeper_enqueue_spawn(const std::vector<int> &designs, int each)
+bool keeper_enqueue_spawn(const std::vector<int> &designs, int each, const std::vector<int> &stats)
 {
     std::lock_guard<std::mutex> lock(g_lock);
     if (g_acts.size() >= RESEARCH_QUEUE || designs.empty() || !game_act_off(ACT_SPAWN).empty())
         return false;
-    g_acts.push_back({SPAWN, each, designs});
+    g_acts.push_back({SPAWN, each, designs, stats});
     return true;
 }
 

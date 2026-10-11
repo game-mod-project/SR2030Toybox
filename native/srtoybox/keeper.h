@@ -57,7 +57,8 @@ bool keeper_enqueue_supply(bool fill, bool all = false);   // all: 고른 부대
 // 부대의 상태(which: STAT_*)를 percent(0 … 100)로 쓴다(game_unit_stat) — 고른 내 부대에, all 이면 내 부대 전부에. 받지 못하면 거짓.
 bool keeper_enqueue_unit_stat(int which, int percent, bool all);
 // 게임의 지도에서 고른 칸에 그 설계들의 부대를 each 기씩 만든다(game_spawn). 받지 못하면 거짓.
-bool keeper_enqueue_spawn(const std::vector<int> &designs, int each);
+// stats: 만든 부대에 쓸 경험 · 사기 · 효율의 퍼센트(STAT_* 의 순서, 0 … 100. -1 이면 그대로). 비었으면 모두 그대로.
+bool keeper_enqueue_spawn(const std::vector<int> &designs, int each, const std::vector<int> &stats = {});
 
 // 최소 유지: 켜진 항목이 바닥보다 작아지면 바닥으로 올린다. KEEP_EVERY_MS 마다 보고, 설정 창이 닫혀 있어도 돈다.
 // 플레이하는 나라가 바뀌면 그 뒤로는 새 나라의 값을 본다. 물자는 이번 판에서 쓰는 것만 올린다.

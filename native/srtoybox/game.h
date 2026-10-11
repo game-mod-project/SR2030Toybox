@@ -27,7 +27,8 @@
 //   (플레이어의 지역 객체, 설계의 번호, 수, 그 칸, 0, 1, NULL, 1, 0, 0) 으로(내장 치트 darran 과 같은 인자. 수는 1 … 10). 사용자가 정했다(2026-10-11).
 //   "GUI 의 깃발 바꾸기"(3단계 6, GUI 숨기기/보이기) — GUI 객체의 가상 함수(그 객체의 함수 표의 5번. 표는 서명으로 찾는다)를
 //   (객체, 새 깃발, 0, NULL, 0, NULL, 0, 0, 1) 로 한 번. 그 앞에 화면의 깃발(전역 dword)의 한 비트를 뒤집는다. 사용자가 정했다(2026-10-11).
-// "부대의 상태"(세분화 — 경험 · 사기 · 효율)는 플레이어의 부대 객체의 float 한 칸씩(+0xA0 · +0xA4 · +0x9C)에 쓴다 — 게임에서 고른 부대, 또는 내 부대 전부.
+// "부대의 상태"(세분화 — 경험 · 사기 · 효율)는 플레이어의 부대 객체의 float 한 칸씩(+0xA0 · +0xA4 · +0x9C)에 쓴다 — 게임에서 고른 부대, 또는 내 부대 전부,
+// 또는 부대 생성이 방금 만든 부대(만들기 앞뒤의 "내 부대"를 견줘 찾는다. 사용자가 정했다, 2026-10-12).
 // "내 부대 전부"는 세계의 부대 목록(읽기만 한다)에서 주인이 플레이어이고 시설이 아닌 것이다 — 보급 채우기도 그렇게 할 수 있다. 사용자가 정했다(2026-10-11).
 // "즉시 승리"(3단계 6, 내장 치트 instantwin 을 옮긴 것)는 전역 둘에 쓴다: 판이 끝난 꼴(dword)에 1, 이긴 지역들의 묶음에서 플레이어의 비트
 // (묶음이 없으면 그 포인터 칸에 새 묶음을 건다). 그리고 게임 창에 메시지 하나를 보낸다(Windows 의 PostMessageA — 게임의 함수가 아니다). 사용자가 정했다(2026-10-11).
@@ -246,7 +247,10 @@ bool game_map_hex(int *x, int *y);
 // 부르기 전에 본다: 진행 중 · 멀티플레이가 아니다 / 칸을 골랐고 지도 안이다(아니면 Wrote::NoTarget) /
 // 설계가 모두 표에 있다(번호 1 … SPAWN_MAX_EQUIP, 빈 자리가 아니다) · 설계의 수 × each 가 SPAWN_LIMIT 이하(아니면 Wrote::BadValue — 하나도 만들지 않는다).
 // 함수 안에서 예외가 나면 Wrote::Crashed — 그때까지 만든 부대는 남는다(*made). *x · *y 는 그 칸.
-Wrote game_spawn(const int *designs, int n, int each, unsigned long *code, int *made, int *x, int *y);
+// stats 를 주면(STAT_COUNT 칸 — STAT_* 의 순서, 0 … 1. 음수인 칸은 그대로) 만든 부대의 경험 · 사기 · 효율에 쓴다: 부르기 전과 뒤의 "내 부대"
+// (세계의 부대 목록에서 주인이 플레이어이고 시설이 아닌 것)를 견줘 새로 생긴 부대를 찾는다 — 게임의 함수가 돌려주는 값은 쓰지 않는다.
+// *stated 는 상태를 쓴 부대의 수. 부대 목록을 읽을 수 없거나 새 부대를 못 찾았으면 부대는 만든 채로 -1.
+Wrote game_spawn(const int *designs, int n, int each, const float *stats, unsigned long *code, int *made, int *stated, int *x, int *y);
 // 테스트: 부르는 함수의 자리를 준다(함수는 그 자리에 둘 함수, layout 의 자료는 "게임"의 그 자리, 상수는 그 값). nullptr 이면 못 찾은 것으로.
 void game_set_acts_for_test(const ActLayout *layout, void *colonize, void *fight, void *become, void *elect, void *news, void *treaty,
                             void *annex, void *spawn, void *deploy);

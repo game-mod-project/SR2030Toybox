@@ -48,6 +48,8 @@ Mult g_mult_sent;             // keeper 에 마지막으로 넘긴 배율(〃)
 // 기술 · 부대 설계의 목록 하나의 상태. 연구 탭의 목록과 부대 탭의 설계도 목록이 저마다 하나씩 갖는다(같은 코드로 그린다 — item_list).
 struct ListState {
     int each = 1;                 // 부대 탭: "고른 것을 수량만큼 생성"의 수량(설계마다)
+    bool stat_on[STAT_COUNT] = {};                 // 〃 만든 부대의 경험 · 사기 · 효율을 정한다(꺼져 있으면 게임이 준 값 그대로)
+    int stat_value[STAT_COUNT] = {100, 100, 100};  // 그 퍼센트(0 … 100)
     ListFilter list;              // 거르개
     char find[64] = "";           // 찾기란
     char owner_find[64] = "";     // 보유국 고르기 안의 검색란
@@ -115,14 +117,13 @@ bool direct_row(const Feature &f, const GameState &game, bool compact)
     const bool novichok = f.direct == Direct::Novichok;
     const bool treaty = f.direct == Direct::Treaty;
     const bool annex = f.direct == Direct::Annex;
-    const bool spawn = f.direct == Direct::Spawn;
     const bool supply = f.direct == Direct::Supply;
     const bool best = f.direct == Direct::Best;
     const bool victory = f.direct == Direct::Victory;
     const bool gui = f.direct == Direct::Gui;
-    const bool act = f.direct == Direct::Colonize || fight || become || novichok || treaty || annex || spawn || supply || best || victory || gui;   // 게임의 함수를 부르는 줄
+    const bool act = f.direct == Direct::Colonize || fight || become || novichok || treaty || annex || supply || best || victory || gui;   // 게임의 함수를 부르는 줄
     const std::string off = !game.known ? std::string("게임 상태를 읽을 수 있을 때만 씁니다.")
-        : research ? game_research_off() : act ? game_act_off(gui ? ACT_GUI : victory ? ACT_VICTORY : best ? ACT_BEST : supply ? ACT_SUPPLY : spawn ? ACT_SPAWN : fight ? ACT_FIGHT : become ? ACT_BECOME : novichok ? ACT_ELECT : treaty ? ACT_TREATY : annex ? ACT_ANNEX : ACT_COLONIZE)
+        : research ? game_research_off() : act ? game_act_off(gui ? ACT_GUI : victory ? ACT_VICTORY : best ? ACT_BEST : supply ? ACT_SUPPLY : fight ? ACT_FIGHT : become ? ACT_BECOME : novichok ? ACT_ELECT : treaty ? ACT_TREATY : annex ? ACT_ANNEX : ACT_COLONIZE)
         : game_more_off(group);
     ImGui::PushID(f.id);
     if (!off.empty()) {
@@ -165,15 +166,12 @@ bool direct_row(const Feature &f, const GameState &game, bool compact)
             ImGui::TextUnformatted(map.c_str());
             note("fight:map", map);
         }
-        int hex_x = 0, hex_y = 0;
-        const bool on_hex = spawn && game_map_hex(&hex_x, &hex_y);           // 부대 생성: 게임의 지도에서 고른 칸
-        const std::string hex = hex_label(on_hex, hex_x, hex_y);             // 단추 옆에 적는다 — 줄을 따로 쓰면 아래 목록이 밀린다
         int units = 0, mine = 0;                                             // 보급: 게임에서 고른 부대(내 부대에만 쓴다)
         const std::string picked = !supply ? std::string() : !game_picked_units(&units, &mine) ? std::string("고른 부대: 읽을 수 없음")
             : units == 0 ? std::string("고른 부대: 없음 — 게임에서 내 부대를 고르십시오")
             : "고른 부대: " + std::to_string(units) + "기" + (mine != units ? " (내 부대 " + std::to_string(mine) + "기)" : std::string());
         // 나라를 고르지 않았다(목록에서 · 전쟁은 지도에서도). 같은 나라끼리는 싸움 붙일 수 없다. 부대 생성은 칸을, 보급은 내 부대를 골라야 한다
-        ImGui::BeginDisabled((f.target == Target::Picked && g_picked <= 0) || (fight && (on_map <= 0 || on_map == g_picked)) || (spawn && !on_hex)
+        ImGui::BeginDisabled((f.target == Target::Picked && g_picked <= 0) || (fight && (on_map <= 0 || on_map == g_picked))
                              || (supply && mine <= 0));
         const bool asking = f.confirm && g_confirm == f.id;                   // 되돌릴 수 없는 줄은 한 번 더 눌러야 한다
         const std::string label = !asking ? std::string(f.label)
@@ -195,14 +193,14 @@ bool direct_row(const Feature &f, const GameState &game, bool compact)
             }
             note(std::string("empty:") + f.id, "비우기");
         }
-        if (spawn || supply) {                                               // 지금 고른 칸 · 부대(게임에서 고른 것)
+        if (supply) {                                                        // 지금 고른 부대(게임에서 고른 것)
             ImGui::SameLine();
-            ImGui::TextDisabled("%s", (spawn ? hex : picked).c_str());
-            note(spawn ? "spawn:hex" : "supply:picked", spawn ? hex : picked);
+            ImGui::TextDisabled("%s", picked.c_str());
+            note("supply:picked", picked);
         }
         if (pressed && act) {
             g_confirm.clear();
-            g_notice = (gui ? keeper_enqueue_gui() : victory ? keeper_enqueue_victory() : best ? keeper_enqueue_best(g_best_domain, static_cast<int>(value)) : supply ? keeper_enqueue_supply(true) : spawn ? keeper_enqueue_spawn({static_cast<int>(value)}, 1) : fight ? keeper_enqueue_fight(on_map, g_picked) : become ? keeper_enqueue_become(g_picked)
+            g_notice = (gui ? keeper_enqueue_gui() : victory ? keeper_enqueue_victory() : best ? keeper_enqueue_best(g_best_domain, static_cast<int>(value)) : supply ? keeper_enqueue_supply(true) : fight ? keeper_enqueue_fight(on_map, g_picked) : become ? keeper_enqueue_become(g_picked)
                         : novichok ? keeper_enqueue_novichok(g_picked) : treaty ? keeper_enqueue_treaty(g_picked)
                         : annex ? keeper_enqueue_annex(g_picked) : keeper_enqueue_colonize(g_picked))
                 ? "" : "대기 중인 요청이 많아 받지 못했습니다.";
@@ -973,13 +971,38 @@ void item_list(ListState &L, bool units, const GameState &game, bool blocked)
         ImGui::BeginDisabled(!on_hex || many || L.chosen.empty());
         if (ImGui::Button("고른 것을 수량만큼 생성")) {
             g_confirm.clear();
-            g_notice = keeper_enqueue_spawn(std::vector<int>(L.chosen.begin(), L.chosen.end()), L.each) ? "" : "대기 중인 요청이 많아 받지 못했습니다.";
+            std::vector<int> stats;                                           // 경험 · 사기 · 효율의 퍼센트. 정하지 않은 것은 -1
+            for (int s = 0; s < STAT_COUNT; s++)
+                stats.push_back(L.stat_on[s] ? L.stat_value[s] : -1);
+            g_notice = keeper_enqueue_spawn(std::vector<int>(L.chosen.begin(), L.chosen.end()), L.each, stats) ? ""
+                : "대기 중인 요청이 많아 받지 못했습니다.";
         }
         note("list:spawn", "고른 것을 수량만큼 생성");
         ImGui::EndDisabled();
         ImGui::SameLine();
         ImGui::TextDisabled("%s", where.c_str());
         note("list:hex", where);
+        // 만든 부대의 상태: 켠 것만 그 퍼센트로 쓴다(내 부대 전부의 목록을 읽을 수 있어야 한다 — 새로 생긴 부대를 거기서 찾는다)
+        static const char *const STATS[STAT_COUNT] = {"경험", "사기", "효율"};
+        const std::string stat_off = game_act_off(ACT_UNITS);
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted("만든 부대의");
+        ImGui::BeginDisabled(!stat_off.empty());
+        for (int s = 0; s < STAT_COUNT; s++) {
+            ImGui::PushID(s);
+            ImGui::SameLine();
+            ImGui::Checkbox(STATS[s], &L.stat_on[s]);
+            note("list:stat:" + std::to_string(s), L.stat_on[s] ? "1" : "0");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(90.0f);
+            if (ImGui::InputInt("##stat", &L.stat_value[s], 1, 10))
+                L.stat_value[s] = L.stat_value[s] < 0 ? 0 : L.stat_value[s] > 100 ? 100 : L.stat_value[s];
+            note("list:stat:" + std::to_string(s) + ":value", std::to_string(L.stat_value[s]));
+            ImGui::PopID();
+        }
+        ImGui::EndDisabled();
+        ImGui::SameLine();
+        ImGui::TextDisabled("%s", stat_off.empty() ? "% — 켠 것만 정한다(사기 · 효율은 게임이 자정마다 다시 셈한다)" : stat_off.c_str());
     }
     std::vector<int> visible;
     size_t chosen_visible = 0;
@@ -1043,7 +1066,7 @@ void item_list(ListState &L, bool units, const GameState &game, bool blocked)
         // 처음 너비는 보이는 줄에서 잰다 — 긴 병과("전략 폭격기")가 처음에 보이지 않으면 잘린다. 부대 설계는 넉넉히 준다
         ImGui::TableSetupColumn(designs ? "병과" : "분류", designs ? ImGuiTableColumnFlags_WidthFixed : 0, designs ? 7.0f * ImGui::GetFontSize() : 0.0f);
         ImGui::TableSetupColumn(designs ? "연도" : "수준", ImGuiTableColumnFlags_DefaultSort);
-        ImGui::TableSetupColumn("상태");
+        ImGui::TableSetupColumn(units ? "등록" : "상태");                // 부대 탭: 등록 · 미등록 · 연구 중
         ImGui::TableSetupColumn("선행");                              // 선행 기술을 플레이어가 보유했는가: "보유" · "2/3" · "-"(선행이 없다)
         ImGui::TableSetupColumn("보유국", ImGuiTableColumnFlags_WidthStretch, 1.0f);   // 이름이 여럿이다 — 남는 너비를 이름 열과 나눠 쓴다
         ImGui::TableSetupColumn(with_picked ? region_label(shot->picked).c_str() : "고른 나라", ImGuiTableColumnFlags_NoHide);
@@ -1070,7 +1093,9 @@ void item_list(ListState &L, bool units, const GameState &game, bool blocked)
         while (clipper.Step())
             for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
                 const ListRow &r = L.rows[static_cast<size_t>(i)];
-                const std::string cells[6] = {r.name, kind_label(r.kind), std::to_string(r.level), state_label(r.state), needs_label(r),
+                const std::string cells[6] = {r.name, kind_label(r.kind), std::to_string(r.level),
+                                              !units ? state_label(r.state) : r.state == STATE_MINE ? "등록" : r.state == STATE_QUEUED ? "연구 중" : "미등록",
+                                              needs_label(r),
                                               owners_label(r, shot->tables.regions)};
                 ImGui::PushID(r.id);
                 ImGui::TableNextRow();
@@ -1142,6 +1167,7 @@ void ui_init()
     g_settings = load_settings();
     send_keep(false);             // 저장해 둔 최소 유지를 keeper 에 넘긴다 — 창을 한 번도 열지 않아도 돈다
     send_mult(false);             // 배율도
+    g_units_list.list.show = Show::All;   // 설계도 목록은 전체부터 — 모두 등록해도 목록이 비지 않는다(등록 열로 가른다)
 }
 
 bool ui_visible()

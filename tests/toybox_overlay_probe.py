@@ -684,8 +684,17 @@ def fake_game(hook: str, handler: int | None = None, values: bool = True, more: 
     fake.annex = ANNEX(annex)
     fake.spawned = []                                          # 가짜 "부대 만들기"가 불린 인자들: [지역 번호, 설계, 수, 칸, 나머지 여섯]
 
+    fake.made = []                                             # 가짜 "부대 만들기"가 만든 부대 객체들(세계의 부대 목록의 머리에 건다)
+
     def spawn(region, design, count, hex_, f1, f2, out_, f3, z, f4):
         fake.spawned.append([struct.unpack("<H", ctypes.string_at(region + 8, 2))[0], design, count, hex_, int(f1), int(f2), out_ or 0, int(f3), z, int(f4)])
+        raw = (ctypes.c_ubyte * 0x240)()
+        struct.pack_into("<Q", raw, 0x08, fake.peek(UNITS, "<Q"))
+        struct.pack_into("<H", raw, 0x1E, struct.unpack("<H", ctypes.string_at(region + 4, 2))[0])
+        struct.pack_into("<3f", raw, 0x9C, 0.5, 0.25, 0.75)    # 효율 · 경험 · 사기: 게임이 준 값
+        struct.pack_into("<Q", raw, 0x230, ctypes.addressof(fake.lab.designs) + 0x168 * design)
+        fake.made.append(raw)
+        fake.poke(UNITS, "<Q", ctypes.addressof(raw))
         return 0
     fake.spawn = SPAWN(spawn)
     # GUI 객체: 첫 칸이 함수 표(가짜 게임의 GUI_VTABLE 자리), +0x2C 가 깃발. 표의 5번이 가짜 "깃발을 바꾼다"
@@ -1755,14 +1764,16 @@ def run_research(hook: str, mode: str) -> int:
         game.click("tab:부대")
         game.wait(0.8)
         facts = game.facts()
-        out["unpicked"] = [facts["spawn:hex"][3], facts["list:hex"][3]]
-        out["off_clicks"] = [game.click("run:spawnunit"), game.click("list:spawn")]      # 칸을 고르지 않았다 — 둘 다 꺼져 있다
+        out["unpicked"] = facts["list:hex"][3]
+        out["rows"] = [name for name in facts if name.startswith("run:")]   # 번호로 만드는 줄은 없다
+        game.click("list:spawn")                              # 칸을 고르지 않았다 — 꺼져 있다
         game.wait(0.3)
         fake.poke(MAP_HEX, "<I", 3 | 2 << 16)                 # 게임의 지도에서 (3, 2) 를 골랐다
         game.wait(0.3)
-        out["picked"] = game.facts()["spawn:hex"][3]
-        press("run:spawnunit")                                # 입력란의 번호(2413)는 가짜 판의 표에 없다
-        out["missing"], out["missing_calls"] = game.shown("unwritten"), list(fake.spawned)
+        out["picked"] = game.facts()["list:hex"][3]
+        game.click("list:show")
+        game.click("show:2")                                  # 보기: 자국 미보유 — 설계 11 · 12 가 맨 위에 온다
+        game.wait(0.3)
         scroll_to(game, "item:11")
         game.click("item:11")
         scroll_to(game, "item:12")
@@ -1770,6 +1781,14 @@ def run_research(hook: str, mode: str) -> int:
         scroll_to(game, "list:spawn", up=True)
         press("list:spawn")                                   # 고른 설계 둘을 하나씩
         out["spawned"], out["wrote"] = list(fake.spawned), game.shown("wrote")
+        stats = lambda: [list(struct.unpack_from("<3f", raw, 0x9C)) for raw in fake.made]   # [효율, 경험, 사기]
+        out["plain"] = stats()                                # 상태를 정하지 않았다 — 게임이 준 값 그대로
+        scroll_to(game, "list:stat:0", up=True)
+        game.click("list:stat:0")                             # 경험을 켠다(100 %)
+        game.click("list:stat:2")                             # 효율도
+        game.wait(0.2)
+        press("list:spawn")                                   # 둘을 더 만든다 — 새 부대에만 쓴다
+        out["stated"], out["wrote_stated"] = stats(), game.shown("wrote")
         fake.poke(MAP_HEX, "<I", 9 | 2 << 16)                 # 지도(8 × 4) 밖의 칸 — 고르지 않은 것으로 친다
         game.wait(0.3)
         out["outside"] = game.facts()["list:hex"][3]

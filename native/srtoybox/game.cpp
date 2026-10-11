@@ -2179,17 +2179,17 @@ bool game_map_hex(int *x, int *y)
     return read_player(base, at, &player).in_game && picked_hex(base, where, map_where, &hex, x, y);
 }
 
-Wrote game_spawn(const int *designs, int n, int each, unsigned long *code, int *made, int *x, int *y)
+Wrote game_spawn(const int *designs, int n, int each, const float *stats, unsigned long *code, int *made, int *stated, int *x, int *y)
 {
     *code = 0;
-    *made = *x = *y = 0;
+    *made = *stated = *x = *y = 0;
     if (!game_act_off(ACT_SPAWN).empty())
         return Wrote::Off;
     const uint8_t *base = nullptr;
     GameAddresses at = {};
     ResearchLayout r = {};
     Spawn spawn = nullptr;
-    uint32_t where = 0, map_where = 0;
+    uint32_t where = 0, map_where = 0, units_where = 0;
     {
         std::lock_guard<std::mutex> lock(g_lock);
         base = g_base;
@@ -2198,6 +2198,7 @@ Wrote game_spawn(const int *designs, int n, int each, unsigned long *code, int *
         spawn = reinterpret_cast<Spawn>(g_spawn);
         where = g_map_hex;
         map_where = g_map;
+        units_where = g_units;
     }
     uint64_t player = 0, table = 0;
     int32_t count = 0;
@@ -2216,7 +2217,43 @@ Wrote game_spawn(const int *designs, int n, int each, unsigned long *code, int *
             || !peek(reinterpret_cast<const void *>(table + static_cast<uint64_t>(designs[i]) * DESIGN_SIZE), &first, sizeof(first)) || first == 0)
             return Wrote::BadValue;
     }
-    return guarded_spawn(spawn, reinterpret_cast<void *>(player), designs, n, each, hex, made, code) ? Wrote::Done : Wrote::Crashed;
+    bool want = false;                         // 만든 부대의 상태를 정한다
+    for (int c = 0; stats != nullptr && c < STAT_COUNT; c++)
+        want = want || stats[c] >= 0.0f;
+    std::vector<uint64_t> before, after;
+    const bool listed = want && units_where != 0 && owned_units(base, units_where, s.index, table, &before);
+    if (!guarded_spawn(spawn, reinterpret_cast<void *>(player), designs, n, each, hex, made, code))
+        return Wrote::Crashed;
+    if (!want)
+        return Wrote::Done;
+    *stated = -1;
+    if (!listed || !owned_units(base, units_where, s.index, table, &after))
+        return Wrote::Done;                    // 부대는 만들었다 — 상태만 못 쓴다
+    std::sort(before.begin(), before.end());
+    static const uint32_t CELLS[STAT_COUNT] = {UNIT_EXPERIENCE, UNIT_MORALE, UNIT_EFFICIENCY};
+    SupplyTables t = {};
+    t.designs = table;
+    t.design_count = count;
+    int done = 0;
+    for (uint64_t unit : after) {
+        if (std::binary_search(before.begin(), before.end(), unit))
+            continue;                          // 앞서부터 있던 부대
+        uint8_t raw[UNIT_READ], design[DESIGN_SIZE];
+        if (!read_unit(t, unit, raw, design) || field<uint16_t>(raw, UNIT_OWNER) != s.index
+            || (field<uint32_t>(raw, UNIT_FLAGS4) & UNIT_FACILITY) != 0)
+            continue;
+        bool ok = true;
+        for (int c = 0; c < STAT_COUNT && ok; c++) {
+            const float value = stats[c] > 1.0f ? 1.0f : stats[c];
+            if (stats[c] >= 0.0f)
+                ok = poke(unit + CELLS[c], &value, sizeof(value));
+        }
+        if (!ok)
+            return write_failed("만든 부대의 상태", *made, done);
+        done++;
+    }
+    *stated = done > 0 ? done : -1;
+    return Wrote::Done;
 }
 
 Wrote game_annex(int number, unsigned long *code, int *hexes)
