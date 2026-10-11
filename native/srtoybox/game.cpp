@@ -1820,16 +1820,18 @@ bool picked_units(const uint8_t *base, uint32_t where, std::vector<uint64_t> *un
 namespace {
 
 // 세계의 부대 목록에서 그 지역(인덱스)의 부대(시설은 뺀다)의 주소를 모은다. 목록이 말이 안 되면(읽을 수 없다 · 너무 길다) 거짓.
-bool owned_units(const uint8_t *base, uint32_t where, int owner, std::vector<uint64_t> *units)
+// 설계가 0번(designs — 부대 설계 표의 첫 자리)인 것은 부대가 아니다: 게임은 지역마다 그런 객체를 하나씩 목록에 둔다(게임에서 봤다) — 뺀다.
+bool owned_units(const uint8_t *base, uint32_t where, int owner, uint64_t designs, std::vector<uint64_t> *units)
 {
     uint64_t unit = 0;
     if (!peek_at(base, where, &unit))
         return false;
     for (int n = 0; unit != 0; n++) {
-        uint8_t raw[UNIT_FLAGS4 + 4];
+        uint8_t raw[UNIT_READ];
         if (n >= UNITS_LIMIT || !peek(reinterpret_cast<const void *>(unit), raw, sizeof(raw)))
             return false;
-        if (field<uint16_t>(raw, UNIT_OWNER) == owner && (field<uint32_t>(raw, UNIT_FLAGS4) & UNIT_FACILITY) == 0)
+        if (field<uint16_t>(raw, UNIT_OWNER) == owner && (field<uint32_t>(raw, UNIT_FLAGS4) & UNIT_FACILITY) == 0
+            && field<uint64_t>(raw, UNIT_DESIGN) != designs)
             units->push_back(unit);
         unit = field<uint64_t>(raw, UNIT_NEXT);
     }
@@ -1863,7 +1865,7 @@ Wrote game_unit_stat(int which, float value, bool all, int *done, int *skipped)
         return Wrote::NotInGame;
     if (which < 0 || which >= STAT_COUNT || !(value >= 0.0f && value <= 1.0f) || !peek_at(base, r.design_table, &t.designs) || t.designs == 0
         || !peek_at(base, r.design_count, &t.design_count) || t.design_count < 2
-        || !(all ? owned_units(base, where, s.index, &units) : picked_units(base, where, &units)))
+        || !(all ? owned_units(base, where, s.index, t.designs, &units) : picked_units(base, where, &units)))
         return Wrote::BadValue;
     for (uint64_t unit : units) {              // 모두 읽은 뒤에 쓴다 — 하나라도 부대 객체로 보이지 않으면 하나도 쓰지 않는다
         uint8_t raw[UNIT_READ], design[DESIGN_SIZE];
@@ -1940,7 +1942,7 @@ Wrote game_supply(bool fill, bool all, int *done, int *skipped)
         return Wrote::NotInGame;
     if (!peek_at(base, r.design_table, &t.designs) || t.designs == 0 || !peek_at(base, r.design_count, &t.design_count) || t.design_count < 2
         || !peek_at(base, r.tech_table, &t.techs) || t.techs == 0 || !peek_at(base, r.tech_count, &t.tech_count) || t.tech_count < 1
-        || !(all ? owned_units(base, where, s.index, &units) : picked_units(base, where, &units)))
+        || !(all ? owned_units(base, where, s.index, t.designs, &units) : picked_units(base, where, &units)))
         return Wrote::BadValue;
     t.upgrades = reinterpret_cast<uint64_t>(base) + r.world + upgrades;
     struct Target {
