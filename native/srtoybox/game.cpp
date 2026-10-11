@@ -48,6 +48,8 @@ void *g_become;               // 게임의 "플레이 지역 바꾸기"(못 찾�
 uint32_t g_index2, g_pointer2;   // 플레이어의 인덱스 · 포인터의 둘째 사본(RVA. 못 찾았으면 0)
 void *g_elect, *g_news;       // 게임의 "새 지도자 세우기" · "알림"(못 찾았으면 nullptr)
 uint32_t g_leaders, g_leader_id;   // 지도자 표의 포인터가 든 전역(RVA) · 지역 객체에서 지도자 번호의 자리(못 찾았으면 0)
+void *g_treaty;               // 게임의 "조약"(못 찾았으면 nullptr)
+uint32_t g_treaties;          // 지역 객체에서 조약 표의 자리(못 찾았으면 0)
 char g_act_why[ACT_WANTED][MORE_WHY];   // 부르는 함수마다 못 찾은 까닭
 
 typedef void (*Handler)(void *context, const char *line);
@@ -104,6 +106,23 @@ bool guarded_colonize(Colonize colonize, void *region, int other, unsigned long 
 {
     __try {
         colonize(region, other, true);
+        return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        *code = GetExceptionCode();
+        return false;
+    }
+}
+
+typedef void (*Treaty)(void *region, bool side, int treaty, bool make, int other, bool a, bool b, bool c);
+
+// 게임의 "조약"을 네 번 부른다 — 플레이어 쪽에서 둘, 그 나라 쪽에서 둘(내장 치트 treaty 의 순서). 예외는 잡아 code 에 적는다.
+bool guarded_alliance(Treaty treaty, void *mine, int me, void *theirs, int them, unsigned long *code)
+{
+    __try {
+        treaty(mine, false, TREATY_ALLIANCE, true, them, true, true, false);
+        treaty(mine, true, TREATY_ALLIANCE, true, them, true, true, false);
+        treaty(theirs, false, TREATY_ALLIANCE, true, me, true, true, false);
+        treaty(theirs, true, TREATY_ALLIANCE, true, me, true, true, false);
         return true;
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         *code = GetExceptionCode();
@@ -1148,6 +1167,8 @@ void game_init_from(const uint8_t *base, size_t size)
         g_news = (acting & ACT_NEWS) != 0 ? const_cast<uint8_t *>(base) + acts.news : nullptr;
         g_leaders = (acting & ACT_LEADERS) != 0 ? acts.leader_table : 0;
         g_leader_id = (acting & ACT_LEADER_ID) != 0 ? acts.leader_id : 0;
+        g_treaty = (acting & ACT_TREATY) != 0 ? const_cast<uint8_t *>(base) + acts.treaty : nullptr;
+        g_treaties = (acting & ACT_TREATIES) != 0 ? acts.treaties : 0;
         memcpy(g_act_why, act_why, sizeof(g_act_why));
     }
     if (state) {
@@ -1173,6 +1194,10 @@ void game_init_from(const uint8_t *base, size_t size)
         else
             log_line("지도자 제거를 쓸 수 없습니다 (%s)", (acting & ACT_ELECT) == 0 ? act_why[3] : (acting & ACT_NEWS) == 0 ? act_why[4]
                      : (acting & ACT_LEADERS) == 0 ? act_why[8] : act_why[9]);
+        if ((acting & ACT_TREATY) != 0 && (acting & ACT_TREATIES) != 0)
+            log_line("게임의 함수를 부릅니다 (조약 +0x%X, 조약 표 +0x%X)", acts.treaty, acts.treaties);
+        else
+            log_line("동맹 맺기를 쓸 수 없습니다 (%s)", (acting & ACT_TREATY) == 0 ? act_why[10] : act_why[11]);
     }
     if (!state) {
         log_line("게임 상태를 읽을 수 없습니다 (%s) — 글쇠 방식", why);
@@ -1280,8 +1305,8 @@ void game_set_for_test(const uint8_t *base, const GameAddresses *at, void *handl
     g_research = ResearchLayout();
     g_research_found = false;
     g_recompute = nullptr;
-    g_colonize = g_fight = g_become = g_elect = g_news = nullptr;
-    g_map_pick = g_index2 = g_pointer2 = g_leaders = g_leader_id = 0;
+    g_colonize = g_fight = g_become = g_elect = g_news = g_treaty = nullptr;
+    g_map_pick = g_index2 = g_pointer2 = g_leaders = g_leader_id = g_treaties = 0;
     for (int w = 0; w < ACT_WANTED; w++)
         snprintf(g_act_why[w], MORE_WHY, "%s", "함수의 자리를 주지 않았습니다");
     snprintf(g_research_why, sizeof(g_research_why), "연구의 자리를 주지 않았습니다");
@@ -1503,6 +1528,8 @@ std::string game_act_off(int act)
         return off_text(g_colonize != nullptr, g_act_why[0]);
     if (act == ACT_FIGHT)                      // 함수와 "지도에서 고른 지역"을 둘 다 찾아야 한다
         return off_text(g_fight != nullptr && g_map_pick != 0, g_fight == nullptr ? g_act_why[1] : g_act_why[5]);
+    if (act == ACT_TREATY)                     // 동맹 맺기: 함수와 조약 표의 자리(이미 맺었는지 읽는다)
+        return off_text(g_treaty != nullptr && g_treaties != 0, g_treaty == nullptr ? g_act_why[10] : g_act_why[11]);
     if (act == ACT_ELECT)                      // 지도자 제거: 함수 둘 · 지도자 표 · 지도자 번호의 자리를 모두 찾아야 한다
         return off_text(g_elect != nullptr && g_news != nullptr && g_leaders != 0 && g_leader_id != 0,
                         g_elect == nullptr ? g_act_why[3] : g_news == nullptr ? g_act_why[4] : g_leaders == 0 ? g_act_why[8] : g_act_why[9]);
@@ -1510,6 +1537,40 @@ std::string game_act_off(int act)
         return off_text(g_become != nullptr && g_index2 != 0 && g_pointer2 != 0,
                         g_become == nullptr ? g_act_why[2] : g_index2 == 0 ? g_act_why[6] : g_act_why[7]);
     return "없는 기능입니다";
+}
+
+Wrote game_treaty(int number, unsigned long *code)
+{
+    *code = 0;
+    if (!game_act_off(ACT_TREATY).empty())
+        return Wrote::Off;
+    const uint8_t *base = nullptr;
+    GameAddresses at = {};
+    Treaty treaty = nullptr;
+    uint32_t treaties = 0;
+    {
+        std::lock_guard<std::mutex> lock(g_lock);
+        base = g_base;
+        at = g_at;
+        treaty = reinterpret_cast<Treaty>(g_treaty);
+        treaties = g_treaties;
+    }
+    uint64_t mine = 0, theirs = 0, bits = 0, word = 0;
+    int me = 0, them = 0;
+    const Wrote found = find_pair(base, at, number, true, &mine, &me, &theirs, &them);
+    if (found != Wrote::Done)
+        return found;
+    // 플레이어의 조약 표에서 이 조약을 맺은 지역들의 비트 묶음(없으면 아직 아무와도 맺지 않았다 — 치트도 그렇게 본다)
+    if (!peek_in(mine, treaties + 8ull * TREATY_ALLIANCE, &bits))
+        return Wrote::BadValue;
+    if (bits != 0) {
+        if (!peek(reinterpret_cast<const void *>(bits + 8ull * static_cast<uint64_t>(them / 64)), &word, sizeof(word)))
+            return Wrote::BadValue;
+        if ((word >> (them % 64) & 1) != 0)
+            return Wrote::NotUsed;             // 이미 동맹이다 — 한 번 더 부르면 깨진다(치트의 뒤집기). 부르지 않는다
+    }
+    return guarded_alliance(treaty, reinterpret_cast<void *>(mine), me, reinterpret_cast<void *>(theirs), them, code) ? Wrote::Done
+                                                                                                                     : Wrote::Crashed;
 }
 
 Wrote game_novichok(int number, unsigned long *code)
@@ -1674,7 +1735,7 @@ Wrote game_colonize(int number, unsigned long *code)
     return guarded_colonize(colonize, reinterpret_cast<void *>(mine), them, code) ? Wrote::Done : Wrote::Crashed;
 }
 
-void game_set_acts_for_test(const ActLayout *layout, void *colonize, void *fight, void *become, void *elect, void *news)
+void game_set_acts_for_test(const ActLayout *layout, void *colonize, void *fight, void *become, void *elect, void *news, void *treaty)
 {
     std::lock_guard<std::mutex> lock(g_lock);
     g_colonize = layout != nullptr ? colonize : nullptr;
@@ -1690,8 +1751,11 @@ void game_set_acts_for_test(const ActLayout *layout, void *colonize, void *fight
     g_news = layout != nullptr ? news : nullptr;
     g_leaders = layout != nullptr ? layout->leader_table : 0;
     g_leader_id = layout != nullptr ? layout->leader_id : 0;
+    g_treaty = layout != nullptr ? treaty : nullptr;
+    g_treaties = layout != nullptr ? layout->treaties : 0;
     const bool given[ACT_WANTED] = {g_colonize != nullptr, g_fight != nullptr, g_become != nullptr, g_elect != nullptr, g_news != nullptr,
-                                    g_map_pick != 0, g_index2 != 0, g_pointer2 != 0, g_leaders != 0, g_leader_id != 0};
+                                    g_map_pick != 0, g_index2 != 0, g_pointer2 != 0, g_leaders != 0, g_leader_id != 0,
+                                    g_treaty != nullptr, g_treaties != 0};
     for (int w = 0; w < ACT_WANTED; w++)
         snprintf(g_act_why[w], MORE_WHY, "%s", given[w] ? "" : "함수의 자리를 주지 않았습니다");
 }

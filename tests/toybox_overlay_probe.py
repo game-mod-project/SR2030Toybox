@@ -157,6 +157,9 @@ LEADERS, LEADER_ID = 0x90, 0xAE                 # 가짜 게임의 지도자 표
 ELECT = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int, ctypes.c_int)   # 게임의 "새 지도자 세우기"
 NEWS = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_bool, ctypes.c_void_p,
                           ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_bool)   # 게임의 "알림"
+TREATIES = 0xE00                                # 가짜 게임의 지역 객체 안의 조약 표의 자리(조약 1 의 비트 묶음 포인터는 +8)
+TREATY = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_bool, ctypes.c_int, ctypes.c_bool, ctypes.c_int, ctypes.c_bool, ctypes.c_bool,
+                            ctypes.c_bool)      # 게임의 "조약"
 MAP_PICK = 0x70                                 # 가짜 게임의 "지도에서 고른 지역": 이 자리의 포인터가 가리키는 word(바로 뒤 0x78)가 인덱스다
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 user32 = ctypes.WinDLL("user32", use_last_error=True)
@@ -640,12 +643,18 @@ def fake_game(hook: str, handler: int | None = None, values: bool = True, more: 
     def news(region, n1, n2, n3, n4, flag, nothing, before, index, after, z1, z2, z3, z4):
         fake.succession.append(["news", number(region), n1, n2, n3, n4, int(flag), nothing or 0, before, index, after, z1, z2, z3, int(z4)])
     fake.elect, fake.news = ELECT(elect), NEWS(news)
-    toybox.srtoybox_test_acts.argtypes = [ctypes.c_void_p] * 6
+    # 조약: 독일의 조약 1(동맹)의 비트 묶음(비트의 번호가 지역 인덱스). 처음에는 아무와도 맺지 않았다
+    fake.allies = (ctypes.c_uint64 * 16)()
+    ctypes.memmove(fake.where[176] + TREATIES + 8, struct.pack("<Q", ctypes.addressof(fake.allies)), 8)
+    fake.treaties = []                                         # 가짜 "조약"이 불린 인자들: [지역 번호, 쪽, 조약 번호, 맺는다, 다른 지역의 인덱스, 깃발 셋]
+    fake.treaty = TREATY(lambda region, side, treaty, make, other, a, b, c: fake.treaties.append(
+        [number(region), int(side), treaty, int(make), other, int(a), int(b), int(c)]))
+    toybox.srtoybox_test_acts.argtypes = [ctypes.c_void_p] * 7
     if os.environ.get("PROBE_NO_ACTS") != "1":
-        toybox.srtoybox_test_acts((ctypes.c_uint32 * 10)(1, 1, 1, 1, 1, MAP_PICK, INDEX2, POINTER2, LEADERS, LEADER_ID),
+        toybox.srtoybox_test_acts((ctypes.c_uint32 * 12)(1, 1, 1, 1, 1, MAP_PICK, INDEX2, POINTER2, LEADERS, LEADER_ID, 1, TREATIES),
                                   ctypes.cast(fake.colonize, ctypes.c_void_p), ctypes.cast(fake.fight, ctypes.c_void_p),
                                   ctypes.cast(fake.become, ctypes.c_void_p), ctypes.cast(fake.elect, ctypes.c_void_p),
-                                  ctypes.cast(fake.news, ctypes.c_void_p))
+                                  ctypes.cast(fake.news, ctypes.c_void_p), ctypes.cast(fake.treaty, ctypes.c_void_p))
     fake.recomputed = []
     fake.recompute = RECOMPUTE(lambda _world, index: fake.recomputed.append(index))     # 게임이 살아 있는 동안 붙들어 둔다
     if research:
@@ -807,7 +816,8 @@ def run_window(hook: str, mode: str) -> int:
         game.wait(0.4)
         out["became"] = [call[:2] for call in fake.became]
     elif mode == "confirm_fault":
-        game.click("run:treaty")                              # 아직 내장 치트로 도는 줄 — 명령 처리 함수가 죽는다
+        game.click("run:annex")                               # 아직 내장 치트로 도는 줄(두 번 눌러야 한다) — 명령 처리 함수가 죽는다
+        game.click("run:annex")
         game.wait(0.4)
         out["at_top"] = game.shown("fault")
         out["scrolled"] = scroll_to(game, LAST_BUTTON)
@@ -1300,6 +1310,18 @@ def run_more(hook: str, mode: str) -> int:
         fake.play(176)
         press("run:finalexam")                                # 돌아오면 다시 된다
         out["unwritten_after"] = game.shown("unwritten")
+    elif mode == "more_treaty":                               # 동맹 맺기(3단계 4): 게임의 조약 함수를 네 번 부른다. 이미 동맹이면 부르지 않는다
+        game.click(DIPLOMACY)
+        game.wait(1.2)
+        out["unpicked"] = game.click("run:treaty")            # 나라를 고르지 않았다 — 단추가 꺼져 있다
+        game.wait(0.3)
+        out["treaties_unpicked"] = list(fake.treaties)
+        game.click("row:1106")
+        press("run:treaty")
+        out["treaties"], out["wrote"] = list(fake.treaties), game.shown("wrote")
+        fake.allies[141 // 64] |= 1 << (141 % 64)             # 게임이 독일의 동맹에 폴란드를 올렸다
+        press("run:treaty")
+        out["again"], out["already"] = list(fake.treaties), game.shown("unwritten")
     elif mode == "more_novichok":                             # 지도자 제거(3단계 4): 깃발에 비트를 켜고 게임의 함수 둘을 부른다
         game.click(DIPLOMACY)
         game.wait(1.2)
