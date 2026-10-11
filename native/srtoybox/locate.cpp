@@ -398,7 +398,7 @@ const struct ActWanted {
 };
 static_assert(sizeof(ActLayout) == ACT_WANTED * sizeof(uint32_t), "ActLayout 의 필드는 표 ACTS 의 순서대로 uint32_t 다");
 
-// 배율(묶음 7). 자료 둘과 지역 객체 안의 자리 일곱 — 모두 치트 코드 밖에서 뽑았다(uv run srkit sig-mine [--offset]).
+// 배율(묶음 7). 자료 둘과 지역 객체 안의 자리 아홉 — 모두 치트 코드 밖에서 뽑았다(uv run srkit sig-mine [--offset]).
 // 곱 보정 표의 앞 두 서명에는 지역 하나의 줄(MUL_STEP = 0x320)이 박혀 있다.
 const uint32_t ACT_REGION_TABLE = 0xFFFC;     // 자료: 지역 인덱스마다 MUL_STEP 바이트인 표의 첫 칸(4바이트로 줄 맞춰져 있고 표가 모두 자료 구역 안)
 const ActWanted MULTS[MULT_WANTED] = {
@@ -425,6 +425,13 @@ const ActWanted MULTS[MULT_WANTED] = {
       "F3 0F 10 9B [u32] F3 44 0F 10 83 FC 4B 01 00 F3 0F 58 CB"}},
     {"research_step", "연구의 하루치 칸", ACT_CONSTANT,
      {"F3 0F 5C 83 [u32] 89 47 24 44 0F 2F F8", "F3 0F 10 89 [u32] F3 0F 10 05 ? ? ? ? 0F 2F C1 76 04", "F3 0F 11 83 [u32] 0F 5A C6 66 0F 2F 83"}},
+    // 사회 지출: 비용 여덟(float, 4바이트 간격)과 지출 수준 여덟. 셋째 서명(비용 × 수준을 돌려주는 게임의 잎 함수)에 그 꼴이 박혀 있다
+    {"social_cost", "사회 지출 비용 칸", ACT_CONSTANT,
+     {"48 8D 9E [u32] 0F B7 46 04 41 0F 28 C1", "F3 44 0F 59 97 [u32] F3 44 0F 58 D8 F3 0F 58 FA",
+      "F3 0F 10 84 81 [u32] F3 41 0F 59 84 81 90 00 00 00 C3"}},
+    {"social_level", "사회 지출 수준 칸", ACT_CONSTANT,
+     {"B8 [u32] 41 0F 44 C0 41 B8 84 01 00 00", "48 8D 97 [u32] 49 C7 C0 44 60 FF FF 4C 2B C7",
+      "F3 0F 11 8F [u32] F3 0F 10 8F B4 5D 01 00 0F 2E CE"}},
 };
 static_assert(sizeof(MultLayout) == MULT_WANTED * sizeof(uint32_t), "MultLayout 의 필드는 표 MULTS 의 순서대로 uint32_t 다");
 static_assert(MULT_WANTED <= ACT_WANTED, "서명 표의 크기는 가장 큰 표에 맞춘다");

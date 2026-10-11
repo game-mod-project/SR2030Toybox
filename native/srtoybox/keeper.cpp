@@ -678,8 +678,6 @@ int cell_percent(const Mult &m, int cell)
         return m.use[cell - MUL_USE];
     if (cell >= MUL_OUT && cell < MUL_OUT + MULT_GOODS)
         return m.out[cell - MUL_OUT];
-    if (cell >= MUL_SOCIAL && cell < MUL_SOCIAL + MUL_SOCIAL_COUNT)
-        return m.social;
     return 0;
 }
 
@@ -768,6 +766,8 @@ void mult_daily()
     double delta = 0;
     if (game_mult_off(MULT_PART_MONEY).empty())
         delta = (g_mult.tax / 100.0 - 1.0) * d.tax * passed - (g_mult.defense / 100.0 - 1.0) * d.defense * passed;
+    if (game_mult_off(MULT_PART_SOCIAL).empty())
+        delta -= (g_mult.social / 100.0 - 1.0) * d.social * passed;
     int nodes = 0;
     bool did = false;
     if (delta != 0.0) {
@@ -786,8 +786,8 @@ void mult_daily()
     g_mult_stats.days += passed;
     if (!g_mult_told) {
         g_mult_told = true;                     // 날마다 적지 않는다 — 설정이 바뀐 뒤의 첫 날만
-        log_line("배율: 날마다의 일 (날 %u → +%u일, 국고 %+.0f — 세금 %d%% · 국방비 %d%%, 연구 %d%% — 노드 %d개, 하루치 %.4g일)", d.day, passed, delta,
-                 g_mult.tax, g_mult.defense, g_mult.research, nodes, d.step);
+        log_line("배율: 날마다의 일 (날 %u → +%u일, 국고 %+.0f — 세금 %d%% · 국방비 %d%% · 사회 지출 %d%%, 연구 %d%% — 노드 %d개, 하루치 %.4g일)", d.day,
+                 passed, delta, g_mult.tax, g_mult.defense, g_mult.social, g_mult.research, nodes, d.step);
     }
 }
 

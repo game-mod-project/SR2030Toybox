@@ -345,7 +345,7 @@ void send_mult(bool save)
     if (want == g_mult_sent)
         return;
     if (want.on != g_mult_sent.on || want.on)
-        log_line("배율 %s: 세금 %d%% · 국방비 %d%% · 사회 지출 비용 %d%% · 연구 속도 %d%% · 물자의 배율 %d개", want.on ? "켬" : "끔", want.tax,
+        log_line("배율 %s: 세금 %d%% · 국방비 %d%% · 사회 지출 %d%% · 연구 속도 %d%% · 물자의 배율 %d개", want.on ? "켬" : "끔", want.tax,
                  want.defense, want.social, want.research,
                  mult_count(want) - (want.tax != 100) - (want.defense != 100) - (want.social != 100) - (want.research != 100));
     if (save)
@@ -380,13 +380,14 @@ void mult_tab(const GameState &game)
     note("mult:on", g_settings.mult_on ? "1" : "0");
     ImGui::SameLine();
     ImGui::TextDisabled("퍼센트 — 100 이 그대로다. 플레이하는 나라에만 듣는다");
-    help("help:mult", "켜 두면 창을 닫아도, 새 판에서도 계속된다. 세금 · 국방비는 날이 바뀔 때 국고에 차이를 더하거나 뺀다(재무 패널의 숫자는 그대로다). "
-                      "연구 속도는 날이 바뀔 때 진행 중인 연구의 남은 기간을 더 줄인다. 생산 · 소비 · 사회 지출 비용은 게임의 보정 값에 곱한다");
+    help("help:mult", "켜 두면 창을 닫아도, 새 판에서도 계속된다. 세금 · 국방비 · 사회 지출은 날이 바뀔 때 국고에 차이를 더하거나 뺀다(재무 패널의 숫자는 그대로다). "
+                      "연구 속도는 날이 바뀔 때 진행 중인 연구의 남은 기간을 더 줄인다. 생산 · 소비는 게임의 보정 값에 곱한다");
     if (!game_writes() && game.known) {
         ImGui::TextWrapped("값 쓰기가 꺼져 있어 배율이 쉽니다.");
         note("mult:off", "값 쓰기가 꺼져 있어 배율이 쉽니다.");
     }
     const std::string money = game_mult_off(MULT_PART_MONEY), speed = game_mult_off(MULT_PART_SPEED), cells = game_mult_off(MULT_PART_CELLS);
+    const std::string social = game_mult_off(MULT_PART_SOCIAL);
     const auto why = [](const char *name, const char *what, const std::string &text) {
         if (text.empty())
             return;
@@ -394,8 +395,8 @@ void mult_tab(const GameState &game)
         ImGui::TextWrapped("%s", line.c_str());
         note(name, line);
     };
-    ImGui::SeparatorText("국고 · 연구");
     why("mult:money:off", "세금 · 국방비의 배율", money);
+    why("mult:social:off", "사회 지출의 배율", social);
     why("mult:speed:off", "연구 속도의 배율", speed);
     ImGui::BeginDisabled(!money.empty());
     ImGui::AlignTextToFramePadding();
@@ -407,11 +408,11 @@ void mult_tab(const GameState &game)
     ImGui::SameLine();
     mult_input("##defense", "mult:defense", &g_settings.mult_defense, 0);
     ImGui::EndDisabled();
-    ImGui::BeginDisabled(!cells.empty());
+    ImGui::BeginDisabled(!social.empty());
     ImGui::SameLine();
-    ImGui::TextUnformatted("사회 지출 비용");
+    ImGui::TextUnformatted("사회 지출");
     ImGui::SameLine();
-    mult_input("##social", "mult:social", &g_settings.mult_social, MULT_CELL_MIN);
+    mult_input("##social", "mult:social", &g_settings.mult_social, 0);
     ImGui::EndDisabled();
     ImGui::BeginDisabled(!speed.empty());
     ImGui::AlignTextToFramePadding();
@@ -425,8 +426,7 @@ void mult_tab(const GameState &game)
     ImGui::SameLine();
     ImGui::TextDisabled("%s", did.c_str());
     note("mult:stats", did);
-    ImGui::SeparatorText("물자");
-    why("mult:cells:off", "물자와 사회 지출 비용의 배율", cells);
+    why("mult:cells:off", "물자의 배율", cells);   // 줄을 아낀다 — 1024 × 768 에서 물자 열하나가 구르지 않고 보이게
     GameValues now;
     if (game.known && game.in_game && !game.multiplayer && game_values_off().empty())
         now = game_values();

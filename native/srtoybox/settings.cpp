@@ -110,7 +110,7 @@ void parse_mult(const std::string &rest, long long n, Settings &s)
         if (in(0))
             s.mult_defense = static_cast<int>(n);
     } else if (rest == "social") {
-        if (in(SETTINGS_MULT_CELL_MIN))
+        if (in(0))
             s.mult_social = static_cast<int>(n);
     } else if (rest == "research") {
         if (in(SETTINGS_MULT_RESEARCH_MIN))

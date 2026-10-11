@@ -92,13 +92,14 @@ ACT_NAMES = {"colonize": "식민지화 함수(지역 객체, 다른 지역의 �
 
 
 MULT_FIELDS = ("mul_table", "day", "tax_total", "army_pay_level", "army_upkeep_level", "army_pay", "army_upkeep", "unit_cost",
-               "research_step")
+               "research_step", "social_cost", "social_level")
 MULT_NAMES = {"mul_table": "곱 보정 표(지역 인덱스마다 0x320 바이트, float 200칸 — ToyBox 는 플레이어의 줄에만 쓴다)",
               "day": "날의 칸(dword. 읽기만 한다)", "tax_total": "연간 세수의 합(지역 객체 안, double. 읽기만 한다)",
               "army_pay_level": "군 인건비의 지출 수준(지역 객체 안, float. 읽기만 한다)",
               "army_upkeep_level": "군 유지비의 지출 수준(〃)", "army_pay": "연간 군 인건비의 바탕(〃)",
               "army_upkeep": "연간 군 유지비의 바탕(〃)", "unit_cost": "어제의 부대 생산비(〃)",
-              "research_step": "연구의 하루치(〃)"}
+              "research_step": "연구의 하루치(〃)", "social_cost": "사회 지출 여덟 항목의 연간 비용의 바탕(〃, float × 8)",
+              "social_level": "사회 지출 여덟 항목의 지출 수준(〃, float × 8)"}
 
 
 @dataclass
@@ -381,7 +382,7 @@ def mult_of(lib: ctypes.CDLL, image: bytes) -> tuple[dict[str, int], list[str], 
     """새 찾기(배율)를 그 이미지에 돌린다: (이름 → RVA 나 자리 — 못 찾은 것은 0, 찾을 것마다의 까닭, 서명마다의 결과)."""
     lib.srtoybox_locate_mult.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong, ctypes.POINTER(MultLayout), ctypes.c_char_p, ctypes.c_int,
                                          ctypes.c_char_p, ctypes.c_int]
-    found, error, rows = MultLayout(), ctypes.create_string_buffer(2048), ctypes.create_string_buffer(8192)
+    found, error, rows = MultLayout(), ctypes.create_string_buffer(4096), ctypes.create_string_buffer(16384)
     lib.srtoybox_locate_mult(image, len(image), ctypes.byref(found), error, len(error), rows, len(rows))
     why = error.value.decode("utf-8").split("\n")[:len(MULT_FIELDS)]
     return {name: getattr(found, name) for name in MULT_FIELDS}, why, _sig_rows(rows.value)

@@ -12,12 +12,13 @@ from toybox_fake_game import Lab, FakeGame, TECH
 
 MUL_TABLE, MUL_STEP, DAY = 0x4000, 0x320, 0x70
 CELLS = dict(tax_total=0x180, army_pay_level=0x188, army_upkeep_level=0x18C, army_pay=0x190, army_upkeep=0x194, unit_cost=0x198,
-             research_step=0x19C)
+             research_step=0x19C, social_cost=0x1A0, social_level=0x1C0)
 GERMANY, POLAND = 176, 141
 ACTIVE, GONE = 0x40000000, 0x80000000
-PART_CELLS, PART_MONEY, PART_SPEED = 0, 1, 2
+PART_CELLS, PART_MONEY, PART_SPEED, PART_SOCIAL = 0, 1, 2, 3
 BUILD_MULT = {"mul_table": 0x1CEE6C8, "day": 0x18294D0, "tax_total": 0xA6B8, "army_pay_level": 0xA6DC, "army_upkeep_level": 0xA6E0,
-              "army_pay": 0x14CE0, "army_upkeep": 0x14CE4, "unit_cost": 0x14BDC, "research_step": 0x15E5C}    # build 21347933
+              "army_pay": 0x14CE0, "army_upkeep": 0x14CE4, "unit_cost": 0x14BDC, "research_step": 0x15E5C, "social_cost": 0x14C04,
+              "social_level": 0xA680}    # build 21347933
 
 
 @pytest.fixture(scope="module")
@@ -80,6 +81,9 @@ class Game:
         for name, value in (("army_pay_level", levels[0]), ("army_upkeep_level", levels[1]), ("army_pay", army[0]),
                             ("army_upkeep", army[1]), ("unit_cost", units), ("research_step", step)):
             self.fake._write(index, CELLS[name], "<f", value)
+        for i in range(8):                                      # 사회 지출: 비용 73e9 × (i + 1) / 년, 수준 0.5 — 하루 합 3.6e9
+            self.fake._write(index, CELLS["social_cost"] + 4 * i, "<f", 73e9 * (i + 1))
+            self.fake._write(index, CELLS["social_level"] + 4 * i, "<f", 0.5)
 
     def day(self, add: int = 1) -> None:
         self.fake.poke(DAY, "<I", (self.fake.peek(DAY, "<I") + add) & 0xFFFFFFFF)
@@ -128,16 +132,16 @@ def test_nothing_is_written_while_the_switch_is_off(game):
 
 
 def test_the_cells_are_multiplied_only_in_the_players_row(game):
-    """생산(72 + 칸) · 인구 소비(60 + 칸) · 산업 소비(24 + 칸) · 사회 지출 비용(108 … 115). 다른 나라의 줄과 맡지 않는 칸은 그대로다."""
+    """생산(72 + 칸) · 인구 소비(60 + 칸) · 산업 소비(24 + 칸). 다른 나라의 줄과 맡지 않는 칸(사회 지출 비용의 108 … 115 도)은 그대로다."""
     poland = [game.cell(POLAND, c) for c in range(200)]
     germany = [game.cell(GERMANY, c) for c in range(200)]
     game.set("on=1 out.0=200 use.8=50 raw.3=10 social=150")
     game.tick()
-    want = {72: 2.0, 68: 0.5, 27: 0.1, **{c: 1.5 for c in range(108, 116)}}
+    want = {72: 2.0, 68: 0.5, 27: 0.1}
     for cell in range(200):
         assert game.cell(GERMANY, cell) == f32(germany[cell] * f32(want.get(cell, 1.0))), cell
     assert [game.cell(POLAND, c) for c in range(200)] == poland
-    assert game.stats() == [0, 11, 11, 4]
+    assert game.stats() == [0, 3, 3, 4]
 
 
 def test_the_cells_are_written_again_after_the_game_recomputes_them(game):
@@ -211,6 +215,20 @@ def test_taxes_and_defense_move_the_treasury_once_a_day(game):
     game.tick()                                                 # 같은 날에는 한 번만
     assert game.fake.treasury(GERMANY) == pytest.approx(10e9 + 0.5e9 + 210e6, rel=1e-9)
     assert game.fake.treasury(POLAND) == 5e9 and game.stats()[0] == 1
+
+
+def test_social_spending_moves_the_treasury_once_a_day(game):
+    """하루치 사회 지출 = Σ 73e9 × (i + 1) × 0.5 / 365 = 3.6e9. 50 % 면 그 절반을 국고에 돌려준다. 곱 보정 칸은 건드리지 않는다."""
+    cells = bytes(game.fake.mem)[MUL_TABLE:]
+    game.set("on=1 social=50")
+    game.tick()
+    game.day()
+    game.tick()
+    assert game.fake.treasury(GERMANY) == pytest.approx(10e9 + 1.8e9, rel=1e-6) and bytes(game.fake.mem)[MUL_TABLE:] == cells
+    game.set("social=200 tax=200")                              # 세금과 함께: +1e9 − 3.6e9
+    game.day()
+    game.tick()
+    assert game.fake.treasury(GERMANY) == pytest.approx(10e9 + 1.8e9 + 1e9 - 3.6e9, rel=1e-6)
 
 
 def test_days_that_passed_between_two_looks_are_all_counted(game):
@@ -288,7 +306,9 @@ def test_nothing_happens_in_the_menu_or_in_multiplayer(game):
 
 def test_each_part_says_why_it_is_off(lib, game):
     off = lambda part: text(lib.srtoybox_mult_off, part)
-    assert [off(p) for p in (PART_CELLS, PART_MONEY, PART_SPEED)] == ["", "", ""]
+    assert [off(p) for p in (PART_CELLS, PART_MONEY, PART_SPEED, PART_SOCIAL)] == ["", "", "", ""]
+    lib.srtoybox_test_mult(ctypes.byref(toybox.MultLayout(**{**dict(mul_table=MUL_TABLE, day=DAY, **CELLS), "social_level": 0})))
+    assert off(PART_SOCIAL) != "" and off(PART_MONEY) == ""     # 사회 지출의 칸만 못 찾으면 그것만 꺼진다
     lib.srtoybox_test_mult(ctypes.byref(toybox.MultLayout(mul_table=MUL_TABLE)))
     assert off(PART_CELLS) == "" and off(PART_MONEY) != "" and off(PART_SPEED) != ""
     lib.srtoybox_test_mult(ctypes.byref(toybox.MultLayout(day=DAY, **CELLS)))
@@ -305,20 +325,20 @@ def test_each_part_says_why_it_is_off(lib, game):
 
 def test_the_settings_keep_the_multipliers(lib):
     norm = lambda ini: dict(line.split("=") for line in text(lib.srtoybox_settings_normalize, ini.encode("utf-8")).split("\n") if line)
-    got = norm("mult.on=1\nmult.tax=250\nmult.defense=0\nmult.social=1\nmult.research=10\nmult.out.0=1000\nmult.use.10=50\nmult.raw.3=1\n")
+    got = norm("mult.on=1\nmult.tax=250\nmult.defense=0\nmult.social=0\nmult.research=10\nmult.out.0=1000\nmult.use.10=50\nmult.raw.3=1\n")
     assert [got[k] for k in ("mult.on", "mult.tax", "mult.defense", "mult.social", "mult.research", "mult.out.0", "mult.use.10",
-                             "mult.raw.3")] == ["1", "250", "0", "1", "10", "1000", "50", "1"]
+                             "mult.raw.3")] == ["1", "250", "0", "0", "10", "1000", "50", "1"]
     # 범위 밖 · 없는 칸 · 모르는 줄은 버린다(100 이 남는다)
-    bad = norm("mult.on=2\nmult.tax=1001\nmult.defense=-1\nmult.social=0\nmult.research=9\nmult.out.0=0\nmult.out.11=200\nmult.xyz.1=5\n")
+    bad = norm("mult.on=2\nmult.tax=1001\nmult.defense=-1\nmult.social=1001\nmult.research=9\nmult.out.0=0\nmult.out.11=200\nmult.xyz.1=5\n")
     assert bad["mult.on"] == "0" and all(bad[k] == "100" for k in ("mult.tax", "mult.defense", "mult.social", "mult.research", "mult.out.0"))
     assert "mult.out.11" not in bad and "mult.xyz.1" not in bad
 
 
 def test_the_addresses_are_found_in_the_installed_game(lib, game_dir):
-    """설치된 게임에서: 찾을 것 아홉이 모두, 서명 스물일곱이 모두 정확히 한 번(build 21347933 의 값과 같다)."""
+    """설치된 게임에서: 찾을 것 열하나가 모두, 서명 서른셋이 모두 정확히 한 번(build 21347933 의 값과 같다)."""
     image = toybox.image_of((game_dir / toybox.EXE_NAME).read_bytes())
     found, why, rows = toybox.mult_of(lib, image)
-    assert why == [""] * len(toybox.MULT_FIELDS) and [row.count for row in rows] == [1] * 27
+    assert why == [""] * len(toybox.MULT_FIELDS) and [row.count for row in rows] == [1] * 33
     if found != BUILD_MULT:
         pytest.skip(f"다른 빌드의 게임입니다: {found}")
 
