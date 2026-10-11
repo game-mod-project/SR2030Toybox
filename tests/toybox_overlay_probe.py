@@ -1512,7 +1512,7 @@ def run_research(hook: str, mode: str) -> int:
         game.wait(0.2)
         out["mine"] = items()
         order = []
-        for head in ("head:1", "head:1", "head:5", "head:3"):  # 머리 줄을 누르면 그 열로 놓는다: 이름 ↑ · 이름 ↓ · 보유국 ↑ · 수준 ↑(처음 순서)
+        for head in ("head:1", "head:1", "head:6", "head:3"):  # 머리 줄을 누르면 그 열로 놓는다: 이름 ↑ · 이름 ↓ · 보유국 ↑ · 수준 ↑(처음 순서)
             game.click(head)
             game.wait(0.2)
             order.append(list(items()))
@@ -1526,6 +1526,35 @@ def run_research(hook: str, mode: str) -> int:
         press("list:all_undo")
         game.wait(0.3)
         out["wrote_undo"], out["designs_after"] = game.shown("wrote"), items()
+    elif mode == "research_units":                            # 부대 탭의 설계도 목록: 영역으로 거르고, 등록 · 해제, 모든 설계도
+        items = lambda: {name[5:]: fact[3] for name, fact in game.facts().items() if name.startswith("item:")}
+        game.click("tab:부대")
+        game.wait(0.8)
+        facts = game.facts()
+        out["buttons"] = {name: facts[name][3] for name in facts if name.startswith("list:") and name not in ("list:count", "list:find")}
+        out["first"], out["count"] = items(), game.shown("list:count")
+        game.click("list:domain")
+        game.click("domain:1")                                # 공군 — 이 판에는 없다
+        game.wait(0.2)
+        out["air"] = items()
+        game.click("list:domain")
+        game.click("domain:0")                                # 육군
+        game.wait(0.2)
+        out["land"] = items()
+        scroll_to(game, "list:every_done")
+        press("list:every_done")                              # 모든 설계도 등록 — 선행 기술도 함께
+        game.wait(0.3)
+        out["after_every"], out["wrote_every"] = held(), game.shown("wrote")
+        scroll_to(game, "list:every_undo")
+        press("list:every_undo")                              # 모든 설계도 해제 — 한 번 더 눌러야 한다
+        out["asking"], out["held_asking"] = game.facts()["list:every_undo"][3], held()
+        press("list:every_undo")
+        game.wait(0.3)
+        out["after_none"], out["wrote_none"] = held(), game.shown("wrote")
+        names = ctypes.create_string_buffer(256)
+        toybox_dll = ctypes.WinDLL(str(Path(hook).with_name("srtoybox.dll")))
+        toybox_dll.srtoybox_owner_names(0, 1, names, len(names))
+        out["owners_of_tech_1"] = names.value.decode("utf-8")
     elif mode == "research_reenter":
         game.click(CHEAT_TAB)
         game.click(BUTTON)

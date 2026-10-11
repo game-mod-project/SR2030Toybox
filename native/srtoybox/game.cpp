@@ -1860,6 +1860,41 @@ void game_set_acts_for_test(const ActLayout *layout, void *colonize, void *fight
         snprintf(g_act_why[w], MORE_WHY, "%s", given[w] ? "" : "함수의 자리를 주지 않았습니다");
 }
 
+std::string game_owner_names(bool design, int id)
+{
+    const uint8_t *base = nullptr;
+    GameAddresses at = {};
+    ResearchLayout r = {};
+    {
+        std::lock_guard<std::mutex> lock(g_lock);
+        if (!g_located || !g_research_found || !reading_wanted())
+            return std::string();
+        base = g_base;
+        at = g_at;
+        r = g_research;
+    }
+    uint64_t player = 0, table = 0, owners = 0;
+    int32_t count = 0;
+    uint8_t bits[OWNERS_BYTES];
+    const GameState s = read_player(base, at, &player);
+    const uint32_t size = design ? DESIGN_SIZE : TECH_SIZE, cell = design ? DESIGN_OWNERS : TECH_OWNERS;
+    if (!s.in_game || !peek_at(base, design ? r.design_table : r.tech_table, &table) || table == 0
+        || !peek_at(base, design ? r.design_count : r.tech_count, &count) || id < 1 || id >= count
+        || !peek(reinterpret_cast<const void *>(table + static_cast<uint64_t>(id) * size + cell), &owners, sizeof(owners)) || owners == 0
+        || !peek(reinterpret_cast<const void *>(owners), bits, sizeof(bits)))
+        return std::string();
+    std::string out;
+    for (int i = 1; i <= s.regions && i < OWNERS_BYTES * 8; i++) {
+        if (i == s.index || (bits[i / 8] >> (i % 8) & 1) == 0)
+            continue;
+        uint64_t slot = 0;
+        Region region = {};
+        const bool known = peek_at(base, at.region_table + 8ull * static_cast<uint64_t>(i), &slot) && peek_region(slot, &region) && usable(region, i);
+        out += (out.empty() ? "" : ", ") + (known ? region_label(region.number) : "#" + std::to_string(i));
+    }
+    return out;
+}
+
 Wrote game_write_research(Research action, const ResearchWhat &what, ResearchDone *done)
 {
     *done = ResearchDone();
