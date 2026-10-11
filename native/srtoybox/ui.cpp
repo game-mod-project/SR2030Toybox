@@ -773,8 +773,56 @@ void item_list(ListState &L, bool units, const GameState &game, bool blocked)
         ImGui::TextDisabled("%s", where.c_str());
         note("list:hex", where);
     }
-    const float below = 2.6f * ImGui::GetFrameHeightWithSpacing();   // 표 아래의 줄들(수 · 단추)과 여유 — 딱 맞추면 아랫줄이 반쯤 잘렸다
-    const float height = std::max(6.0f * ImGui::GetFrameHeightWithSpacing(), ImGui::GetContentRegionAvail().y - below);
+    std::vector<int> visible;
+    size_t chosen_visible = 0;
+    visible.reserve(L.rows.size());
+    for (const ListRow &r : L.rows) {
+        visible.push_back(r.id);
+        chosen_visible += L.chosen.count(r.id);
+    }
+    std::sort(visible.begin(), visible.end());
+    const size_t hidden = L.chosen.size() - std::min(L.chosen.size(), chosen_visible);
+    const std::string count = "보이는 것 " + std::to_string(L.rows.size()) + "개 · 고른 것 " + std::to_string(L.chosen.size()) + "개"
+        + (hidden > 0 ? "(보이지 않는 것 " + std::to_string(hidden) + "개)" : std::string());
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted(count.c_str());
+    note("list:count", count);
+    ImGui::SameLine();
+    ImGui::BeginDisabled(L.chosen.empty());
+    if (ImGui::Button("고르기 풀기")) {
+        L.chosen.clear();
+        g_confirm.clear();
+    }
+    note("list:clear", "고르기 풀기");
+    ImGui::EndDisabled();
+
+    // 단추 넷. "고른 것"은 지금 보이지 않는 줄이라도 고른 것 모두에 한다. 쓸 수 없는 까닭은 위의 단추 자리에 적혀 있다
+    // (부대 탭에는 연구의 단추가 없다 — 까닭을 여기에 적는다)
+    const char *const yes = units ? "등록" : "완료", *const no = units ? "해제" : "미완료";
+    if (units && off) {
+        ImGui::TextWrapped("%s", why.c_str());
+        note("list:why", why);
+    }
+    const std::vector<int> chosen(L.chosen.begin(), L.chosen.end());
+    ImGui::BeginDisabled(off || chosen.empty());
+    if (ImGui::Button((std::string("고른 것 ") + yes).c_str()))
+        list_request(L, Research::Complete, chosen, "고른 것");
+    note("list:done", std::string("고른 것 ") + yes);
+    ImGui::SameLine();
+    if (ImGui::Button((std::string("고른 것 ") + no).c_str()))
+        list_request(L, Research::Revoke, chosen, "고른 것");
+    note("list:undo", std::string("고른 것 ") + no);
+    ImGui::EndDisabled();
+    ImGui::SameLine(0.0f, 24.0f);
+    ImGui::BeginDisabled(off || visible.empty());
+    if (ImGui::Button((std::string("보이는 것 전부 ") + yes).c_str()))
+        list_request(L, Research::Complete, visible, "보이는 것");
+    note("list:all_done", std::string("보이는 것 전부 ") + yes);
+    ImGui::SameLine();
+    risky(LIST_UNDO_ALL, std::string("보이는 것 전부 ") + no, visible, "보이는 것");
+    ImGui::EndDisabled();
+    // 수와 단추의 줄들은 표 위에 둔다 — 아래에 두면 창이 낮을 때 탭을 내려야 보였다(게임에서 봤다). 표가 남은 높이를 다 쓴다
+    const float height = std::max(6.0f * ImGui::GetFrameHeightWithSpacing(), ImGui::GetContentRegionAvail().y);
     // 열의 너비는 머리 줄의 경계를 끌어 바꾸고, 머리 줄을 누르면 그 열로 놓는다(한 번 더 누르면 거꾸로)
     const ImGuiTableFlags flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_ScrollY
         | ImGuiTableFlags_Resizable | ImGuiTableFlags_Sortable;
@@ -850,55 +898,6 @@ void item_list(ListState &L, bool units, const GameState &game, bool blocked)
             }
         ImGui::EndTable();
     }
-
-    std::vector<int> visible;
-    size_t chosen_visible = 0;
-    visible.reserve(L.rows.size());
-    for (const ListRow &r : L.rows) {
-        visible.push_back(r.id);
-        chosen_visible += L.chosen.count(r.id);
-    }
-    std::sort(visible.begin(), visible.end());
-    const size_t hidden = L.chosen.size() - std::min(L.chosen.size(), chosen_visible);
-    const std::string count = "보이는 것 " + std::to_string(L.rows.size()) + "개 · 고른 것 " + std::to_string(L.chosen.size()) + "개"
-        + (hidden > 0 ? "(보이지 않는 것 " + std::to_string(hidden) + "개)" : std::string());
-    ImGui::AlignTextToFramePadding();
-    ImGui::TextUnformatted(count.c_str());
-    note("list:count", count);
-    ImGui::SameLine();
-    ImGui::BeginDisabled(L.chosen.empty());
-    if (ImGui::Button("고르기 풀기")) {
-        L.chosen.clear();
-        g_confirm.clear();
-    }
-    note("list:clear", "고르기 풀기");
-    ImGui::EndDisabled();
-
-    // 단추 넷. "고른 것"은 지금 보이지 않는 줄이라도 고른 것 모두에 한다. 쓸 수 없는 까닭은 위의 단추 자리에 적혀 있다
-    // (부대 탭에는 연구의 단추가 없다 — 까닭을 여기에 적는다)
-    const char *const yes = units ? "등록" : "완료", *const no = units ? "해제" : "미완료";
-    if (units && off) {
-        ImGui::TextWrapped("%s", why.c_str());
-        note("list:why", why);
-    }
-    const std::vector<int> chosen(L.chosen.begin(), L.chosen.end());
-    ImGui::BeginDisabled(off || chosen.empty());
-    if (ImGui::Button((std::string("고른 것 ") + yes).c_str()))
-        list_request(L, Research::Complete, chosen, "고른 것");
-    note("list:done", std::string("고른 것 ") + yes);
-    ImGui::SameLine();
-    if (ImGui::Button((std::string("고른 것 ") + no).c_str()))
-        list_request(L, Research::Revoke, chosen, "고른 것");
-    note("list:undo", std::string("고른 것 ") + no);
-    ImGui::EndDisabled();
-    ImGui::SameLine(0.0f, 24.0f);
-    ImGui::BeginDisabled(off || visible.empty());
-    if (ImGui::Button((std::string("보이는 것 전부 ") + yes).c_str()))
-        list_request(L, Research::Complete, visible, "보이는 것");
-    note("list:all_done", std::string("보이는 것 전부 ") + yes);
-    ImGui::SameLine();
-    risky(LIST_UNDO_ALL, std::string("보이는 것 전부 ") + no, visible, "보이는 것");
-    ImGui::EndDisabled();
 }
 
 void settings_tab()
