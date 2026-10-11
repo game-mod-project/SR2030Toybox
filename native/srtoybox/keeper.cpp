@@ -50,6 +50,21 @@ unsigned long long g_shot_at, g_shot_serial;
 bool g_shot_timed;                          // 스냅숏에 걸린 시간을 이번 실행의 로그에 적었다
        // 그 항목을 올린 것을 이번 실행의 로그에 적었다([0] 국고, [1 + 칸] 물자)
 
+Mult g_mult;                        // 배율의 설정(창이 넘긴 것)
+bool g_mult_due;                    // 설정이 바뀌었다 — 다음 틱에 바로 본다
+unsigned long long g_mult_at;       // 마지막으로 배율을 본 때
+struct CellMemo {
+    bool have = false;              // 이 칸에 ToyBox 가 쓴 값이 들어 있다
+    float base = 0, wrote = 0;      // 그때의 게임의 값 · ToyBox 가 쓴 값
+};
+CellMemo g_cells[MUL_CELLS];
+int g_cells_index;                  // 그 기억이 어느 지역(인덱스)의 줄의 것인가. 0 이면 없다
+bool g_day_known;                   // 날의 칸을 본 적이 있다(이번 판 · 이 플레이어에서)
+uint32_t g_day;
+int g_day_index;
+MultStats g_mult_stats;
+bool g_mult_told;                   // 이 설정으로 날마다의 일을 한 것을 로그에 적었다(설정이 바뀌면 다시 적는다)
+
 std::string target_name(int slot)
 {
     return slot == TREASURY ? std::string("국고") : product_label(slot);
@@ -644,6 +659,204 @@ bool keeper_enqueue_fight(int attacker, int target)
     return true;
 }
 
+namespace {
+
+void forget_cells()
+{
+    for (CellMemo &m : g_cells)
+        m = CellMemo();
+    g_cells_index = 0;
+    g_mult_stats.held = 0;
+}
+
+// 그 칸의 배율(퍼센트). 맡지 않는 칸이면 0.
+int cell_percent(const Mult &m, int cell)
+{
+    if (cell >= MUL_RAW && cell < MUL_RAW + MULT_GOODS)
+        return m.raw[cell - MUL_RAW];
+    if (cell >= MUL_USE && cell < MUL_USE + MULT_GOODS)
+        return m.use[cell - MUL_USE];
+    if (cell >= MUL_OUT && cell < MUL_OUT + MULT_GOODS)
+        return m.out[cell - MUL_OUT];
+    if (cell >= MUL_SOCIAL && cell < MUL_SOCIAL + MUL_SOCIAL_COUNT)
+        return m.social;
+    return 0;
+}
+
+bool cell_sane(float v)
+{
+    return std::isfinite(v) && v > 0.0f && v < MUL_VALUE_MAX;
+}
+
+// 곱 보정 칸: 게임이 다시 셈해 지웠으면 다시 쓰고, 배율이 바뀌었으면 고쳐 쓰고, 100 이 됐으면 게임의 값으로 되돌린다. 쓰기가 실패하면 거짓.
+bool mult_cells()
+{
+    float row[MUL_CELLS];
+    int index = 0;
+    if (!game_mult_row(row, &index)) {
+        forget_cells();                         // 게임 밖이다 — 다음 판의 값은 그때 다시 읽는다
+        return true;
+    }
+    if (index != g_cells_index) {
+        forget_cells();                         // 플레이하는 나라가 바뀌었다 — 앞 나라의 칸은 게임이 그날 다시 셈한다
+        g_cells_index = index;
+    }
+    int held = 0;
+    for (int cell = 1; cell < MUL_CELLS; cell++) {
+        const int percent = cell_percent(g_mult, cell);
+        if (percent == 0)
+            continue;
+        const bool scaled = g_mult.on && percent != 100;
+        CellMemo &m = g_cells[cell];
+        const float now = row[cell];
+        float want = 0;
+        if (m.have && now == m.wrote) {         // ToyBox 가 쓴 값이 그대로다
+            want = scaled ? m.base * (percent / 100.0f) : m.base;
+            if (want == now) {
+                held++;
+                continue;
+            }
+        } else {                                // 처음이거나 게임이 다시 셈했다 — 지금 값이 게임의 값이다
+            m = CellMemo();
+            if (!scaled || !cell_sane(now))
+                continue;
+            m.base = now;
+            want = now * (percent / 100.0f);
+        }
+        if (!cell_sane(want)) {
+            m = CellMemo();
+            continue;
+        }
+        const Wrote wrote = game_write_mult(cell, want);
+        if (wrote != Wrote::Done) {
+            m = CellMemo();
+            if (wrote == Wrote::Failed)
+                return false;
+            continue;
+        }
+        g_mult_stats.writes++;
+        if (scaled) {
+            m.have = true;
+            m.wrote = want;
+            held++;
+        } else {
+            m = CellMemo();                     // 게임의 값으로 되돌렸다
+        }
+    }
+    g_mult_stats.held = held;
+    return true;
+}
+
+// 날마다의 일: 날의 칸이 오른 만큼 세금 · 국방비를 국고에, 연구 속도를 노드의 남은 기간에.
+void mult_daily()
+{
+    const Daily d = game_daily();
+    if (!d.ok) {
+        g_day_known = false;
+        return;
+    }
+    if (!g_day_known || d.index != g_day_index) {
+        g_day_known = true;                     // 처음 봤거나 나라가 바뀌었다 — 맞추기만 한다
+        g_day = d.day;
+        g_day_index = d.index;
+        return;
+    }
+    const uint32_t passed = d.day - g_day;      // 뒤로 간 날(불러오기)은 큰 수가 된다
+    g_day = d.day;
+    if (passed == 0 || passed > MULT_DAYS_MAX || !g_mult.on)
+        return;
+    double delta = 0;
+    if (game_mult_off(MULT_PART_MONEY).empty())
+        delta = (g_mult.tax / 100.0 - 1.0) * d.tax * passed - (g_mult.defense / 100.0 - 1.0) * d.defense * passed;
+    int nodes = 0;
+    bool did = false;
+    if (delta != 0.0) {
+        const GameValues now = game_values();
+        if (now.ok && std::isfinite(now.treasury) && std::isfinite(now.treasury + delta)
+            && game_write_treasury(now.treasury + delta) == Wrote::Done)
+            did = true;
+        else
+            delta = 0.0;
+    }
+    if (g_mult.research != 100 && d.step > 0.0f && game_mult_off(MULT_PART_SPEED).empty()
+        && game_research_push(static_cast<float>((g_mult.research / 100.0 - 1.0) * d.step * passed), &nodes) == Wrote::Done)
+        did = did || nodes > 0;
+    if (!did)
+        return;
+    g_mult_stats.days += passed;
+    if (!g_mult_told) {
+        g_mult_told = true;                     // 날마다 적지 않는다 — 설정이 바뀐 뒤의 첫 날만
+        log_line("배율: 날마다의 일 (날 %u → +%u일, 국고 %+.0f — 세금 %d%% · 국방비 %d%%, 연구 %d%% — 노드 %d개, 하루치 %.4g일)", d.day, passed, delta,
+                 g_mult.tax, g_mult.defense, g_mult.research, nodes, d.step);
+    }
+}
+
+// 배율의 틱. g_lock 을 쥔 채로 부른다. 게임의 함수는 부르지 않는다.
+void mult_tick(unsigned long long now_ms)
+{
+    if (runner_calling() || runner_faulted())
+        return;
+    if (!g_mult_due && now_ms - g_mult_at < KEEP_EVERY_MS)
+        return;
+    g_mult_due = false;
+    g_mult_at = now_ms;
+    if (!g_mult.on && g_cells_index == 0) {     // 꺼져 있고 되돌릴 칸도 없다
+        g_day_known = false;
+        return;
+    }
+    if (!game_writes())
+        return;
+    if (!mult_cells())
+        return;                                 // 쓰기가 실패했다 — 값 쓰기 전체가 꺼졌다
+    if (!g_mult.on) {
+        g_day_known = false;
+        if (g_mult_stats.held == 0)
+            g_cells_index = 0;                  // 다 되돌렸다 — 켤 때까지 쉰다
+        return;
+    }
+    mult_daily();
+}
+
+}  // namespace
+
+bool operator==(const Mult &a, const Mult &b)
+{
+    if (a.on != b.on || a.tax != b.tax || a.defense != b.defense || a.social != b.social || a.research != b.research)
+        return false;
+    for (int i = 0; i < MULT_GOODS; i++)
+        if (a.out[i] != b.out[i] || a.use[i] != b.use[i] || a.raw[i] != b.raw[i])
+            return false;
+    return true;
+}
+
+void keeper_set_mult(const Mult &mult)
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    g_mult = mult;
+    g_mult_due = true;
+    g_mult_told = false;
+}
+
+Mult keeper_mult()
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    return g_mult;
+}
+
+int mult_count(const Mult &m)
+{
+    int count = (m.tax != 100) + (m.defense != 100) + (m.social != 100) + (m.research != 100);
+    for (int i = 0; i < MULT_GOODS; i++)
+        count += (m.out[i] != 100) + (m.use[i] != 100) + (m.raw[i] != 100);
+    return count;
+}
+
+MultStats keeper_mult_stats()
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    return g_mult_stats;
+}
+
 void keeper_tick(unsigned long long now_ms)
 {
     Job job;
@@ -651,6 +864,7 @@ void keeper_tick(unsigned long long now_ms)
     {
         std::lock_guard<std::mutex> lock(g_lock);
         write = tick_locked(now_ms, &job);
+        mult_tick(now_ms);                     // 단추의 요청과 최소 유지 뒤에 — 방금 쓴 국고에 그날의 세금 · 국방비를 얹는다
     }
     if (write && job.act) {
         run_act(job.what);
@@ -736,6 +950,11 @@ void keeper_reset_for_test()
     g_keep = Keep();
     g_keep_due = false;
     g_keep_at = 0;
+    g_mult = Mult();
+    g_mult_due = g_day_known = g_mult_told = false;
+    g_mult_at = 0;
+    g_mult_stats = MultStats();
+    forget_cells();
     memset(g_kept, 0, sizeof(g_kept));
     g_shot.reset();
     g_watch_seen = g_watch_dirty = g_shot_timed = false;

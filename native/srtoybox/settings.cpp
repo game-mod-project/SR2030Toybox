@@ -94,6 +94,38 @@ std::string hotkey_name(int vk, int mods)
     return out;
 }
 
+namespace {
+
+// "mult." 뒤의 글과 값. 범위 밖의 값과 모르는 줄은 버린다(기본값 100 이 남는다).
+void parse_mult(const std::string &rest, long long n, Settings &s)
+{
+    const auto in = [&](int low) { return n >= low && n <= SETTINGS_MULT_MAX; };
+    if (rest == "on") {
+        if (n == 0 || n == 1)
+            s.mult_on = n == 1;
+    } else if (rest == "tax") {
+        if (in(0))
+            s.mult_tax = static_cast<int>(n);
+    } else if (rest == "defense") {
+        if (in(0))
+            s.mult_defense = static_cast<int>(n);
+    } else if (rest == "social") {
+        if (in(SETTINGS_MULT_CELL_MIN))
+            s.mult_social = static_cast<int>(n);
+    } else if (rest == "research") {
+        if (in(SETTINGS_MULT_RESEARCH_MIN))
+            s.mult_research = static_cast<int>(n);
+    } else if (rest.size() > 4 && rest[3] == '.') {
+        long long slot = -1;
+        int *const row = rest.compare(0, 3, "out") == 0 ? s.mult_out : rest.compare(0, 3, "use") == 0 ? s.mult_use
+            : rest.compare(0, 3, "raw") == 0 ? s.mult_raw : nullptr;
+        if (row != nullptr && parse_int(rest.substr(4), slot) && slot >= 0 && slot < MULT_GOODS && in(SETTINGS_MULT_CELL_MIN))
+            row[slot] = static_cast<int>(n);
+    }
+}
+
+}  // namespace
+
 Settings default_settings()
 {
     Settings s;
@@ -134,6 +166,8 @@ Settings parse_settings(const std::string &ini)
                 s.keep_treasury_value = n;
         } else if (key.compare(0, 11, "keep.stock.") == 0) {
             parse_keep_stock(key.substr(11), n, s);
+        } else if (key.compare(0, 5, "mult.") == 0) {
+            parse_mult(key.substr(5), n, s);
         } else {
             const Feature *f = find_feature(key.c_str());
             if (f != nullptr && f->has_value && n >= f->min)
@@ -157,6 +191,14 @@ std::string format_settings(const Settings &s)
         const std::string key = "keep.stock." + std::to_string(slot);
         out += key + "=" + std::to_string(s.keep_stock[slot] ? 1 : 0) + "\n" + key + ".value=" + std::to_string(s.keep_stock_value[slot])
             + "\n";
+    }
+    out += "mult.on=" + std::to_string(s.mult_on ? 1 : 0) + "\nmult.tax=" + std::to_string(s.mult_tax) + "\nmult.defense="
+        + std::to_string(s.mult_defense) + "\nmult.social=" + std::to_string(s.mult_social) + "\nmult.research="
+        + std::to_string(s.mult_research) + "\n";
+    for (int slot = 0; slot < MULT_GOODS; slot++) {
+        const std::string n = std::to_string(slot);
+        out += "mult.out." + n + "=" + std::to_string(s.mult_out[slot]) + "\nmult.use." + n + "=" + std::to_string(s.mult_use[slot])
+            + "\nmult.raw." + n + "=" + std::to_string(s.mult_raw[slot]) + "\n";
     }
     for (int i = 0; i < FEATURE_COUNT; i++) {
         if (!FEATURES[i].has_value)
@@ -187,9 +229,9 @@ Settings load_settings()
     if (!path.empty()) {
         const HANDLE f = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
         if (f != INVALID_HANDLE_VALUE) {
-            char buf[4096];
+            char buf[16384];
             DWORD n = 0;
-            if (ReadFile(f, buf, sizeof(buf), &n, nullptr))   // 설정 파일은 1 KB 를 넘지 않는다. 4096 을 넘는 부분은 읽지 않는다
+            if (ReadFile(f, buf, sizeof(buf), &n, nullptr))   // 설정 파일은 2 KB 를 넘지 않는다. 16384 를 넘는 부분은 읽지 않는다
                 ini.assign(buf, n);
             CloseHandle(f);
         }

@@ -466,6 +466,25 @@ uv run srkit sig-mine --offset 84 18         # 쓰는 물자 표: 간격, 첫 �
   표 `RESEARCH` 에 옮기고, 이 표와 `tests/test_toybox_game.py` 의 `BUILD_RESEARCH` · `RESEARCH_PINS` 를 고친다. 꼴이 바뀌었으면 `locate.h` 의 상수도 함께 고치고 위의 레코드 표를 다시 본다.
   `tests/toybox_cheat_oracle.py` 의 `research` 는 치트 `technology` 의 본문에서 세계 객체 · 기술 수 · 기술 표 · 연구 목록 · 다시 셈 함수와 꼴의 상수 일곱을 읽어 대조한다(치트 코드가 남아 있는 빌드에서만).
 
+### 새 찾기 — 배율 (묶음 7 부터)
+
+배율 탭이 쓰는 아홉이다 — 전역 둘과 지역 객체 안의 자리 일곱. 같은 꼴의 서명으로 찾고 **내장 치트와 무관하다.** 찾을 것마다 서명 셋 가운데 둘이 맞으면 되고,
+따로 찾고 따로 꺼진다(build 21347933 에서는 스물일곱이 모두 한 번씩 맞는다 — `uv run srkit locate`).
+
+| 찾을 것 | build 21347933 | 무엇 |
+|---|---|---|
+| `mul_table` | RVA `0x1cee6c8` | 곱 보정 표의 첫 칸(= 세계 객체 `+0x5456a8`). 지역 인덱스마다 `0x320` 바이트 — 그 간격이 서명 둘에 박혀 있다 |
+| `day` | RVA `0x18294d0` | 날의 칸(dword). 날마다 도는 함수가 1 씩 올린다 [확인: 정적 — 게임에서 읽어 보는 것은 설계서의 M1] |
+| `tax_total` | `+0xa6b8` | 연간 세수의 합(double) |
+| `army_pay_level` · `army_upkeep_level` | `+0xa6dc` · `+0xa6e0` | 국방의 지출 수준 둘(float) |
+| `army_pay` · `army_upkeep` | `+0x14ce0` · `+0x14ce4` | 연간 군 인건비 · 군 유지비의 바탕(float) |
+| `unit_cost` | `+0x14bdc` | 어제의 부대 생산비(float) |
+| `research_step` | `+0x15e5c` | 연구의 하루치(float) |
+
+ToyBox 가 쓰는 것은 `mul_table` 의 플레이어의 줄뿐이고 나머지는 읽기만 한다. 값의 뜻과 게임에서 맞춰 본 숫자는
+[설계서](superpowers/specs/2026-10-11-toybox-stage7-design.md)의 "게임이 하는 일"에 있다. 서명을 다시 뽑을 때: 표는 `sig-mine --offset 320 1cee6c8`(간격이 든 것)과
+`sig-mine --offset 1cee6c8`, 날의 칸은 `sig-mine 18294d0`, 나머지는 `sig-mine --offset <자리>`.
+
 ### 옛 찾기 — 치트 명령 처리 함수와 그 둘레 (전환 기간에만)
 
 아직 내장 치트로 도는 기능의 직접 실행이 쓰는 셋이다. `"cheat allowcheats"` 문자열을 닻으로 찾는다. 3단계의 마지막 묶음에서
