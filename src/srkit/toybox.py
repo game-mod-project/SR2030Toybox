@@ -66,13 +66,16 @@ RESEARCH_NAMES = {"tech_table": "기술 표의 포인터(qword)", "tech_count": 
 
 
 # 새 찾기(서명)가 채우는 "부르는 게임의 함수" — native/srtoybox/locate.h 의 ActLayout 과 같은 순서다. 값은 함수의 RVA
-ACT_FIELDS = ["colonize", "fight", "become", "elect", "news", "map_pick", "player_index2", "player_pointer2", "leader_table", "leader_id"]
+ACT_FIELDS = ["colonize", "fight", "become", "elect", "news", "map_pick", "player_index2", "player_pointer2", "leader_table", "leader_id",
+              "treaty", "treaties"]
 ACT_NAMES = {"colonize": "식민지화 함수(지역 객체, 다른 지역의 인덱스, 깃발)",
              "fight": "전쟁 함수(지역 객체, 깃발, 다른 지역의 인덱스, 깃발, 깃발)",
              "become": "플레이 지역을 바꾸는 함수(지역 객체, 0)",
              "elect": "새 지도자를 세우는 함수(지역 객체, 0, 0)", "news": "알림 함수(지역 객체, 알림 번호 …)",
              "leader_table": "지도자 표의 포인터(qword. 레코드 0xC8 바이트, 깃발 +0x28)",
              "leader_id": "지역 객체 안의 지도자 번호(word)의 자리 — 상수",
+             "treaty": "조약 함수(지역 객체, 쪽, 조약 번호, 맺는다, 다른 지역의 인덱스, …)",
+             "treaties": "지역 객체 안의 조약 표의 자리 — 상수(조약 번호 × 8 을 더하면 그 조약을 맺은 지역들의 비트 묶음 포인터)",
              "map_pick": "지도에서 고른 지역(qword — 가리키는 word 가 지역의 인덱스. 읽기만 한다)",
              "player_index2": "플레이어 인덱스의 둘째 사본(dword)", "player_pointer2": "플레이어 포인터의 둘째 사본(qword)"}
 

@@ -350,6 +350,11 @@ const struct ActWanted {
     {"leader_id", "지도자 번호의 자리", ACT_CONSTANT,
      {"0F B7 87 [u32] 48 69 E8 C8 00 00 00 49 8B 5C 2E 20", "0F B7 81 [u32] 4C 8D 0D ? ? ? ? 4C 69 D0 C8 00 00 00",
       "0F B7 81 [u32] 48 8D 2D ? ? ? ? 48 69 F0 C8 00 00 00"}},
+    // 동맹 맺기: 조약 함수와, 지역 객체에서 조약마다의 비트 묶음 포인터가 놓인 표의 자리
+    {"treaty", "조약 함수", 0,
+     {"48 8B CE 89 7C 24 20 E8 [rip]", "48 8B CD 89 44 24 20 E8 [rip]", "49 8B CF 44 89 64 24 20 E8 [rip]"}},
+    {"treaties", "조약 표의 자리", ACT_CONSTANT,
+     {"48 8D 81 [u32] 49 63 E8 44 0F B6 F2", "48 8D 97 [u32] 48 8D 14 C2 48 85 D2", "48 05 [u32] 74 25 48 8B 10 48 85 D2"}},
 };
 static_assert(sizeof(ActLayout) == ACT_WANTED * sizeof(uint32_t), "ActLayout 의 필드는 표 ACTS 의 순서대로 uint32_t 다");
 
@@ -403,9 +408,9 @@ const struct ResearchWanted {
       "BA FF FF FF FF 49 8B CC E8 [rip] 4C 63 84 24 50 41 00 00"}},
 };
 
-const int MAX_TABLE = MORE_WANTED * STATE_SIGS;     // 한 표의 서명 수의 상한(상태 21개, 값 12개, 더 쓰는 값 30개, 연구 21개)
-static_assert(VALUE_WANTED <= MORE_WANTED && STATE_WANTED <= MORE_WANTED && RESEARCH_WANTED <= MORE_WANTED,
-              "서명을 맞추는 배열은 가장 큰 표(더 쓰는 값)의 크기로 잡았다 — 더 큰 표를 더하면 MAX_TABLE 을 키운다");
+const int MAX_TABLE = ACT_WANTED * STATE_SIGS;      // 한 표의 서명 수의 상한(상태 21개, 값 12개, 더 쓰는 값 30개, 연구 21개, 부르는 함수 36개)
+static_assert(VALUE_WANTED <= ACT_WANTED && STATE_WANTED <= ACT_WANTED && RESEARCH_WANTED <= ACT_WANTED && MORE_WANTED <= ACT_WANTED,
+              "서명을 맞추는 배열은 가장 큰 표(부르는 함수)의 크기로 잡았다 — 더 큰 표를 더하면 MAX_TABLE 을 키운다");
 static_assert(sizeof(MoreLayout) == MORE_WANTED * sizeof(uint32_t), "MoreLayout 의 필드는 표 MORE 의 순서대로 uint32_t 열이다");
 static_assert(sizeof(ResearchLayout) == RESEARCH_WANTED * sizeof(uint32_t),
               "ResearchLayout 의 필드는 표 RESEARCH 의 순서대로 uint32_t 일곱이다");
@@ -784,7 +789,8 @@ int search_acts(const uint8_t *image, size_t size, ActLayout *out, SigRow *rows,
         why[w][0] = '\0';
         if (!vote_item(ACTS, w, "주소를", sigs, hits, value, why[w], MORE_WHY, STATE_SIGS))   // 셋이 모두 맞아야 한다 — 엉뚱한 함수를 부르지 않는다
             continue;
-        if (w < ACT_FUNCTIONS
+        const bool function = ACTS[w].bytes == 0;
+        if (function
             && (value[0] == 0 || value[0] >= size || function_root(im, static_cast<uint32_t>(value[0])) != value[0])) {
             snprintf(why[w], MORE_WHY, "%s: 찾은 주소가 함수의 시작이 아닙니다", ACTS[w].label);
             continue;
@@ -794,8 +800,8 @@ int search_acts(const uint8_t *image, size_t size, ActLayout *out, SigRow *rows,
                 snprintf(why[w], MORE_WHY, "%s: 찾은 자리가 범위 밖입니다", ACTS[w].label);
                 continue;
             }
-        } else if (w >= ACT_FUNCTIONS && (value[0] == 0 || value[0] + ACTS[w].bytes > size || value[0] % ACTS[w].bytes != 0
-                                          || !in_data(im, static_cast<uint32_t>(value[0]), ACTS[w].bytes))) {
+        } else if (!function && (value[0] == 0 || value[0] + ACTS[w].bytes > size || value[0] % ACTS[w].bytes != 0
+                                 || !in_data(im, static_cast<uint32_t>(value[0]), ACTS[w].bytes))) {
             snprintf(why[w], MORE_WHY, "%s: 찾은 주소가 쓸 수 있는 자료 구역이 아닙니다", ACTS[w].label);
             continue;
         }

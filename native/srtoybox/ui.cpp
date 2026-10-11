@@ -97,9 +97,11 @@ bool direct_row(const Feature &f, const GameState &game, bool compact)
     const bool fight = f.direct == Direct::Fight;
     const bool become = f.direct == Direct::Become;
     const bool novichok = f.direct == Direct::Novichok;
-    const bool act = f.direct == Direct::Colonize || fight || become || novichok;           // 게임의 함수를 부르는 줄
+    const bool treaty = f.direct == Direct::Treaty;
+    const bool act = f.direct == Direct::Colonize || fight || become || novichok || treaty; // 게임의 함수를 부르는 줄
     const std::string off = !game.known ? std::string("게임 상태를 읽을 수 있을 때만 씁니다.")
-        : research ? game_research_off() : act ? game_act_off(fight ? ACT_FIGHT : become ? ACT_BECOME : novichok ? ACT_ELECT : ACT_COLONIZE) : game_more_off(group);
+        : research ? game_research_off() : act ? game_act_off(fight ? ACT_FIGHT : become ? ACT_BECOME : novichok ? ACT_ELECT : treaty ? ACT_TREATY : ACT_COLONIZE)
+        : game_more_off(group);
     ImGui::PushID(f.id);
     if (!off.empty()) {
         const std::string line = std::string(f.label) + " — " + off;
@@ -142,7 +144,8 @@ bool direct_row(const Feature &f, const GameState &game, bool compact)
         if (pressed && act) {
             g_confirm.clear();
             g_notice = (fight ? keeper_enqueue_fight(on_map, g_picked) : become ? keeper_enqueue_become(g_picked)
-                        : novichok ? keeper_enqueue_novichok(g_picked) : keeper_enqueue_colonize(g_picked))
+                        : novichok ? keeper_enqueue_novichok(g_picked) : treaty ? keeper_enqueue_treaty(g_picked)
+                        : keeper_enqueue_colonize(g_picked))
                 ? "" : "대기 중인 요청이 많아 받지 못했습니다.";
         } else if (pressed && research) {
             ResearchRequest request = {Research::Complete, ResearchWhat(), "대기열"};

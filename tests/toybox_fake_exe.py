@@ -14,10 +14,13 @@ COLONIZE = TEXT + 0xC80                       # 가짜 "식민지화 함수" —
 FIGHT = TEXT + 0xD00                          # 가짜 "전쟁 함수" — 〃
 BECOME = TEXT + 0xD80                         # 가짜 "플레이 지역을 바꾸는 함수" — 〃
 ELECT, NEWS = TEXT + 0xE00, TEXT + 0xE80      # 가짜 "새 지도자를 세우는 함수" · "알림 함수" — 〃
+TREATY = TEXT + 0xF00                         # 가짜 "조약 함수" — 〃
 # 새 찾기(부르는 게임의 함수와 그것들이 쓰는 전역 · 상수)의 가짜 주소와 값
 ACTS = {"colonize": COLONIZE, "fight": FIGHT, "become": BECOME, "elect": ELECT, "news": NEWS, "map_pick": DATA + 0x68,
-        "player_index2": DATA + 0x74, "player_pointer2": DATA + 0x78, "leader_table": DATA + 0x88, "leader_id": 0x9C}
-ACT_FUNCTIONS = [(COLONIZE, COLONIZE + 0x40), (FIGHT, FIGHT + 0x40), (BECOME, BECOME + 0x40), (ELECT, ELECT + 0x40), (NEWS, NEWS + 0x40)]
+        "player_index2": DATA + 0x74, "player_pointer2": DATA + 0x78, "leader_table": DATA + 0x88, "leader_id": 0x9C,
+        "treaty": TREATY, "treaties": 0x7000}
+ACT_FUNCTIONS = [(COLONIZE, COLONIZE + 0x40), (FIGHT, FIGHT + 0x40), (BECOME, BECOME + 0x40), (ELECT, ELECT + 0x40), (NEWS, NEWS + 0x40),
+                 (TREATY, TREATY + 0x40)]
 WORLD = DATA + 0x180                          # 지역 표 = WORLD + 0x80
 ANCHOR = RDATA                                # "cheat allowcheats"
 # 새 찾기(상태 묶음)의 가짜 주소
