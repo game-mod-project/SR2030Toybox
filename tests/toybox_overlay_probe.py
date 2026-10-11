@@ -162,6 +162,9 @@ TREATY = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_bool, ctypes.c_int, 
                             ctypes.c_bool)      # 게임의 "조약"
 MAP = 0x98                                      # 가짜 게임의 지도 객체의 포인터
 ANNEX = ctypes.WINFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_bool, ctypes.c_bool)   # 게임의 "칸의 주인 바꾸기"
+SPAWN = ctypes.WINFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_uint32, ctypes.c_bool, ctypes.c_bool,
+                           ctypes.c_void_p, ctypes.c_bool, ctypes.c_int, ctypes.c_bool)   # 게임의 "부대 만들기"
+MAP_HEX = 0xA0                                  # 가짜 게임의 "지도에서 고른 칸"(dword: 가로 | 세로 << 16. 0 이면 고르지 않았다)
 MAP_PICK = 0x70                                 # 가짜 게임의 "지도에서 고른 지역": 이 자리의 포인터가 가리키는 word(바로 뒤 0x78)가 인덱스다
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 user32 = ctypes.WinDLL("user32", use_last_error=True)
@@ -671,13 +674,19 @@ def fake_game(hook: str, handler: int | None = None, values: bool = True, more: 
         fake.annexed.append([index, x, y, owner, z1, z2, int(f1), int(f2), right])
         struct.pack_into("<H", fake.hexes, 16 * index, owner)  # 게임처럼 그 칸의 주인을 바꾼다
     fake.annex = ANNEX(annex)
-    toybox.srtoybox_test_acts.argtypes = [ctypes.c_void_p] * 8
+    fake.spawned = []                                          # 가짜 "부대 만들기"가 불린 인자들: [지역 번호, 설계, 수, 칸, 나머지 여섯]
+
+    def spawn(region, design, count, hex_, f1, f2, out_, f3, z, f4):
+        fake.spawned.append([struct.unpack("<H", ctypes.string_at(region + 8, 2))[0], design, count, hex_, int(f1), int(f2), out_ or 0, int(f3), z, int(f4)])
+        return 0
+    fake.spawn = SPAWN(spawn)
+    toybox.srtoybox_test_acts.argtypes = [ctypes.c_void_p] * 9
     if os.environ.get("PROBE_NO_ACTS") != "1":
-        toybox.srtoybox_test_acts((ctypes.c_uint32 * 14)(1, 1, 1, 1, 1, MAP_PICK, INDEX2, POINTER2, LEADERS, LEADER_ID, 1, TREATIES, 1, MAP),
+        toybox.srtoybox_test_acts((ctypes.c_uint32 * 16)(1, 1, 1, 1, 1, MAP_PICK, INDEX2, POINTER2, LEADERS, LEADER_ID, 1, TREATIES, 1, MAP, 1, MAP_HEX),
                                   ctypes.cast(fake.colonize, ctypes.c_void_p), ctypes.cast(fake.fight, ctypes.c_void_p),
                                   ctypes.cast(fake.become, ctypes.c_void_p), ctypes.cast(fake.elect, ctypes.c_void_p),
                                   ctypes.cast(fake.news, ctypes.c_void_p), ctypes.cast(fake.treaty, ctypes.c_void_p),
-                                  ctypes.cast(fake.annex, ctypes.c_void_p))
+                                  ctypes.cast(fake.annex, ctypes.c_void_p), ctypes.cast(fake.spawn, ctypes.c_void_p))
     fake.recomputed = []
     fake.recompute = RECOMPUTE(lambda _world, index: fake.recomputed.append(index))     # 게임이 살아 있는 동안 붙들어 둔다
     if research:
@@ -1555,6 +1564,25 @@ def run_research(hook: str, mode: str) -> int:
         toybox_dll = ctypes.WinDLL(str(Path(hook).with_name("srtoybox.dll")))
         toybox_dll.srtoybox_owner_names(0, 1, names, len(names))
         out["owners_of_tech_1"] = names.value.decode("utf-8")
+    elif mode == "research_spawn":                               # 부대 생성(3단계 5): 게임의 지도에서 고른 칸에, 게임의 함수로
+        game.click("tab:부대")
+        game.wait(0.8)
+        facts = game.facts()
+        out["unpicked"] = [facts["spawn:hex"][3], facts["list:hex"][3]]
+        out["off_clicks"] = [game.click("run:spawnunit"), game.click("list:spawn")]      # 칸을 고르지 않았다 — 둘 다 꺼져 있다
+        game.wait(0.3)
+        fake.poke(MAP_HEX, "<I", 3 | 2 << 16)                 # 게임의 지도에서 (3, 2) 를 골랐다
+        game.wait(0.3)
+        out["picked"] = game.facts()["spawn:hex"][3]
+        press("run:spawnunit")                                # 입력란의 번호(2413)는 가짜 판의 표에 없다
+        out["missing"], out["missing_calls"] = game.shown("unwritten"), list(fake.spawned)
+        game.click("item:11")
+        game.click("item:12")
+        press("list:spawn")                                   # 고른 설계 둘을 하나씩
+        out["spawned"], out["wrote"] = list(fake.spawned), game.shown("wrote")
+        fake.poke(MAP_HEX, "<I", 9 | 2 << 16)                 # 지도(8 × 4) 밖의 칸 — 고르지 않은 것으로 친다
+        game.wait(0.3)
+        out["outside"] = game.facts()["list:hex"][3]
     elif mode == "research_reenter":
         game.click(CHEAT_TAB)
         game.click(BUTTON)

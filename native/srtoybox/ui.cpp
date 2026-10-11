@@ -47,6 +47,7 @@ float g_footer;               // 바닥 줄들(알림 · 안내)의 높이 — �
 Keep g_keep_sent;             // keeper 에 마지막으로 넘긴 최소 유지(저장한 설정과 같다)
 // 기술 · 부대 설계의 목록 하나의 상태. 연구 탭의 목록과 부대 탭의 설계도 목록이 저마다 하나씩 갖는다(같은 코드로 그린다 — item_list).
 struct ListState {
+    int each = 1;                 // 부대 탭: "고른 것을 수량만큼 생성"의 수량(설계마다)
     ListFilter list;              // 거르개
     char find[64] = "";           // 찾기란
     char owner_find[64] = "";     // 보유국 고르기 안의 검색란
@@ -95,6 +96,13 @@ std::string asking_label(const Feature &f, int region)
 // 쓸 수 없으면 단추 자리에 까닭 한 줄만 그린다(그 줄에만. 같은 탭의 다른 줄은 그대로다). 내장 치트로 되돌아가지 않는다.
 // 단추를 그렸으면(쓸 수 있으면) true.
 // compact: 설명 글을 줄로 그리지 않고 단추의 풍선말로 보인다(연구 탭 — 단추 셋이 한 줄에 놓인다).
+// "지도에서 고른 칸"의 글(부대 생성의 줄과 설계도 목록이 같이 쓴다)
+std::string hex_label(bool on_hex, int x, int y)
+{
+    return on_hex ? "지도에서 고른 칸: (" + std::to_string(x) + ", " + std::to_string(y) + ")"
+                  : std::string("지도에서 고른 칸: 없음 — 게임의 지도에서 칸을 고르십시오");
+}
+
 bool direct_row(const Feature &f, const GameState &game, bool compact)
 {
     const bool research = f.direct == Direct::TechLevel || f.direct == Direct::QueueDone;   // 연구의 두 줄은 제 묶음(연구)을 본다
@@ -105,9 +113,10 @@ bool direct_row(const Feature &f, const GameState &game, bool compact)
     const bool novichok = f.direct == Direct::Novichok;
     const bool treaty = f.direct == Direct::Treaty;
     const bool annex = f.direct == Direct::Annex;
-    const bool act = f.direct == Direct::Colonize || fight || become || novichok || treaty || annex;   // 게임의 함수를 부르는 줄
+    const bool spawn = f.direct == Direct::Spawn;
+    const bool act = f.direct == Direct::Colonize || fight || become || novichok || treaty || annex || spawn;   // 게임의 함수를 부르는 줄
     const std::string off = !game.known ? std::string("게임 상태를 읽을 수 있을 때만 씁니다.")
-        : research ? game_research_off() : act ? game_act_off(fight ? ACT_FIGHT : become ? ACT_BECOME : novichok ? ACT_ELECT : treaty ? ACT_TREATY : annex ? ACT_ANNEX : ACT_COLONIZE)
+        : research ? game_research_off() : act ? game_act_off(spawn ? ACT_SPAWN : fight ? ACT_FIGHT : become ? ACT_BECOME : novichok ? ACT_ELECT : treaty ? ACT_TREATY : annex ? ACT_ANNEX : ACT_COLONIZE)
         : game_more_off(group);
     ImGui::PushID(f.id);
     if (!off.empty()) {
@@ -134,8 +143,15 @@ bool direct_row(const Feature &f, const GameState &game, bool compact)
             ImGui::TextUnformatted(map.c_str());
             note("fight:map", map);
         }
-        // 나라를 고르지 않았다(목록에서 · 전쟁은 지도에서도). 같은 나라끼리는 싸움 붙일 수 없다
-        ImGui::BeginDisabled((f.target == Target::Picked && g_picked <= 0) || (fight && (on_map <= 0 || on_map == g_picked)));
+        int hex_x = 0, hex_y = 0;
+        const bool on_hex = spawn && game_map_hex(&hex_x, &hex_y);           // 부대 생성: 게임의 지도에서 고른 칸
+        if (spawn) {
+            const std::string hex = hex_label(on_hex, hex_x, hex_y);
+            ImGui::TextUnformatted(hex.c_str());
+            note("spawn:hex", hex);
+        }
+        // 나라를 고르지 않았다(목록에서 · 전쟁은 지도에서도). 같은 나라끼리는 싸움 붙일 수 없다. 부대 생성은 칸을 골라야 한다
+        ImGui::BeginDisabled((f.target == Target::Picked && g_picked <= 0) || (fight && (on_map <= 0 || on_map == g_picked)) || (spawn && !on_hex));
         const bool asking = f.confirm && g_confirm == f.id;                   // 되돌릴 수 없는 줄은 한 번 더 눌러야 한다
         const std::string label = !asking ? std::string(f.label)
             : fight ? std::string(f.label) + ": " + named(on_map) + " -> " + named(g_picked) + " — 한 번 더 누르면 실행합니다"
@@ -150,7 +166,7 @@ bool direct_row(const Feature &f, const GameState &game, bool compact)
             ImGui::SetTooltip("%s", f.help);
         if (pressed && act) {
             g_confirm.clear();
-            g_notice = (fight ? keeper_enqueue_fight(on_map, g_picked) : become ? keeper_enqueue_become(g_picked)
+            g_notice = (spawn ? keeper_enqueue_spawn({static_cast<int>(value)}, 1) : fight ? keeper_enqueue_fight(on_map, g_picked) : become ? keeper_enqueue_become(g_picked)
                         : novichok ? keeper_enqueue_novichok(g_picked) : treaty ? keeper_enqueue_treaty(g_picked)
                         : annex ? keeper_enqueue_annex(g_picked) : keeper_enqueue_colonize(g_picked))
                 ? "" : "대기 중인 요청이 많아 받지 못했습니다.";
@@ -528,6 +544,17 @@ std::string owners_label(const ListRow &row, const std::vector<int> &regions)
     return row.others > named ? out + " 외 " + std::to_string(row.others - named) : out;
 }
 
+// 쉼표로 이은 이름들에서 앞의 limit 개만 남긴다("… 외 272") — 보유국이 수백이면 줄을 바꿔도 풍선말이 창보다 길다
+std::string first_names(const std::string &names, int limit)
+{
+    size_t cut = std::string::npos;
+    int count = names.empty() ? 0 : 1;
+    for (size_t i = 0; i < names.size(); i++)
+        if (names[i] == ',' && count++ == limit)
+            cut = i;
+    return cut == std::string::npos ? names : names.substr(0, cut) + " … 외 " + std::to_string(count - limit);
+}
+
 // 긴 글의 풍선말 — 창 밖으로 나가지 않게 줄을 바꾼다(보유국이 수백이다)
 void wrapped_tip(const std::string &text)
 {
@@ -723,8 +750,30 @@ void item_list(ListState &L, bool units, const GameState &game, bool blocked)
         ImGui::EndDisabled();
         ImGui::SameLine();
         ImGui::TextDisabled("%d종 · 등록하면 선행 기술도 함께 보유가 된다", static_cast<int>(every.size()));
+        // 고른 설계의 부대를 게임의 지도에서 고른 칸에 만든다 — 설계마다 수량만큼(보유하지 않은 설계도 된다. 내장 치트와 같다)
+        const std::string spawn_off = game_act_off(ACT_SPAWN);
+        int hex_x = 0, hex_y = 0;
+        const bool on_hex = spawn_off.empty() && game_map_hex(&hex_x, &hex_y);
+        const bool many = static_cast<long long>(L.chosen.size()) * L.each > SPAWN_LIMIT;
+        const std::string where = !spawn_off.empty() ? "부대 생성 — " + spawn_off
+            : many ? "한 번에 " + std::to_string(SPAWN_LIMIT) + "기까지입니다" : hex_label(on_hex, hex_x, hex_y);
+        ImGui::SetNextItemWidth(100.0f);
+        if (ImGui::InputInt("##each", &L.each))
+            L.each = L.each < 1 ? 1 : L.each > SPAWN_LIMIT ? SPAWN_LIMIT : L.each;
+        note("list:each", std::to_string(L.each));
+        ImGui::SameLine();
+        ImGui::BeginDisabled(!on_hex || many || L.chosen.empty());
+        if (ImGui::Button("고른 것을 수량만큼 생성")) {
+            g_confirm.clear();
+            g_notice = keeper_enqueue_spawn(std::vector<int>(L.chosen.begin(), L.chosen.end()), L.each) ? "" : "대기 중인 요청이 많아 받지 못했습니다.";
+        }
+        note("list:spawn", "고른 것을 수량만큼 생성");
+        ImGui::EndDisabled();
+        ImGui::SameLine();
+        ImGui::TextDisabled("%s", where.c_str());
+        note("list:hex", where);
     }
-    const float below = 2.0f * ImGui::GetFrameHeightWithSpacing();   // 표 아래의 줄들(수 · 단추)
+    const float below = 2.6f * ImGui::GetFrameHeightWithSpacing();   // 표 아래의 줄들(수 · 단추)과 여유 — 딱 맞추면 아랫줄이 반쯤 잘렸다
     const float height = std::max(6.0f * ImGui::GetFrameHeightWithSpacing(), ImGui::GetContentRegionAvail().y - below);
     // 열의 너비는 머리 줄의 경계를 끌어 바꾸고, 머리 줄을 누르면 그 열로 놓는다(한 번 더 누르면 거꾸로)
     const ImGuiTableFlags flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_ScrollY
@@ -740,7 +789,7 @@ void item_list(ListState &L, bool units, const GameState &game, bool blocked)
         ImGui::TableSetupColumn(designs ? "연도" : "수준", ImGuiTableColumnFlags_DefaultSort);
         ImGui::TableSetupColumn("상태");
         ImGui::TableSetupColumn("선행");                              // 선행 기술을 플레이어가 보유했는가: "보유" · "2/3" · "-"(선행이 없다)
-        ImGui::TableSetupColumn("보유국", ImGuiTableColumnFlags_WidthStretch, 0.6f);   // 이름이 여럿이다 — 남는 너비를 이름 열과 나눠 쓴다
+        ImGui::TableSetupColumn("보유국", ImGuiTableColumnFlags_WidthStretch, 1.0f);   // 이름이 여럿이다 — 남는 너비를 이름 열과 나눠 쓴다
         ImGui::TableSetupColumn(with_picked ? region_label(shot->picked).c_str() : "고른 나라", ImGuiTableColumnFlags_NoHide);
         ImGui::TableSetColumnEnabled(7, with_picked);
         ImGui::TableNextRow(ImGuiTableRowFlags_Headers);         // TableHeadersRow 가 하는 일 — 머리 칸의 자리를 적으려고 풀어 썼다
@@ -791,7 +840,7 @@ void item_list(ListState &L, bool units, const GameState &game, bool blocked)
                     if (c == 4 && r.needs > 0 && ImGui::IsItemHovered())          // 선행 기술마다 보유했는가
                         wrapped_tip(needs_detail(r, shot->tables));
                     else if (c == 5 && r.others > 2 && ImGui::IsItemHovered())    // 칸에는 둘까지만 적는다 — 풍선말에 모두
-                        wrapped_tip(game_owner_names(designs, r.id));
+                        wrapped_tip(first_names(game_owner_names(designs, r.id), 80));
                 }
                 if (with_picked && ImGui::TableSetColumnIndex(7)) {
                     ImGui::AlignTextToFramePadding();
