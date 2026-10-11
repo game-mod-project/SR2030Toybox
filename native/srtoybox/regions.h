@@ -12,7 +12,14 @@ struct RegionName {
 };
 
 const RegionName *find_region(int number);   // 표에 없으면 nullptr
-std::string region_label(int number);        // "독일". 표에 없으면 "#1499"
+// 창에 적는 이름. 게임이 지금 판에서 쓰는 이름을 받아 두었으면(regions_set_game_names) 그것을 따른다:
+//   이름표의 그 번호가 같은 나라면(영문이나 한글 이름이 게임의 이름과 같다) 이름표의 한글 이름,
+//   아니면(역사 시나리오 — 같은 번호가 다른 나라다) 게임의 이름을 영문 이름 → 한글 이름의 표에서 찾고, 없으면 게임의 이름 그대로.
+// 받아 둔 것이 없으면 이름표의 이름, 이름표에도 없으면 "#1499".
+std::string region_label(int number);
+// 게임이 지금 판에서 쓰는 이름(지역 번호, UTF-8)을 넘긴다 — 창이 1초마다. 빈 목록이면 이름표만 쓴다(게임 밖).
+void regions_set_game_names(std::vector<std::pair<int, std::string>> names);
+const char *find_region_alias(const char *en);   // 영문 이름 → 한글 이름(역사 시나리오의 이름까지 든 표). 없으면 nullptr
 
 // 창의 나라 목록.
 struct RegionView {

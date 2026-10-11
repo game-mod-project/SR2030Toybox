@@ -130,18 +130,18 @@ def act_sigs(lib):
 BUILD_ACTS = {"colonize": 0x771FB0, "fight": 0x6FEB60, "become": 0x6E8D50, "elect": 0x6E7AC0, "news": 0x6EF3C0, "map_pick": 0x1764320,
               "player_index2": 0x18294EC, "player_pointer2": 0x1829600, "leader_table": 0x1B058D8, "leader_id": 0xAC,
               "treaty": 0x70CBD0, "treaties": 0x1A3B0, "annex": 0x741530, "map": 0x1829020, "spawn": 0x79E2F0, "map_hex": 0x1764338, "picked_units": 0x17697F0, "upgrades": 0x368A24, "game_over": 0x1829508, "winners": 0x1829510, "ui_flags": 0xF1AF30, "gui": 0xF14EB8, "gui_vtable": 0xC57190,
-              "deploy_hex": 0x6EC490, "units": 0x1AF5850}
+              "deploy_hex": 0x6EC490, "units": 0x1AF5850, "region_name": 0x1BCF8}
 
 
 def test_the_called_functions_are_found_by_their_call_sites(lib, act_sigs, game_dir):
     """3단계 4: 부르는 게임의 함수(식민지화)는 그것을 부르는 자리의 서명 셋이 모두 한 번씩 맞고 같은 주소를 내야 찾은 것이다 —
     그 주소가 함수 표에 있는 함수의 시작이어야 한다. 하나라도 어긋나면 못 찾은 것으로 친다(엉뚱한 함수를 부르지 않는다)."""
-    assert [name for name, _ in act_sigs] == [name for name in toybox.ACT_FIELDS for _ in range(3)] and len({t for _, t in act_sigs}) == 75
+    assert [name for name, _ in act_sigs] == [name for name in toybox.ACT_FIELDS for _ in range(3)] and len({t for _, t in act_sigs}) == 78
     acts = toybox_fake_exe.ACTS
-    assert toybox.acts_of(lib, toybox_fake_exe.sig_image(act_sigs))[:2] == (acts, [""] * 25)
+    assert toybox.acts_of(lib, toybox_fake_exe.sig_image(act_sigs))[:2] == (acts, [""] * 26)
     found, why, _ = toybox.acts_of(lib, toybox_fake_exe.sig_image(act_sigs, broken={1}))
     assert found == {**acts, "colonize": 0} and "식민지화 함수" in why[0] and "3개 가운데 2개" in why[0]   # 셋 가운데 둘로는 찾지 않는다
-    assert why[1:] == [""] * 24                                                                          # 저마다 따로 찾는다
+    assert why[1:] == [""] * 25                                                                          # 저마다 따로 찾는다
     found, why, _ = toybox.acts_of(lib, toybox_fake_exe.sig_image(act_sigs, stray={5}))
     assert found == {**acts, "fight": 0} and "전쟁 함수" in why[1] and "서로 다른" in why[1]
     found, why, _ = toybox.acts_of(lib, toybox_fake_exe.sig_image(act_sigs, targets={"colonize": toybox_fake_exe.COLONIZE + 4}))
@@ -153,7 +153,7 @@ def test_the_called_functions_are_found_by_their_call_sites(lib, act_sigs, game_
     found, why, _ = toybox.acts_of(lib, toybox_fake_exe.sig_image(act_sigs, targets={"leader_id": 0}))
     assert found == {**acts, "leader_id": 0} and why[9] == "지도자 번호의 자리: 찾은 자리가 범위 밖입니다"
     found, why, rows = toybox.acts_of(lib, installed_image(game_dir))                                    # build 21347933
-    assert found == BUILD_ACTS and why == [""] * 25 and [row.count for row in rows] == [1] * 75
+    assert found == BUILD_ACTS and why == [""] * 26 and [row.count for row in rows] == [1] * 78
 
 
 def installed_image(game_dir) -> bytes:
@@ -887,3 +887,56 @@ def test_two_byte_characters_are_put_back_together(lib):
     assert lib.srtoybox_dbcs(lead, trail, 949) == ord("독")
     assert lib.srtoybox_dbcs(lead, 0x20, 949) == 0          # 앞 바이트 뒤에 엉뚱한 것이 왔다
     assert lib.srtoybox_dbcs(0x41, 0x42, 949) == 0          # 2바이트 글자가 아니다
+
+
+def test_region_labels_follow_the_names_the_game_uses(lib):
+    """이름은 판마다 다르다(DLC 의 역사 시나리오): 게임이 지금 쓰는 이름을 받아 두면 그것을 따른다.
+    이름표의 그 번호가 같은 나라면 이름표의 한글 이름, 다른 나라면 게임의 이름을 영문 → 한글의 표에서 찾고, 없으면 게임의 이름 그대로."""
+    lib.srtoybox_test_region_names.argtypes = [ctypes.c_char_p]
+    name = lambda number: label(lib, number)
+    plain = name(1001)
+    try:
+        assert name(1499) == "독일" and name(1188) == "#1188"          # 받아 둔 것이 없다 — 이름표만
+        lib.srtoybox_test_region_names("1499\tGermany\n1188\tGermany\n1106\t폴란드\n202\tZzz Unknown Land\n1201\tPoland\n".encode("utf-8"))
+        assert name(1499) == "독일"                                     # 이름표의 그 번호와 같은 나라(영문 이름이 같다)
+        assert name(1106) == "폴란드"                                   # 〃(한글 이름이 같다 — 게임이 한글로 돌고 있다)
+        assert name(1188) == "독일"                                     # 이름표에 없는 번호: 게임의 이름(영문)을 한글로
+        assert name(1201) == "폴란드"                                   # 이름표의 그 번호(덴마크)와 다른 나라: 게임의 이름을 따른다
+        assert name(202) == "Zzz Unknown Land"                          # 어느 표에도 없는 이름: 게임의 이름 그대로
+        assert name(1001) == plain              # 게임이 이름을 주지 않은 번호: 이름표
+        got = view(lib, [1499, 1188, 202], 0, 0, "zzz")                  # 찾기는 게임의 이름으로도 된다
+        assert got[1] == [(202, "Zzz Unknown Land")]
+    finally:
+        lib.srtoybox_test_region_names(b"")
+    assert name(1188) == "#1188"
+
+
+def test_the_games_region_names_are_read_from_the_region_objects(lib):
+    """game_region_names: 이번 판에 있는 나라마다 지역 객체의 이름 글을 읽는다(읽기만). 포인터가 빈 지역 · 판에 없는 지역은 빠진다."""
+    import struct
+    from toybox_fake_game import FakeGame
+    lib.srtoybox_test_game.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+    lib.srtoybox_test_acts.argtypes = [ctypes.c_void_p] * 10
+    lib.srtoybox_region_names.argtypes = [ctypes.c_char_p, ctypes.c_int]
+    fake = FakeGame()
+    fake.region(141, 1106, alive=3)
+    fake.region(150, 1201, alive=5)                                      # 이번 판에 없는 지역
+    fake.region(160, 1301, alive=3)                                      # 이름이 없는 지역
+    fake.region(176, 1188)
+    fake.play(176)
+    kept = [ctypes.create_string_buffer(b"Germany"), ctypes.create_string_buffer("\uc624\uc2a4\ud2b8\ub9ac\uc544".encode("utf-8")),
+            ctypes.create_string_buffer(b"Gone")]
+    for index, buffer in ((176, kept[0]), (141, kept[1]), (150, kept[2])):
+        fake._write(index, 0x300, "<Q", ctypes.addressof(buffer))
+    lib.srtoybox_test_game(fake.base, ctypes.byref(fake.at))
+    try:
+        out = ctypes.create_string_buffer(4096)
+        assert lib.srtoybox_region_names(out, len(out)) >= 0 and out.value == b""     # 그 자리를 모른다
+        lib.srtoybox_test_acts(ctypes.byref(toybox.ActLayout(region_name=0x300)), *[None] * 9)
+        assert lib.srtoybox_region_names(out, len(out)) >= 0
+        assert out.value.decode("utf-8") == "1106\t오스트리아\n1188\tGermany\n"
+        fake.menu()
+        assert lib.srtoybox_region_names(out, len(out)) >= 0 and out.value == b""     # 게임 밖
+    finally:
+        lib.srtoybox_test_acts(None, *[None] * 9)
+        lib.srtoybox_test_game(None, None)

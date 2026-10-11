@@ -1227,6 +1227,11 @@ void ui_draw()
     // 창은 구르지 않는다. 구르는 것은 탭의 내용(body)뿐이다 — 맨 위의 상태 줄 · 고른 나라와 바닥의 알림은 늘 보인다
     if (ImGui::Begin("SR2030 ToyBox", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) {
         const GameState game = game_state();
+        static double names_at = -10.0;              // 게임이 지금 판에서 쓰는 지역 이름 — 1초마다(판 · 나라가 바뀌어도 곧 따라온다)
+        if (ImGui::GetTime() - names_at > 1.0) {
+            regions_set_game_names(game_region_names());
+            names_at = ImGui::GetTime();
+        }
         const bool faulted = runner_faulted();
         const bool blocked = faulted || (game.known && (!game.in_game || game.multiplayer));
         const std::string trouble = runner_notice();

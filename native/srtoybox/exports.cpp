@@ -1,6 +1,7 @@
 // 테스트(tests/test_toybox.py)와 불러오는 쪽(srhook)이 쓰는 C 인터페이스. 글은 UTF-8, 버퍼가 작거나 대상이 없으면 -1.
 #include <windows.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <sstream>
@@ -854,6 +855,36 @@ EXPORT int srtoybox_product_names(int slot, char *out, int size)
 EXPORT int srtoybox_region_label(int number, char *out, int size)
 {
     return put(region_label(number), out, size);
+}
+
+// 테스트: 게임이 지금 판에서 쓰는 지역 이름을 준다. spec 은 줄마다 "<번호>\t<이름>"(UTF-8). 빈 글이면 지운다(이름표만 쓴다).
+EXPORT void srtoybox_test_region_names(const char *spec)
+{
+    std::vector<std::pair<int, std::string>> names;
+    std::string text = spec == nullptr ? "" : spec;
+    size_t pos = 0;
+    while (pos < text.size()) {
+        size_t end = text.find('\n', pos);
+        if (end == std::string::npos)
+            end = text.size();
+        const std::string line = text.substr(pos, end - pos);
+        pos = end + 1;
+        const size_t tab = line.find('\t');
+        if (tab != std::string::npos)
+            names.push_back({atoi(line.c_str()), line.substr(tab + 1)});
+    }
+    regions_set_game_names(names);
+}
+
+// 이번 판의 나라마다 게임이 쓰는 이름(game_region_names): 줄마다 "<번호>\t<이름>", 번호순.
+EXPORT int srtoybox_region_names(char *out, int size)
+{
+    std::vector<std::pair<int, std::string>> names = game_region_names();
+    std::sort(names.begin(), names.end());
+    std::string text;
+    for (const auto &row : names)
+        text += std::to_string(row.first) + '\t' + row.second + '\n';
+    return put(text, out, size);
 }
 
 // 테스트: 창의 나라 목록. 첫 줄 "picked=<번호>", 이어서 한 줄에 "<번호>\t<이름>".

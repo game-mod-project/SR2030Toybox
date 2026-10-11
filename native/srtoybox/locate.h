@@ -116,6 +116,7 @@ struct ActLayout {
     uint32_t gui_vtable;       // 그 객체의 가상 함수 표(읽기 전용 자료의 RVA). 객체의 표가 이것일 때만 표의 GUI_SET 번째 함수를 부른다
     uint32_t deploy_hex;       // uint32 *f(void *지역 객체, uint32 *out, int 유형): 그 지역이 그 유형(설계의 DESIGN_MOVE)의 부대를 내놓는 칸을 out 에 적고 돌려준다
     uint32_t units;            // qword(자료). 세계의 모든 부대(시설 포함)의 목록의 첫 부대(없으면 0). 부대의 UNIT_NEXT 로 이어진다. 읽기만 한다
+    uint32_t region_name;      // 상수: 지역 객체 안에서 그 지역의 이름 글(이번 판 · 지금 언어의 것)의 포인터(qword)가 든 자리. 읽기만 한다
 };
 
 // 찾을 것의 비트(ActLayout 의 필드 순서)
@@ -124,7 +125,7 @@ const int ACT_COLONIZE = 1, ACT_FIGHT = 2, ACT_BECOME = 4, ACT_ELECT = 8, ACT_NE
           ACT_ANNEX = 4096, ACT_MAP = 8192, ACT_SPAWN = 16384, ACT_MAP_HEX = 32768,
           ACT_PICKED_UNITS = 65536, ACT_UPGRADES = 131072, ACT_GAME_OVER = 262144,
           ACT_WINNERS = 524288, ACT_UI_FLAGS = 1048576, ACT_GUI_OBJECT = 2097152, ACT_GUI_VTABLE = 4194304, ACT_DEPLOY = 8388608,
-          ACT_UNITS = 16777216;
+          ACT_UNITS = 16777216, ACT_REGION_NAME = 33554432;
 const int ACT_GUI = ACT_UI_FLAGS | ACT_GUI_OBJECT | ACT_GUI_VTABLE;   // GUI 숨기기/보이기: game_act_off 에 주는 이름
 const uint32_t GUI_HIDDEN = 0x20000;        // 화면의 깃발에서 "GUI 를 숨긴다"
 const uint32_t GUI_OBJECT_FLAGS = 0x2C;     // dword. GUI 객체의 깃발(표를 찾는 서명에 이 자리가 박혀 있다). 비트 GUI_OBJECT_HIDDEN 이 숨김
@@ -138,7 +139,7 @@ const int ACT_SUPPLY = ACT_PICKED_UNITS | ACT_UPGRADES;   // 보급 채우기 ·
 const int ACT_SUPPLY_ALL = ACT_SUPPLY | ACT_UNITS;
 const int SPAWN_MAX_EQUIP = 21999;   // 게임이 받는 부대 설계 번호의 끝(내장 치트 spawnunit 의 검사와 같다)
 const int SPAWN_LIMIT = 200;         // ToyBox 가 한 번에 만드는 부대의 끝(설계의 수 × 수량)
-const int ACT_WANTED = 25;
+const int ACT_WANTED = 26;
 const uint32_t UNIT_NEXT = 0x08;            // qword. 세계의 부대 목록에서 다음 부대
 const uint32_t UNIT_FACILITY = 0x2000;      // UNIT_FLAGS4 의 비트: 시설이다(부대가 아니다)
 const uint32_t UNIT_UNBUILT = 0x800;        // 〃: 아직 지도에 없는 부대(칸 (0, 0), 지휘 패널의 수에 들지 않는다 — 생산 중으로 보인다). "내 부대 전부"에서 뺀다

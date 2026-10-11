@@ -1,0 +1,16 @@
+﻿key,en,ko,status
+REGIONTEXT|2202|0,New Zealand,뉴질랜드,mt
+REGIONTEXT|2202|1,"\42 Following an election victory, the New Zealand government attempts to focus on a post pandemic return to normal, only to once again face a growing health challenge. A new infection threatens to push the countries of the world over the edge, having barely recovered from the previous pandemic.¶¶Using research and economic levers, governments must again try to keep their population alive as infections spread.","\42 선거에서 승리한 뉴질랜드 정부는 팬데믹 이후의 일상 복귀에 집중하려 하지만, 또다시 커져 가는 보건 위기에 맞닥뜨립니다. 지난 팬데믹에서 가까스로 회복한 세계 각국을 새로운 감염병이 벼랑 끝으로 내몰려 하고 있습니다.¶¶정부는 연구와 경제 수단을 활용해 감염이 퍼지는 가운데 다시 한번 국민의 생명을 지켜 내야 합니다.",mt
+LOCALIZE|wintext|0,1,,
+LOCALIZE|wintext|1,2,,
+LOCALIZE|wintext|2,"We have managed to reduce our count of infected citizens back to zero. Whatever happens globally, we have at least demonstrated that it's posisble to contain the pandemic.¶¶Congratulations on your victory Prime Minister.","감염 시민 수를 다시 0으로 줄이는 데 성공했습니다. 세계적으로 어떤 일이 벌어지든, 팬데믹을 억제할 수 있음을 적어도 우리가 보여 주었습니다.¶¶총리님, 승리를 축하드립니다.",mt
+LOCALIZE|wintext|3,4,,
+LOCALIZE|wintext|4,5,,
+LOCALIZE|wintext|5,6,,
+LOCALIZE|wintext|6,7,,
+LOCALIZE|wintext|7,8,,
+LOCALIZE|wintext|8,9,,
+LOCALIZE|wintext|9,10,,
+LOCALIZE|losetext|6,You have been Eliminated!  Your region has fallen and you have been forced from office in disgrace.,제거되었습니다! 귀하의 지역이 무너져 불명예스럽게 직에서 쫓겨났습니다.,mt
+LOCALIZE|losetext|8,"With more than 500,000 citizens dead, the situation in New Zealand is considered out of control You have failed to meet your objective.¶¶",50만 명이 넘는 시민이 사망해 뉴질랜드의 상황은 통제 불능으로 간주됩니다. 목표 달성에 실패했습니다.¶¶,mt
+LOCALIZE|losetext|9,You have not been able to meet your objectives and protect your senior leadership from attack.  You have been ousted from power.,목표를 달성하지 못했고 고위 지도부를 공격으로부터 지키지도 못했습니다. 귀하는 권좌에서 쫓겨났습니다.,mt
