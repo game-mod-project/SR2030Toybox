@@ -295,9 +295,10 @@ def stats(cfg: Config) -> list[TableReport]:
 # 게임이 고정 길이로 잘라 쓰는 자리: (키 정규식, 최대 바이트, 설명). 바이트는 게임 파일 인코딩(SR-UTF8) 기준.
 # 지역 이름은 게임 화면에서 30바이트(한글 10자)까지 보이고 33바이트는 잘리는 것을 확인했다(2026-10-06).
 # 시나리오 전용 파일은 이름 칸을 비워 두므로(`801,,"소개문"`) 같은 키가 소개문을 가리킨다 → 테이블 이름으로 구분한다.
-# DLC 의 역사 시나리오 표도 이름 칸이 있는 것은 같은 제한이다(1940 ~ 1942 의 표는 이름에 따옴표가 없어 |0 이 소개문이다 — 뺀다).
+# DLC 의 역사 시나리오 표도 같은 제한이다(1940 ~ 1942 의 표는 이름에 따옴표가 없다 — srtext 가 그 이름을 순번 0 으로 뽑는다).
 BYTE_LIMITS = [(re.compile(r"^(localtext-regions(-36|-gw)?(\.extra)?|scenario\.localtext-regions|scen\.(1914---brinkmanship|1914---the-great-war"
-                           r"|1917---the-great-war)\.localtext-regions|scen\.sr1936\.localtext-regions-36)\.csv\|REGIONTEXT\|[^|]+\|0$"),
+                           r"|1917---the-great-war)\.localtext-regions|scen\.sr1936\.localtext-regions-36"
+                           r"|scen\.sr194[0-2]\.localtext-regions-4[0-2])\.csv\|REGIONTEXT\|[^|]+\|0$"),
                 30, "지역 이름")]
 
 
