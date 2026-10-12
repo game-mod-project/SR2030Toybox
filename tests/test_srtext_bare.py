@@ -47,3 +47,26 @@ def test_translated_bare_names_are_written_in_quotes():
     again = srtext.parse(doc.serialize())                              # 다시 읽으면 이름은 따옴표 안의 글이다 — 키는 같다
     assert ("REGIONTEXT|101|0", "이집트") in [(u.key, u.text) for u in again.units()]
     assert ("REGIONTEXT|101|1", CODE + "이집트는") in [(u.key, u.text) for u in again.units()]
+
+
+def test_missing_region_names_fill_empty_name_cells_or_add_rows():
+    """지역 자료에만 이름이 있는 지역(korean.missing_region_names): 이름 칸이 빈 행은 그 칸을 채우고, 행이 없으면 섹션 끝에 더한다."""
+    from srkit import korean
+    lines = ["&&REGIONTEXT", '0, "United Nations", "", "", ', '101, "", "desc of 101"', '102,,"desc of 102"', '103, "Named", "desc"',
+             "&&END", ""]
+    doc = srtext.parse(chr(10).join(lines))
+    added = korean._add_extra_regions(doc, {"REGIONTEXT|101|0": "이집트", "REGIONTEXT|102|0": "리비아", "REGIONTEXT|103|0": "쓰이지 않는다",
+                                            "REGIONTEXT|999|0": "새 지역"})
+    assert added == 3
+    assert doc.serialize().split(chr(10)) == ["&&REGIONTEXT", '0, "United Nations", "", "", ', '101, "이집트", "desc of 101"',
+                                              '102,"리비아","desc of 102"', '103, "Named", "desc"', '999, "새 지역"', "&&END", ""]
+
+
+def test_missing_titles_are_added_to_the_title_section():
+    """영어판에 제목 행이 없는 시나리오: 한국어판의 FILETEXT 끝에 `<파일 이름>, "<제목>"` 을 더한다."""
+    from srkit import korean
+    lines = ["&&FILETEXT, 0", 'SR1936, "1936 - The Road to War"', "&&END", "&&THEATRESTEXT, 0", '1, "A", "NEA"', ""]
+    doc = srtext.parse(chr(10).join(lines))
+    assert korean._add_extra_titles(doc, {"FILETEXT|1914 - The Great War|0": "1914 - 대전쟁"}) == 1
+    assert doc.serialize().split(chr(10))[:3] == ["&&FILETEXT, 0", 'SR1936, "1936 - The Road to War"',
+                                                  '1914 - The Great War, "1914 - 대전쟁"']
