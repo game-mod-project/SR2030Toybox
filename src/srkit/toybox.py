@@ -199,7 +199,7 @@ def alias_rows(cfg: Config) -> list[tuple[str, str]]:
     같은 영문 이름이 여러 표에 있으면 현대의 표(REGION_TABLES)가 앞선다. 번역이 빈 행 · 이름이 아닌 긴 글은 뺀다.
     """
     tables = [cfg.root / t for t in REGION_TABLES]
-    tables += sorted(p for p in (cfg.root / "mods/korean/translation").glob("*regions*.csv") if p not in tables)
+    tables += sorted(p for p in (cfg.root / "mods/korean/translation").glob("*.csv") if p not in tables)   # 지역 이름의 키는 지역 표에만 있다
     rows: dict[str, str] = {}
     for table in tables:
         with table.open(encoding="utf-8-sig", newline="") as f:

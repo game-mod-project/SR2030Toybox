@@ -221,6 +221,128 @@ def extra_region_names(cfg: Config, known: set[str]) -> list[tuple[str, str]]:
             if rid not in known and len(names) == 1]
 
 
+START_NAME = "LocalText-START.csv"
+EXTRA_TITLES_TABLE = "localtext-start.extra.csv"    # 영어판에 제목 행이 없는 시나리오(목록에 파일 이름이 그대로 나온다)의 제목
+
+
+def missing_titles(cfg: Config) -> list[tuple[str, str]]:
+    """샌드박스 · 시나리오 가운데 LocalText-START 의 FILETEXT 에 제목 행이 없는 것의 (키, 파일 이름).
+
+    게임은 그런 시나리오를 목록에 파일 이름 그대로 적는다(`1914 - The Great War`, `Barbarossa`). 한국어판에만 제목 행을 더한다.
+    """
+    path = cfg.source_dir / START_NAME
+    if not path.is_file():
+        return []
+    doc = srtext.parse(decode_cp1252(path.read_bytes()))
+    known = {ln.key.lower() for ln in doc.lines if ln.section == "FILETEXT" and ln.key}
+    out = []
+    for top in ("Sandbox", "Scenario"):
+        for scen in sorted(p for p in (cfg.game_dir / top).glob("*") if p.is_file() and p.suffix.lower() == ".scenario"):
+            if scen.stem.lower() not in known and "," not in scen.stem and '"' not in scen.stem:
+                out.append((f"FILETEXT|{scen.stem}|0", scen.stem))
+    return out
+
+
+def _add_extra_titles(doc: srtext.Document, extras: dict[str, str]) -> int:
+    """FILETEXT 섹션 끝에 제목 행을 더한다: `<파일 이름>, "<제목>"`."""
+    section = [i for i, ln in enumerate(doc.lines) if ln.section == "FILETEXT"]
+    if not section or not extras:
+        return 0
+    new = [srtext.Line([f"{key.split('|')[1]}, ", ko, ""], "FILETEXT", key.split("|")[1]) for key, ko in extras.items()]
+    doc.lines[section[-1] + 1:section[-1] + 1] = new
+    return len(new)
+
+
+def extra_table(table: str) -> str:
+    """번역 테이블의 이름 → 그 파일에 더할 지역 이름의 테이블(zombie-text.csv → zombie-text.extra.csv)."""
+    return table[:-len(".csv")] + ".extra.csv"
+
+
+def _region_name_cells(doc: srtext.Document) -> dict[str, tuple[int, str | None]]:
+    """REGIONTEXT 의 행마다 (줄 번호, 이름). 이름 칸이 비었으면 None — `101, "", "소개문"` · `801,,"소개문"`."""
+    out: dict[str, tuple[int, str | None]] = {}
+    for i, ln in enumerate(doc.lines):
+        if ln.section != "REGIONTEXT" or not ln.key or ln.key in out:
+            continue
+        if ln.bare is not None:
+            name: str | None = ln.parts[0][ln.bare[0]:ln.bare[1]]
+        elif ln.parts[0].count(",") == 1 and len(ln.parts) >= 3:      # `101, "이름", …` — 첫 따옴표 안이 이름이다
+            name = ln.parts[1].strip() or None
+        else:                                                           # `801,,"소개문"` — 이름 칸이 비었다
+            name = None
+        out[ln.key] = (i, name)
+    return out
+
+
+def scenario_region_files(cfg: Config) -> dict[Path, list[Path]]:
+    """지역 글 파일(게임 루트 기준 상대 경로) → 그 파일을 쓰는 시나리오들의 지역 자료(.CVP).
+
+    샌드박스: 시나리오 파일의 `#include "…csv"` 를 따라간다 — 시나리오 폴더의 Localize/<원문 언어>/ → 언어 폴더 순으로 찾아
+    `&&REGIONTEXT` 가 든 파일을 그 시나리오의 지역 글 파일로 친다. Scenario · Campaign 의 시나리오는 언어 폴더의
+    Scenario/LocalText-Regions.csv 를 쓰는 것으로 친다 [추정]. 언어 폴더 바로 아래의 LocalText-Regions.csv 는 따로 다룬다(extra_region_names).
+    """
+    lang = cfg.source_dir.relative_to(cfg.game_dir)
+    master = lang / "Scenario" / REGIONS_NAME
+    out: dict[Path, list[Path]] = {}
+    has_regions: dict[Path, bool] = {}
+
+    def regions(rel: Path) -> bool:
+        if rel not in has_regions:
+            path = cfg.game_dir / rel
+            has_regions[rel] = path.is_file() and "&&REGIONTEXT" in decode_cp1252(path.read_bytes()).upper()
+        return has_regions[rel]
+
+    for top in SCENARIO_DIRS:
+        for scen in sorted(p for p in (cfg.game_dir / top).glob("*") if p.is_file() and p.suffix.lower() == ".scenario"):
+            text = decode_cp1252(scen.read_bytes())
+            includes = re.findall(r'^[ \t]*#include\s+"([^"]+)"', text, flags=re.I | re.M)
+            cvps = [cfg.game_dir / "Maps" / n for n in includes if n.lower().endswith(".cvp") and (cfg.game_dir / "Maps" / n).is_file()]
+            if not cvps:
+                continue
+            local = Path(top) / scen.stem / "Localize" / cfg.source_lang
+            files = []
+            if top.lower() == "sandbox":
+                for name in (n for n in includes if n.lower().endswith(".csv")):
+                    found = next((rel for rel in (local / name, lang / name) if regions(rel)), None)
+                    if found is not None:
+                        files.append(found)
+            elif regions(master):                # 시나리오 · 캠페인: 제 글 파일의 REGIONTEXT 는 몇 지역의 소개문뿐이다 — 이름은 이 파일에서 온다
+                files = [master]
+            for rel in files:
+                if rel != lang / REGIONS_NAME:
+                    out.setdefault(rel, [])
+                    out[rel] += [c for c in cvps if c not in out[rel]]
+    return out
+
+
+def region_file_table(cfg: Config, rel: Path) -> str:
+    """지역 글 파일(게임 루트 기준) → 그 번역 테이블의 이름."""
+    lang = cfg.source_dir.relative_to(cfg.game_dir)
+    return table_name(rel.relative_to(lang)) if rel.parts[:len(lang.parts)] == lang.parts else scenario_table(rel)
+
+
+def missing_region_names(cfg: Config) -> dict[str, list[tuple[str, str]]]:
+    """지역 글 파일마다(그 "더할 이름"의 테이블 이름으로): 지역 자료에만 이름이 있는 지역의 (키, 영문 이름).
+
+    게임은 그런 지역에 자료의 영어 이름을 그대로 쓴다 — 좀비 시나리오(글 파일의 이름 칸이 모두 비었다), 역사 시나리오의 일부.
+    한 번호에 이름이 하나로 정해질 때만 다룬다(여러 시나리오가 같은 글 파일을 쓰면서 그 번호의 이름이 다르면 뺀다).
+    """
+    out: dict[str, list[tuple[str, str]]] = {}
+    for rel, cvps in sorted(scenario_region_files(cfg).items()):
+        doc = srtext.parse(decode_cp1252((cfg.game_dir / rel).read_bytes()))
+        named = {rid for rid, (_line, name) in _region_name_cells(doc).items() if name}
+        seen: dict[str, set[str]] = {}
+        for cvp in cvps:
+            for rid, name in cvp_region_names(cvp).items():
+                if name.strip():
+                    seen.setdefault(rid, set()).add(name.strip())
+        rows = [(f"REGIONTEXT|{rid}|0", next(iter(names))) for rid, names in sorted(seen.items(), key=lambda kv: int(kv[0]))
+                if rid not in named and len(names) == 1]
+        if rows:
+            out[extra_table(region_file_table(cfg, rel))] = rows
+    return out
+
+
 def game_upper(data: bytes) -> bytes:
     """게임이 지도 라벨을 그리기 전에 하는 대문자화를 그대로 흉내 낸다."""
     return bytes(b - 32 if 0x61 <= b <= 0x7A else GAME_UPPER.get(b, b) for b in data)
@@ -260,6 +382,9 @@ def extract(cfg: Config) -> list[TableReport]:
         units = [(u.key, u.text) for u in doc.units()]
         if units:
             reports.append(_merge(cfg.translation_dir / scenario_table(rel), units))
+    for table, rows in sorted(missing_region_names(cfg).items()):       # 시나리오의 글 파일에 없는 지역 이름(자료의 영어 이름)
+        reports.append(_merge(cfg.translation_dir / table, rows))
+    reports.append(_merge(cfg.translation_dir / EXTRA_TITLES_TABLE, missing_titles(cfg)))
     reports.append(_merge(cfg.translation_dir / MAP_NAMES_TABLE, [(f"MAPNAME|{n}", n) for n in map_names(cfg)]))
     return reports
 
@@ -296,9 +421,9 @@ def stats(cfg: Config) -> list[TableReport]:
 # 지역 이름은 게임 화면에서 30바이트(한글 10자)까지 보이고 33바이트는 잘리는 것을 확인했다(2026-10-06).
 # 시나리오 전용 파일은 이름 칸을 비워 두므로(`801,,"소개문"`) 같은 키가 소개문을 가리킨다 → 테이블 이름으로 구분한다.
 # DLC 의 역사 시나리오 표도 같은 제한이다(1940 ~ 1942 의 표는 이름에 따옴표가 없다 — srtext 가 그 이름을 순번 0 으로 뽑는다).
-BYTE_LIMITS = [(re.compile(r"^(localtext-regions(-36|-gw)?(\.extra)?|scenario\.localtext-regions|scen\.(1914---brinkmanship|1914---the-great-war"
+BYTE_LIMITS = [(re.compile(r"^(localtext-regions(-36|-gw)?|scenario\.localtext-regions|scen\.(1914---brinkmanship|1914---the-great-war"
                            r"|1917---the-great-war)\.localtext-regions|scen\.sr1936\.localtext-regions-36"
-                           r"|scen\.sr194[0-2]\.localtext-regions-4[0-2])\.csv\|REGIONTEXT\|[^|]+\|0$"),
+                           r"|scen\.sr194[0-2]\.localtext-regions-4[0-2]|[^|]*\.extra)(\.extra)?\.csv\|REGIONTEXT\|[^|]+\|0$"),
                 30, "지역 이름")]
 
 
@@ -367,13 +492,33 @@ def _translations(path: Path, skip: re.Pattern[str] | None = None) -> dict[str, 
 
 
 def _add_extra_regions(doc: srtext.Document, extras: dict[str, str]) -> int:
-    """REGIONTEXT 섹션 끝에 영어판에는 없는 지역 이름 행을 더한다."""
+    """영어판의 글 파일에 없는 지역 이름을 넣는다: 그 번호의 행이 있고 이름 칸이 비었으면 그 칸에(`101, "", "소개문"` → `101, "이집트", "소개문"`),
+    행이 없으면 REGIONTEXT 섹션 끝에 새 행으로. 이미 이름이 있는 행은 건드리지 않는다."""
     section = [i for i, ln in enumerate(doc.lines) if ln.section == "REGIONTEXT"]
     if not section or not extras:
         return 0
-    new = [srtext.Line([f"{key.split('|')[1]}, ", ko, ""], "REGIONTEXT", key.split("|")[1]) for key, ko in extras.items()]
+    cells = _region_name_cells(doc)
+    new = []
+    done = 0
+    for key, ko in extras.items():
+        rid = key.split("|")[1]
+        if rid not in cells:
+            new.append(srtext.Line([f"{rid}, ", ko, ""], "REGIONTEXT", rid))
+            continue
+        index, name = cells[rid]
+        ln = doc.lines[index]
+        if name:
+            continue
+        if ln.parts[0].count(",") == 1 and len(ln.parts) >= 3:           # 빈 따옴표의 이름 칸
+            ln.parts[1] = ko
+        else:                                                            # `801,,"소개문"` — 두 쉼표 사이에 따옴표를 둘러 넣는다
+            head = ln.parts[0]
+            first = head.index(",")
+            second = head.index(",", first + 1)
+            ln.parts = [head[:first + 1], ko, head[second:]] + ln.parts[1:]
+        done += 1
     doc.lines[section[-1] + 1:section[-1] + 1] = new
-    return len(new)
+    return done + len(new)
 
 
 def map_name_entries(cfg: Config) -> dict[bytes, str]:
@@ -419,6 +564,10 @@ def build_text(cfg: Config, out_root: Path) -> tuple[int, set[str]]:
         applied += doc.apply(_translations(cfg.translation_dir / table_name(rel), skip))
         if _is_root_regions(rel):
             applied += _add_extra_regions(doc, _translations(cfg.translation_dir / EXTRA_REGIONS_TABLE, skip))
+        else:                                                            # 그 밖의 지역 글 파일: 시나리오의 자료에만 이름이 있는 지역
+            applied += _add_extra_regions(doc, _translations(cfg.translation_dir / extra_table(table_name(rel)), skip))
+        if len(rel.parts) == 1 and rel.name.lower() == START_NAME.lower():
+            applied += _add_extra_titles(doc, _translations(cfg.translation_dir / EXTRA_TITLES_TABLE, skip))
         emit(out_lang / rel, doc.serialize())
 
     gui = _translations(cfg.translation_dir / GUI_TABLE, skip)
@@ -430,6 +579,7 @@ def build_text(cfg: Config, out_root: Path) -> tuple[int, set[str]]:
     for rel in scenario_files(cfg):
         doc = srtext.parse(decode_cp1252((cfg.game_dir / rel).read_bytes()).translate(PUNCT))
         applied += doc.apply(_translations(cfg.translation_dir / scenario_table(rel), skip))
+        applied += _add_extra_regions(doc, _translations(cfg.translation_dir / extra_table(scenario_table(rel)), skip))
         parts = [cfg.target_lang if p.lower() == cfg.source_lang.lower() else p for p in rel.parts]
         emit(out_root.joinpath(*parts), doc.serialize())
 
