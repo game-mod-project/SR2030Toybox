@@ -35,6 +35,7 @@ def lib(cfg):
     lib.srtoybox_keeper_mult.argtypes = [ctypes.c_char_p]
     lib.srtoybox_mult_off.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
     lib.srtoybox_mult_stats.argtypes = [ctypes.c_char_p, ctypes.c_int]
+    lib.srtoybox_keeper_rush.argtypes = [ctypes.c_char_p, ctypes.c_int]
     lib.srtoybox_settings_normalize.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int]
     return lib
 
@@ -98,6 +99,17 @@ class Game:
     def stats(self) -> list[int]:
         return [int(n) for n in text(self.lib.srtoybox_mult_stats).split("\t")]
 
+    def rush(self) -> str:
+        return text(self.lib.srtoybox_keeper_rush)
+
+    def pending(self) -> bool:
+        return self.lib.srtoybox_rush_pending() == 1
+
+    def recompute(self) -> None:
+        """게임이 날 끝에 하는 "효과를 다시 셈": 플레이어 줄을 처음 값으로."""
+        for cell in range(200):
+            self.set_cell(GERMANY, cell, 1.0 + cell / 100.0)
+
     def node(self, number: int, flags: tuple[int, int], left: float) -> int:
         at = self.lab.queue(GERMANY, TECH, number, flags)
         ctypes.memmove(at + 0x28, struct.pack("<f", left), 4)
@@ -155,6 +167,68 @@ def test_build_speeds_multiply_cells_15_and_16(game):
     game.set("unitbuild=100")
     game.tick()
     assert game.cell(GERMANY, 15) == f32(1.15)
+
+
+def test_rush_writes_a_thousand_times_until_the_game_recomputes_after_the_day(game):
+    """스위치가 꺼져 있어도 듣는다. 날이 오르기만 해서는(그날의 셈 도중) 풀지 않는다."""
+    assert game.rush() == "" and game.pending()
+    game.tick()
+    assert game.cell(GERMANY, 15) == f32(f32(1.15) * 1000) and game.cell(GERMANY, 16) == f32(f32(1.16) * 1000)
+    assert game.cell(GERMANY, 72) == f32(1.72)                  # 다른 칸은 그대로
+    game.day()
+    game.tick()
+    assert game.pending() and game.cell(GERMANY, 15) == f32(f32(1.15) * 1000)
+    game.recompute()
+    game.tick()
+    assert not game.pending() and game.cell(GERMANY, 15) == f32(1.15) and game.cell(GERMANY, 16) == f32(1.16)
+
+
+def test_a_recompute_before_midnight_is_written_over_again(game):
+    game.rush()
+    game.tick()
+    game.recompute()                                            # 연구가 끝나 낮에 다시 셈했다
+    game.tick()
+    assert game.pending() and game.cell(GERMANY, 15) == f32(f32(1.15) * 1000)
+
+
+def test_after_the_rush_the_multipliers_take_over(game):
+    game.set("on=1 unitbuild=200")
+    game.tick()
+    game.rush()
+    game.set("unitbuild=300")                                   # 대기 중의 변경은 대기 값을 바꾸지 않는다
+    game.tick()
+    assert game.cell(GERMANY, 15) == f32(f32(1.15) * 1000)
+    game.day()
+    game.recompute()
+    game.tick()
+    assert not game.pending() and game.cell(GERMANY, 15) == f32(f32(1.15) * 3)
+
+
+@pytest.mark.parametrize("change", ["player", "menu"])
+def test_the_rush_is_dropped_when_the_game_changes(game, change):
+    game.rush()
+    game.tick()
+    if change == "player":
+        game.fake.play(POLAND)
+    else:
+        game.fake.menu()
+    game.tick()
+    assert not game.pending()
+    assert [game.cell(POLAND, c) for c in (15, 16)] == [f32(1.15), f32(1.16)]
+
+
+@pytest.mark.parametrize("value", [0.0, -1.0, 1000.0])
+def test_the_rush_leaves_a_cell_that_makes_no_sense(game, value):
+    game.set_cell(GERMANY, 15, value)
+    game.rush()
+    game.tick()
+    assert game.cell(GERMANY, 15) == f32(value)
+    assert game.cell(GERMANY, 16) == f32(f32(1.16) * 1000)
+
+
+def test_the_rush_needs_a_game(game):
+    game.fake.menu()
+    assert game.rush() != "" and not game.pending()
 
 
 def test_the_cells_are_written_again_after_the_game_recomputes_them(game):

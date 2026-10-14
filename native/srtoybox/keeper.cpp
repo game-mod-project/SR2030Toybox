@@ -64,6 +64,9 @@ bool g_day_known;                   // 날의 칸을 본 적이 있다(이번 �
 uint32_t g_day;
 int g_day_index;
 MultStats g_mult_stats;
+bool g_rush;                        // 다음 자정에 완료 — 대기 중
+uint32_t g_rush_day;                // 누른 때의 날의 칸
+int g_rush_index;                   // 누른 때의 플레이어 지역 인덱스
 bool g_mult_told;                   // 이 설정으로 날마다의 일을 한 것을 로그에 적었다(설정이 바뀌면 다시 적는다)
 
 std::string target_name(int slot)
@@ -678,6 +681,7 @@ void forget_cells()
         m = CellMemo();
     g_cells_index = 0;
     g_mult_stats.held = 0;
+    g_rush = false;
 }
 
 // 그 칸의 배율(퍼센트). 맡지 않는 칸이면 0.
@@ -711,20 +715,31 @@ bool mult_cells()
         return true;
     }
     if (index != g_cells_index) {
+        const bool keep = g_rush && index == g_rush_index;   // 처음 본 줄이 누른 나라의 것이면 대기는 그대로다
         forget_cells();                         // 플레이하는 나라가 바뀌었다 — 앞 나라의 칸은 게임이 그날 다시 셈한다
+        g_rush = keep;
         g_cells_index = index;
     }
+    const Daily today = g_rush ? game_daily() : Daily();
+    const bool day_passed = g_rush && today.ok && today.day != g_rush_day;
     int held = 0;
     for (int cell = 1; cell < MUL_CELLS; cell++) {
         const int percent = cell_percent(g_mult, cell);
         if (percent == 0)
             continue;
-        const bool scaled = g_mult.on && percent != 100;
         CellMemo &m = g_cells[cell];
         const float now = row[cell];
+        const bool build = cell == MUL_UNIT_BUILD || cell == MUL_FAC_BUILD;
+        if (g_rush && build && day_passed && !(m.have && now == m.wrote)) {
+            g_rush = false;                     // 날이 오른 뒤 게임이 다시 셈했다 — 그날의 셈이 지났다
+            log_line("배율: 다음 자정에 완료 — 풀었다 (날 %u)", today.day);
+        }
+        const bool rush = g_rush && build;
+        const bool scaled = rush || (g_mult.on && percent != 100);
+        const float times = rush ? RUSH_TIMES : percent / 100.0f;
         float want = 0;
         if (m.have && now == m.wrote) {         // ToyBox 가 쓴 값이 그대로다
-            want = scaled ? m.base * (percent / 100.0f) : m.base;
+            want = scaled ? m.base * times : m.base;
             if (want == now) {
                 held++;
                 continue;
@@ -734,13 +749,14 @@ bool mult_cells()
             if (!scaled || !cell_sane(now))
                 continue;
             m.base = now;
-            want = now * (percent / 100.0f);
+            want = now * times;
         }
-        if (!cell_sane(want)) {
+        const float max = rush ? RUSH_VALUE_MAX : MUL_VALUE_MAX;
+        if (!(std::isfinite(want) && want > 0.0f && want < max)) {
             m = CellMemo();
             continue;
         }
-        const Wrote wrote = game_write_mult(cell, want);
+        const Wrote wrote = game_write_mult(cell, want, max);
         if (wrote != Wrote::Done) {
             m = CellMemo();
             if (wrote == Wrote::Failed)
@@ -815,7 +831,7 @@ void mult_tick(unsigned long long now_ms)
         return;
     g_mult_due = false;
     g_mult_at = now_ms;
-    if (!g_mult.on && g_cells_index == 0) {     // 꺼져 있고 되돌릴 칸도 없다
+    if (!g_mult.on && g_cells_index == 0 && !g_rush) {   // 꺼져 있고 되돌릴 칸도, 완료 대기도 없다
         g_day_known = false;
         return;
     }
@@ -825,7 +841,7 @@ void mult_tick(unsigned long long now_ms)
         return;                                 // 쓰기가 실패했다 — 값 쓰기 전체가 꺼졌다
     if (!g_mult.on) {
         g_day_known = false;
-        if (g_mult_stats.held == 0)
+        if (g_mult_stats.held == 0 && !g_rush)
             g_cells_index = 0;                  // 다 되돌렸다 — 켤 때까지 쉰다
         return;
     }
@@ -857,6 +873,31 @@ Mult keeper_mult()
 {
     std::lock_guard<std::mutex> lock(g_lock);
     return g_mult;
+}
+
+std::string keeper_rush()
+{
+    if (!game_writes())
+        return "값 쓰기가 꺼져 있습니다.";
+    const std::string cells = game_mult_off(MULT_PART_CELLS);
+    if (!cells.empty())
+        return cells;
+    const Daily d = game_daily();
+    if (!d.ok)
+        return "게임을 진행 중일 때만 됩니다.";
+    std::lock_guard<std::mutex> lock(g_lock);
+    g_rush = true;
+    g_rush_day = d.day;
+    g_rush_index = d.index;
+    g_mult_due = true;
+    log_line("배율: 다음 자정에 완료 — 대기 (날 %u)", d.day);
+    return "";
+}
+
+bool keeper_rush_pending()
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    return g_rush;
 }
 
 int mult_count(const Mult &m)
@@ -967,7 +1008,7 @@ void keeper_reset_for_test()
     g_keep_due = false;
     g_keep_at = 0;
     g_mult = Mult();
-    g_mult_due = g_day_known = g_mult_told = false;
+    g_mult_due = g_day_known = g_mult_told = g_rush = false;
     g_mult_at = 0;
     g_mult_stats = MultStats();
     forget_cells();

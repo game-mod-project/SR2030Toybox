@@ -145,6 +145,11 @@ bool operator==(const Mult &a, const Mult &b);
 void keeper_set_mult(const Mult &mult);         // 창이 설정을 읽었거나 고쳤다. 다음 틱에 바로 본다
 Mult keeper_mult();
 int mult_count(const Mult &mult);              // 100 이 아닌 배율의 수(on 과 상관없이)
+// 다음 자정에 완료(docs/superpowers/specs/2026-10-14-toybox-mult-build-design.md). 누르면 그날의 셈 하루 동안 칸 15 · 16 에 게임의 값 × RUSH_TIMES 를
+// 쓴다(배율 대신). 날의 칸이 오른 뒤 게임이 그 칸을 다시 셈한 것을 보면 푼다. 저장하지 않고 배율 적용과 상관없이 듣는다. 판 · 플레이어가 바뀌면 버린다.
+const float RUSH_TIMES = 1000.0f, RUSH_VALUE_MAX = 100000.0f;
+std::string keeper_rush();                      // 시작한다. 못 하면 까닭(게임 밖 · 값 쓰기 꺼짐 · 곱 보정 표나 날의 칸을 못 찾음), 되면 빈 글
+bool keeper_rush_pending();
 // 이번 실행에서 배율이 한 일: 날마다의 일을 한 날수, 곱 보정 칸을 쓴 횟수(게임이 지워 다시 쓴 것 포함), 지금 ToyBox 의 값이 든 칸의 수.
 struct MultStats {
     unsigned long long days = 0, writes = 0;

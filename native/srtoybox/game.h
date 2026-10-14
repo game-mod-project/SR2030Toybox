@@ -284,7 +284,8 @@ bool game_mult_row(float *cells, int *index);
 // 플레이어의 곱 보정 줄의 그 칸(1 … MUL_CELLS - 1)에 value 를 쓴다. 0 보다 크고 MUL_VALUE_MAX 보다 작은 유한한 수만(아니면 BadValue).
 // 쓰기가 실패하면 값 쓰기 전체를 끈다(Wrote::Failed).
 const float MUL_VALUE_MAX = 1000.0f;
-Wrote game_write_mult(int cell, float value);
+// max 는 완료 대기(keeper 의 "다음 자정에 완료")가 칸 15 · 16 에만 RUSH_VALUE_MAX 로 넘긴다 — 100000 을 넘을 수 없다.
+Wrote game_write_mult(int cell, float value, float max = MUL_VALUE_MAX);
 // 날마다의 일에 쓰는 값. 못 찾은 묶음의 값은 0 이다.
 struct Daily {
     bool ok = false;           // 읽었다: 게임을 진행 중이고(멀티플레이가 아니다) 날의 칸을 읽었다

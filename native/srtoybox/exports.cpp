@@ -825,6 +825,17 @@ EXPORT int srtoybox_keeper_mult(const char *spec)
 }
 
 // 테스트: "<날마다의 일을 한 날수>\t<곱 보정 칸을 쓴 횟수>\t<지금 ToyBox 의 값이 든 칸의 수>\t<100 이 아닌 배율의 수>".
+// 테스트: 다음 자정에 완료를 누른다. 까닭의 글(되면 빈 글).
+EXPORT int srtoybox_keeper_rush(char *out, int size)
+{
+    return put(keeper_rush(), out, size);
+}
+
+EXPORT int srtoybox_rush_pending(void)
+{
+    return keeper_rush_pending() ? 1 : 0;
+}
+
 EXPORT int srtoybox_mult_stats(char *out, int size)
 {
     const MultStats s = keeper_mult_stats();
