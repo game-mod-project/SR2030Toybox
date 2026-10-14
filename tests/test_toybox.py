@@ -71,8 +71,8 @@ def test_feature_table(dll):
     # 국고와 물자는 내장 치트를 거치지 않는다(돈 탭 · 물자 탭)
     assert not {"treasury", "georgew", "georgeww", "products", "branson", "bezos"} & {f["id"] for f in fs}
     assert [t for i, t in enumerate(f["tab"] for f in fs) if i == 0 or fs[i - 1]["tab"] != t] == TABS   # 탭끼리 모여 있고 이 순서다
-    # 여덟 줄은 ToyBox 가 직접 쓴다(3단계 2 의 넷, 3단계 3 의 연구 둘, 3단계 4 의 인구 · 지지율) — 자리와 이름은 그대로이고
-    # 게임에 넣는 글이 없다. 나머지 열하나가 내장 치트로 돈다
+    # 모든 줄이 내장 치트를 떠났다 — 직접 쓰거나 게임 자신의 함수를 부른다. 자리와 이름은 그대로이고
+    # 게임에 넣는 글이 없다
     assert {f["id"]: f["how"] for f in fs if f["how"] != "cheat"} == {
         "technology": "tech_level", "e=mc2": "queue_done", "finalexam": "tech_up", "shelovesme": "opinion_best",
         "love": "relation_best", "neutral": "relation_neutral", "populate": "people_add", "approval": "approval_best", "colonize": "colonize", "fight": "fight", "becomeregion": "become", "novichok": "novichok", "treaty": "treaty", "annex": "annex", "stranded": "supply", "darran": "best", "instantwin": "victory", "fullmapshow": "gui"}
