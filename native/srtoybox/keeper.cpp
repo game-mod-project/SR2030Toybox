@@ -415,7 +415,7 @@ void run_act(const Act &act)
     const Wrote wrote = gui ? game_gui_toggle(&code, &hidden) : victory ? game_victory(window) : best ? game_best(act.designs[0], act.region, &code, &made)
         : stat ? game_unit_stat(act.region & 15, static_cast<float>(act.designs[0]) / 100.0f, everyone, &made, &skipped)
         : supply ? game_supply((act.region & 1) != 0, everyone, &made, &skipped) : spawn ? game_spawn(act.designs.data(), static_cast<int>(act.designs.size()), act.region, spawn_stats, &code, &made, &stated, &hex_x, &hex_y)
-        : fight ? game_fight(act.attacker, act.region, &code) : become ? game_become(act.region, &code)
+        : fight ? game_fight(act.attacker, act.region, &code) : become ? (keeper_mult_put_back(), game_become(act.region, &code))
         : novichok ? game_novichok(act.region, &code) : treaty ? game_treaty(act.region, &code)
         : annex ? game_annex(act.region, &code, &hexes) : game_colonize(act.region, &code);
     runner_leave_call(wrote != Wrote::Crashed ? nullptr : gui ? "GUI 를 바꾸는" : spawn || best ? "부대를 만드는" : fight ? "전쟁을 붙이는" : become ? "플레이하는 나라를 바꾸는"
@@ -720,8 +720,20 @@ bool mult_cells()
         g_rush = keep;
         g_cells_index = index;
     }
-    const Daily today = g_rush ? game_daily() : Daily();
-    const bool day_passed = g_rush && today.ok && today.day != g_rush_day;
+    if (g_rush) {                               // 대기를 풀지는 고리 앞에서 한 번 정한다(칸 둘이 함께)
+        const Daily today = game_daily();
+        bool held = false, changed = true;      // 대기 값을 쥔 칸이 있는가 · 그 칸이 모두 게임의 값으로 바뀌었는가
+        for (const int cell : {MUL_UNIT_BUILD, MUL_FAC_BUILD})
+            if (g_cells[cell].have) {
+                held = true;
+                changed = changed && row[cell] != g_cells[cell].wrote;
+            }
+        const uint32_t passed = today.ok ? today.day - g_rush_day : 0;   // 뒤로 간 날(불러오기)은 큰 수가 된다
+        if (passed >= RUSH_DAYS_MAX || (passed > 0 && (!held || changed))) {
+            g_rush = false;                     // 날이 오른 뒤 게임이 다시 셈했다(그날의 셈이 지났다) — 또는 너무 오래 기다렸다
+            log_line("배율: 다음 자정에 완료 — 풀었다 (날 %u → %u)", g_rush_day, today.day);
+        }
+    }
     int held = 0;
     for (int cell = 1; cell < MUL_CELLS; cell++) {
         const int percent = cell_percent(g_mult, cell);
@@ -730,10 +742,6 @@ bool mult_cells()
         CellMemo &m = g_cells[cell];
         const float now = row[cell];
         const bool build = cell == MUL_UNIT_BUILD || cell == MUL_FAC_BUILD;
-        if (g_rush && build && day_passed && !(m.have && now == m.wrote)) {
-            g_rush = false;                     // 날이 오른 뒤 게임이 다시 셈했다 — 그날의 셈이 지났다
-            log_line("배율: 다음 자정에 완료 — 풀었다 (날 %u)", today.day);
-        }
         const bool rush = g_rush && build;
         const bool scaled = rush || (g_mult.on && percent != 100);
         const float times = rush ? RUSH_TIMES : percent / 100.0f;
@@ -892,6 +900,21 @@ std::string keeper_rush()
     g_mult_due = true;
     log_line("배율: 다음 자정에 완료 — 대기 (날 %u)", d.day);
     return "";
+}
+
+void keeper_mult_put_back()
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    if (g_rush)
+        log_line("배율: 다음 자정에 완료 — 버렸다 (플레이하는 나라를 바꾼다)");
+    g_rush = false;
+    float row[MUL_CELLS];
+    int index = 0;
+    if (game_writes() && game_mult_row(row, &index) && index == g_cells_index)
+        for (int cell = 1; cell < MUL_CELLS; cell++)
+            if (g_cells[cell].have && row[cell] == g_cells[cell].wrote)
+                game_write_mult(cell, g_cells[cell].base);
+    forget_cells();
 }
 
 bool keeper_rush_pending()

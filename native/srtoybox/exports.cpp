@@ -831,6 +831,12 @@ EXPORT int srtoybox_keeper_rush(char *out, int size)
     return put(keeper_rush(), out, size);
 }
 
+// 테스트: "이 나라로 플레이" 직전의 되돌리기.
+EXPORT void srtoybox_mult_put_back(void)
+{
+    keeper_mult_put_back();
+}
+
 EXPORT int srtoybox_rush_pending(void)
 {
     return keeper_rush_pending() ? 1 : 0;

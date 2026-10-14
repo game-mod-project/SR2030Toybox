@@ -226,6 +226,40 @@ def test_the_rush_leaves_a_cell_that_makes_no_sense(game, value):
     assert game.cell(GERMANY, 16) == f32(f32(1.16) * 1000)
 
 
+def test_a_cell_the_rush_could_not_take_does_not_end_the_rush_of_the_other(game):
+    """칸 15 를 맡지 못했어도(게임의 값이 0) 날이 오르기만 해서는 칸 16 의 대기를 풀지 않는다."""
+    game.set_cell(GERMANY, 15, 0.0)
+    game.rush()
+    game.tick()
+    game.day()
+    game.tick()
+    assert game.pending() and game.cell(GERMANY, 16) == f32(f32(1.16) * 1000)
+    game.recompute()
+    game.tick()
+    assert not game.pending() and game.cell(GERMANY, 16) == f32(1.16)
+
+
+def test_the_rush_ends_after_two_days_at_most(game):
+    """게임이 칸을 다시 셈하지 않아도 이틀이 지나면 푼다 — 단추가 대기 중으로 잠기지 않는다."""
+    game.rush()
+    game.tick()
+    game.day()
+    game.tick()
+    game.day()
+    game.tick()
+    assert not game.pending() and game.cell(GERMANY, 15) == f32(1.15) and game.cell(GERMANY, 16) == f32(1.16)
+
+
+def test_put_back_before_the_player_changes(game):
+    """"이 나라로 플레이"가 부르기 직전: 지금 플레이어의 줄에서 ToyBox 가 쥔 칸을 모두 게임의 값으로, 대기는 버린다."""
+    game.set("on=1 out.0=200")
+    game.rush()
+    game.tick()
+    game.lib.srtoybox_mult_put_back()
+    assert not game.pending()
+    assert [game.cell(GERMANY, c) for c in (15, 16, 72)] == [f32(1.15), f32(1.16), f32(1.72)]
+
+
 def test_the_rush_needs_a_game(game):
     game.fake.menu()
     assert game.rush() != "" and not game.pending()
