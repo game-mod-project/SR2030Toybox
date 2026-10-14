@@ -144,6 +144,19 @@ def test_the_cells_are_multiplied_only_in_the_players_row(game):
     assert game.stats() == [0, 3, 3, 4]
 
 
+def test_build_speeds_multiply_cells_15_and_16(game):
+    """유닛 생산 속도(15) · 시설 건설 속도(16). 다른 나라의 줄은 그대로다."""
+    poland = [game.cell(POLAND, c) for c in range(200)]
+    game.set("on=1 unitbuild=500 facbuild=200")
+    game.tick()
+    assert game.cell(GERMANY, 15) == f32(f32(1.15) * 5) and game.cell(GERMANY, 16) == f32(f32(1.16) * 2)
+    assert [game.cell(POLAND, c) for c in range(200)] == poland
+    assert game.stats() == [0, 2, 2, 2]
+    game.set("unitbuild=100")
+    game.tick()
+    assert game.cell(GERMANY, 15) == f32(1.15)
+
+
 def test_the_cells_are_written_again_after_the_game_recomputes_them(game):
     game.set("on=1 out.0=200")
     game.tick()
@@ -332,6 +345,10 @@ def test_the_settings_keep_the_multipliers(lib):
     bad = norm("mult.on=2\nmult.tax=1001\nmult.defense=-1\nmult.social=1001\nmult.research=9\nmult.out.0=0\nmult.out.11=200\nmult.xyz.1=5\n")
     assert bad["mult.on"] == "0" and all(bad[k] == "100" for k in ("mult.tax", "mult.defense", "mult.social", "mult.research", "mult.out.0"))
     assert "mult.out.11" not in bad and "mult.xyz.1" not in bad
+    got = norm("mult.unitbuild=1000\nmult.facbuild=1\n")
+    assert got["mult.unitbuild"] == "1000" and got["mult.facbuild"] == "1"
+    bad = norm("mult.unitbuild=0\nmult.facbuild=1001\n")
+    assert bad["mult.unitbuild"] == "100" and bad["mult.facbuild"] == "100"
 
 
 def test_the_addresses_are_found_in_the_installed_game(lib, game_dir):

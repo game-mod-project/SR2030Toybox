@@ -328,6 +328,8 @@ Mult mult_of(const Settings &s)
     m.defense = s.mult_defense;
     m.social = s.mult_social;
     m.research = s.mult_research;
+    m.unitbuild = s.mult_unitbuild;
+    m.facbuild = s.mult_facbuild;
     for (int i = 0; i < MULT_GOODS; i++) {
         m.out[i] = s.mult_out[i];
         m.use[i] = s.mult_use[i];
@@ -343,9 +345,10 @@ void send_mult(bool save)
     if (want == g_mult_sent)
         return;
     if (want.on != g_mult_sent.on || want.on)
-        log_line("배율 %s: 세금 %d%% · 국방비 %d%% · 사회 지출 %d%% · 연구 속도 %d%% · 물자의 배율 %d개", want.on ? "켬" : "끔", want.tax,
-                 want.defense, want.social, want.research,
-                 mult_count(want) - (want.tax != 100) - (want.defense != 100) - (want.social != 100) - (want.research != 100));
+        log_line("배율 %s: 세금 %d%% · 국방비 %d%% · 사회 지출 %d%% · 연구 속도 %d%% · 유닛 생산 %d%% · 시설 건설 %d%% · 물자의 배율 %d개", want.on ? "켬" : "끔",
+                 want.tax, want.defense, want.social, want.research, want.unitbuild, want.facbuild,
+                 mult_count(want) - (want.tax != 100) - (want.defense != 100) - (want.social != 100) - (want.research != 100)
+                     - (want.unitbuild != 100) - (want.facbuild != 100));
     if (save)
         save_settings(g_settings);
     keeper_set_mult(want);
