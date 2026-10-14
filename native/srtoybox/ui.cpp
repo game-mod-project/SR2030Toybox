@@ -382,7 +382,7 @@ void mult_tab(const GameState &game)
     ImGui::SameLine();
     ImGui::TextDisabled("퍼센트 — 100 이 그대로다. 플레이하는 나라에만 듣는다");
     help("help:mult", "켜 두면 창을 닫아도, 새 판에서도 계속된다. 세금 · 국방비 · 사회 지출은 날이 바뀔 때 국고에 차이를 더하거나 뺀다(재무 패널의 숫자는 그대로다). "
-                      "연구 속도는 날이 바뀔 때 진행 중인 연구의 남은 기간을 더 줄인다. 생산 · 소비는 게임의 보정 값에 곱한다");
+                      "연구 속도는 날이 바뀔 때 진행 중인 연구의 남은 기간을 더 줄인다. 생산 · 소비와 유닛 생산 · 시설 건설 속도는 게임의 보정 값에 곱한다");
     if (!game_writes() && game.known) {
         ImGui::TextWrapped("값 쓰기가 꺼져 있어 배율이 쉽니다.");
         note("mult:off", "값 쓰기가 꺼져 있어 배율이 쉽니다.");
@@ -420,6 +420,24 @@ void mult_tab(const GameState &game)
     ImGui::TextUnformatted("연구 속도");
     ImGui::SameLine();
     mult_input("##research", "mult:research", &g_settings.mult_research, MULT_RESEARCH_MIN);
+    ImGui::EndDisabled();
+    ImGui::BeginDisabled(!cells.empty());
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted("유닛 생산 속도");
+    ImGui::SameLine();
+    mult_input("##unitbuild", "mult:unitbuild", &g_settings.mult_unitbuild, MULT_CELL_MIN);
+    ImGui::SameLine();
+    ImGui::TextUnformatted("시설 건설 속도");
+    ImGui::SameLine();
+    mult_input("##facbuild", "mult:facbuild", &g_settings.mult_facbuild, MULT_CELL_MIN);
+    ImGui::SameLine();
+    const bool pending = keeper_rush_pending();
+    ImGui::BeginDisabled(pending);
+    if (ImGui::Button(pending ? "다음 자정에 완료 — 대기 중" : "내 나라의 생산 · 건설을 다음 자정에 완료"))
+        g_notice = keeper_rush();
+    ImGui::EndDisabled();
+    note("mult:rush", pending ? "1" : "0");
+    help("help:rush", "다음 날의 셈 하루 동안 생산 · 건설 속도를 1000배로 한다 — 게임이 스스로 끝낸다. 남은 비용이 그날 한꺼번에 빠질 수 있다. 저장하지 않는다");
     ImGui::EndDisabled();
     const MultStats stats = keeper_mult_stats();
     const std::string did = "이번 실행: 날마다의 일 " + std::to_string(stats.days) + "일 · 보정 칸 쓰기 " + std::to_string(stats.writes) + "번 · 지금 "
