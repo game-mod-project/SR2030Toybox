@@ -103,6 +103,28 @@ def test_a_zero_region_mask_blocks_every_masked_item(lib):
     assert got["techs"] == [] and got["unlock"] == (0, 0, 1, 0, 0)
 
 
+SHOW_ALL, SHOW_OPEN, SHOW_LACKING = 0, 6, 7                                                      # techs.h 의 Show
+
+
+def list_states(lib, rows: list[str], show: int = SHOW_ALL, designs: bool = False) -> dict[int, str]:
+    """목록의 줄(research_rows): 번호 → 상태 글."""
+    lib.srtoybox_research_rows.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_char_p,
+                                           ctypes.c_char_p, ctypes.c_int]
+    out = ctypes.create_string_buffer(1 << 16)
+    table = "\n".join(["slots 64 64"] + rows)
+    assert lib.srtoybox_research_rows(table.encode(), int(designs), show, -1, -1, b"", out, len(out)) >= 0
+    return {int(line.split("|")[0]): line.split("|")[4] for line in out.value.decode("utf-8").split("\n") if line}
+
+
+def test_rows_split_not_held_into_open_lacking_and_blocked(lib):
+    rows = ["region 4", tech(1, mine=True), tech(2, 1), tech(4), tech(3, 4), tech(5), "tmask 5 2", tech(6), node(1, 6)]
+    assert list_states(lib, rows) == {1: "보유", 2: "연구 가능", 4: "연구 가능", 3: "선행 부족", 5: "다른 지역 전용", 6: "연구 중"}
+    assert list(list_states(lib, rows, SHOW_OPEN)) == [2, 4] and list(list_states(lib, rows, SHOW_LACKING)) == [3]
+    designs = ["region 4", tech(1, mine=True), tech(2), design(7, 1), design(8, 2), design(9, 1, is_open=False), design(10, 1), "dmask 10 0 1",
+               design(11, 1, mine=True)]
+    assert list_states(lib, designs, designs=True) == {7: "연구 가능", 8: "선행 부족", 9: "연구 대상 아님", 10: "특수 설계", 11: "보유"}
+
+
 def test_completing_a_tech_brings_its_prerequisites_up_the_chain(lib):
     """기술 3 은 2 를, 2 는 1 을 선행으로 갖는다. 3 을 완료로 하면 셋 다 — 게임의 "기술을 준다"와 같다."""
     got = plan(lib, [tech(1), tech(2, 1), tech(3, 2)], "items t3")

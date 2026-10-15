@@ -363,7 +363,7 @@ EXPORT int srtoybox_research_rows(const char *tables, int designs, int show, int
     std::string text;
     for (const ListRow &row : research_rows(tables_from(tables != nullptr ? tables : ""), filter))
         text += std::to_string(row.id) + '|' + row.name + '|' + (filter.designs ? design_class_label(row.kind) : tech_kind_label(row.kind)) + '|'
-            + std::to_string(row.level) + '|' + state_label(row.state) + '|' + std::to_string(row.others) + '|' + (row.picked ? "1" : "0") + '|' + needs_label(row) + '\n';
+            + std::to_string(row.level) + '|' + state_label(row, false) + '|' + std::to_string(row.others) + '|' + (row.picked ? "1" : "0") + '|' + needs_label(row) + '\n';
     return put(text, out, size);
 }
 
