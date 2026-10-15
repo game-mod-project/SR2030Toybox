@@ -1,107 +1,132 @@
 # SR2030 ToyBox
 
-Supreme Ruler 2030 모드 제작 작업 공간. 첫 과제는 **한글화 모드**다.
+**Supreme Ruler 2030** 의 한글화 모드와, 게임 안에서 여는 모드 설정 창 **ToyBox** 를 만드는 저장소입니다.
 
-- 게임: `E:\SteamLibrary\steamapps\common\Supreme Ruler 2030` (Steam appid 2093410) — `srkit.toml` 에서 바꾼다
-- 도구: `srkit` (Python, [uv](https://docs.astral.sh/uv/) 로 실행) + 디코딩 훅 DLL (C, MSVC Build Tools)
+| | 무엇 | 상태 |
+|---|---|---|
+| **한글화 모드** | 게임의 메뉴 · 텍스트 · 지도 이름 · 메뉴 그림을 한국어로 | 기계 번역 초안 98.5 % (사람 검수 전) |
+| **ToyBox** | `Ctrl+Shift+T` 로 여는 창에서 돈 · 물자 · 연구 · 외교 · 부대 · 배율을 고친다 | 동작 확인됨 (싱글플레이 전용) |
 
-## 현재 상태
+- 확인한 게임: Steam 판 build `21347933`(12.1.1360), Expansion Pass DLC 포함
+- 최신 배포판: [Releases](https://github.com/game-mod-project/SR2030Toybox/releases)
 
-한글화 도구 체인이 갖춰졌고, **게임 안에서 한글 표시·줄바꿈·언어 등록이 동작하는 것을 확인했다**(2026-10-06, 게임 12.1.1360).
-모드 파일은 게임 폴더에 설치되어 있고 게임 언어도 한국어로 바꿔 두었다(2026-10-06. Steam 으로 띄운 게임의 메뉴·옵션 화면이
-한글로 나오는 것까지 확인). 영어로 되돌리려면 게임 옵션 → 파일 → 게임 언어 → `English`.
-다른 PC 에 설치할 때는 파일을 넣은 뒤 옵션 → FILES → Game Language → `Korean` 을 한 번 골라야 한다([docs/04](docs/04-korean-localization.md)).
-번역은 기계 번역 초안 32,869 / 33,412 단위(98.4%, 지도의 도시 이름 9,999개 포함)이고 사람 검수는 아직 0 이다.
-남은 일과 확인하지 못한 항목은 [docs/04](docs/04-korean-localization.md).
+---
 
-둘째 과제인 **치트·모드 조사**도 마쳤다(2026-10-06, 게임 12.1.1360). 게임에 든 내장 치트 89개를 게임에서 넣어 봤고(효과 45개),
-돈·자원·연구·국가 관계·부대·생산·인구는 내장 치트로 된다는 것을 확인했다 — 넣는 법과 결과는 [docs/07](docs/07-cheats.md).
-내장 치트가 없는 GDP 와 장비 수치는 시나리오 파일 끝에 블록을 덧붙이는 방법으로 바뀌는 것을 확인했고(장비는 비용 열 하나로 확인했다. 공격·방어 같은 다른 열은 아직 추정이다), 그 방법을 쓰는 모드는 아직 만들지 않았다.
-무엇을 만들고 무엇을 만들지 않는지, 게임 업데이트로 치트가 사라질 때의 대비는 [docs/09](docs/09-cheat-mod-plan.md).
+## 설치
 
-셋째로 **ToyBox**(게임 안 모드 설정 창)를 만들었다. `Ctrl+Shift+T` 로 여는 창이고, 플레이어 국가에만 닿는 것과 창이나 지도에서 고른 나라 하나에 닿는 것을 고친다.
-1 · 2단계(2026-10-07)에는 내장 치트를 넣어 주는 창이었고, **3단계(2026-10-09 ~ 10-11, 끝)에서 모든 기능을 내장 치트에서 떼어 냈다** — 지금은 게임의 그 칸에 직접 쓰거나
-게임 자신의 함수(게임이 스스로도 부르는 열하나)를 부르고, 치트 명령 처리 함수는 부르지 않는다. 게임의 상태를 읽을 수 없으면 모든 단추가 꺼진다.
-한글화 모드가 설치되어 있어야 동작한다 — 쓰는 법과 한계는 [docs/10](docs/10-toybox.md), 게임의 안쪽은 [docs/11](docs/11-game-internals.md).
-3단계에서 한 것: 게임 상태 읽기가 치트와 무관한 코드의 서명으로 주소를 찾고, 돈 탭이 국고를 직접 고친다(더하기 · 빼기 · 이 값으로). 물자 탭이 물자마다 재고를 고치고(−1억 · −100만 · 0 · +100만 · +1억, "모든 물자"),
-국고와 물자마다 **최소 유지**(정해 둔 값보다 적어지면 올린다 — 창을 닫아도, 게임을 다시 켜도 계속된다)를 걸 수 있다. 첫 묶음(기반 + 돈 · 물자)이 끝났고(2026-10-10),
-둘째 묶음(그 밖의 값 쓰기)도 끝났다(2026-10-10): "지식 순위 올리기" · "세계 시장 여론 최고" · "관계 최고" · "관계 중립"이 내장 치트 없이 그 칸에 직접 쓴다.
-셋째 묶음(연구)은 (가)가 끝났다(2026-10-10): 연구 탭의 "대기열의 연구 즉시 완료" · "기술 수준 N 이하 전부 보유"가 내장 치트 없이 기술 · 부대 설계의 보유를 직접 쓴다 —
-**대기열에 건 부대 설계도 끝나고**(내장 치트는 기술만 끝냈다), 모든 나라가 함께 쓰는 연구 기간을 건드리지 않는다. (나) — 연구의 목록(기술 · 부대 설계를 걸러 보고 골라서 완료 · 미완료로) — 도 끝났다(게임에서 R6 ~ R11 을 봤다).
-넷째 묶음은 첫 조각(2026-10-10): "인구 +100만" · "내 나라 지지율 100%"가 내장 치트 없이 값을 직접 쓴다(내장 치트의 인구는 첫 자정에 되돌아갔다 — ToyBox 는 인구의 풀 칸에도 써서 남게 한다).
-"식민지화"는 게임 자신의 함수를 직접 부른다(게임에서 봤다). "전쟁 붙이기"도 그렇게 옮겼다(게임에서 봤다 — 지도에서 고른 나라가 선포하는 쪽이다). "이 나라로 플레이"도 옮겼다(게임에서 봤다 — 첫 자정 뒤에도 된다). "지도자 제거"도 옮겼다(게임에서 봤다). "동맹 맺기"도 옮겼다(게임에서 봤다 — 대상은 이제 창의 목록에서 고른 나라다). "병합"도 옮겼다(게임에서 봤다) — 외교 · 영토의 여덟이 모두 내장 치트를 떠났다. "고른 칸에 부대 생성"도 옮겼다(게임에서 봤다 — 설계도 목록에서 여러 설계를 수량만큼 만들 수도 있다). "고른 부대 보급 채우기"도 옮겼다(게임에서 봤다 — 채우기와 비우기가 따로이고 내 부대에만 쓴다). "최강 부대 묶음 받기"도 옮겼다(게임에서 봤다 — 영역과 수량을 고르고, 내장 치트가 함께 하던 "적 부대를 무작위로 없애기"는 하지 않는다). "즉시 승리"도 옮겼다(게임에서 봤다 — 한 판에 한 번이다). "GUI 숨기기/보이기"도 옮겼다(게임에서 봤다) — **내장 치트로 도는 기능은 이제 없다.** 옛 실행 경로의 코드(글쇠 방식 · 직접 실행)도 지웠다.
-옮기면서 세분화도 더했다: 부대의 경험 · 사기 · 효율과 보급을 고른 부대나 내 부대 전부에 쓰고(게임에서 봤다), 새 탭 `배율`이 세금 · 국방비 · 사회 지출,
-물자별 생산 · 인구 소비 · 산업 소비, 연구 속도에 배율을 건다(2026-10-11, 게임에서 봤다 — 산업 소비의 몫은 가르지 못했다).
-DLC(Expansion Pass)의 역사 시나리오에서도 한글화와 ToyBox 의 나라 이름이 그 판의 이름을 따른다(2026-10-12, 게임에서 봤다 — [docs/04](docs/04-korean-localization.md) · [docs/10](docs/10-toybox.md)의 DLC 절).
+[Releases](https://github.com/game-mod-project/SR2030Toybox/releases) 에서 두 파일을 받습니다.
 
-## 빠른 시작
+1. **게임을 끕니다.** 게임 폴더(예: `SteamLibrary/steamapps/common/Supreme Ruler 2030`)의 `INI/UISettings.csv` 를 다른 곳에 복사해 둡니다.
+   한글화 모드가 바꾸는 게임 파일은 이것 하나뿐입니다.
+2. `SR2030-Korean-v*.zip` 을 게임 폴더에 그대로 풉니다. 폴더 구조가 게임 폴더와 같습니다.
+3. ToyBox 도 쓰려면 `srtoybox.dll` 을 게임 폴더 맨 위(`WTSAPI32.dll` 옆)에 둡니다.
+4. 게임을 켜고 **옵션 → FILES → Game Language → `Korean`** 을 한 번 고릅니다.
+
+**되돌리기**: 넣은 파일을 지우고 복사해 둔 `UISettings.csv` 를 되돌립니다. 또는 Steam 의 "게임 파일 무결성 검사"를 실행합니다.
+영어로만 돌아가려면 옵션에서 Game Language 를 `English` 로 고릅니다.
+
+> ToyBox 는 한글화 모드가 설치되어 있어야 불러와집니다. Workshop 으로는 배포할 수 없습니다.
+
+---
+
+## ToyBox
+
+게임을 진행하는 중에 **`Ctrl+Shift+T`** 로 엽니다. 단축키는 `설정` 탭에서 바꿀 수 있습니다.
+창 맨 위의 상태 줄이 ToyBox 가 게임을 어떻게 읽고 있는지 보여 줍니다(`플레이 중: 독일 (1499)` 등). 메뉴 · 로비 · 멀티플레이에서는 단추가 꺼집니다.
+
+| 탭 | 할 수 있는 것 |
+|---|---|
+| **돈** | 국고 더하기 · 빼기 · 이 값으로, 빠른 단추(±100억 · ±1,000억 · 0), **최소 유지**(국고가 정한 값보다 적어지면 채운다) |
+| **물자** | 물자마다(또는 모든 물자) 재고 ±100만 · ±1억 · 0, 물자마다 최소 유지 |
+| **배율** | 세금 · 국방비 · 사회 지출 · 연구 속도 · 시설 건설 속도 · 물자별 생산 · 인구 소비 · 산업 소비의 퍼센트, **시설 건설을 다음 자정에 완료** |
+| **연구** | 대기열의 연구 즉시 완료, 기술 수준 N 이하 전부 보유, 기술 · 부대 설계 목록에서 골라 완료 · 미완료 |
+| **인구·여론** | 인구 +100만, 세계 시장 여론 최고, 내 나라 지지율 100 % |
+| **외교·영토** | 고른 나라와 관계 최고 · 중립, 동맹, 병합, 식민지화, 지도자 제거, 전쟁 붙이기, 이 나라로 플레이 |
+| **부대** | 설계도 목록에서 골라 지도에서 고른 칸에 수량만큼 생성, 보급 채우기 · 비우기, 경험 · 사기 · 효율(고른 부대 / 내 부대 전부), 최강 부대 묶음 받기 |
+| **화면·진행** | GUI 숨기기/보이기, 즉시 승리 |
+| **설정** | 창을 여닫는 단축키 바꾸기 |
+
+**알아 둘 것**
+
+- **플레이어 나라에만 적용됩니다.** `외교·영토` 탭만 창이나 지도에서 고른 나라 하나에 닿습니다.
+- **게임의 내장 치트를 쓰지 않습니다.** 게임의 메모리에 직접 쓰거나, 게임이 스스로도 부르는 함수를 부릅니다.
+  그래서 게임이 업데이트되어 주소를 찾지 못하면 그 기능의 단추가 꺼집니다.
+- **최소 유지와 배율은 저장되는 설정입니다.** 창을 닫아도, 게임을 다시 켜도, 새 판에서도 계속됩니다(`%APPDATA%\SR2030ToyBox\toybox.ini`).
+- 값은 바로 바뀌지만 이미 열려 있던 게임 패널의 숫자는 그 패널을 다시 열어야 바뀝니다.
+- 되돌릴 수 없는 단추(병합 · 이 나라로 플레이 등)는 한 번 더 눌러야 실행됩니다. 중요한 판은 먼저 저장해 두기를 권합니다.
+
+자세한 사용법과 한계는 [docs/10 — ToyBox](docs/10-toybox.md) 에 있습니다.
+
+---
+
+## 한글화 모드
+
+- 번역 단위 39,275 개 가운데 38,705 개(98.5 %, 지도의 도시 이름 포함)가 기계 번역 초안입니다. **사람 검수는 아직 하지 않았습니다.**
+- 게임 엔진이 한글을 다루도록 디코딩 훅(`WTSAPI32.dll`)과 한글 글꼴(Noto Sans KR, SIL OFL)을 넣습니다.
+- Expansion Pass 의 역사 시나리오(1914 · 1917 · 1936 · 1940 ~ 1942, 좀비 · 코로나 캠페인)도 번역합니다.
+
+설계 · 검증 현황 · 남은 일은 [docs/04 — 한글화](docs/04-korean-localization.md) 에 있습니다.
+
+---
+
+## 개발
+
+### 준비
+
+- Windows, [uv](https://docs.astral.sh/uv/) (Python 은 시스템에 설치하지 않고 `uv run` 으로 실행), DLL 빌드에는 MSVC Build Tools
+- 게임 경로는 `srkit.toml` 의 `game_dir`(또는 환경 변수 `SR2030_GAME_DIR`)
+
+### 자주 쓰는 명령
+
+| 하는 일 | 명령 |
+|---|---|
+| 설정과 게임 설치 상태 | `uv run srkit info` |
+| 테스트 | `uv run pytest` |
+| 한글화 모드 빌드 → `build/korean/` | `uv run srkit hook-build` → `uv run srkit build` |
+| ToyBox 빌드 → `build/toybox/` | `uv run srkit toybox-build` |
+| 게임 폴더에 설치 · 제거 (미리보기, `--apply` 로 실행) | `uv run srkit deploy korean` · `undeploy korean` (`toybox` 도 같다) |
+| 번역 테이블 갱신 · 진행률 · 검증 | `uv run srkit extract` · `stats` · `check` |
+| 기계 번역 청크 | `uv run srkit mt-export <테이블>` → `mt-check` → `mt-import` |
+| 게임에서 빠진 GUI 문구 가져오기 | `uv run srkit tcheck-import` |
+| 게임 업데이트 뒤 점검 | `uv run srkit cheats-check` → `locate` → `inventory` |
+| ToyBox 서명 다시 뽑기 | `uv run srkit sig-mine <RVA>` |
+| 데이터 수정 시험 모드 | `uv run srkit probe <이름> <파일> <바꿀 문자열> <새 문자열>` |
+| 게임 안 검증(화면 밖 실행 · 캡처 · 입력 · 메모리 읽기) | `uv run python scripts/gamedrive.py start\|shot\|click\|key\|peek\|research\|stop` |
+
+`deploy --apply` 는 게임 폴더를 바꿉니다. 덮어쓴 원본은 `build/.deploy/` 에 백업하고 `undeploy --apply` 로 되돌립니다.
+한 게임 파일은 한 모드만 바꿀 수 있어서, 겹치는 모드가 설치되어 있으면 설치하지 않습니다.
+
+작업 규칙(브랜치 · 게임 안 검증 · ToyBox 가 쓰는 곳)은 [CLAUDE.md](CLAUDE.md) 에 있습니다.
+
+### 구조
 
 ```
-uv run srkit info                    # 설정과 게임 설치 상태
-uv run pytest                        # 테스트
-uv run srkit extract                 # 영문 원문 → 번역 테이블 (기존 번역 유지)
-uv run srkit stats                   # 번역 진행률
-uv run srkit check                   # 번역문 검증
-uv run srkit mt-export <테이블>      # 기계 번역용 청크 내보내기 → mt-check → mt-import
-uv run srkit hook-build              # 디코딩 훅 DLL 빌드
-uv run srkit toybox-build            # ToyBox DLL(게임 안 모드 설정 창) 빌드 → build/toybox/
-uv run srkit locate                  # 설치된 게임에서 ToyBox 가 쓰는 주소를 찾아 보고(게임 업데이트 뒤 점검)
-uv run srkit sig-mine <RVA>          # (개발용) ToyBox 가 주소를 찾는 서명의 후보 뽑기 — 치트 함수 밖의 코드에서
-uv run srkit build                   # build/korean/ 에 한글화 모드 생성
-uv run srkit deploy korean           # 설치 미리보기 (--apply 로 실제 설치)
-uv run srkit undeploy korean         # 제거 미리보기 (--apply 로 실제 제거·복원)
-uv run srkit font-preview <spritefont> "<문자열>" <out.png>
-uv run srkit tcheck-import           # 게임의 번역 검사 로그에서 빠진 GUI 문구를 번역 테이블에 추가
-uv run srkit inventory               # 게임 데이터의 섹션·키·열 목록 → build/inventory/*.csv (치트·모드 조사용)
-uv run srkit probe <이름> <파일> <바꿀 문자열> <새 문자열>   # 값 한 곳만 바꾼 시험 모드 → build/probe-<이름>/
-uv run srkit cheats-check            # 게임의 내장 치트가 docs/07 과 같은지 대조 (게임 업데이트 뒤에 돌린다)
-uv run python scripts/gamedrive.py start|steam|status|shot|click|move|key|show|stop   # 게임 실행(화면 밖에서)·창 캡처·입력 (검증용)
+mods/korean/         한글화 원본 — 번역 테이블(translation/*.csv), 번역 규칙(STYLE.md), 용어집, 그림 글자 설정
+mods/toybox/         ToyBox 설명 (모드의 파일은 DLL 하나)
+src/srkit/           도구 (텍스트 파서 · SR-UTF8 · 글꼴 · 번역 빌드 · 배포 · 조사 · 서명 뽑기)
+native/srhook/       디코딩 훅 DLL (C)
+native/srtoybox/     ToyBox DLL (C++, Dear ImGui)
+scripts/gamedrive.py 게임 안 검증 도구
+tests/               자동 테스트 (일부는 게임 설치본 · 빌드된 DLL 이 있을 때만)
+docs/                조사와 설계
+build/               산출물 (git 제외)
 ```
 
-## 구조
+### 문서
 
-```
-docs/            리서치와 설계
-  01-game-structure.md          게임 구성
-  02-modding-system.md          모드 구성 방식 (MAPS/MODS, 로드 순서, Workshop)
-  03-localization-internals.md  현지화 내부 구조 (파일 형식, 글꼴, 렌더 경로)
-  04-korean-localization.md     한글화 설계, 검증 현황, 다음 단계
-  05-game-systems.md            게임 구조: 12개 영역과 데이터의 대응
-  06-data-reference.md          데이터 참조: 섹션·키·열, 캐시와 데이터 수정 (srkit inventory 산출물 기준)
-  07-cheats.md                  내장 치트표 (게임에서 넣어 본 결과)
-  08-workshop-survey.md         Workshop 기존 모드 조사
-  09-cheat-mod-plan.md          치트/모드 제작 계획, 게임 업데이트 대비
-  10-toybox.md                  ToyBox — 게임 안 모드 설정 창
-  11-game-internals.md          게임의 안쪽 — ToyBox 가 읽고 부르는 것(주소 · 전역 · 찾는 법)
-mods/
-  _template/     새 모드 골격
-  korean/        한글화 모드 원본 (번역 테이블, STYLE.md 번역 규칙, glossary.csv 용어집, sprites.toml 그림 글자)
-  toybox/        ToyBox 설명 (모드의 파일은 DLL 하나다)
-src/srkit/       도구
-  srtext.py      게임 텍스트 형식의 무손실 파서
-  srutf8.py      SR-UTF8 인코딩 (게임 엔진과 충돌하지 않는 UTF-8 변형)
-  spritefont.py  DirectXTK spritefont 읽기·쓰기·글리프 추가
-  korean.py      추출 / 검증 / 빌드
-  mt.py          기계 번역 청크 내보내기·검증·병합
-  sprites.py     그림 글자(메뉴·제목·버튼 스프라이트) 한글로 다시 그리기
-  hook.py        훅 DLL 빌드
-  deploy.py      게임 폴더 설치·제거
-  inventory.py   게임 데이터의 섹션·키·열 목록 (읽기 전용)
-  probe.py       값 한 곳만 바꾼 시험 모드 만들기 (데이터 수정이 게임에 반영되는지 확인용)
-  cheats.py      내장 치트 목록을 문서와 대조 (게임 업데이트로 치트가 사라졌는지 감지)
-  toybox.py      ToyBox DLL 빌드
-  sigmine.py     ToyBox 의 서명 후보 뽑기 (개발용. 디스어셈블러 capstone)
-native/srhook/   디코딩 훅 DLL 소스
-native/srtoybox/ ToyBox DLL 소스 (C++)
-native/third_party/imgui/  Dear ImGui (MIT)
-scripts/         gamedrive.py — 게임 실행·창 캡처·입력 (게임 안 검증용)
-tests/           자동 테스트 (일부는 게임 설치본·빌드된 DLL 이 있을 때만 실행)
-build/           산출물 (git 제외)
-```
+| 문서 | 내용 |
+|---|---|
+| [01](docs/01-game-structure.md) · [02](docs/02-modding-system.md) · [03](docs/03-localization-internals.md) | 게임 구성, 모드 구성 방식, 현지화 내부 구조 |
+| [04](docs/04-korean-localization.md) | 한글화 설계 · 검증 현황 · 다음 단계 |
+| [05](docs/05-game-systems.md) · [06](docs/06-data-reference.md) | 게임 시스템과 데이터 참조 |
+| [07](docs/07-cheats.md) · [08](docs/08-workshop-survey.md) · [09](docs/09-cheat-mod-plan.md) | 내장 치트표, Workshop 조사, 모드 제작 계획 |
+| [10](docs/10-toybox.md) · [11](docs/11-game-internals.md) | ToyBox 사용법 · 한계, 게임의 안쪽(주소 · 찾는 법) |
+| [superpowers/](docs/superpowers/) | 기능마다의 설계서와 구현 계획 |
 
-## 주의
+---
 
-- 번역 테이블에는 게임 원문(영어)이 들어 있다. 저장소는 공개다 — 2026-10-06 에 사용자가 그것을 안 채로 공개를 골랐다. `build/` 산출물과 게임 파일은 커밋하지 않는다.
-- `deploy --apply` 는 게임 설치 폴더를 바꾼다(추가한 파일·백업 내역은 `build/.deploy/` 에 기록).
-- 한 게임 파일은 한 모드만 바꿀 수 있다. 설치된 다른 모드가 쥐고 있는 파일이 있으면 `deploy` 는 아무것도 설치하지 않고(미리보기에 "겹침"으로 나온다),
-  `probe` 도 설치된 모드가 바꾼 파일로는 시험 모드를 만들지 않는다. 먼저 그 모드를 `undeploy --apply` 한다.
+## 저장소에 대해
+
+- 공개 저장소입니다. 번역 테이블에는 게임 원문(영어)이 들어 있습니다. 게임 파일과 `build/` 산출물은 커밋하지 않습니다.
+- 브랜치: `develop` 에서 작업 브랜치를 만들어 PR 로 합치고, 릴리스 때만 `develop` → `main` 으로 올립니다.
+- 포함한 외부 코드: Dear ImGui (MIT, `native/third_party/imgui/`).
