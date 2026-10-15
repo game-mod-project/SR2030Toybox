@@ -314,7 +314,7 @@ treasury 100000000000
 
 ### `WMPRODDATA` — 물자별 기준값
 
-`&&WMPRODDATA, <물자 번호>`. 0 농산물, 1 고무, 2 목재, 3 석유, 4 석탄, 5 광석, 6 우라늄, 7 전력, 8 소비재, 9 공업재, 10 군수품 [위키]. 있는 곳: `Maps/DATA/DEFAULT.WMData`, `Maps/DATA/_SR1914.WMDATA`, `Maps/DATA/_SR1936.WMDATA`, `Maps/DATA/_SR1942.WMDATA` 등 6개 파일. 블록 66개.
+`&&WMPRODDATA, <물자 번호>`. 0 농산물, 1 고무, 2 목재, 3 석유, 4 석탄, 5 금속 광석, 6 우라늄, 7 전력, 8 소비재, 9 산업재, 10 군수품 [위키](재고 칸의 순서도 같다 — [11](11-game-internals.md)). 있는 곳: `Maps/DATA/DEFAULT.WMData`, `Maps/DATA/_SR1914.WMDATA`, `Maps/DATA/_SR1936.WMDATA`, `Maps/DATA/_SR1942.WMDATA` 등 6개 파일. 블록 66개.
 
 | 키 | 뜻 | 예시 | 쓰는 파일 수 | 근거 |
 |---|---|---|---|---|
@@ -413,7 +413,7 @@ treasury 100000000000
 | 24 | `TechReq2` | 필요 기술 2 | [추정] |
 | 25 | `DaysToBuild` | 건조 일수 | [추정] |
 | 26 | `Cost` | 비용(백만 달러) | [추정] |
-| 27 | `IGCost` | 공업재 비용 | [추정] |
+| 27 | `IGCost` | 산업재 비용 | [추정] |
 | 28 | `URCost` | 우라늄 비용 | [추정] |
 | 29 | `Weight` | 무게 | [추정] |
 | 30 | `SupplyLevel` | 보급 수준 | [추정] |

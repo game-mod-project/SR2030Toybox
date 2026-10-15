@@ -1,0 +1,34 @@
+﻿key,en,ko,status
+REGIONTEXT|1203|0,Finland,핀란드,mt
+REGIONTEXT|1203|1,\42 We have refused the Soviet demand for us to relinquish part of our territory so we must be prepared for Stalin to try and take it by force.  He underestimates our willingness to fight.  We will teach Mother Russia a harsh lesson!,"\42 우리는 영토 일부를 넘기라는 소련의 요구를 거부했으니, 스탈린이 힘으로 빼앗으려 할 것에 대비해야 합니다. 그는 우리의 싸울 의지를 과소평가하고 있습니다. 우리가 어머니 러시아에 호된 교훈을 가르쳐 줄 것입니다!",mt
+REGIONTEXT|1203|2,Finnish,핀란드,mt
+REGIONTEXT|889|0,USSR,소련,mt
+REGIONTEXT|889|1,\42 Finland have rejected our diplomatic claim to some of the territory on the Karelian Isthmus.  We only wish to improve the security of Leningrad!  We must teach them to be more reasonable in future...,\42 핀란드는 카렐리야 지협의 일부 영토에 대한 우리의 외교적 요구를 거부했습니다. 우리는 레닌그라드의 안보를 높이고 싶을 뿐입니다! 앞으로는 더 분별 있게 행동하도록 가르쳐야 합니다...,mt
+REGIONTEXT|889|2,Soviet,소련,mt
+LOCALIZE|losetext|2,You have failed!  The Soviets have broken our defenses and our Government has been dissolved.,실패했습니다! 소련군이 우리의 방어선을 돌파했고 정부는 해산되었습니다.,mt
+LOCALIZE|losetext|5,You have failed in your efforts to unify your neighbors .  %s has emerged the victor of the unification vote!,이웃 나라들을 통합하려는 노력에 실패했습니다. 통합 투표의 승자는 %s 측입니다!,mt
+LOCALIZE|losetext|6,You have been Eliminated!  Your region has fallen and you have been forced from office in disgrace.,"탈락했습니다! 당신의 지역은 무너졌고, 불명예 속에 공직에서 쫓겨났습니다.",mt
+LOCALIZE|losetext|8,You have not met your objectives in the time available.  You have been forced to resign in disgrace...,주어진 시간 안에 목표를 달성하지 못했습니다. 불명예 속에 사임할 수밖에 없었습니다...,mt
+LOCALIZE|losetext|9,You have not been able to meet your objectives and protect your senior leadership from attack.  You have been ousted from power.,목표를 달성하지 못했고 최고 지도부도 공격으로부터 지키지 못했습니다. 권좌에서 쫓겨났습니다.,mt
+LOCALIZE|losetext|10,Regrettably your Sphere of Influence has totally collapsed and %s has achieved a decisive victory in the War.,"유감스럽게도 귀하의 세력권이 완전히 무너졌고, %s 측이 전쟁에서 결정적인 승리를 거두었습니다.",mt
+LOCALIZE|losetext|11,Regrettably,유감스럽게도,mt
+LOCALIZE|losetext|12, %s has achieved a significant Victory by becoming the first to successfully accomplish %s., %s 측이 가장 먼저 성공해 중대한 승리를 거두었습니다(달성: %s).,mt
+LOCALIZE|losetextmp|5,You have failed in your efforts to unify your neighbors .  %s (%s) has emerged the victor!,이웃 국가를 통일하려던 노력이 실패했습니다. %s (%s) 측이 승리했습니다!,mt
+LOCALIZE|losetextmp|6,You have failed in your quest to defeat the other human opponents.  Your region has fallen and you have been forced from office in disgrace.,"다른 인간 상대들을 물리치려던 시도가 실패했습니다. 당신의 지역은 무너졌고, 불명예 속에 공직에서 쫓겨났습니다.",mt
+LOCALIZE|losetextmp|8,You have not met your objectives in the time available.,주어진 시간 안에 목표를 달성하지 못했습니다.,mt
+LOCALIZE|losetextmp|9,You have not been able to meet your objectives and protect your senior leadership from attack.  You have been ousted from power.,목표를 달성하지 못했고 최고 지도부도 공격으로부터 지키지 못했습니다. 권좌에서 쫓겨났습니다.,mt
+LOCALIZE|losetextmp|10,Through their Sphere of Influence there is only one Super Power remaining in the World.  %s (%s) has emerged the victor!,세력권을 통해 세계에는 초강대국이 단 하나만 남았습니다. %s(%s) 측이 승자가 되었습니다!,mt
+LOCALIZE|losetextmp|11,You have failed to be the first to achieve %s.  %s (%s) has emerged the victor!,%s을(를) 가장 먼저 달성하지 못했습니다. %s (%s) 측이 승리했습니다!,mt
+LOCALIZE|wintext|0,No Victory has been achieved.,승리를 거두지 못했습니다.,mt
+LOCALIZE|wintext|1,"We have made peace with the Soviets. Even though we lost some land, we were able to prevent them from taking Helsinki.",소련과 강화를 맺었습니다. 일부 땅을 잃었지만 헬싱키 점령은 막을 수 있었습니다.,mt
+LOCALIZE|wintext|3,"We have made peace with the Soviets. Even though we lost some land, we were able to prevent them from taking Helsinki.",소련과 강화를 맺었습니다. 일부 땅을 잃었지만 헬싱키 점령은 막을 수 있었습니다.,mt
+LOCALIZE|wintext|4,"We have made peace with the Soviets. Even though we lost some land, we were able to prevent them from taking Helsinki.",소련과 강화를 맺었습니다. 일부 땅을 잃었지만 헬싱키 점령은 막을 수 있었습니다.,mt
+LOCALIZE|wintext|5,"We have made peace with the Soviets. Even though we lost some land, we were able to prevent them from taking Helsinki.",소련과 강화를 맺었습니다. 일부 땅을 잃었지만 헬싱키 점령은 막을 수 있었습니다.,mt
+LOCALIZE|wintext|6,"We have made peace with the Soviets. Even though we lost some land, we were able to prevent them from taking Helsinki.",소련과 강화를 맺었습니다. 일부 땅을 잃었지만 헬싱키 점령은 막을 수 있었습니다.,mt
+LOCALIZE|wintext|7,"We have made peace with the Soviets. Even though we lost some land, we were able to prevent them from taking Helsinki.",소련과 강화를 맺었습니다. 일부 땅을 잃었지만 헬싱키 점령은 막을 수 있었습니다.,mt
+LOCALIZE|wintext|8,"We have made peace with the Soviets. Even though we lost some land, we were able to prevent them from taking Helsinki.",소련과 강화를 맺었습니다. 일부 땅을 잃었지만 헬싱키 점령은 막을 수 있었습니다.,mt
+LOCALIZE|wintext|9,"We have made peace with the Soviets. Even though we lost some land, we were able to prevent them from taking Helsinki.",소련과 강화를 맺었습니다. 일부 땅을 잃었지만 헬싱키 점령은 막을 수 있었습니다.,mt
+LOCALIZE|wintext|10,"We have made peace with the Soviets. Even though we lost some land, we were able to prevent them from taking Helsinki.",소련과 강화를 맺었습니다. 일부 땅을 잃었지만 헬싱키 점령은 막을 수 있었습니다.,mt
+LOCALIZE|wintext|11, and the victor of the War!, 그리고 전쟁의 승자입니다!,mt
+LOCALIZE|wintext|12,Congratulations!  You have achieved %s,축하합니다! 달성한 업적: %s,mt
+LOCALIZE|wintext|13, resulting in a significant Victory!, 중대한 승리로 이어졌습니다!,mt

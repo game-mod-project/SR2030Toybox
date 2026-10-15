@@ -6,8 +6,8 @@
 
 #include "imgui.h"
 #include "imgui_impl_win32.h"
+#include "keeper.h"
 #include "overlay.h"
-#include "runner_win.h"
 #include "settings.h"
 #include "ui.h"
 
@@ -32,8 +32,6 @@ int mods_now()
 }
 
 bool is_key(UINT m) { return m >= WM_KEYFIRST && m <= WM_KEYLAST; }
-// 실제 키보드에서 온 글쇠 메시지에는 스캔 코드가 있다. 실행기(runner_win.cpp)와 검증 도구(gamedrive.py)가 보내는 것에는 없다
-bool from_keyboard(LPARAM l) { return ((l >> 16) & 0xFF) != 0; }
 
 // ANSI 창에서는 한글 한 글자가 WM_CHAR 두 번(코드 페이지의 앞 · 뒤 바이트)으로 온다. ImGui 의 Win32 백엔드는 한 바이트씩
 // 바꿔서 깨뜨리므로, 설정 창이 글을 받는 동안에는 여기서 둘을 합쳐 한 글자로 넘긴다. 삼켰으면 true.
@@ -65,12 +63,10 @@ LRESULT CALLBACK wrapped(HWND h, UINT m, WPARAM w, LPARAM l)
     if (!g_timer)
         g_timer = SetTimer(h, TIMER_ID, 10, nullptr) != 0;   // 이 함수는 창을 가진 스레드에서 불린다 — 타이머도 그 스레드의 것이 된다
     if (m == WM_TIMER && w == TIMER_ID) {
-        runner_tick(h);
+        keeper_set_window(h);
+        keeper_tick(GetTickCount64());                       // 값 쓰기 요청과 최소 유지. 게임의 함수 안에서 다시 온 틱이면 스스로 쉰다
         return 0;
     }
-    const bool injecting = is_key(m) && runner_injecting();
-    if (injecting && !from_keyboard(l))
-        return pass(h, m, w, l);                             // 실행기가 넣는 글쇠다 — 설정 창이 가로채지 않는다
     if (m == WM_KEYDOWN || m == WM_SYSKEYDOWN) {
         const int vk = static_cast<int>(w);
         if (ui_capturing_hotkey()) {
@@ -109,10 +105,6 @@ LRESULT CALLBACK wrapped(HWND h, UINT m, WPARAM w, LPARAM l)
         if (swallow)
             return 0;
     }
-    // 실행기가 넣는 동안 사용자가 누른 글쇠는 게임에 넘기지 않는다 — 치트를 받아 적는 줄에 섞인다.
-    // 뗌은 넘긴다(게임이 그 글쇠를 눌린 채로 알지 않게). Alt 조합(WM_SYS*)도 넘긴다(Alt+F4 등)
-    if (injecting && (m == WM_KEYDOWN || m == WM_CHAR || m == WM_DEADCHAR || m == WM_UNICHAR))
-        return 0;
     return pass(h, m, w, l);
 }
 
@@ -128,6 +120,9 @@ void input_install(HWND game)
         g_original = reinterpret_cast<WNDPROC>(GetWindowLongPtrA(game, GWLP_WNDPROC));
         SetWindowLongPtrA(game, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(wrapped));
     }
+    // 타이머는 창 스레드에서 걸어야 해서 감싼 프로시저가 처음 불릴 때 건다. 그때까지 기다리지 않게 빈 메시지로 한 번 깨운다 —
+    // 최소 유지는 사용자가 아무것도 누르지 않아도 돌아야 한다.
+    PostMessageW(game, WM_NULL, 0, 0);
 }
 
 unsigned dbcs_combine(unsigned char lead, unsigned char trail, unsigned codepage)

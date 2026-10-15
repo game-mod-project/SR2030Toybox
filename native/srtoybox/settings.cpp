@@ -31,6 +31,24 @@ bool parse_int(const std::string &s, long long &out)
     return true;
 }
 
+// "keep.stock.<칸>" 과 "keep.stock.<칸>.value" 의 줄. rest 는 "keep.stock." 뒤의 글이다. 칸이나 값이 틀리면 버린다.
+void parse_keep_stock(const std::string &rest, long long n, Settings &s)
+{
+    const size_t dot = rest.find('.');
+    const std::string digits = rest.substr(0, dot);
+    if (digits.empty() || digits.size() > 2 || digits.find_first_not_of("0123456789") != std::string::npos)
+        return;
+    const int slot = atoi(digits.c_str());
+    if (slot >= STOCK_SLOTS)
+        return;
+    if (dot == std::string::npos) {
+        if (n == 0 || n == 1)
+            s.keep_stock[slot] = n == 1;
+    } else if (rest.compare(dot, std::string::npos, ".value") == 0 && n >= 0 && n <= KEEP_STOCK_MAX) {
+        s.keep_stock_value[slot] = n;
+    }
+}
+
 std::wstring env(const wchar_t *name)
 {
     wchar_t buf[MAX_PATH];
@@ -76,6 +94,41 @@ std::string hotkey_name(int vk, int mods)
     return out;
 }
 
+namespace {
+
+// "mult." 뒤의 글과 값. 범위 밖의 값과 모르는 줄은 버린다(기본값 100 이 남는다).
+void parse_mult(const std::string &rest, long long n, Settings &s)
+{
+    const auto in = [&](int low) { return n >= low && n <= SETTINGS_MULT_MAX; };
+    if (rest == "on") {
+        if (n == 0 || n == 1)
+            s.mult_on = n == 1;
+    } else if (rest == "tax") {
+        if (in(0))
+            s.mult_tax = static_cast<int>(n);
+    } else if (rest == "defense") {
+        if (in(0))
+            s.mult_defense = static_cast<int>(n);
+    } else if (rest == "social") {
+        if (in(0))
+            s.mult_social = static_cast<int>(n);
+    } else if (rest == "research") {
+        if (in(SETTINGS_MULT_RESEARCH_MIN))
+            s.mult_research = static_cast<int>(n);
+    } else if (rest == "facbuild") {
+        if (in(SETTINGS_MULT_CELL_MIN))
+            s.mult_facbuild = static_cast<int>(n);
+    } else if (rest.size() > 4 && rest[3] == '.') {
+        long long slot = -1;
+        int *const row = rest.compare(0, 3, "out") == 0 ? s.mult_out : rest.compare(0, 3, "use") == 0 ? s.mult_use
+            : rest.compare(0, 3, "raw") == 0 ? s.mult_raw : nullptr;
+        if (row != nullptr && parse_int(rest.substr(4), slot) && slot >= 0 && slot < MULT_GOODS && in(SETTINGS_MULT_CELL_MIN))
+            row[slot] = static_cast<int>(n);
+    }
+}
+
+}  // namespace
+
 Settings default_settings()
 {
     Settings s;
@@ -105,10 +158,23 @@ Settings parse_settings(const std::string &ini)
             vk = n;
         } else if (key == "hotkey_mods") {
             mods = n;
+        } else if (key == "money.amount") {
+            if (n >= MONEY_AMOUNT_MIN && n <= MONEY_AMOUNT_MAX)
+                s.money_amount = n;
+        } else if (key == "keep.treasury") {
+            if (n == 0 || n == 1)
+                s.keep_treasury = n == 1;
+        } else if (key == "keep.treasury.value") {
+            if (n >= 0 && n <= KEEP_TREASURY_MAX)
+                s.keep_treasury_value = n;
+        } else if (key.compare(0, 11, "keep.stock.") == 0) {
+            parse_keep_stock(key.substr(11), n, s);
+        } else if (key.compare(0, 5, "mult.") == 0) {
+            parse_mult(key.substr(5), n, s);
         } else {
             const Feature *f = find_feature(key.c_str());
-            if (f != nullptr && f->has_value && n >= f->min && n <= f->max)
-                s.values[f->id] = n;
+            if (f != nullptr && f->has_value && n >= f->min)
+                s.values[f->id] = n > f->max ? f->max : n;   // 범위가 줄어든 빌드에서 저장된 큰 값은 끝으로 자른다(말없이 기본값이 되지 않게)
         }
     }
     if (vk >= 0 && vk <= 0xFE && mods >= 0 && mods <= 7 && valid_hotkey(static_cast<int>(vk), static_cast<int>(mods))) {
@@ -120,7 +186,24 @@ Settings parse_settings(const std::string &ini)
 
 std::string format_settings(const Settings &s)
 {
-    std::string out = "hotkey_vk=" + std::to_string(s.hotkey_vk) + "\nhotkey_mods=" + std::to_string(s.hotkey_mods) + "\n";
+    std::string out = "hotkey_vk=" + std::to_string(s.hotkey_vk) + "\nhotkey_mods=" + std::to_string(s.hotkey_mods)
+        + "\nmoney.amount=" + std::to_string(s.money_amount) + "\n";
+    out += "keep.treasury=" + std::to_string(s.keep_treasury ? 1 : 0) + "\nkeep.treasury.value=" + std::to_string(s.keep_treasury_value)
+        + "\n";
+    for (int slot = 0; slot < STOCK_SLOTS; slot++) {
+        const std::string key = "keep.stock." + std::to_string(slot);
+        out += key + "=" + std::to_string(s.keep_stock[slot] ? 1 : 0) + "\n" + key + ".value=" + std::to_string(s.keep_stock_value[slot])
+            + "\n";
+    }
+    out += "mult.on=" + std::to_string(s.mult_on ? 1 : 0) + "\nmult.tax=" + std::to_string(s.mult_tax) + "\nmult.defense="
+        + std::to_string(s.mult_defense) + "\nmult.social=" + std::to_string(s.mult_social) + "\nmult.research="
+        + std::to_string(s.mult_research) + "\nmult.facbuild="
+        + std::to_string(s.mult_facbuild) + "\n";
+    for (int slot = 0; slot < MULT_GOODS; slot++) {
+        const std::string n = std::to_string(slot);
+        out += "mult.out." + n + "=" + std::to_string(s.mult_out[slot]) + "\nmult.use." + n + "=" + std::to_string(s.mult_use[slot])
+            + "\nmult.raw." + n + "=" + std::to_string(s.mult_raw[slot]) + "\n";
+    }
     for (int i = 0; i < FEATURE_COUNT; i++) {
         if (!FEATURES[i].has_value)
             continue;
@@ -150,9 +233,9 @@ Settings load_settings()
     if (!path.empty()) {
         const HANDLE f = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
         if (f != INVALID_HANDLE_VALUE) {
-            char buf[4096];
+            char buf[16384];
             DWORD n = 0;
-            if (ReadFile(f, buf, sizeof(buf), &n, nullptr))   // 설정 파일은 100바이트 남짓이다. 4096 을 넘는 부분은 읽지 않는다
+            if (ReadFile(f, buf, sizeof(buf), &n, nullptr))   // 설정 파일은 2 KB 를 넘지 않는다. 16384 를 넘는 부분은 읽지 않는다
                 ini.assign(buf, n);
             CloseHandle(f);
         }

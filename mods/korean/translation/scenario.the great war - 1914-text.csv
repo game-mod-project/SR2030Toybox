@@ -1,0 +1,23 @@
+﻿key,en,ko,status
+LOCALIZE|milclass|0,Infantry,보병,mt
+LOCALIZE|milclass|1,Recon,정찰,mt
+LOCALIZE|milclass|2,Tank,전차,mt
+LOCALIZE|milclass|3,Anti-Tank,대전차,mt
+LOCALIZE|milclass|4,Artillery,포병,mt
+LOCALIZE|milclass|5,Air Defense,방공,mt
+LOCALIZE|milclass|6,Transport,수송,mt
+LOCALIZE|milclass|7,Airship,비행선,mt
+LOCALIZE|milclass|8,Missile,미사일,mt
+LOCALIZE|milclass|9,Interceptor,요격기,mt
+LOCALIZE|milclass|10,Tactical Bomber,전술 폭격기,mt
+LOCALIZE|milclass|11,Multi-Role,다목적기,mt
+LOCALIZE|milclass|12,Strategic Bomber,전략 폭격기,mt
+LOCALIZE|milclass|13,Patrol,초계,mt
+LOCALIZE|milclass|14,Transport,수송,mt
+LOCALIZE|milclass|15,Submarines,잠수함,mt
+LOCALIZE|milclass|16,Carriers,항공모함,mt
+LOCALIZE|milclass|17,Capital Ships,주력함,mt
+LOCALIZE|milclass|18,Escort Ships,호위함,mt
+LOCALIZE|milclass|19,Patrol Ships,경비함,mt
+LOCALIZE|milclass|20,Transport,수송,mt
+LOCALIZE|milclass|21,Facility,시설,mt

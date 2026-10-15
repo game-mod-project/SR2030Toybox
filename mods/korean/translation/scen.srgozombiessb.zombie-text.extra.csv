@@ -1,0 +1,208 @@
+﻿key,en,ko,status
+REGIONTEXT|1|0,World News,세계 뉴스,mt
+REGIONTEXT|101|0,Egypt,이집트,mt
+REGIONTEXT|102|0,Libya,리비아,mt
+REGIONTEXT|103|0,Algeria,알제리,mt
+REGIONTEXT|104|0,Morocco,모로코,mt
+REGIONTEXT|106|0,Tunisia,튀니지,mt
+REGIONTEXT|107|0,Libya,리비아,mt
+REGIONTEXT|201|0,Nigeria,나이지리아,mt
+REGIONTEXT|202|0,Benin,베냉,mt
+REGIONTEXT|203|0,Burkina Faso,부르키나파소,mt
+REGIONTEXT|204|0,Cameroon,카메룬,mt
+REGIONTEXT|205|0,Central Africa,중앙아프리카,mt
+REGIONTEXT|206|0,Chad,차드,mt
+REGIONTEXT|207|0,Cote d'Ivoire,코트디부아르,mt
+REGIONTEXT|208|0,Mauritania,모리타니,mt
+REGIONTEXT|209|0,Gambia,감비아,mt
+REGIONTEXT|210|0,Ghana,가나,mt
+REGIONTEXT|211|0,Guinea,기니,mt
+REGIONTEXT|212|0,Guinea-Bissau,기니비사우,mt
+REGIONTEXT|213|0,Liberia,라이베리아,mt
+REGIONTEXT|214|0,Mali,말리,mt
+REGIONTEXT|215|0,Niger,니제르,mt
+REGIONTEXT|216|0,Senegal,세네갈,mt
+REGIONTEXT|217|0,Sierra Leone,시에라리온,mt
+REGIONTEXT|218|0,Togo,토고,mt
+REGIONTEXT|219|0,Cape Verde,카보베르데,mt
+REGIONTEXT|224|0,Sao Tome & Principe,상투메 프린시페,mt
+REGIONTEXT|301|0,Kenya,케냐,mt
+REGIONTEXT|302|0,Eritrea,에리트레아,mt
+REGIONTEXT|303|0,Ethiopia,에티오피아,mt
+REGIONTEXT|304|0,Somalia,소말리아,mt
+REGIONTEXT|305|0,Rwanda,르완다,mt
+REGIONTEXT|306|0,Djibouti,지부티,mt
+REGIONTEXT|307|0,Burundi,부룬디,mt
+REGIONTEXT|308|0,Sudan,수단,mt
+REGIONTEXT|309|0,Uganda,우간다,mt
+REGIONTEXT|310|0,Tanzania,탄자니아,mt
+REGIONTEXT|311|0,Somaliland,소말릴란드,mt
+REGIONTEXT|313|0,South Sudan,남수단,mt
+REGIONTEXT|401|0,South Africa,남아프리카공화국,mt
+REGIONTEXT|402|0,Lesotho,레소토,mt
+REGIONTEXT|403|0,Namibia,나미비아,mt
+REGIONTEXT|404|0,Madagascar,마다가스카르,mt
+REGIONTEXT|405|0,Botswana,보츠와나,mt
+REGIONTEXT|406|0,Mozambique,모잠비크,mt
+REGIONTEXT|407|0,Malawi,말라위,mt
+REGIONTEXT|408|0,Eswatini,에스와티니,mt
+REGIONTEXT|409|0,Zimbabwe,짐바브웨,mt
+REGIONTEXT|410|0,Angola,앙골라,mt
+REGIONTEXT|411|0,Zambia,잠비아,mt
+REGIONTEXT|412|0,Congo DR,콩고 민주 공화국,mt
+REGIONTEXT|413|0,Congo,콩고,mt
+REGIONTEXT|414|0,Gabon,가봉,mt
+REGIONTEXT|415|0,Equat Guinea,적도기니,mt
+REGIONTEXT|416|0,Comoros,코모로,mt
+REGIONTEXT|417|0,Mauritius,모리셔스,mt
+REGIONTEXT|420|0,Seychelles,세이셸,mt
+REGIONTEXT|501|0,Israel,이스라엘,mt
+REGIONTEXT|502|0,Palestine,팔레스타인,mt
+REGIONTEXT|503|0,Jordan,요르단,mt
+REGIONTEXT|601|0,Iran,이란,mt
+REGIONTEXT|602|0,Iraq,이라크,mt
+REGIONTEXT|603|0,Kuwait,쿠웨이트,mt
+REGIONTEXT|604|0,Oman,오만,mt
+REGIONTEXT|605|0,Qatar,카타르,mt
+REGIONTEXT|606|0,Saudi Arabia,사우디아라비아,mt
+REGIONTEXT|607|0,Syria,시리아,mt
+REGIONTEXT|608|0,Lebanon,레바논,mt
+REGIONTEXT|609|0,Turkey,튀르키예,mt
+REGIONTEXT|610|0,United Arab Emirates,아랍에미리트,mt
+REGIONTEXT|611|0,South Yemen,남예멘,mt
+REGIONTEXT|613|0,Bahrain,바레인,mt
+REGIONTEXT|614|0,Rojava,로자바,mt
+REGIONTEXT|620|0,Houthi Movement,후티 운동,mt
+REGIONTEXT|701|0,Armenia,아르메니아,mt
+REGIONTEXT|702|0,Azerbaijan,아제르바이잔,mt
+REGIONTEXT|703|0,Georgia Republic,조지아,mt
+REGIONTEXT|704|0,Kazakhstan,카자흐스탄,mt
+REGIONTEXT|705|0,Kyrgyzstan,키르기스스탄,mt
+REGIONTEXT|706|0,Tajikistan,타지키스탄,mt
+REGIONTEXT|707|0,Turkmenistan,투르크메니스탄,mt
+REGIONTEXT|708|0,Uzbekistan,우즈베키스탄,mt
+REGIONTEXT|709|0,Nagorno-Karabakh,나고르노카라바흐,mt
+REGIONTEXT|809|0,South Ossetia,남오세티야,mt
+REGIONTEXT|810|0,Abkhazia,압하지야,mt
+REGIONTEXT|889|0,Russia,러시아,mt
+REGIONTEXT|907|0,Nepal,네팔,mt
+REGIONTEXT|908|0,Bhutan,부탄,mt
+REGIONTEXT|909|0,Sri Lanka,스리랑카,mt
+REGIONTEXT|910|0,Pakistan,파키스탄,mt
+REGIONTEXT|911|0,Afghanistan,아프가니스탄,mt
+REGIONTEXT|912|0,Bangladesh,방글라데시,mt
+REGIONTEXT|916|0,Afghanistan Emirate,아프가니스탄 토후국,mt
+REGIONTEXT|917|0,Maldives,몰디브,mt
+REGIONTEXT|989|0,India,인도,mt
+REGIONTEXT|1001|0,Bosnia Herzegovina,보스니아헤르체고비나,mt
+REGIONTEXT|1003|0,Croatia,크로아티아,mt
+REGIONTEXT|1004|0,Serbia,세르비아,mt
+REGIONTEXT|1005|0,Montenegro,몬테네그로,mt
+REGIONTEXT|1006|0,Kosovo,코소보,mt
+REGIONTEXT|1007|0,Albania,알바니아,mt
+REGIONTEXT|1008|0,Slovenia,슬로베니아,mt
+REGIONTEXT|1101|0,Belarus,벨라루스,mt
+REGIONTEXT|1102|0,Ukraine,우크라이나,mt
+REGIONTEXT|1103|0,Moldova,몰도바,mt
+REGIONTEXT|1104|0,Romania,루마니아,mt
+REGIONTEXT|1105|0,Bulgaria,불가리아,mt
+REGIONTEXT|1106|0,Poland,폴란드,mt
+REGIONTEXT|1107|0,Hungary,헝가리,mt
+REGIONTEXT|1108|0,Slovakia,슬로바키아,mt
+REGIONTEXT|1109|0,Czech Republic,체코,mt
+REGIONTEXT|1110|0,Latvia,라트비아,mt
+REGIONTEXT|1111|0,Lithuania,리투아니아,mt
+REGIONTEXT|1112|0,Estonia,에스토니아,mt
+REGIONTEXT|1114|0,Greece,그리스,mt
+REGIONTEXT|1115|0,North Macedonia,북마케도니아,mt
+REGIONTEXT|1116|0,Cyprus,키프로스,mt
+REGIONTEXT|1117|0,Northern Cyprus,북키프로스,mt
+REGIONTEXT|1118|0,Donbass,돈바스,mt
+REGIONTEXT|1119|0,Transnistria,트란스니스트리아,mt
+REGIONTEXT|1201|0,Denmark,덴마크,mt
+REGIONTEXT|1202|0,Norway,노르웨이,mt
+REGIONTEXT|1203|0,Finland,핀란드,mt
+REGIONTEXT|1204|0,Sweden,스웨덴,mt
+REGIONTEXT|1205|0,Iceland,아이슬란드,mt
+REGIONTEXT|1306|0,Ireland,아일랜드,mt
+REGIONTEXT|1399|0,United Kingdom,영국,mt
+REGIONTEXT|1404|0,Austria,오스트리아,mt
+REGIONTEXT|1499|0,Germany,독일,mt
+REGIONTEXT|1505|0,Malta,몰타,mt
+REGIONTEXT|1599|0,Italy,이탈리아,mt
+REGIONTEXT|1603|0,Belgium,벨기에,mt
+REGIONTEXT|1604|0,Netherlands,네덜란드,mt
+REGIONTEXT|1605|0,Luxembourg,룩셈부르크,mt
+REGIONTEXT|1699|0,France,프랑스,mt
+REGIONTEXT|1703|0,Portugal,포르투갈,mt
+REGIONTEXT|1705|0,Andorra,안도라,mt
+REGIONTEXT|1799|0,Spain,스페인,mt
+REGIONTEXT|1801|0,Switzerland,스위스,mt
+REGIONTEXT|1901|0,Taiwan,대만,mt
+REGIONTEXT|1902|0,Hong Kong,홍콩,mt
+REGIONTEXT|1909|0,Mongolia,몽골,mt
+REGIONTEXT|1910|0,Zombie Apocalypse,좀비 아포칼립스,mt
+REGIONTEXT|1999|0,China,중국,mt
+REGIONTEXT|2001|0,Japan,일본,mt
+REGIONTEXT|2002|0,North Korea,북한,mt
+REGIONTEXT|2003|0,South Korea,한국,mt
+REGIONTEXT|2101|0,Thailand,태국,mt
+REGIONTEXT|2102|0,Vietnam,베트남,mt
+REGIONTEXT|2103|0,Myanmar,미얀마,mt
+REGIONTEXT|2104|0,Cambodia,캄보디아,mt
+REGIONTEXT|2105|0,Laos,라오스,mt
+REGIONTEXT|2106|0,Philippines,필리핀,mt
+REGIONTEXT|2107|0,Indonesia,인도네시아,mt
+REGIONTEXT|2108|0,Timor-Leste,동티모르,mt
+REGIONTEXT|2110|0,Papua New Guinea,파푸아뉴기니,mt
+REGIONTEXT|2111|0,Malaysia,말레이시아,mt
+REGIONTEXT|2112|0,Brunei,브루나이,mt
+REGIONTEXT|2113|0,Singapore,싱가포르,mt
+REGIONTEXT|2201|0,Australia,호주,mt
+REGIONTEXT|2203|0,Fiji,피지,mt
+REGIONTEXT|2207|0,Solomon Islands,솔로몬 제도,mt
+REGIONTEXT|2208|0,Vanuatu,바누아투,mt
+REGIONTEXT|2211|0,Palau,팔라우,mt
+REGIONTEXT|2212|0,Micronesia,미크로네시아,mt
+REGIONTEXT|2213|0,Northern Mariana,북마리아나 제도,mt
+REGIONTEXT|2299|0,New Zealand,뉴질랜드,mt
+REGIONTEXT|2301|0,Argentina,아르헨티나,mt
+REGIONTEXT|2302|0,Bolivia,볼리비아,mt
+REGIONTEXT|2303|0,Brazil,브라질,mt
+REGIONTEXT|2304|0,Chile,칠레,mt
+REGIONTEXT|2305|0,Colombia,콜롬비아,mt
+REGIONTEXT|2306|0,Ecuador,에콰도르,mt
+REGIONTEXT|2308|0,Guyana,가이아나,mt
+REGIONTEXT|2309|0,Paraguay,파라과이,mt
+REGIONTEXT|2310|0,Peru,페루,mt
+REGIONTEXT|2311|0,Suriname,수리남,mt
+REGIONTEXT|2312|0,Uruguay,우루과이,mt
+REGIONTEXT|2313|0,Venezuela,베네수엘라,mt
+REGIONTEXT|2499|0,Canada,캐나다,mt
+REGIONTEXT|2501|0,Bahamas,바하마,mt
+REGIONTEXT|2503|0,Dominican Republic,도미니카 공화국,mt
+REGIONTEXT|2504|0,Haiti,아이티,mt
+REGIONTEXT|2505|0,Jamaica,자메이카,mt
+REGIONTEXT|2507|0,Puerto Rico,푸에르토리코,mt
+REGIONTEXT|2511|0,Antigua,앤티가,mt
+REGIONTEXT|2513|0,Barbados,바베이도스,mt
+REGIONTEXT|2514|0,Dominica,도미니카 연방,mt
+REGIONTEXT|2515|0,Grenada,그레나다,mt
+REGIONTEXT|2519|0,St Kitts & Nevis,세인트키츠 네비스,mt
+REGIONTEXT|2520|0,Saint Lucia,세인트루시아,mt
+REGIONTEXT|2521|0,Grenadines,그레나딘,mt
+REGIONTEXT|2522|0,Trinidad,트리니다드,mt
+REGIONTEXT|2601|0,Mexico,멕시코,mt
+REGIONTEXT|2602|0,El Salvador,엘살바도르,mt
+REGIONTEXT|2603|0,Guatemala,과테말라,mt
+REGIONTEXT|2604|0,Honduras,온두라스,mt
+REGIONTEXT|2605|0,Nicaragua,니카라과,mt
+REGIONTEXT|2606|0,Panama,파나마,mt
+REGIONTEXT|2607|0,Costa Rica,코스타리카,mt
+REGIONTEXT|2608|0,Belize,벨리즈,mt
+REGIONTEXT|2609|0,Jalisco Cartel,할리스코 카르텔,mt
+REGIONTEXT|2610|0,Sinaloa Cartel,시날로아 카르텔,mt
+REGIONTEXT|2611|0,Gulf Cartel,걸프 카르텔,mt
+REGIONTEXT|2727|0,Cuba,쿠바,mt
+REGIONTEXT|2989|0,United States,미국,mt
+REGIONTEXT|3098|0,The World,세계,mt

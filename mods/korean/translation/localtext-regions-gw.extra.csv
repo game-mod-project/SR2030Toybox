@@ -1,0 +1,353 @@
+﻿key,en,ko,status
+REGIONTEXT|0|0,League of Nations,국제 연맹,mt
+REGIONTEXT|101|0,Egypt,이집트,mt
+REGIONTEXT|102|0,Libya,리비아,mt
+REGIONTEXT|103|0,Algeria,알제리,mt
+REGIONTEXT|104|0,Morocco,모로코,mt
+REGIONTEXT|105|0,Rio De Oro,리오데오로,mt
+REGIONTEXT|106|0,Tunisia,튀니지,mt
+REGIONTEXT|107|0,Morocco,모로코,mt
+REGIONTEXT|108|0,Tangier,탕헤르,mt
+REGIONTEXT|109|0,Suez Canal Zone,수에즈 운하 지대,mt
+REGIONTEXT|110|0,Libyan Desert,리비아 사막,mt
+REGIONTEXT|188|0,Egypt,이집트,mt
+REGIONTEXT|189|0,Morocco,모로코,mt
+REGIONTEXT|201|0,Nigeria,나이지리아,mt
+REGIONTEXT|202|0,Dahomey,다호메이,mt
+REGIONTEXT|203|0,Haute Volta,오트볼타,mt
+REGIONTEXT|204|0,Cameroun,카메룬,mt
+REGIONTEXT|205|0,Ubangi-Shari,우방기샤리,mt
+REGIONTEXT|206|0,Chad,차드,mt
+REGIONTEXT|207|0,Cote d'Ivoire,코트디부아르,mt
+REGIONTEXT|208|0,Mauritania,모리타니,mt
+REGIONTEXT|209|0,Gambia,감비아,mt
+REGIONTEXT|210|0,Gold Coast,골드코스트,mt
+REGIONTEXT|211|0,Guinea,기니,mt
+REGIONTEXT|212|0,Guinea,기니,mt
+REGIONTEXT|214|0,Sudan,수단,mt
+REGIONTEXT|215|0,Niger,니제르,mt
+REGIONTEXT|216|0,Senegal,세네갈,mt
+REGIONTEXT|217|0,Sierra Leone,시에라리온,mt
+REGIONTEXT|218|0,Togoland,토골란드,mt
+REGIONTEXT|219|0,Cape Verde,카보베르데,mt
+REGIONTEXT|220|0,Saint Helena,세인트헬레나,mt
+REGIONTEXT|221|0,Canary Islands,카나리아 제도,mt
+REGIONTEXT|222|0,Madeira,마데이라,mt
+REGIONTEXT|223|0,Ascension,어센션,mt
+REGIONTEXT|224|0,Sao Tome & Principe,상투메 프린시페,mt
+REGIONTEXT|225|0,Southern Cameroons,남카메룬,mt
+REGIONTEXT|226|0,Northern Cameroons,북카메룬,mt
+REGIONTEXT|227|0,Togoland,토골란드,mt
+REGIONTEXT|228|0,West Ubangi-Shari,서우방기샤리,mt
+REGIONTEXT|229|0,South Chad,남차드,mt
+REGIONTEXT|282|0,Kamerun,독일령 카메룬,mt
+REGIONTEXT|283|0,Togoland,토골란드,mt
+REGIONTEXT|288|0,West Africa,서아프리카,mt
+REGIONTEXT|289|0,Equatorial Africa,적도아프리카,mt
+REGIONTEXT|301|0,East Africa,동아프리카,mt
+REGIONTEXT|302|0,Eritrea,에리트레아,mt
+REGIONTEXT|304|0,Somaliland,소말릴란드,mt
+REGIONTEXT|305|0,Rwanda,르완다,mt
+REGIONTEXT|306|0,Somaliland,소말릴란드,mt
+REGIONTEXT|307|0,Burundi,부룬디,mt
+REGIONTEXT|308|0,Sudan,수단,mt
+REGIONTEXT|309|0,Uganda,우간다,mt
+REGIONTEXT|310|0,Tanganyika,탕가니카,mt
+REGIONTEXT|311|0,Somaliland,소말릴란드,mt
+REGIONTEXT|313|0,South Sudan,남수단,mt
+REGIONTEXT|314|0,Zanzibar,잔지바르,mt
+REGIONTEXT|386|0,East Africa,동아프리카,mt
+REGIONTEXT|398|0,Sudan,수단,mt
+REGIONTEXT|401|0,South Africa,남아프리카공화국,mt
+REGIONTEXT|402|0,Basutoland,바수톨란드,mt
+REGIONTEXT|403|0,South West Africa,남서아프리카,mt
+REGIONTEXT|404|0,Malagasy,마다가스카르,mt
+REGIONTEXT|405|0,Bechuanaland,베추아날란드,mt
+REGIONTEXT|406|0,Mozambique,모잠비크,mt
+REGIONTEXT|407|0,Nyasaland,니아살란드,mt
+REGIONTEXT|408|0,Swaziland,스와질란드,mt
+REGIONTEXT|409|0,Southern Rhodesia,남로디지아,mt
+REGIONTEXT|410|0,Angola,앙골라,mt
+REGIONTEXT|411|0,Northern Rhodesia,북로디지아,mt
+REGIONTEXT|412|0,North Congo,북콩고,mt
+REGIONTEXT|413|0,Congo Republic,콩고 공화국,mt
+REGIONTEXT|414|0,Gabon,가봉,mt
+REGIONTEXT|415|0,Guinea,기니,mt
+REGIONTEXT|416|0,Comoros,코모로,mt
+REGIONTEXT|417|0,Mauritius,모리셔스,mt
+REGIONTEXT|418|0,Mayotte,마요트,mt
+REGIONTEXT|419|0,Reunion,레위니옹,mt
+REGIONTEXT|420|0,Seychelles,세이셸,mt
+REGIONTEXT|421|0,Kerguelen Isles,케르겔렌 제도,mt
+REGIONTEXT|422|0,Heard Island,허드 섬,mt
+REGIONTEXT|423|0,Katanga,카탕가,mt
+REGIONTEXT|424|0,North Gabon,북가봉,mt
+REGIONTEXT|425|0,North West Congo,북서콩고,mt
+REGIONTEXT|486|0,Malagasy,마다가스카르,mt
+REGIONTEXT|488|0,Congo,콩고,mt
+REGIONTEXT|501|0,Israel,이스라엘,mt
+REGIONTEXT|502|0,Palestine,팔레스타인,mt
+REGIONTEXT|503|0,Jordan,요르단,mt
+REGIONTEXT|504|0,Palestine,팔레스타인,mt
+REGIONTEXT|602|0,Iraq,이라크,mt
+REGIONTEXT|603|0,Kuwait,쿠웨이트,mt
+REGIONTEXT|604|0,Muscat & Oman,무스카트 오만,mt
+REGIONTEXT|605|0,Qatar,카타르,mt
+REGIONTEXT|607|0,Syria,시리아,mt
+REGIONTEXT|608|0,Lebanon,레바논,mt
+REGIONTEXT|609|0,Turkey,튀르키예,mt
+REGIONTEXT|610|0,Trucial Oman,트루셜 오만,mt
+REGIONTEXT|611|0,Yemen,예멘,mt
+REGIONTEXT|613|0,Bahrain,바레인,mt
+REGIONTEXT|615|0,Aden Protectorate,아덴 보호령,mt
+REGIONTEXT|616|0,Straits,해협,mt
+REGIONTEXT|618|0,Arabian Desert,아라비아 사막,mt
+REGIONTEXT|619|0,Hejaz,헤자즈,mt
+REGIONTEXT|620|0,Turkish Caucasus,튀르키예 캅카스,mt
+REGIONTEXT|701|0,Armenia,아르메니아,mt
+REGIONTEXT|702|0,Azerbaijan,아제르바이잔,mt
+REGIONTEXT|703|0,Georgia Republic,조지아,mt
+REGIONTEXT|704|0,Kazakhstan,카자흐스탄,mt
+REGIONTEXT|705|0,Kyrgyzstan,키르기스스탄,mt
+REGIONTEXT|706|0,Tajikistan,타지키스탄,mt
+REGIONTEXT|707|0,Turkmenistan,투르크메니스탄,mt
+REGIONTEXT|708|0,Uzbekistan,우즈베키스탄,mt
+REGIONTEXT|799|0,Georgia Republic,조지아,mt
+REGIONTEXT|801|0,St Petersburg,상트페테르부르크,mt
+REGIONTEXT|802|0,Moscow,모스크바,mt
+REGIONTEXT|803|0,Western Urals,서우랄,mt
+REGIONTEXT|804|0,Volgograd,볼고그라드,mt
+REGIONTEXT|805|0,North Caucasus,북캅카스,mt
+REGIONTEXT|806|0,Eastern Siberia,동시베리아,mt
+REGIONTEXT|807|0,Central Siberia,중앙시베리아,mt
+REGIONTEXT|808|0,Western Siberia,서시베리아,mt
+REGIONTEXT|811|0,Tannu Tuva,타누투바,mt
+REGIONTEXT|901|0,New Delhi,뉴델리,mt
+REGIONTEXT|902|0,Andhra Pradesh,안드라프라데시,mt
+REGIONTEXT|903|0,Rajasthan,라자스탄,mt
+REGIONTEXT|904|0,Punjab,펀자브,mt
+REGIONTEXT|905|0,Kashmir,카슈미르,mt
+REGIONTEXT|906|0,West India,서인도,mt
+REGIONTEXT|907|0,Nepal,네팔,mt
+REGIONTEXT|909|0,Ceylon,실론,mt
+REGIONTEXT|910|0,Pakistan,파키스탄,mt
+REGIONTEXT|912|0,East Pakistan,동파키스탄,mt
+REGIONTEXT|913|0,Maldives,몰디브,mt
+REGIONTEXT|916|0,Goa,고아,mt
+REGIONTEXT|917|0,Maldives,몰디브,mt
+REGIONTEXT|989|0,India,인도,mt
+REGIONTEXT|1001|0,Bosnia Herzegovina,보스니아헤르체고비나,mt
+REGIONTEXT|1002|0,Serb Republic,스릅스카 공화국,mt
+REGIONTEXT|1003|0,Croatia,크로아티아,mt
+REGIONTEXT|1004|0,Serbia,세르비아,mt
+REGIONTEXT|1006|0,Kosovo,코소보,mt
+REGIONTEXT|1008|0,Slovenia,슬로베니아,mt
+REGIONTEXT|1009|0,North Serbia,북세르비아,mt
+REGIONTEXT|1010|0,Primorski,프리모르스키,mt
+REGIONTEXT|1088|0,Balkans,발칸,mt
+REGIONTEXT|1090|0,Yugoslavia,유고슬라비아,mt
+REGIONTEXT|1098|0,Bosnia Herzegovina,보스니아헤르체고비나,mt
+REGIONTEXT|1101|0,Belarus,벨라루스,mt
+REGIONTEXT|1102|0,Ukraine,우크라이나,mt
+REGIONTEXT|1103|0,Moldova,몰도바,mt
+REGIONTEXT|1106|0,Poland,폴란드,mt
+REGIONTEXT|1107|0,Hungary,헝가리,mt
+REGIONTEXT|1108|0,Slovak Republic,슬로바키아,mt
+REGIONTEXT|1109|0,Bohemia-Moravia,보헤미아-모라비아,mt
+REGIONTEXT|1110|0,Latvia,라트비아,mt
+REGIONTEXT|1111|0,Lithuania,리투아니아,mt
+REGIONTEXT|1112|0,Estonia,에스토니아,mt
+REGIONTEXT|1113|0,Kaliningrad,칼리닌그라드,mt
+REGIONTEXT|1115|0,Macedonia,마케도니아,mt
+REGIONTEXT|1116|0,Cyprus-Greek,그리스계 키프로스,mt
+REGIONTEXT|1117|0,Cyprus-Turkish,튀르키예계 키프로스,mt
+REGIONTEXT|1118|0,Dodecanese,도데카니사 제도,mt
+REGIONTEXT|1119|0,Memel,메멜,mt
+REGIONTEXT|1120|0,Danzig,단치히,mt
+REGIONTEXT|1121|0,East Poland,동폴란드,mt
+REGIONTEXT|1122|0,South Poland,남폴란드,mt
+REGIONTEXT|1123|0,West Romania,서루마니아,mt
+REGIONTEXT|1198|0,Cyprus,키프로스,mt
+REGIONTEXT|1203|0,Finland,핀란드,mt
+REGIONTEXT|1205|0,Iceland,아이슬란드,mt
+REGIONTEXT|1206|0,Greenland,그린란드,mt
+REGIONTEXT|1207|0,Faroe Islands,페로 제도,mt
+REGIONTEXT|1209|0,Northern Schleswig,북슐레스비히,mt
+REGIONTEXT|1301|0,England,잉글랜드,mt
+REGIONTEXT|1302|0,North England,북잉글랜드,mt
+REGIONTEXT|1303|0,Northern Ireland,북아일랜드,mt
+REGIONTEXT|1304|0,Wales,웨일스,mt
+REGIONTEXT|1305|0,Scotland,스코틀랜드,mt
+REGIONTEXT|1306|0,Ireland,아일랜드,mt
+REGIONTEXT|1401|0,West Germany,서독,mt
+REGIONTEXT|1402|0,East Germany,동독,mt
+REGIONTEXT|1403|0,Southern Germany,남독일,mt
+REGIONTEXT|1404|0,Austria,오스트리아,mt
+REGIONTEXT|1405|0,Saarland,자를란트,mt
+REGIONTEXT|1408|0,East Prussia,동프로이센,mt
+REGIONTEXT|1501|0,Milan,밀라노,mt
+REGIONTEXT|1502|0,Rome,로마,mt
+REGIONTEXT|1503|0,Naples,나폴리,mt
+REGIONTEXT|1504|0,Sicily,시칠리아,mt
+REGIONTEXT|1505|0,Malta,몰타,mt
+REGIONTEXT|1506|0,Trieste,트리에스테,mt
+REGIONTEXT|1507|0,South Tyrol,남티롤,mt
+REGIONTEXT|1601|0,Paris,파리,mt
+REGIONTEXT|1602|0,Marseille,마르세유,mt
+REGIONTEXT|1607|0,Büllingen,뷜링겐,mt
+REGIONTEXT|1701|0,Madrid,마드리드,mt
+REGIONTEXT|1702|0,Barcelona,바르셀로나,mt
+REGIONTEXT|1703|0,Portugal,포르투갈,mt
+REGIONTEXT|1704|0,Gibraltar,지브롤터,mt
+REGIONTEXT|1901|0,Formosa,포모사,mt
+REGIONTEXT|1902|0,Hong Kong,홍콩,mt
+REGIONTEXT|1903|0,Southern China,남중국,mt
+REGIONTEXT|1904|0,Northern China,북중국,mt
+REGIONTEXT|1905|0,Manchukuo,만주국,mt
+REGIONTEXT|1906|0,Uyghuristan,위구르스탄,mt
+REGIONTEXT|1908|0,Inner Mongolia,내몽골,mt
+REGIONTEXT|1910|0,Macau,마카오,mt
+REGIONTEXT|1912|0,Weihaiwei,웨이하이웨이,mt
+REGIONTEXT|1913|0,Tsingtao,칭다오,mt
+REGIONTEXT|1914|0,Guandongzhou,관동주,mt
+REGIONTEXT|2002|0,North Korea,북한,mt
+REGIONTEXT|2003|0,South Korea,한국,mt
+REGIONTEXT|2079|0,Korea,조선,mt
+REGIONTEXT|2102|0,North Vietnam,북베트남,mt
+REGIONTEXT|2103|0,Burma,버마,mt
+REGIONTEXT|2104|0,Cambodia,캄보디아,mt
+REGIONTEXT|2105|0,Laos,라오스,mt
+REGIONTEXT|2106|0,Philippines,필리핀,mt
+REGIONTEXT|2107|0,East Indies,동인도 제도,mt
+REGIONTEXT|2108|0,Timor,티모르,mt
+REGIONTEXT|2109|0,New Guinea,뉴기니,mt
+REGIONTEXT|2110|0,Papua New Guinea,파푸아뉴기니,mt
+REGIONTEXT|2111|0,Malaya,말라야,mt
+REGIONTEXT|2112|0,Brunei,브루나이,mt
+REGIONTEXT|2113|0,Singapore,싱가포르,mt
+REGIONTEXT|2114|0,South Vietnam,남베트남,mt
+REGIONTEXT|2116|0,Sarawak,사라왁,mt
+REGIONTEXT|2117|0,North Borneo,북보르네오,mt
+REGIONTEXT|2118|0,Timor,티모르,mt
+REGIONTEXT|2119|0,New Guinea,뉴기니,mt
+REGIONTEXT|2120|0,Sulu,술루,mt
+REGIONTEXT|2188|0,Malay States,말레이 연방국,mt
+REGIONTEXT|2189|0,Indochina,인도차이나,mt
+REGIONTEXT|2197|0,Vietnam,베트남,mt
+REGIONTEXT|2201|0,Australia,호주,mt
+REGIONTEXT|2203|0,Fiji,피지,mt
+REGIONTEXT|2204|0,Polynesia,폴리네시아,mt
+REGIONTEXT|2205|0,Guam,괌,mt
+REGIONTEXT|2206|0,New Caledonia,뉴칼레도니아,mt
+REGIONTEXT|2207|0,Solomon Islands,솔로몬 제도,mt
+REGIONTEXT|2208|0,New Hebrides,뉴헤브리디스,mt
+REGIONTEXT|2209|0,Hawaii,하와이,mt
+REGIONTEXT|2210|0,Cook Islands,쿡 제도,mt
+REGIONTEXT|2211|0,Palau,팔라우,mt
+REGIONTEXT|2212|0,Micronesia,미크로네시아,mt
+REGIONTEXT|2213|0,Northern Mariana,북마리아나 제도,mt
+REGIONTEXT|2214|0,Christmas Island,크리스마스 섬,mt
+REGIONTEXT|2215|0,Kiritimati,키리티마티,mt
+REGIONTEXT|2216|0,Samoa,사모아,mt
+REGIONTEXT|2217|0,Samoa,사모아,mt
+REGIONTEXT|2307|0,Guiana,기아나,mt
+REGIONTEXT|2308|0,Guiana,기아나,mt
+REGIONTEXT|2311|0,Guiana,기아나,mt
+REGIONTEXT|2314|0,Falklands,포클랜드 제도,mt
+REGIONTEXT|2315|0,South Georgia,사우스조지아,mt
+REGIONTEXT|2401|0,Ontario,온타리오,mt
+REGIONTEXT|2402|0,Québec,퀘벡,mt
+REGIONTEXT|2403|0,Manitoba,매니토바,mt
+REGIONTEXT|2404|0,Alberta,앨버타,mt
+REGIONTEXT|2405|0,Saskatchewan,서스캐처원,mt
+REGIONTEXT|2406|0,NW Territories,노스웨스트 준주,mt
+REGIONTEXT|2407|0,Nunavut,누나부트,mt
+REGIONTEXT|2408|0,British Columbia,브리티시컬럼비아,mt
+REGIONTEXT|2409|0,Yukon Territory,유콘 준주,mt
+REGIONTEXT|2410|0,Nfld & Labrador,뉴펀들랜드 래브라도,mt
+REGIONTEXT|2411|0,Nova Scotia,노바스코샤,mt
+REGIONTEXT|2412|0,New Brunswick,뉴브런즈윅,mt
+REGIONTEXT|2413|0,PEI,프린스에드워드섬,mt
+REGIONTEXT|2414|0,St Pierre & Miq.,생피에르 미클롱,mt
+REGIONTEXT|2415|0,Alaska,알래스카,mt
+REGIONTEXT|2501|0,Bahamas,바하마,mt
+REGIONTEXT|2502|0,Bermuda,버뮤다,mt
+REGIONTEXT|2505|0,Jamaica,자메이카,mt
+REGIONTEXT|2507|0,Puerto Rico,푸에르토리코,mt
+REGIONTEXT|2508|0,US Virgin Isles,미국령 버진아일랜드,mt
+REGIONTEXT|2510|0,Cayman Islands,케이맨 제도,mt
+REGIONTEXT|2511|0,Antigua & Barbuda,앤티가 바부다,mt
+REGIONTEXT|2512|0,Aruba,아루바,mt
+REGIONTEXT|2513|0,Barbados,바베이도스,mt
+REGIONTEXT|2514|0,Dominica,도미니카 연방,mt
+REGIONTEXT|2515|0,Grenada,그레나다,mt
+REGIONTEXT|2516|0,Guadeloupe,과들루프,mt
+REGIONTEXT|2517|0,Martinique,마르티니크,mt
+REGIONTEXT|2518|0,Curaçao,퀴라소,mt
+REGIONTEXT|2519|0,St Kitts & Nevis,세인트키츠 네비스,mt
+REGIONTEXT|2520|0,Saint Lucia,세인트루시아,mt
+REGIONTEXT|2521|0,Grenadines,그레나딘,mt
+REGIONTEXT|2522|0,Trinidad & Tobago,트리니다드 토바고,mt
+REGIONTEXT|2523|0,Anguilla,앵귈라,mt
+REGIONTEXT|2608|0,Honduras,온두라스,mt
+REGIONTEXT|2609|0,Canal Zone,운하 지대,mt
+REGIONTEXT|2700|0,North East US,미국 북동부,mt
+REGIONTEXT|2701|0,Maine,메인,mt
+REGIONTEXT|2702|0,Massachusetts,매사추세츠,mt
+REGIONTEXT|2703|0,New Hampshire,뉴햄프셔,mt
+REGIONTEXT|2704|0,New York,뉴욕,mt
+REGIONTEXT|2705|0,Pennsylvania,펜실베이니아,mt
+REGIONTEXT|2706|0,Vermont,버몬트,mt
+REGIONTEXT|2707|0,Michigan,미시간,mt
+REGIONTEXT|2708|0,Indiana,인디애나,mt
+REGIONTEXT|2709|0,Ohio,오하이오,mt
+REGIONTEXT|2710|0,Illinois,일리노이,mt
+REGIONTEXT|2711|0,Iowa,아이오와,mt
+REGIONTEXT|2712|0,Missouri,미주리,mt
+REGIONTEXT|2713|0,Minnesota,미네소타,mt
+REGIONTEXT|2714|0,Wisconsin,위스콘신,mt
+REGIONTEXT|2715|0,Connecticut,코네티컷,mt
+REGIONTEXT|2716|0,Rhode Island,로드아일랜드,mt
+REGIONTEXT|2717|0,Delaware,델라웨어,mt
+REGIONTEXT|2718|0,DC,워싱턴 D.C.,mt
+REGIONTEXT|2719|0,Maryland,메릴랜드,mt
+REGIONTEXT|2720|0,New Jersey,뉴저지,mt
+REGIONTEXT|2796|0,Connecticut,코네티컷,mt
+REGIONTEXT|2797|0,New England,뉴잉글랜드,mt
+REGIONTEXT|2798|0,Jersey,저지,mt
+REGIONTEXT|2800|0,South East US,미국 남동부,mt
+REGIONTEXT|2801|0,Florida,플로리다,mt
+REGIONTEXT|2802|0,Georgia,조지아주,mt
+REGIONTEXT|2803|0,Alabama,앨라배마,mt
+REGIONTEXT|2804|0,Tennessee,테네시,mt
+REGIONTEXT|2805|0,North Carolina,노스캐롤라이나,mt
+REGIONTEXT|2806|0,South Carolina,사우스캐롤라이나,mt
+REGIONTEXT|2807|0,Kentucky,켄터키,mt
+REGIONTEXT|2808|0,West Virginia,웨스트버지니아,mt
+REGIONTEXT|2809|0,Virginia,버지니아,mt
+REGIONTEXT|2810|0,Arkansas,아칸소,mt
+REGIONTEXT|2811|0,Louisiana,루이지애나,mt
+REGIONTEXT|2812|0,Mississippi,미시시피,mt
+REGIONTEXT|2900|0,West US,미국 서부,mt
+REGIONTEXT|2901|0,West Texas,서부 텍사스,mt
+REGIONTEXT|2902|0,Houston,휴스턴,mt
+REGIONTEXT|2903|0,Dallas,댈러스,mt
+REGIONTEXT|2904|0,Oklahoma,오클라호마,mt
+REGIONTEXT|2905|0,New Mexico,뉴멕시코,mt
+REGIONTEXT|2906|0,Arizona,애리조나,mt
+REGIONTEXT|2907|0,Washington,워싱턴,mt
+REGIONTEXT|2908|0,Idaho,아이다호,mt
+REGIONTEXT|2909|0,Montana,몬태나,mt
+REGIONTEXT|2910|0,North Dakota,노스다코타,mt
+REGIONTEXT|2911|0,South Dakota,사우스다코타,mt
+REGIONTEXT|2912|0,Oregon,오리건,mt
+REGIONTEXT|2913|0,Wyoming,와이오밍,mt
+REGIONTEXT|2914|0,Nebraska,네브래스카,mt
+REGIONTEXT|2915|0,Nevada,네바다,mt
+REGIONTEXT|2916|0,Utah,유타,mt
+REGIONTEXT|2917|0,Colorado,콜로라도,mt
+REGIONTEXT|2918|0,Kansas,캔자스,mt
+REGIONTEXT|2919|0,North California,북캘리포니아,mt
+REGIONTEXT|2920|0,South California,남캘리포니아,mt
+REGIONTEXT|2997|0,Texas,텍사스,mt
+REGIONTEXT|2998|0,California,캘리포니아,mt
