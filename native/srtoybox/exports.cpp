@@ -780,7 +780,7 @@ EXPORT int srtoybox_mult_off(int part, char *out, int size)
     return put(game_mult_off(part), out, size);
 }
 
-// 테스트: 배율의 설정을 고친다. spec 은 빈칸으로 나눈 "키=값"들 — on · tax · defense · social · research · unitbuild · facbuild · out.<칸> · use.<칸> · raw.<칸>.
+// 테스트: 배율의 설정을 고친다. spec 은 빈칸으로 나눈 "키=값"들 — on · tax · defense · social · research · facbuild · out.<칸> · use.<칸> · raw.<칸>.
 // 적지 않은 것은 그대로다. 모르는 키가 있으면 -1(아무것도 바꾸지 않는다).
 EXPORT int srtoybox_keeper_mult(const char *spec)
 {
@@ -810,8 +810,6 @@ EXPORT int srtoybox_keeper_mult(const char *spec)
             m.social = n;
         else if (key == "research")
             m.research = n;
-        else if (key == "unitbuild")
-            m.unitbuild = n;
         else if (key == "facbuild")
             m.facbuild = n;
         else if (key.size() > 4 && key[3] == '.' && atoi(key.c_str() + 4) >= 0 && atoi(key.c_str() + 4) < MULT_GOODS

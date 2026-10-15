@@ -687,8 +687,6 @@ void forget_cells()
 // 그 칸의 배율(퍼센트). 맡지 않는 칸이면 0.
 int cell_percent(const Mult &m, int cell)
 {
-    if (cell == MUL_UNIT_BUILD)
-        return m.unitbuild;
     if (cell == MUL_FAC_BUILD)
         return m.facbuild;
     if (cell >= MUL_RAW && cell < MUL_RAW + MULT_GOODS)
@@ -723,7 +721,7 @@ bool mult_cells()
     if (g_rush) {                               // 대기를 풀지는 고리 앞에서 한 번 정한다(칸 둘이 함께)
         const Daily today = game_daily();
         bool held = false, changed = true;      // 대기 값을 쥔 칸이 있는가 · 그 칸이 모두 게임의 값으로 바뀌었는가
-        for (const int cell : {MUL_UNIT_BUILD, MUL_FAC_BUILD})
+        for (const int cell : {MUL_FAC_BUILD})
             if (g_cells[cell].have) {
                 held = true;
                 changed = changed && row[cell] != g_cells[cell].wrote;
@@ -741,7 +739,7 @@ bool mult_cells()
             continue;
         CellMemo &m = g_cells[cell];
         const float now = row[cell];
-        const bool build = cell == MUL_UNIT_BUILD || cell == MUL_FAC_BUILD;
+        const bool build = cell == MUL_FAC_BUILD;
         const bool rush = g_rush && build;
         const bool scaled = rush || (g_mult.on && percent != 100);
         const float times = rush ? RUSH_TIMES : percent / 100.0f;
@@ -861,7 +859,7 @@ void mult_tick(unsigned long long now_ms)
 bool operator==(const Mult &a, const Mult &b)
 {
     if (a.on != b.on || a.tax != b.tax || a.defense != b.defense || a.social != b.social || a.research != b.research
-        || a.unitbuild != b.unitbuild || a.facbuild != b.facbuild)
+        || a.facbuild != b.facbuild)
         return false;
     for (int i = 0; i < MULT_GOODS; i++)
         if (a.out[i] != b.out[i] || a.use[i] != b.use[i] || a.raw[i] != b.raw[i])
@@ -925,7 +923,7 @@ bool keeper_rush_pending()
 
 int mult_count(const Mult &m)
 {
-    int count = (m.tax != 100) + (m.defense != 100) + (m.social != 100) + (m.research != 100) + (m.unitbuild != 100) + (m.facbuild != 100);
+    int count = (m.tax != 100) + (m.defense != 100) + (m.social != 100) + (m.research != 100) + (m.facbuild != 100);
     for (int i = 0; i < MULT_GOODS; i++)
         count += (m.out[i] != 100) + (m.use[i] != 100) + (m.raw[i] != 100);
     return count;

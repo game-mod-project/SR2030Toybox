@@ -115,9 +115,6 @@ void parse_mult(const std::string &rest, long long n, Settings &s)
     } else if (rest == "research") {
         if (in(SETTINGS_MULT_RESEARCH_MIN))
             s.mult_research = static_cast<int>(n);
-    } else if (rest == "unitbuild") {
-        if (in(SETTINGS_MULT_CELL_MIN))
-            s.mult_unitbuild = static_cast<int>(n);
     } else if (rest == "facbuild") {
         if (in(SETTINGS_MULT_CELL_MIN))
             s.mult_facbuild = static_cast<int>(n);
@@ -200,7 +197,7 @@ std::string format_settings(const Settings &s)
     }
     out += "mult.on=" + std::to_string(s.mult_on ? 1 : 0) + "\nmult.tax=" + std::to_string(s.mult_tax) + "\nmult.defense="
         + std::to_string(s.mult_defense) + "\nmult.social=" + std::to_string(s.mult_social) + "\nmult.research="
-        + std::to_string(s.mult_research) + "\nmult.unitbuild=" + std::to_string(s.mult_unitbuild) + "\nmult.facbuild="
+        + std::to_string(s.mult_research) + "\nmult.facbuild="
         + std::to_string(s.mult_facbuild) + "\n";
     for (int slot = 0; slot < MULT_GOODS; slot++) {
         const std::string n = std::to_string(slot);

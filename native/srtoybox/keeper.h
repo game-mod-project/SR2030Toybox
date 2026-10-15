@@ -120,7 +120,7 @@ std::string keep_resting_text(const Keep &keep, const char *why);
 
 // 배율(묶음 7 — docs/superpowers/specs/2026-10-11-toybox-stage7-design.md). 모두 퍼센트(100 이 "그대로")이고 on 이 꺼져 있으면 아무것도 쓰지 않는다.
 // 플레이어의 나라에만 듣는다. 설정 창이 닫혀 있어도, 새 판에서도 돈다(저장되는 설정이다).
-//   out · use · raw · unitbuild · facbuild
+//   out · use · raw · facbuild
 //                              게임의 곱 보정 표의 플레이어 칸에 곱해 쓴다. KEEP_EVERY_MS 마다 보고, 게임이 다시 셈해 지웠으면 다시 쓴다.
 //                              100 으로 돌리거나 끄면 그 칸이 아직 ToyBox 가 쓴 값일 때 게임의 값으로 되돌린다.
 //   tax · defense · social     날이 바뀔 때 국고에 (배율 − 1) × 하루치 세수를 더하고 (배율 − 1) × 하루치 국방 지출 · 사회 지출을 뺀다.
@@ -135,7 +135,7 @@ struct Mult {
     bool on = false;
     int tax = 100, defense = 100, social = 100;   // 0 … MULT_PERCENT_MAX
     int research = 100;                        // MULT_RESEARCH_MIN … MULT_PERCENT_MAX
-    int unitbuild = 100, facbuild = 100;       // 유닛 생산 · 시설 건설 속도 — 곱 보정 칸 15 · 16. MULT_CELL_MIN … MULT_PERCENT_MAX
+    int facbuild = 100;                        // 시설 건설 속도 — 곱 보정 칸 16. MULT_CELL_MIN … MULT_PERCENT_MAX
     // 아래 셋은 MULT_CELL_MIN … MULT_PERCENT_MAX
     int out[MULT_GOODS] = {100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100};   // 물자마다의 생산
     int use[MULT_GOODS] = {100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100};   // 물자마다의 인구 소비
@@ -145,7 +145,7 @@ bool operator==(const Mult &a, const Mult &b);
 void keeper_set_mult(const Mult &mult);         // 창이 설정을 읽었거나 고쳤다. 다음 틱에 바로 본다
 Mult keeper_mult();
 int mult_count(const Mult &mult);              // 100 이 아닌 배율의 수(on 과 상관없이)
-// 다음 자정에 완료(docs/superpowers/specs/2026-10-14-toybox-mult-build-design.md). 누르면 그날의 셈 하루 동안 칸 15 · 16 에 게임의 값 × RUSH_TIMES 를
+// 다음 자정에 완료(docs/superpowers/specs/2026-10-14-toybox-mult-build-design.md). 누르면 그날의 셈 하루 동안 칸 16(시설 건설) 에 게임의 값 × RUSH_TIMES 를
 // 쓴다(배율 대신). 날의 칸이 오른 뒤 게임이 그 칸을 다시 셈한 것을 보면 푼다. 저장하지 않고 배율 적용과 상관없이 듣는다. 판 · 플레이어가 바뀌면 버린다.
 const float RUSH_TIMES = 1000.0f, RUSH_VALUE_MAX = 100000.0f;
 const uint32_t RUSH_DAYS_MAX = 2;               // 누른 날로부터 이만큼 지나면 게임이 다시 셈하지 않았어도 푼다

@@ -23,11 +23,11 @@ struct Settings {
     bool keep_stock[STOCK_SLOTS] = {};               // 물자마다의 최소 유지. "keep.stock.<칸>"(0 / 1)
     long long keep_stock_value[STOCK_SLOTS] = {};    // 그 수량. "keep.stock.<칸>.value"
     std::map<std::string, long long> values;         // 값이 있는 기능의 id → 값
-    // 배율(keeper.h 의 Mult — 퍼센트, 100 이 "그대로"). "mult.on"(0 / 1), "mult.tax" · "mult.defense" · "mult.social" · "mult.research" · "mult.unitbuild" · "mult.facbuild",
+    // 배율(keeper.h 의 Mult — 퍼센트, 100 이 "그대로"). "mult.on"(0 / 1), "mult.tax" · "mult.defense" · "mult.social" · "mult.research" · "mult.facbuild",
     // 물자마다 "mult.out.<칸>" · "mult.use.<칸>" · "mult.raw.<칸>"
     bool mult_on = false;
     int mult_tax = 100, mult_defense = 100, mult_social = 100, mult_research = 100;
-    int mult_unitbuild = 100, mult_facbuild = 100;   // 유닛 생산 · 시설 건설 속도(곱 보정 칸 15 · 16)
+    int mult_facbuild = 100;                     // 시설 건설 속도(곱 보정 칸 16)
     int mult_out[MULT_GOODS] = {100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100};
     int mult_use[MULT_GOODS] = {100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100};
     int mult_raw[MULT_GOODS] = {100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100};
