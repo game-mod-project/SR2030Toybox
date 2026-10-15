@@ -840,6 +840,23 @@ def test_research_requests_are_written_one_per_tick_in_order(playing):
     assert playing.lab.owners(TECH, 7) == {DENMARK, GERMANY} and playing.lab.owners(DESIGN, 11) == {POLAND, GERMANY}   # 다른 나라는 그대로다
 
 
+def test_unlock_through_the_keeper_says_what_it_opened(playing):
+    """창의 "고른 것 연구 가능으로": 바닥 글은 요약 그대로에 이름을 붙인다(완료 · 미완료처럼 "…를 …로"를 덧붙이지 않는다)."""
+    assert playing.ask("items t3", "고른 것", UNLOCK) == 1
+    playing.tick()
+    assert playing.told() == ("연구 가능으로 — 항목 1개 열림 · 선행 기술 1개 완료 — 고른 것", "")
+    assert playing.lab.owners(TECH, 2) == {POLAND, GERMANY} and playing.lab.owners(TECH, 3) == set()
+    assert playing.log() == ["연구 가능으로 (고른 것): 항목 1개 열림 · 선행 기술 1개 완료"]
+
+
+def test_unlock_that_opens_nothing_says_so(playing):
+    """고른 것이 보유(1) · 대기열(2)뿐이면 한 칸도 쓰지 않고 "바꿀 것이 없습니다"와 그 까닭을 알린다."""
+    assert playing.ask("items t1 t2", "고른 것", UNLOCK) == 1
+    before = playing.lab.everything()
+    playing.tick()
+    assert playing.told() == ("", "바꿀 것이 없습니다 — 고른 것 (이미 열림 2개)") and playing.calls == [] and playing.lab.everything() == before
+
+
 def test_a_request_that_changes_nothing_says_so(playing):
     """대기열이 비었을 때의 "대기열의 연구 즉시 완료": 한 칸도 쓰지 않고, 게임의 함수도 부르지 않고, 그렇다고 알린다."""
     assert playing.ask("items t1 d10", "고른 것") == 1
@@ -889,7 +906,7 @@ def test_only_four_research_requests_wait(playing):
     assert [playing.ask("queue", "대기열") for _ in range(5)] == [1, 1, 1, 1, 0]
     playing.tick()
     assert playing.ask("queue", "대기열") == 1                 # 하나가 처리됐다
-    assert playing.ask("bogus", "대기열", action=2) == -1
+    assert playing.ask("bogus", "대기열", action=3) == -1                 # 0 완료 · 1 미완료 · 2 연구 가능으로 밖
 
 
 @pytest.mark.parametrize("leave", ["menu", "multiplayer"])

@@ -735,11 +735,11 @@ EXPORT int srtoybox_keeper_more(int slot, int region, double amount)
     return keeper_enqueue({slot, Change::Set, amount, region}) ? 1 : 0;
 }
 
-// 테스트: 연구 요청(keeper.h). action: 0 완료, 1 미완료. what: "items t1 d5" · "level 120" · "queue"(what_from).
+// 테스트: 연구 요청(keeper.h). action: 0 완료, 1 미완료, 2 연구 가능으로. what: "items t1 d5" · "level 120" · "queue"(what_from).
 // label: 알림과 로그에 적을 이름. 받았으면 1, 받지 못했으면 0(가득 찼다 · 연구를 쓸 수 없다). 그런 요청이 없으면 -1.
 EXPORT int srtoybox_keeper_research(int action, const char *what, const char *label)
 {
-    if (action < 0 || action > 1 || what == nullptr || label == nullptr)
+    if (action < 0 || action > 2 || what == nullptr || label == nullptr)
         return -1;
     return keeper_enqueue_research({action == 0 ? Research::Complete : action == 2 ? Research::Unlock : Research::Revoke, what_from(what), label}) ? 1 : 0;
 }

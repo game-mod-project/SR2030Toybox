@@ -352,6 +352,20 @@ void run_research(const ResearchRequest &r)
         log_line("%s", skipped.c_str());
     }
     const std::string summary = research_summary(done.plan, r.action);
+    if (r.action == Research::Unlock) {        // 요약이 이미 완성된 글이다("연구 가능으로 — …") — "…를 …로"를 덧붙이지 않는다
+        const std::string prefix = "연구 가능으로 — ";
+        const std::string detail = summary.compare(0, prefix.size(), prefix) == 0 ? summary.substr(prefix.size()) : summary;
+        if (done.plan.techs.empty()) {          // 한 칸도 쓰지 않았다(보유 · 이미 열림 · 열 수 없음뿐)
+            if (skipped.empty())
+                g_notice = "바꿀 것이 없습니다 — " + r.label + (detail.empty() ? "" : " (" + detail + ")");
+            log_line("연구 가능으로 (%s): 바꿀 것이 없습니다%s", r.label.c_str(), detail.empty() ? "" : (" — " + detail).c_str());
+            return;
+        }
+        g_last = summary + " — " + r.label;
+        log_line("연구 가능으로 (%s): %s%s", r.label.c_str(), detail.c_str(),
+                 done.housed > 0 ? (" · 새 묶음 " + std::to_string(done.housed) + "개").c_str() : "");
+        return;
+    }
     if (summary.empty()) {
         if (skipped.empty()) {
             g_notice = "바꿀 것이 없습니다 — " + r.label;
