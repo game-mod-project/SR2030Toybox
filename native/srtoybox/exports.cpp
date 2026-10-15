@@ -780,7 +780,7 @@ EXPORT int srtoybox_mult_off(int part, char *out, int size)
     return put(game_mult_off(part), out, size);
 }
 
-// 테스트: 배율의 설정을 고친다. spec 은 빈칸으로 나눈 "키=값"들 — on · tax · defense · social · research · out.<칸> · use.<칸> · raw.<칸>.
+// 테스트: 배율의 설정을 고친다. spec 은 빈칸으로 나눈 "키=값"들 — on · tax · defense · social · research · facbuild · out.<칸> · use.<칸> · raw.<칸>.
 // 적지 않은 것은 그대로다. 모르는 키가 있으면 -1(아무것도 바꾸지 않는다).
 EXPORT int srtoybox_keeper_mult(const char *spec)
 {
@@ -810,6 +810,8 @@ EXPORT int srtoybox_keeper_mult(const char *spec)
             m.social = n;
         else if (key == "research")
             m.research = n;
+        else if (key == "facbuild")
+            m.facbuild = n;
         else if (key.size() > 4 && key[3] == '.' && atoi(key.c_str() + 4) >= 0 && atoi(key.c_str() + 4) < MULT_GOODS
                  && (key.compare(0, 3, "out") == 0 || key.compare(0, 3, "use") == 0 || key.compare(0, 3, "raw") == 0))
             (key[0] == 'o' ? m.out : key[0] == 'u' ? m.use : m.raw)[atoi(key.c_str() + 4)] = n;
@@ -821,6 +823,23 @@ EXPORT int srtoybox_keeper_mult(const char *spec)
 }
 
 // 테스트: "<날마다의 일을 한 날수>\t<곱 보정 칸을 쓴 횟수>\t<지금 ToyBox 의 값이 든 칸의 수>\t<100 이 아닌 배율의 수>".
+// 테스트: 다음 자정에 완료를 누른다. 까닭의 글(되면 빈 글).
+EXPORT int srtoybox_keeper_rush(char *out, int size)
+{
+    return put(keeper_rush(), out, size);
+}
+
+// 테스트: "이 나라로 플레이" 직전의 되돌리기.
+EXPORT void srtoybox_mult_put_back(void)
+{
+    keeper_mult_put_back();
+}
+
+EXPORT int srtoybox_rush_pending(void)
+{
+    return keeper_rush_pending() ? 1 : 0;
+}
+
 EXPORT int srtoybox_mult_stats(char *out, int size)
 {
     const MultStats s = keeper_mult_stats();

@@ -117,7 +117,7 @@ def test_only_cheats_that_were_seen_working_and_reach_what_the_user_chose(dll, c
 
 KEEP_DEFAULTS = "keep.treasury=0\nkeep.treasury.value=0\n" + "".join(f"keep.stock.{slot}=0\nkeep.stock.{slot}.value=0\n"
                                                                       for slot in range(12))
-MULT_DEFAULTS = "mult.on=0\nmult.tax=100\nmult.defense=100\nmult.social=100\nmult.research=100\n" + "".join(
+MULT_DEFAULTS = "mult.on=0\nmult.tax=100\nmult.defense=100\nmult.social=100\nmult.research=100\nmult.facbuild=100\n" + "".join(
     f"mult.out.{slot}=100\nmult.use.{slot}=100\nmult.raw.{slot}=100\n" for slot in range(11))
 DEFAULTS = "hotkey_vk=84\nhotkey_mods=3\nmoney.amount=10000\n" + KEEP_DEFAULTS + MULT_DEFAULTS + "technology=120\ndarran=7\n"
 

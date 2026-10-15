@@ -2671,7 +2671,7 @@ bool game_mult_row(float *cells, int *index)
     return peek(base + mult.mul_table + static_cast<uint64_t>(MUL_STEP) * s.index, cells, sizeof(float) * MUL_CELLS);
 }
 
-Wrote game_write_mult(int cell, float value)
+Wrote game_write_mult(int cell, float value, float max)
 {
     if (!game_mult_off(MULT_PART_CELLS).empty() || !game_writes())
         return Wrote::Off;
@@ -2688,7 +2688,7 @@ Wrote game_write_mult(int cell, float value)
     const GameState s = read_player(base, at, &player);
     if (!s.in_game || s.multiplayer || s.index <= 0 || s.index >= REGION_SLOTS)
         return Wrote::NotInGame;
-    if (cell < 1 || cell >= MUL_CELLS || !std::isfinite(value) || !(value > 0.0f && value < MUL_VALUE_MAX))
+    if (cell < 1 || cell >= MUL_CELLS || !std::isfinite(value) || !(value > 0.0f && value < max && max <= 100000.0f))
         return Wrote::BadValue;
     const uint64_t where = reinterpret_cast<uint64_t>(base) + mult.mul_table + static_cast<uint64_t>(MUL_STEP) * s.index + 4ull * cell;
     if (!poke(where, &value, sizeof(value)))
