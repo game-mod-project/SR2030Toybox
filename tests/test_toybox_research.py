@@ -14,6 +14,7 @@ from toybox_fake_game import COUNT, DESIGN, DESIGN_SIZE, ENDED, GONE, INDEX, MUL
 from srkit import toybox
 
 COMPLETE, REVOKE = 0, 1
+UNLOCK = 2                                                                                       # 연구 가능으로
 DONE, NOT_IN_GAME, NOT_USED, BAD_VALUE, FAILED, OFF, NO_TARGET, UNREADABLE, CRASHED = range(9)   # native/srtoybox/game.h 의 Wrote
 GERMANY, POLAND, DENMARK = 176, 141, 150                                                         # 지역 인덱스
 RECOMPUTE = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int)                                # "다시 셈" 자리에 두는 함수의 꼴
@@ -58,7 +59,48 @@ def plan(lib, rows: list[str], what: str, action: int = COMPLETE, slots: tuple[i
     lines = dict(line.split(" ", 1) if " " in line else (line, "") for line in out.value.decode("utf-8").split("\n"))
     return {"techs": [int(n) for n in lines["techs"].split()], "designs": [int(n) for n in lines["designs"].split()],
             "nodes": [int(n) for n in lines["nodes"].split()], "asked": tuple(int(n) for n in lines["asked"].split()),
-            "skipped": int(lines["skipped"]), "queued": lines["queued"].split(), "text": lines["text"]}
+            "skipped": int(lines["skipped"]), "queued": lines["queued"].split(), "text": lines["text"],
+            "unlock": tuple(int(n) for n in lines.get("unlock", "").split())}
+
+
+def test_unlock_completes_only_the_missing_direct_prerequisites(lib):
+    """기술 3 의 선행 2 가 없고 2 의 선행 1 도 없다. 3 은 보유가 되지 않고 2 · 1 만 — 3 이 게임의 "가능한 연구"에 나온다."""
+    got = plan(lib, [tech(1), tech(2, 1), tech(3, 2)], "items t3", action=UNLOCK)
+    assert got["techs"] == [1, 2] and got["designs"] == [] and got["asked"] == (0, 0)
+    assert got["unlock"] == (1, 0, 0, 0, 0)                                  # 연 것 · 이미 열림 · 다른 지역 · 연구 대상 아님 · 특수
+    assert got["text"] == "연구 가능으로 — 항목 1개 열림 · 선행 기술 2개 완료"
+
+
+def test_unlock_skips_held_queued_and_already_open_items(lib):
+    rows = [tech(1, mine=True), tech(2, 1), tech(3, mine=True), tech(4, 9), node(1, 5), tech(5, 1)]
+    got = plan(lib, rows, "items t2 t3 t5", action=UNLOCK)
+    assert got["techs"] == [] and got["unlock"] == (0, 3, 0, 0, 0)          # 2: 선행 보유(이미 열림) · 3: 보유 · 5: 대기열
+    assert got["text"] == "연구 가능으로 — 이미 열림 3개"
+
+
+def test_unlock_of_a_design_brings_its_four_prerequisites(lib):
+    got = plan(lib, [tech(1), tech(2, mine=True), tech(3), design(7, 1, 2, 3)], "items d7", action=UNLOCK)
+    assert got["techs"] == [1, 3] and got["designs"] == [] and got["unlock"] == (1, 0, 0, 0, 0)
+
+
+def test_unlock_refuses_what_the_game_would_still_hide(lib):
+    """지역 마스크가 맞지 않는 기술 · 설계, 연구 대상이 아닌 설계, 특수 설계(+0xEC 의 비트 1)는 선행을 채워도 게임이 보이지 않는다 — 쓰지 않고 센다.
+    깃발 B(held 이지만 특수가 아닌 것)는 연다."""
+    rows = ["region 4", tech(1), tech(2, 1), "tmask 2 2", tech(3, 1), "tmask 3 6",
+            design(7, 1), "dmask 7 8 0", design(8, 1, is_open=False), design(9, 1), "dmask 9 0 1", design(10, 1, held=True)]
+    got = plan(lib, rows, "items t2 t3 d7 d8 d9 d10", action=UNLOCK)
+    assert got["techs"] == [1] and got["unlock"] == (2, 0, 2, 1, 1)          # 열림: t3(마스크 6 & 4) · d10 / 다른 지역: t2 · d7
+    assert got["text"] == "연구 가능으로 — 항목 2개 열림 · 선행 기술 1개 완료 · 열 수 없음 4개(다른 지역 전용 2 · 연구 대상 아님 1 · 특수 설계 1)"
+
+
+def test_unlock_takes_a_queued_prerequisite_off_the_queue(lib):
+    got = plan(lib, [tech(1), node(1, 1), tech(2, 1)], "items t2", action=UNLOCK)
+    assert got["techs"] == [1] and got["nodes"] == [0]
+
+
+def test_a_zero_region_mask_blocks_every_masked_item(lib):
+    got = plan(lib, [tech(1), tech(2, 1), "tmask 2 1"], "items t2", action=UNLOCK)   # region 줄이 없다 = 0
+    assert got["techs"] == [] and got["unlock"] == (0, 0, 1, 0, 0)
 
 
 def test_completing_a_tech_brings_its_prerequisites_up_the_chain(lib):
@@ -92,7 +134,8 @@ def test_prerequisites_that_point_at_each_other_still_end(lib):
 
 def test_what_is_already_held_is_not_in_the_plan(lib):
     got = plan(lib, [tech(1, mine=True), design(5, mine=True)], "items t1 d5")
-    assert got == {"techs": [], "designs": [], "nodes": [], "asked": (0, 0), "skipped": 0, "queued": [], "text": ""}
+    assert got == {"techs": [], "designs": [], "nodes": [], "asked": (0, 0), "skipped": 0, "queued": [], "text": "",
+                   "unlock": (0, 0, 0, 0, 0)}                              # 완료에서는 연구 가능으로의 수가 늘 0 이다
 
 
 def test_numbers_that_are_not_in_the_table_and_repeats_are_ignored(lib):
@@ -298,6 +341,15 @@ def write(lib, fake: FakeGame, lab: Lab, what: str, action: int = COMPLETE, reco
     done.update(asked=tuple(int(n) for n in lines["asked"].split()), code=int(lines["code"], 16), why=lines["why"], text=lines["text"],
                 calls=calls)
     return wrote, done
+
+
+def test_unlock_writes_only_the_prerequisite_bit(lib):
+    """판의 기술 3 은 선행 2(독일 미보유 · 대기열)를 갖는다. 연구 가능으로 하면 2 만 독일의 보유가 되고 대기열에서 빠진다 — 3 은 아무도 보유하지 않은 그대로다."""
+    fake, lab_ = lab()
+    wrote, done = write(lib, fake, lab_, "items t3", action=UNLOCK)
+    assert wrote == DONE and done["techs"] == [2] and done["designs"] == [] and len(done["nodes"]) == 1
+    assert lab_.owners(TECH, 2) == {POLAND, GERMANY} and lab_.owners(TECH, 3) == set()
+    assert done["calls"] and done["calls"][0][1] == GERMANY                  # 기술을 줬다 — 플레이어로 다시 셈
 
 
 def differing(before: bytes, after: bytes) -> set[int]:

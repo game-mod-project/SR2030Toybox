@@ -718,6 +718,8 @@ bool shoot(const uint8_t *base, const GameAddresses &at, const ResearchLayout &r
         }
     t.tech_slots = tech_count;
     t.design_slots = design_count;
+    if (!peek(reinterpret_cast<const void *>(player + REGION_MASK), &t.region_mask, sizeof(t.region_mask)))
+        t.region_mask = 0;                      // 읽지 못했다 — 마스크가 있는 항목이 모두 막힌다(실패로 치지 않는다)
 
     std::vector<uint8_t> raw(static_cast<size_t>(tech_count) * TECH_SIZE);
     if (!peek(reinterpret_cast<const void *>(tech_table), raw.data(), raw.size())) {
@@ -740,6 +742,7 @@ bool shoot(const uint8_t *base, const GameAddresses &at, const ResearchLayout &r
             return false;
         }
         row.housed = owners != 0;
+        row.mask = field<uint64_t>(record, TECH_MASK);
         t.techs.push_back(row);
         shot->tech_owners.push_back(owners);
         shot->tech_cells.push_back(tech_table + static_cast<uint64_t>(i) * TECH_SIZE + TECH_OWNERS);
@@ -783,6 +786,8 @@ bool shoot(const uint8_t *base, const GameAddresses &at, const ResearchLayout &r
             return false;
         }
         row.housed = owners != 0;
+        row.mask = field<uint64_t>(record, DESIGN_MASK);
+        row.special = (field<uint32_t>(record, DESIGN_HOLD_A) & DESIGN_SPECIAL_BIT) != 0;
         t.designs.push_back(row);
         shot->design_owners.push_back(owners);
         shot->design_cells.push_back(design_table + static_cast<uint64_t>(i) * DESIGN_SIZE + DESIGN_OWNERS);
@@ -1153,7 +1158,7 @@ Wrote write_research(const uint8_t *base, const GameAddresses &at, const Researc
                 done->cells--;
             }
         }
-        if (!poke_bits(item.owners + byte, mask, action == Research::Complete, 1)) {
+        if (!poke_bits(item.owners + byte, mask, action != Research::Revoke, 1)) {
             release();
             return research_failed(done, item_name(item) + " 의 보유 묶음");
         }

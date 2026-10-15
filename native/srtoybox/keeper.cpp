@@ -329,7 +329,7 @@ void run_research(const ResearchRequest &r)
     runner_leave_call(wrote == Wrote::Crashed ? "효과를 다시 셈하는" : nullptr, done.code);
 
     std::lock_guard<std::mutex> lock(g_lock);
-    const char *const verb = r.action == Research::Complete ? "완료" : "미완료";
+    const char *const verb = r.action == Research::Complete ? "완료" : r.action == Research::Unlock ? "연구 가능으로" : "미완료";
     if (wrote == Wrote::NotInGame) {           // 읽은 뒤 쓰기 전에 게임이 바뀌었다
         g_notice = LEFT_GAME;
         return;
