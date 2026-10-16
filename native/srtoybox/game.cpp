@@ -788,6 +788,7 @@ bool shoot(const uint8_t *base, const GameAddresses &at, const ResearchLayout &r
         row.housed = owners != 0;
         row.mask = field<uint64_t>(record, DESIGN_MASK);
         row.special = (field<uint32_t>(record, DESIGN_HOLD_A) & DESIGN_SPECIAL_BIT) != 0;
+        row.upgrade_to = field<uint16_t>(record, DESIGN_UPGRADE_TO);
         t.designs.push_back(row);
         shot->design_owners.push_back(owners);
         shot->design_cells.push_back(design_table + static_cast<uint64_t>(i) * DESIGN_SIZE + DESIGN_OWNERS);

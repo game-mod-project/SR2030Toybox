@@ -34,6 +34,7 @@ struct DesignRow {
     bool queued = false, housed = false;
     uint64_t mask = 0;          // 지역 마스크(0 이면 모든 지역)
     bool special = false;       // 게임이 연구 목록에서 빼는 설계(+0xEC 의 비트 1)
+    int upgrade_to = 0;         // 개량되어 되는 설계의 번호(0 이면 없다) — 그 설계의 "앞 설계"가 이 설계다
 };
 
 const int QUEUE_TECH = 1, QUEUE_DESIGN = 2;   // 노드의 종류
@@ -65,6 +66,9 @@ const int BLOCK_NONE = 0, BLOCK_REGION = 1, BLOCK_CLOSED = 2, BLOCK_SPECIAL = 3,
 int tech_block(const TechRow &row, uint64_t region_mask);     // BLOCK_NONE · BLOCK_REGION
 int design_block(const DesignRow &row, uint64_t region_mask); // 연구 대상 아님 → 특수 → 지역 의 순서로 첫째
 std::string block_label(int block);                           // "다른 지역 전용" · "연구 대상 아님" · "특수 설계" · 빈 글
+// 설계마다(tables.designs 의 칸) 연구 목록에 나오려면 등록해야 할 앞 설계의 번호. 0 이면 필요 없다 — 앞 설계(upgrade_to 가 그 설계이고 연구 대상이며
+// held 가 아닌 설계)가 없거나 그 가운데 하나를 보유했다. 아니면 앞 설계 가운데 번호가 가장 낮은 것(게임은 앞 설계 하나만 보유하면 된다 — 0x7ac0ce).
+std::vector<int> upgrade_heads(const ResearchTables &t);
 
 struct ResearchWhat {
     enum Kind { Items, Level, Queue } kind = Items;
@@ -83,6 +87,7 @@ struct ResearchPlan {
 
 // 연구 가능으로(Unlock) — Items 만. 항목마다 보유 · 대기열이면 이미 열림, 열 수 없으면(tech_block · design_block) 세기만, 아니면 직접 선행 가운데
 //   표에 있고 보유하지 않은 것을 모은다(없으면 이미 열림). 모은 선행에 완료 규칙을 쓴다(asked 는 0). 항목 자체의 비트는 바꾸지 않는다.
+//   설계는 앞 설계가 필요하면(upgrade_heads) 그 앞 설계도 완료 규칙으로 등록한다(그 선행 기술도 함께) — plan.designs 가 그것이다.
 // 완료(Complete)
 //   기술      그 기술 + 선행 둘 가운데 보유하지 않은 것(거슬러 올라가며 전부). 이미 보유한 선행의 선행은 보지 않는다.
 //             선행의 번호가 0 이거나 자리 수 이상이거나 빈 자리면 건너뛴다.

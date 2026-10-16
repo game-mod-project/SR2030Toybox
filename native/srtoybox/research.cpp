@@ -174,9 +174,12 @@ ResearchPlan unlock(const ResearchTables &t, const ResearchWhat &what, bool can_
     if (what.kind != ResearchWhat::Items)
         return counts;
     const std::vector<int> tech_at = index_of(t.techs, t.tech_slots), design_at = index_of(t.designs, t.design_slots);
-    ResearchWhat needs;                         // 모은 직접 선행 — 완료 규칙에 넘긴다
-    const auto take = [&](const int *ids, int count) {
-        bool missing = false;
+    ResearchWhat needs;                         // 모은 직접 선행 · 앞 설계 — 완료 규칙에 넘긴다
+    const std::vector<int> heads = upgrade_heads(t);
+    const auto take = [&](const int *ids, int count, int head = 0) {
+        bool missing = head > 0;
+        if (head > 0)
+            needs.designs.push_back(head);
         for (int n = 0; n < count; n++) {
             const int i = find(tech_at, ids[n]);
             if (i >= 0 && !t.techs[static_cast<size_t>(i)].mine) {
@@ -208,7 +211,7 @@ ResearchPlan unlock(const ResearchTables &t, const ResearchWhat &what, bool can_
         else if (const int block = design_block(row, t.region_mask))
             counts.blocked[block]++;
         else
-            take(row.needs, 4);
+            take(row.needs, 4, heads[static_cast<size_t>(i)]);
     }
     ResearchPlan plan = complete(t, needs, can_house);
     plan.asked_techs = plan.asked_designs = 0;
@@ -227,6 +230,26 @@ void add(std::string *text, const std::string &part)
 }
 
 }  // namespace
+
+std::vector<int> upgrade_heads(const ResearchTables &t)
+{
+    const std::vector<int> design_at = index_of(t.designs, t.design_slots);
+    std::vector<int> heads(t.designs.size(), 0);
+    std::vector<char> held(t.designs.size(), 0);
+    for (const DesignRow &d : t.designs) {
+        const int i = find(design_at, d.upgrade_to);
+        if (i < 0 || d.id == d.upgrade_to || !d.open || d.held)   // 게임이 앞 설계로 보지 않는 것(0x7ac110 ~ 0x7ac13c)
+            continue;
+        if (d.mine)
+            held[static_cast<size_t>(i)] = 1;
+        else if (heads[static_cast<size_t>(i)] == 0 || d.id < heads[static_cast<size_t>(i)])
+            heads[static_cast<size_t>(i)] = d.id;
+    }
+    for (size_t i = 0; i < heads.size(); i++)
+        if (held[i])
+            heads[i] = 0;
+    return heads;
+}
 
 int tech_block(const TechRow &row, uint64_t region_mask)
 {
@@ -286,6 +309,8 @@ std::string research_summary(const ResearchPlan &plan, Research action)
             add(&text, "항목 " + std::to_string(plan.opened) + "개 열림");
         if (!plan.techs.empty())
             add(&text, "선행 기술 " + std::to_string(plan.techs.size()) + "개 완료");
+        if (!plan.designs.empty())
+            add(&text, "앞 설계 " + std::to_string(plan.designs.size()) + "개 등록");
         if (plan.already > 0)
             add(&text, "이미 열림 " + std::to_string(plan.already) + "개");
         int blocked = 0;

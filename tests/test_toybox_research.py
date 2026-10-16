@@ -98,6 +98,33 @@ def test_unlock_takes_a_queued_prerequisite_off_the_queue(lib):
     assert got["techs"] == [1] and got["nodes"] == [0]
 
 
+def test_unlock_registers_one_predecessor_design_when_none_is_held(lib):
+    """설계 9 는 앞 설계 7 · 8(둘 다 +0x24 가 9 — UGTo)을 갖는다. 게임은 앞 설계 하나를 보유해야 9 를 보인다(0x7ac0ce).
+    둘 다 미보유면 번호가 가장 낮은 7 을 등록하고 그 선행 기술(1)도 준다. 9 자체는 그대로다."""
+    rows = [tech(1), tech(2, mine=True), design(7, 1), "dup 7 9", design(8, 2), "dup 8 9", design(9, 2)]
+    got = plan(lib, rows, "items d9", action=UNLOCK)
+    assert got["techs"] == [1] and got["designs"] == [7] and got["unlock"] == (1, 0, 0, 0, 0)
+    assert got["text"] == "연구 가능으로 — 항목 1개 열림 · 선행 기술 1개 완료 · 앞 설계 1개 등록"
+
+
+def test_a_held_predecessor_is_enough(lib):
+    rows = [tech(2, mine=True), design(7, 2, mine=True), "dup 7 9", design(8, 2), "dup 8 9", design(9, 2)]
+    got = plan(lib, rows, "items d9", action=UNLOCK)
+    assert got["techs"] == [] and got["designs"] == [] and got["unlock"] == (0, 1, 0, 0, 0)
+
+
+def test_predecessors_the_game_skips_do_not_count(lib):
+    """연구 대상이 아니거나 깃발(A · B)이 켜진 앞 설계는 게임이 보지 않는다 — 없는 것과 같다."""
+    rows = [tech(2, mine=True), design(7, 2, is_open=False), "dup 7 9", design(8, 2, held=True), "dup 8 9", design(9, 2)]
+    got = plan(lib, rows, "items d9", action=UNLOCK)
+    assert got["designs"] == [] and got["unlock"] == (0, 1, 0, 0, 0)
+
+
+def test_rows_say_lacking_when_no_predecessor_is_held(lib):
+    rows = [tech(2, mine=True), design(7, 2), "dup 7 9", design(9, 2), design(10, 2)]
+    assert list_states(lib, rows, designs=True) == {7: "연구 가능", 9: "선행 부족", 10: "연구 가능"}
+
+
 def test_a_zero_region_mask_blocks_every_masked_item(lib):
     got = plan(lib, [tech(1), tech(2, 1), "tmask 2 1"], "items t2", action=UNLOCK)   # region 줄이 없다 = 0
     assert got["techs"] == [] and got["unlock"] == (0, 0, 1, 0, 0)

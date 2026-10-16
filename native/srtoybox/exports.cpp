@@ -56,7 +56,7 @@ std::string rows_text(const SigRow *rows, int n)
 //   t <번호> <분류> <수준> <선행 0> <선행 1> <보유> <묶음이 있다>
 //   d <번호> <연구 대상> <게임이 건너뛰는 설계> <보유> <묶음이 있다> <선행 0> <선행 1> <선행 2> <선행 3>
 //   q <종류> <번호> <깃발 0(16진수)> <깃발 1(16진수)>
-//   region <플레이어 지역의 마스크> / tmask <기술 번호> <마스크> / dmask <설계 번호> <마스크> <특수> (앞 줄의 행에 붙인다)
+//   region <플레이어 지역의 마스크> / tmask <기술 번호> <마스크> / dmask <설계 번호> <마스크> <특수> / dup <설계 번호> <개량되어 되는 설계> (앞 줄의 행에 붙인다)
 // t 와 d 의 줄 끝에는 목록의 것을 더 줄 수 있다(없으면 0 · 빈 글): t 는 <다른 나라의 수> <고른 나라가 보유>,
 // d 는 <다른 나라의 수> <고른 나라가 보유> <병과> <연도> <이름(빈칸 없이)>.
 ResearchTables tables_from(const std::string &text)
@@ -92,6 +92,14 @@ ResearchTables tables_from(const std::string &text)
             t.designs.push_back(row);
         } else if (word == "region") {
             in >> t.region_mask;
+        } else if (word == "dup") {
+            int id = 0, target = 0;
+            in >> id >> target;
+            for (auto row = t.designs.rbegin(); row != t.designs.rend(); ++row)
+                if (row->id == id) {
+                    row->upgrade_to = target;
+                    break;
+                }
         } else if (word == "tmask" || word == "dmask") {
             int id = 0, special = 0;
             uint64_t mask = 0;

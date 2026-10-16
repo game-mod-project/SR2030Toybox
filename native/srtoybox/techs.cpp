@@ -113,11 +113,12 @@ void fill(ListRow *out, const Row &row)
 }
 
 // 미보유 · 대기열에 없는 줄을 나눈다: 막혔으면 열 수 없음, 선행을 다 가졌으면 연구 가능, 아니면 선행 부족. 보기 Open · Lacking 에 맞지 않으면 거짓.
-bool settle(ListRow *row, int block, Show show)
+// waits: 앞 설계를 보유해야 나오는 설계(upgrade_heads) — 선행 기술을 다 가져도 선행 부족이다.
+bool settle(ListRow *row, int block, Show show, bool waits = false)
 {
     if (row->state == STATE_NONE) {
         row->block = block;
-        row->state = block != BLOCK_NONE ? STATE_BLOCKED : row->needs_mine == row->needs ? STATE_OPEN : STATE_LACKING;
+        row->state = block != BLOCK_NONE ? STATE_BLOCKED : row->needs_mine == row->needs && !waits ? STATE_OPEN : STATE_LACKING;
     }
     return show == Show::Open ? row->state == STATE_OPEN : show == Show::Lacking ? row->state == STATE_LACKING : true;
 }
@@ -263,6 +264,7 @@ std::vector<ListRow> research_rows(const ResearchTables &tables, const ListFilte
     std::vector<ListRow> rows;
     const std::vector<signed char> owned = tech_owned(tables);
     if (filter.designs) {
+        const std::vector<int> heads = upgrade_heads(tables);
         for (const DesignRow &d : tables.designs) {
             if ((filter.domain >= 0 && design_domain(d.cls) != filter.domain) || (filter.kind >= 0 && d.cls != filter.kind) || !shown(filter.show, d.mine, d.picked, d.others) || (filter.by_picked && !d.picked))
                 continue;
@@ -274,7 +276,7 @@ std::vector<ListRow> research_rows(const ResearchTables &tables, const ListFilte
             row.kind = d.cls;
             row.level = 1900 + d.year;
             fill_needs(&row, d, d.needs, owned);
-            if (!settle(&row, design_block(d, tables.region_mask), filter.show))
+            if (!settle(&row, design_block(d, tables.region_mask), filter.show, heads[static_cast<size_t>(&d - tables.designs.data())] != 0))
                 continue;
             rows.push_back(row);
         }
