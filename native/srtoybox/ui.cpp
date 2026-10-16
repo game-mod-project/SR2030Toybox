@@ -27,6 +27,7 @@ typedef std::lock_guard<std::recursive_mutex> Lock;
 
 const char *const DIPLOMACY_TAB = "외교·영토";   // features.cpp 의 탭 이름과 같아야 한다
 const char *const RESEARCH_TAB = "연구";         // 〃
+const char *const LIST_UNLOCK_ALL = "list:all_unlock";   // g_confirm: "보이는 것 전부 연구 가능으로"가 둘째 누름을 기다린다
 const char *const LIST_UNDO_ALL = "list:all_undo";   // g_confirm: "보이는 것 전부 미완료"가 둘째 누름을 기다린다
 const char *const LIST_UNDO_EVERY = "list:every_undo";   // 〃 부대 탭의 "모든 설계도 해제"
 const char *const UNITS_TAB = "부대";            // features.cpp 의 탭 이름과 같아야 한다
@@ -828,7 +829,7 @@ void sort_rows(ListState &L, int column, bool down)
 // "모든 설계도"의 단추 둘이 더 있다. 하는 일(완료 · 미완료의 규칙)은 연구 탭의 목록과 같다 — 등록하면 선행 기술도 함께 보유가 된다(사용자가 정했다).
 void item_list(ListState &L, bool units, const GameState &game, bool blocked)
 {
-    static const char *const SHOWS[] = {"전체", "자국 보유", "자국 미보유", "타국만 보유", "고른 나라의 보유", "고른 나라에서 가져올 것"};
+    static const char *const SHOWS[] = {"전체", "자국 보유", "자국 미보유", "타국만 보유", "고른 나라의 보유", "고른 나라에서 가져올 것", "연구 가능", "선행 부족"};
     if (!game.known || blocked) {
         L.chosen.clear();                        // 게임에서 나가면 고른 것은 풀린다
         return;
@@ -884,8 +885,9 @@ void item_list(ListState &L, bool units, const GameState &game, bool blocked)
     ImGui::SameLine();
     ImGui::SetNextItemWidth(190.0f);
     if (ImGui::BeginCombo("##show", SHOWS[static_cast<int>(L.list.show)])) {
-        for (int i = 0; i < 6; i++) {
-            ImGui::BeginDisabled(i >= static_cast<int>(Show::Picked) && g_picked == 0);   // 뒤의 둘은 나라를 골라야 한다
+        for (int i = 0; i < static_cast<int>(sizeof(SHOWS) / sizeof(SHOWS[0])); i++) {
+            const bool needs_country = i == static_cast<int>(Show::Picked) || i == static_cast<int>(Show::FromPicked);   // 이 둘은 나라를 골라야 한다
+            ImGui::BeginDisabled(needs_country && g_picked == 0);
             if (ImGui::Selectable(SHOWS[i], i == static_cast<int>(L.list.show))) {
                 L.list.show = static_cast<Show>(i);
                 g_confirm.clear();
@@ -961,13 +963,14 @@ void item_list(ListState &L, bool units, const GameState &game, bool blocked)
     const bool with_picked = shot->picked != 0 && shot->picked == g_picked;   // 고른 나라의 열 — 그 나라로 뜬 스냅숏일 때만
     const std::string why = game_research_off();
     const bool off = !why.empty();
-    // 되돌리기 어려운 단추(전부 · 모든 것을 미완료 · 해제)는 한 번 더 눌러야 한다
-    const auto risky = [&](const char *id, const std::string &label, const std::vector<int> &ids, const char *what) {
+    // 되돌리기 어려운 단추(전부 · 모든 것을 미완료 · 해제, 보이는 것 전부 연구 가능으로)는 한 번 더 눌러야 한다
+    const auto risky = [&](const char *id, const std::string &label, const std::vector<int> &ids, const char *what,
+                           Research action = Research::Revoke) {
         const bool asking = g_confirm == id;
         const std::string text = asking ? label + " — 한 번 더 누르면 실행합니다" : label;
         if (ImGui::Button((text + "###" + id).c_str())) {
             if (asking)
-                list_request(L, Research::Revoke, ids, what);
+                list_request(L, action, ids, what);
             else
                 g_confirm = id;
         }
@@ -1060,7 +1063,7 @@ void item_list(ListState &L, bool units, const GameState &game, bool blocked)
     note("list:clear", "고르기 풀기");
     ImGui::EndDisabled();
 
-    // 단추 넷. "고른 것"은 지금 보이지 않는 줄이라도 고른 것 모두에 한다. 쓸 수 없는 까닭은 위의 단추 자리에 적혀 있다
+    // 단추 여섯(완료 · 미완료 · 연구 가능으로를 고른 것 / 보이는 것 전부에). "고른 것"은 지금 보이지 않는 줄이라도 고른 것 모두에 한다. 쓸 수 없는 까닭은 위의 단추 자리에 적혀 있다
     // (부대 탭에는 연구의 단추가 없다 — 까닭을 여기에 적는다)
     const char *const yes = units ? "등록" : "완료", *const no = units ? "해제" : "미완료";
     if (units && off) {
@@ -1085,6 +1088,19 @@ void item_list(ListState &L, bool units, const GameState &game, bool blocked)
     ImGui::SameLine();
     risky(LIST_UNDO_ALL, std::string("보이는 것 전부 ") + no, visible, "보이는 것");
     ImGui::EndDisabled();
+    // 연구 가능으로: 항목은 보유가 되지 않는다 — 모자란 선행 기술만 보유로(docs/superpowers/specs/2026-10-15-toybox-research-unlock-design.md)
+    ImGui::BeginDisabled(off || chosen.empty());
+    if (ImGui::Button("고른 것 연구 가능으로"))
+        list_request(L, Research::Unlock, chosen, "고른 것");
+    note("list:unlock", "고른 것 연구 가능으로");
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+        wrapped_tooltip("항목 자체는 보유가 되지 않는다 — 모자란 선행 기술만 보유로 준다. 연구는 게임에서 한다. "
+                        "부대 설계에 업그레이드의 앞 설계가 있으면 그 하나를 등록한다 — 그러면 그 앞 설계를 가리키는 더 옛 설계는 게임의 연구 목록에서 빠진다(이미 개량됨)");
+    ImGui::EndDisabled();
+    ImGui::SameLine();
+    ImGui::BeginDisabled(off || visible.empty());
+    risky(LIST_UNLOCK_ALL, "보이는 것 전부 연구 가능으로", visible, "보이는 것", Research::Unlock);
+    ImGui::EndDisabled();
     // 수와 단추의 줄들은 표 위에 둔다 — 아래에 두면 창이 낮을 때 탭을 내려야 보였다(게임에서 봤다). 표가 남은 높이를 다 쓴다
     const float height = std::max(6.0f * ImGui::GetFrameHeightWithSpacing(), ImGui::GetContentRegionAvail().y);
     // 열의 너비는 머리 줄의 경계를 끌어 바꾸고, 머리 줄을 누르면 그 열로 놓는다(한 번 더 누르면 거꾸로)
@@ -1099,7 +1115,7 @@ void item_list(ListState &L, bool units, const GameState &game, bool blocked)
         // 처음 너비는 보이는 줄에서 잰다 — 긴 병과("전략 폭격기")가 처음에 보이지 않으면 잘린다. 부대 설계는 넉넉히 준다
         ImGui::TableSetupColumn(designs ? "병과" : "분류", designs ? ImGuiTableColumnFlags_WidthFixed : 0, designs ? 7.0f * ImGui::GetFontSize() : 0.0f);
         ImGui::TableSetupColumn(designs ? "연도" : "수준", ImGuiTableColumnFlags_DefaultSort);
-        ImGui::TableSetupColumn(units ? "등록" : "상태");                // 부대 탭: 등록 · 미등록 · 연구 중
+        ImGui::TableSetupColumn(units ? "등록" : "상태");                // 부대 탭: 등록 · 연구 중 · 연구 가능 · 선행 부족 · 열 수 없음(state_label)
         ImGui::TableSetupColumn("선행");                              // 선행 기술을 플레이어가 보유했는가: "보유" · "2/3" · "-"(선행이 없다)
         ImGui::TableSetupColumn("보유국", ImGuiTableColumnFlags_WidthStretch, 1.0f);   // 이름이 여럿이다 — 남는 너비를 이름 열과 나눠 쓴다
         ImGui::TableSetupColumn(with_picked ? region_label(shot->picked).c_str() : "고른 나라", ImGuiTableColumnFlags_NoHide);
@@ -1127,7 +1143,7 @@ void item_list(ListState &L, bool units, const GameState &game, bool blocked)
             for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
                 const ListRow &r = L.rows[static_cast<size_t>(i)];
                 const std::string cells[6] = {r.name, kind_label(r.kind), std::to_string(r.level),
-                                              !units ? state_label(r.state) : r.state == STATE_MINE ? "등록" : r.state == STATE_QUEUED ? "연구 중" : "미등록",
+                                              state_label(r, units),
                                               needs_label(r),
                                               owners_label(r, shot->tables.regions)};
                 ImGui::PushID(r.id);

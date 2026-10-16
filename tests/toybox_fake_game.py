@@ -230,6 +230,10 @@ class Lab:
         byte = byte | (1 << index % 8) if on else byte & ~(1 << index % 8)
         ctypes.memmove(block + index // 8, bytes([byte]), 1)
 
+    def upgrade(self, number: int, to: int) -> None:
+        """부대 설계 number 가 개량되어 to 가 된다(설계의 +0x24 — DEFAULT.UNIT 의 UGTo)."""
+        struct.pack_into("<H", self.designs, number * DESIGN_SIZE + 0x24, to)
+
     def owners(self, kind: int, number: int) -> set[int]:
         """그 항목을 보유한 지역의 인덱스들. 묶음이 없으면 빈 집합."""
         block = self.block(kind, number)

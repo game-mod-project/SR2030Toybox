@@ -68,7 +68,9 @@ bool shown(Show show, bool mine, bool picked, int others)
 {
     switch (show) {
     case Show::Mine: return mine;
-    case Show::NotMine: return !mine;
+    case Show::NotMine:
+    case Show::Open:
+    case Show::Lacking: return !mine;
     case Show::OthersOnly: return !mine && others > 0;
     case Show::Picked: return picked;
     case Show::FromPicked: return picked && !mine;
@@ -108,6 +110,17 @@ void fill(ListRow *out, const Row &row)
     out->owners[0] = row.owners[0];
     out->owners[1] = row.owners[1];
     out->picked = row.picked;
+}
+
+// 미보유 · 대기열에 없는 줄을 나눈다: 막혔으면 열 수 없음, 선행을 다 가졌으면 연구 가능, 아니면 선행 부족. 보기 Open · Lacking 에 맞지 않으면 거짓.
+// waits: 앞 설계를 보유해야 나오는 설계(upgrade_heads) — 선행 기술을 다 가져도 선행 부족이다.
+bool settle(ListRow *row, int block, Show show, bool waits = false)
+{
+    if (row->state == STATE_NONE) {
+        row->block = block;
+        row->state = block != BLOCK_NONE ? STATE_BLOCKED : row->needs_mine == row->needs && !waits ? STATE_OPEN : STATE_LACKING;
+    }
+    return show == Show::Open ? row->state == STATE_OPEN : show == Show::Lacking ? row->state == STATE_LACKING : true;
 }
 
 }  // namespace
@@ -234,9 +247,16 @@ std::string needs_detail(const ListRow &row, const ResearchTables &tables)
     return out;
 }
 
-std::string state_label(int state)
+std::string state_label(const ListRow &row, bool units)
 {
-    return state == STATE_MINE ? "보유" : state == STATE_QUEUED ? "연구 중" : "미보유";
+    switch (row.state) {
+    case STATE_MINE: return units ? "등록" : "보유";
+    case STATE_QUEUED: return "연구 중";
+    case STATE_OPEN: return "연구 가능";
+    case STATE_LACKING: return "선행 부족";
+    case STATE_BLOCKED: return block_label(row.block);
+    default: return units ? "미등록" : "미보유";
+    }
 }
 
 std::vector<ListRow> research_rows(const ResearchTables &tables, const ListFilter &filter)
@@ -244,6 +264,7 @@ std::vector<ListRow> research_rows(const ResearchTables &tables, const ListFilte
     std::vector<ListRow> rows;
     const std::vector<signed char> owned = tech_owned(tables);
     if (filter.designs) {
+        const std::vector<int> heads = upgrade_heads(tables), blocks = design_blocks(tables);
         for (const DesignRow &d : tables.designs) {
             if ((filter.domain >= 0 && design_domain(d.cls) != filter.domain) || (filter.kind >= 0 && d.cls != filter.kind) || !shown(filter.show, d.mine, d.picked, d.others) || (filter.by_picked && !d.picked))
                 continue;
@@ -255,6 +276,9 @@ std::vector<ListRow> research_rows(const ResearchTables &tables, const ListFilte
             row.kind = d.cls;
             row.level = 1900 + d.year;
             fill_needs(&row, d, d.needs, owned);
+            const size_t at = static_cast<size_t>(&d - tables.designs.data());
+            if (!settle(&row, blocks[at], filter.show, heads[at] != 0))
+                continue;
             rows.push_back(row);
         }
     } else {
@@ -271,6 +295,8 @@ std::vector<ListRow> research_rows(const ResearchTables &tables, const ListFilte
             row.kind = t.kind;
             row.level = t.level;
             fill_needs(&row, t, t.needs, owned);
+            if (!settle(&row, tech_block(t, tables.region_mask), filter.show))
+                continue;
             rows.push_back(row);
         }
     }

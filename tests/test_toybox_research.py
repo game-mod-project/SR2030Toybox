@@ -14,6 +14,7 @@ from toybox_fake_game import COUNT, DESIGN, DESIGN_SIZE, ENDED, GONE, INDEX, MUL
 from srkit import toybox
 
 COMPLETE, REVOKE = 0, 1
+UNLOCK = 2                                                                                       # 연구 가능으로
 DONE, NOT_IN_GAME, NOT_USED, BAD_VALUE, FAILED, OFF, NO_TARGET, UNREADABLE, CRASHED = range(9)   # native/srtoybox/game.h 의 Wrote
 GERMANY, POLAND, DENMARK = 176, 141, 150                                                         # 지역 인덱스
 RECOMPUTE = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int)                                # "다시 셈" 자리에 두는 함수의 꼴
@@ -58,7 +59,115 @@ def plan(lib, rows: list[str], what: str, action: int = COMPLETE, slots: tuple[i
     lines = dict(line.split(" ", 1) if " " in line else (line, "") for line in out.value.decode("utf-8").split("\n"))
     return {"techs": [int(n) for n in lines["techs"].split()], "designs": [int(n) for n in lines["designs"].split()],
             "nodes": [int(n) for n in lines["nodes"].split()], "asked": tuple(int(n) for n in lines["asked"].split()),
-            "skipped": int(lines["skipped"]), "queued": lines["queued"].split(), "text": lines["text"]}
+            "skipped": int(lines["skipped"]), "queued": lines["queued"].split(), "text": lines["text"],
+            "unlock": tuple(int(n) for n in lines.get("unlock", "").split())}
+
+
+def test_unlock_completes_only_the_missing_direct_prerequisites(lib):
+    """기술 3 의 선행 2 가 없고 2 의 선행 1 도 없다. 3 은 보유가 되지 않고 2 · 1 만 — 3 이 게임의 "가능한 연구"에 나온다."""
+    got = plan(lib, [tech(1), tech(2, 1), tech(3, 2)], "items t3", action=UNLOCK)
+    assert got["techs"] == [1, 2] and got["designs"] == [] and got["asked"] == (0, 0)
+    assert got["unlock"] == (1, 0, 0, 0, 0, 0, 0)                                  # 연 것 · 이미 열림 · 다른 지역 · 연구 대상 아님 · 특수
+    assert got["text"] == "연구 가능으로 — 항목 1개 열림 · 선행 기술 2개 완료"
+
+
+def test_unlock_skips_held_queued_and_already_open_items(lib):
+    rows = [tech(1, mine=True), tech(2, 1), tech(3, mine=True), tech(4, 9), node(1, 5), tech(5, 1)]
+    got = plan(lib, rows, "items t2 t3 t5", action=UNLOCK)
+    assert got["techs"] == [] and got["unlock"] == (0, 3, 0, 0, 0, 0, 0)          # 2: 선행 보유(이미 열림) · 3: 보유 · 5: 대기열
+    assert got["text"] == "연구 가능으로 — 이미 열림 3개"
+
+
+def test_unlock_of_a_design_brings_its_four_prerequisites(lib):
+    got = plan(lib, [tech(1), tech(2, mine=True), tech(3), design(7, 1, 2, 3)], "items d7", action=UNLOCK)
+    assert got["techs"] == [1, 3] and got["designs"] == [] and got["unlock"] == (1, 0, 0, 0, 0, 0, 0)
+
+
+def test_unlock_refuses_what_the_game_would_still_hide(lib):
+    """지역 마스크가 맞지 않는 기술 · 설계, 연구 대상이 아닌 설계, 특수 설계(+0xEC 의 비트 1)는 선행을 채워도 게임이 보이지 않는다 — 쓰지 않고 센다.
+    깃발 B(held 이지만 특수가 아닌 것)는 연다."""
+    rows = ["region 4", tech(1), tech(2, 1), "tmask 2 2", tech(3, 1), "tmask 3 6",
+            design(7, 1), "dmask 7 8 0", design(8, 1, is_open=False), design(9, 1), "dmask 9 0 1", design(10, 1, held=True)]
+    got = plan(lib, rows, "items t2 t3 d7 d8 d9 d10", action=UNLOCK)
+    assert got["techs"] == [1] and got["unlock"] == (2, 0, 2, 1, 1, 0, 0)          # 열림: t3(마스크 6 & 4) · d10 / 다른 지역: t2 · d7
+    assert got["text"] == "연구 가능으로 — 항목 2개 열림 · 선행 기술 1개 완료 · 열 수 없음 4개(다른 지역 전용 2 · 연구 대상 아님 1 · 특수 설계 1)"
+
+
+def test_unlock_takes_a_queued_prerequisite_off_the_queue(lib):
+    got = plan(lib, [tech(1), node(1, 1), tech(2, 1)], "items t2", action=UNLOCK)
+    assert got["techs"] == [1] and got["nodes"] == [0]
+
+
+def test_unlock_registers_one_predecessor_design_when_none_is_held(lib):
+    """설계 9 는 앞 설계 7 · 8(둘 다 +0x24 가 9 — UGTo)을 갖는다. 게임은 앞 설계 하나를 보유해야 9 를 보인다(0x7ac0ce).
+    둘 다 미보유면 번호가 가장 낮은 7 을 등록하고 그 선행 기술(1)도 준다. 9 자체는 그대로다."""
+    rows = [tech(1), tech(2, mine=True), design(7, 1), "dup 7 9", design(8, 2), "dup 8 9", design(9, 2)]
+    got = plan(lib, rows, "items d9", action=UNLOCK)
+    assert got["techs"] == [1] and got["designs"] == [7] and got["unlock"] == (1, 0, 0, 0, 0, 0, 0)
+    assert got["text"] == "연구 가능으로 — 항목 1개 열림 · 선행 기술 1개 완료 · 앞 설계 1개 등록"
+
+
+def test_a_held_predecessor_is_enough(lib):
+    rows = [tech(2, mine=True), design(7, 2, mine=True), "dup 7 9", design(8, 2), "dup 8 9", design(9, 2)]
+    got = plan(lib, rows, "items d9", action=UNLOCK)
+    assert got["techs"] == [] and got["designs"] == [] and got["unlock"] == (0, 1, 0, 0, 0, 0, 0)
+
+
+def test_predecessors_the_game_skips_do_not_count(lib):
+    """연구 대상이 아니거나 깃발(A · B)이 켜진 앞 설계는 게임이 보지 않는다 — 없는 것과 같다."""
+    rows = [tech(2, mine=True), design(7, 2, is_open=False), "dup 7 9", design(8, 2, held=True), "dup 8 9", design(9, 2)]
+    got = plan(lib, rows, "items d9", action=UNLOCK)
+    assert got["designs"] == [] and got["unlock"] == (0, 1, 0, 0, 0, 0, 0)
+
+
+def test_rows_say_lacking_when_no_predecessor_is_held(lib):
+    rows = [tech(2, mine=True), design(7, 2), "dup 7 9", design(9, 2), design(10, 2)]
+    assert list_states(lib, rows, designs=True) == {7: "연구 가능", 9: "선행 부족", 10: "연구 가능"}
+
+
+def test_a_design_whose_next_design_is_held_or_queued_is_superseded(lib):
+    """게임은 다음 설계(+0x24 · +0x26)를 보유했거나(그 선행도) 대기열에 건 설계를 보이지 않는다(0x7ac3f4) — 이미 개량됨."""
+    rows = [tech(1, mine=True), design(7, 1), "dup 7 8 0", design(8, 1, mine=True), design(9, 1), "dup 9 0 10", design(10, 1), node(2, 10),
+            design(11, 1), "dup 11 12 0", design(12, 2), tech(2)]
+    got = plan(lib, rows, "items d7 d9 d11", action=UNLOCK)
+    assert got["designs"] == [] and got["unlock"] == (0, 1, 0, 0, 0, 2, 0)     # d11: 다음 설계 12 는 미보유 — 이미 열림
+    assert list_states(lib, rows, designs=True)[7] == "이미 개량됨"
+
+
+def test_a_retired_design_is_blocked(lib):
+    """+0x0b(단종 연도 − 1900)가 0 이 아니고 지금 해(지역 +0x14cd0)가 그보다 크면 게임이 보이지 않는다. +0x161 의 0x20 이 켜진 설계는 남는다."""
+    rows = ["year 110.5", tech(1, mine=True), design(7, 1), "dold 7 95 0", design(8, 1), "dold 8 143 0", design(9, 1), "dold 9 95 1",
+            design(10, 1), "dold 10 110 0"]
+    got = plan(lib, rows, "items d7 d8 d9 d10", action=UNLOCK)
+    assert got["unlock"] == (0, 3, 0, 0, 0, 0, 1)                               # 8 · 9 · 10 은 이미 열림(110 은 110 보다 크지 않다)
+    assert list_states(lib, rows, designs=True) == {7: "단종", 8: "연구 가능", 9: "연구 가능", 10: "연구 가능"}
+
+
+def test_a_zero_region_mask_blocks_every_masked_item(lib):
+    got = plan(lib, [tech(1), tech(2, 1), "tmask 2 1"], "items t2", action=UNLOCK)   # region 줄이 없다 = 0
+    assert got["techs"] == [] and got["unlock"] == (0, 0, 1, 0, 0, 0, 0)
+
+
+SHOW_ALL, SHOW_OPEN, SHOW_LACKING = 0, 6, 7                                                      # techs.h 의 Show
+
+
+def list_states(lib, rows: list[str], show: int = SHOW_ALL, designs: bool = False) -> dict[int, str]:
+    """목록의 줄(research_rows): 번호 → 상태 글."""
+    lib.srtoybox_research_rows.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_char_p,
+                                           ctypes.c_char_p, ctypes.c_int]
+    out = ctypes.create_string_buffer(1 << 16)
+    table = "\n".join(["slots 64 64"] + rows)
+    assert lib.srtoybox_research_rows(table.encode(), int(designs), show, -1, -1, b"", out, len(out)) >= 0
+    return {int(line.split("|")[0]): line.split("|")[4] for line in out.value.decode("utf-8").split("\n") if line}
+
+
+def test_rows_split_not_held_into_open_lacking_and_blocked(lib):
+    rows = ["region 4", tech(1, mine=True), tech(2, 1), tech(4), tech(3, 4), tech(5), "tmask 5 2", tech(6), node(1, 6)]
+    assert list_states(lib, rows) == {1: "보유", 2: "연구 가능", 4: "연구 가능", 3: "선행 부족", 5: "다른 지역 전용", 6: "연구 중"}
+    assert list(list_states(lib, rows, SHOW_OPEN)) == [2, 4] and list(list_states(lib, rows, SHOW_LACKING)) == [3]
+    designs = ["region 4", tech(1, mine=True), tech(2), design(7, 1), design(8, 2), design(9, 1, is_open=False), design(10, 1), "dmask 10 0 1",
+               design(11, 1, mine=True)]
+    assert list_states(lib, designs, designs=True) == {7: "연구 가능", 8: "선행 부족", 9: "연구 대상 아님", 10: "특수 설계", 11: "보유"}
 
 
 def test_completing_a_tech_brings_its_prerequisites_up_the_chain(lib):
@@ -92,7 +201,8 @@ def test_prerequisites_that_point_at_each_other_still_end(lib):
 
 def test_what_is_already_held_is_not_in_the_plan(lib):
     got = plan(lib, [tech(1, mine=True), design(5, mine=True)], "items t1 d5")
-    assert got == {"techs": [], "designs": [], "nodes": [], "asked": (0, 0), "skipped": 0, "queued": [], "text": ""}
+    assert got == {"techs": [], "designs": [], "nodes": [], "asked": (0, 0), "skipped": 0, "queued": [], "text": "",
+                   "unlock": (0, 0, 0, 0, 0, 0, 0)}                              # 완료에서는 연구 가능으로의 수가 늘 0 이다
 
 
 def test_numbers_that_are_not_in_the_table_and_repeats_are_ignored(lib):
@@ -298,6 +408,15 @@ def write(lib, fake: FakeGame, lab: Lab, what: str, action: int = COMPLETE, reco
     done.update(asked=tuple(int(n) for n in lines["asked"].split()), code=int(lines["code"], 16), why=lines["why"], text=lines["text"],
                 calls=calls)
     return wrote, done
+
+
+def test_unlock_writes_only_the_prerequisite_bit(lib):
+    """판의 기술 3 은 선행 2(독일 미보유 · 대기열)를 갖는다. 연구 가능으로 하면 2 만 독일의 보유가 되고 대기열에서 빠진다 — 3 은 아무도 보유하지 않은 그대로다."""
+    fake, lab_ = lab()
+    wrote, done = write(lib, fake, lab_, "items t3", action=UNLOCK)
+    assert wrote == DONE and done["techs"] == [2] and done["designs"] == [] and len(done["nodes"]) == 1
+    assert lab_.owners(TECH, 2) == {POLAND, GERMANY} and lab_.owners(TECH, 3) == set()
+    assert done["calls"] and done["calls"][0][1] == GERMANY                  # 기술을 줬다 — 플레이어로 다시 셈
 
 
 def differing(before: bytes, after: bytes) -> set[int]:
@@ -766,6 +885,44 @@ def test_research_requests_are_written_one_per_tick_in_order(playing):
     assert playing.lab.owners(TECH, 7) == {DENMARK, GERMANY} and playing.lab.owners(DESIGN, 11) == {POLAND, GERMANY}   # 다른 나라는 그대로다
 
 
+def test_unlock_through_the_keeper_says_what_it_opened(playing):
+    """창의 "고른 것 연구 가능으로": 바닥 글은 요약 그대로에 이름을 붙인다(완료 · 미완료처럼 "…를 …로"를 덧붙이지 않는다)."""
+    assert playing.ask("items t3", "고른 것", UNLOCK) == 1
+    playing.tick()
+    assert playing.told() == ("연구 가능으로 — 항목 1개 열림 · 선행 기술 1개 완료 — 고른 것", "")
+    assert playing.lab.owners(TECH, 2) == {POLAND, GERMANY} and playing.lab.owners(TECH, 3) == set()
+    assert playing.log() == ["연구 가능으로 (고른 것): 항목 1개 열림 · 선행 기술 1개 완료"]
+
+
+def test_unlock_that_only_registers_a_predecessor_says_so(playing):
+    """판의 설계 12(선행 4 — 독일 보유)에 앞 설계 15(선행 4 — 독일 보유, 폴란드만 보유한 설계)를 둔다. 선행 기술은 다 있고 앞 설계만 등록하는 경우다 —
+    "바꿀 것이 없습니다"가 아니다(게임에서 TE-2 · JP-1A3 · JP-2A1 이 그렇게 나왔다, 2026-10-16)."""
+    playing.lab.design(15, 4, owners=(POLAND,))
+    playing.lab.upgrade(15, 12)
+    assert playing.ask("items d12", "고른 것", UNLOCK) == 1
+    playing.tick()
+    assert playing.told() == ("연구 가능으로 — 항목 1개 열림 · 앞 설계 1개 등록 — 고른 것", "")
+    assert playing.lab.owners(DESIGN, 15) == {POLAND, GERMANY} and GERMANY not in playing.lab.owners(DESIGN, 12)
+
+
+def test_a_design_with_flag_b_is_special_in_the_game(playing):
+    """깃발 B(+0xF0 의 0x1000000)가 켜진 설계도 게임의 연구 목록에 나오지 않는다(U7, 2026-10-16 — 보병의 파르티잔 · 게릴라 · 주둔군 16개).
+    선행이 모자라도 열지 않고 특수 설계로 센다."""
+    playing.lab.design(16, 3, hold=(0, 0x1000000))
+    assert playing.ask("items d16", "고른 것", UNLOCK) == 1
+    before = playing.lab.everything()
+    playing.tick()
+    assert playing.told() == ("", "바꿀 것이 없습니다 — 고른 것 (열 수 없음 1개(특수 설계 1))") and playing.lab.everything() == before
+
+
+def test_unlock_that_opens_nothing_says_so(playing):
+    """고른 것이 보유(1) · 대기열(2)뿐이면 한 칸도 쓰지 않고 "바꿀 것이 없습니다"와 그 까닭을 알린다."""
+    assert playing.ask("items t1 t2", "고른 것", UNLOCK) == 1
+    before = playing.lab.everything()
+    playing.tick()
+    assert playing.told() == ("", "바꿀 것이 없습니다 — 고른 것 (이미 열림 2개)") and playing.calls == [] and playing.lab.everything() == before
+
+
 def test_a_request_that_changes_nothing_says_so(playing):
     """대기열이 비었을 때의 "대기열의 연구 즉시 완료": 한 칸도 쓰지 않고, 게임의 함수도 부르지 않고, 그렇다고 알린다."""
     assert playing.ask("items t1 d10", "고른 것") == 1
@@ -815,7 +972,7 @@ def test_only_four_research_requests_wait(playing):
     assert [playing.ask("queue", "대기열") for _ in range(5)] == [1, 1, 1, 1, 0]
     playing.tick()
     assert playing.ask("queue", "대기열") == 1                 # 하나가 처리됐다
-    assert playing.ask("bogus", "대기열", action=2) == -1
+    assert playing.ask("bogus", "대기열", action=3) == -1                 # 0 완료 · 1 미완료 · 2 연구 가능으로 밖
 
 
 @pytest.mark.parametrize("leave", ["menu", "multiplayer"])

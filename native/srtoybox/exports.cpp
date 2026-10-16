@@ -56,6 +56,7 @@ std::string rows_text(const SigRow *rows, int n)
 //   t <번호> <분류> <수준> <선행 0> <선행 1> <보유> <묶음이 있다>
 //   d <번호> <연구 대상> <게임이 건너뛰는 설계> <보유> <묶음이 있다> <선행 0> <선행 1> <선행 2> <선행 3>
 //   q <종류> <번호> <깃발 0(16진수)> <깃발 1(16진수)>
+//   region <플레이어 지역의 마스크> / tmask <기술 번호> <마스크> / dmask <설계 번호> <마스크> <특수> / dup <설계 번호> <개량되어 되는 설계> [<둘째>] / dold <설계 번호> <단종 연도 − 1900> <남는가> / year <지금 해 − 1900> (앞 줄의 행에 붙인다)
 // t 와 d 의 줄 끝에는 목록의 것을 더 줄 수 있다(없으면 0 · 빈 글): t 는 <다른 나라의 수> <고른 나라가 보유>,
 // d 는 <다른 나라의 수> <고른 나라가 보유> <병과> <연도> <이름(빈칸 없이)>.
 ResearchTables tables_from(const std::string &text)
@@ -89,6 +90,42 @@ ResearchTables tables_from(const std::string &text)
             row.mine = mine != 0;
             row.housed = housed != 0;
             t.designs.push_back(row);
+        } else if (word == "region") {
+            in >> t.region_mask;
+        } else if (word == "year") {
+            in >> t.year;
+        } else if (word == "dup" || word == "dold") {
+            int id = 0, a = 0, b = 0;
+            in >> id >> a >> b;
+            for (auto row = t.designs.rbegin(); row != t.designs.rend(); ++row)
+                if (row->id == id) {
+                    if (word == "dup") {
+                        row->upgrade_to = a;
+                        row->upgrade_to_2 = b;
+                    } else {
+                        row->retired = a;
+                        row->kept = b != 0;
+                    }
+                    break;
+                }
+        } else if (word == "tmask" || word == "dmask") {
+            int id = 0, special = 0;
+            uint64_t mask = 0;
+            in >> id >> mask >> special;
+            if (word == "tmask") {
+                for (auto row = t.techs.rbegin(); row != t.techs.rend(); ++row)
+                    if (row->id == id) {
+                        row->mask = mask;
+                        break;
+                    }
+            } else {
+                for (auto row = t.designs.rbegin(); row != t.designs.rend(); ++row)
+                    if (row->id == id) {
+                        row->mask = mask;
+                        row->special = special != 0;
+                        break;
+                    }
+            }
         } else if (word == "q") {
             QueueRow row;
             in >> row.kind >> row.id >> std::hex >> row.flags[0] >> row.flags[1];
@@ -342,7 +379,7 @@ EXPORT int srtoybox_research_rows(const char *tables, int designs, int show, int
     std::string text;
     for (const ListRow &row : research_rows(tables_from(tables != nullptr ? tables : ""), filter))
         text += std::to_string(row.id) + '|' + row.name + '|' + (filter.designs ? design_class_label(row.kind) : tech_kind_label(row.kind)) + '|'
-            + std::to_string(row.level) + '|' + state_label(row.state) + '|' + std::to_string(row.others) + '|' + (row.picked ? "1" : "0") + '|' + needs_label(row) + '\n';
+            + std::to_string(row.level) + '|' + state_label(row, false) + '|' + std::to_string(row.others) + '|' + (row.picked ? "1" : "0") + '|' + needs_label(row) + '\n';
     return put(text, out, size);
 }
 
@@ -439,12 +476,12 @@ EXPORT int srtoybox_research_shape(char *out, int size)
 
 // 테스트: 연구의 규칙(research_plan)을 글로 준 표(tables_from)와 "무엇을"(what_from)에 돌린다. action: 0 완료, 1 미완료.
 // can_house: 묶음이 없는 항목에 새 묶음을 걸 수 있는가(0 이면 그런 항목을 건너뛴다).
-// 나오는 글은 일곱 줄이다: "techs 1 2 3" / "designs 5" / "nodes 0 1" / "asked <고른 기술의 수> <고른 설계의 수>" /
-// "skipped <건너뛴 항목의 수>" / "queued t3 d5"(표에서 대기열에 있는 것으로 읽힌 항목) / "text <알림의 글>".
+// 나오는 글은 여덟 줄이다: "techs 1 2 3" / "designs 5" / "nodes 0 1" / "asked <고른 기술의 수> <고른 설계의 수>" /
+// "skipped <건너뛴 항목의 수>" / "queued t3 d5"(표에서 대기열에 있는 것으로 읽힌 항목) / "unlock <연 것> <이미 열림> <다른 지역> <연구 대상 아님> <특수> <이미 개량됨> <단종>" / "text <알림의 글>".
 EXPORT int srtoybox_research_plan(const char *tables, int action, const char *what, int can_house, char *out, int size)
 {
     const ResearchTables t = tables_from(tables != nullptr ? tables : "");
-    const Research how = action == 0 ? Research::Complete : Research::Revoke;
+    const Research how = action == 0 ? Research::Complete : action == 2 ? Research::Unlock : Research::Revoke;
     const ResearchPlan plan = research_plan(t, how, what_from(what != nullptr ? what : ""), can_house != 0);
     std::string queued = "queued";
     for (const TechRow &row : t.techs)
@@ -455,7 +492,10 @@ EXPORT int srtoybox_research_plan(const char *tables, int action, const char *wh
             queued += " d" + std::to_string(row.id);
     return put(numbers("techs", plan.techs) + numbers("designs", plan.designs) + numbers("nodes", plan.nodes)
                + "asked " + std::to_string(plan.asked_techs) + ' ' + std::to_string(plan.asked_designs) + "\nskipped "
-               + std::to_string(plan.skipped) + '\n' + queued + "\ntext " + research_summary(plan, how), out, size);
+               + std::to_string(plan.skipped) + '\n' + queued + "\nunlock " + std::to_string(plan.opened) + ' ' + std::to_string(plan.already) + ' '
+               + std::to_string(plan.blocked[BLOCK_REGION]) + ' ' + std::to_string(plan.blocked[BLOCK_CLOSED]) + ' '
+               + std::to_string(plan.blocked[BLOCK_SPECIAL]) + ' ' + std::to_string(plan.blocked[BLOCK_SUPERSEDED]) + ' '
+               + std::to_string(plan.blocked[BLOCK_RETIRED]) + "\ntext " + research_summary(plan, how), out, size);
 }
 
 // 두 묶음의 대조(locate_fits). 0 이면 맞는다. -1 이면 error 에 까닭.
@@ -638,7 +678,7 @@ EXPORT int srtoybox_research_write(const unsigned char *base, const GameAddresse
 {
     if (at == nullptr || layout == nullptr)
         return -1;
-    const Research how = action == 0 ? Research::Complete : Research::Revoke;
+    const Research how = action == 0 ? Research::Complete : action == 2 ? Research::Unlock : Research::Revoke;
     ResearchDone done;
     const Wrote wrote = write_research(base, *at, *layout, reinterpret_cast<Recompute>(recompute), how,
                                        what_from(what != nullptr ? what : ""), &done);
@@ -712,13 +752,13 @@ EXPORT int srtoybox_keeper_more(int slot, int region, double amount)
     return keeper_enqueue({slot, Change::Set, amount, region}) ? 1 : 0;
 }
 
-// 테스트: 연구 요청(keeper.h). action: 0 완료, 1 미완료. what: "items t1 d5" · "level 120" · "queue"(what_from).
+// 테스트: 연구 요청(keeper.h). action: 0 완료, 1 미완료, 2 연구 가능으로. what: "items t1 d5" · "level 120" · "queue"(what_from).
 // label: 알림과 로그에 적을 이름. 받았으면 1, 받지 못했으면 0(가득 찼다 · 연구를 쓸 수 없다). 그런 요청이 없으면 -1.
 EXPORT int srtoybox_keeper_research(int action, const char *what, const char *label)
 {
-    if (action < 0 || action > 1 || what == nullptr || label == nullptr)
+    if (action < 0 || action > 2 || what == nullptr || label == nullptr)
         return -1;
-    return keeper_enqueue_research({action == 0 ? Research::Complete : Research::Revoke, what_from(what), label}) ? 1 : 0;
+    return keeper_enqueue_research({action == 0 ? Research::Complete : action == 2 ? Research::Unlock : Research::Revoke, what_from(what), label}) ? 1 : 0;
 }
 
 EXPORT void srtoybox_keeper_tick(void)

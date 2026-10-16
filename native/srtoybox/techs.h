@@ -31,6 +31,8 @@ enum class Show {
     OthersOnly,   // 타국만 보유: 타국이 하나라도 보유했고 자국은 미보유
     Picked,       // 고른 나라의 보유
     FromPicked,   // 고른 나라에서 가져올 것: 그 나라가 보유했고 자국은 미보유
+    Open,         // 연구 가능: 미보유 · 대기열에 없음 · 선행을 다 가졌다 · 막히지 않았다
+    Lacking,      // 선행 부족: 미보유 · 대기열에 없음 · 선행이 모자라다 · 막히지 않았다
 };
 
 struct ListFilter {
@@ -42,7 +44,8 @@ struct ListFilter {
     int domain = -1;              // 부대 설계의 영역(design_domain). -1 이면 전체. 기술의 목록에서는 보지 않는다
 };
 
-const int STATE_NONE = 0, STATE_QUEUED = 1, STATE_MINE = 2;   // 미보유 · 연구 중 · 보유
+// 보유 · 연구 중 · 연구 가능 · 선행 부족 · 열 수 없음(그 까닭은 ListRow::block). STATE_NONE 은 줄을 다 채우기 전에만 쓴다
+const int STATE_NONE = 0, STATE_QUEUED = 1, STATE_MINE = 2, STATE_OPEN = 3, STATE_LACKING = 4, STATE_BLOCKED = 5;
 
 struct ListRow {
     int id = 0;
@@ -56,13 +59,15 @@ struct ListRow {
     int needs = 0;                // 선행 기술의 수(표에 있는 것만)
     int needs_mine = 0;           // 그 가운데 플레이어가 보유한 것
     int need_ids[4] = {};         // 선행 기술의 번호(없는 자리는 0)
+    int block = BLOCK_NONE;       // STATE_BLOCKED 의 까닭(research.h 의 BLOCK_…)
 };
 
 std::string needs_label(const ListRow &row);   // 선행 기술: 없으면 "-", 모두 보유면 "보유", 아니면 "2/3"
 // 선행 기술마다 한 줄: "복합강 장갑 — 보유". 선행이 없으면 빈 글.
 std::string needs_detail(const ListRow &row, const ResearchTables &tables);
 
-std::string state_label(int state);   // "미보유" · "연구 중" · "보유"
+// "보유"(부대 탭은 "등록") · "연구 중" · "연구 가능" · "선행 부족" · 열 수 없음의 까닭("다른 지역 전용" …)
+std::string state_label(const ListRow &row, bool units);
 
 // 거르개를 지난 줄. 순서는 수준(연도) · 번호의 오름차순이다.
 std::vector<ListRow> research_rows(const ResearchTables &tables, const ListFilter &filter);
