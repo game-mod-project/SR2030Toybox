@@ -963,7 +963,7 @@ void item_list(ListState &L, bool units, const GameState &game, bool blocked)
     const bool with_picked = shot->picked != 0 && shot->picked == g_picked;   // 고른 나라의 열 — 그 나라로 뜬 스냅숏일 때만
     const std::string why = game_research_off();
     const bool off = !why.empty();
-    // 되돌리기 어려운 단추(전부 · 모든 것을 미완료 · 해제)는 한 번 더 눌러야 한다
+    // 되돌리기 어려운 단추(전부 · 모든 것을 미완료 · 해제, 보이는 것 전부 연구 가능으로)는 한 번 더 눌러야 한다
     const auto risky = [&](const char *id, const std::string &label, const std::vector<int> &ids, const char *what,
                            Research action = Research::Revoke) {
         const bool asking = g_confirm == id;
@@ -1063,7 +1063,7 @@ void item_list(ListState &L, bool units, const GameState &game, bool blocked)
     note("list:clear", "고르기 풀기");
     ImGui::EndDisabled();
 
-    // 단추 넷. "고른 것"은 지금 보이지 않는 줄이라도 고른 것 모두에 한다. 쓸 수 없는 까닭은 위의 단추 자리에 적혀 있다
+    // 단추 여섯(완료 · 미완료 · 연구 가능으로를 고른 것 / 보이는 것 전부에). "고른 것"은 지금 보이지 않는 줄이라도 고른 것 모두에 한다. 쓸 수 없는 까닭은 위의 단추 자리에 적혀 있다
     // (부대 탭에는 연구의 단추가 없다 — 까닭을 여기에 적는다)
     const char *const yes = units ? "등록" : "완료", *const no = units ? "해제" : "미완료";
     if (units && off) {
@@ -1114,7 +1114,7 @@ void item_list(ListState &L, bool units, const GameState &game, bool blocked)
         // 처음 너비는 보이는 줄에서 잰다 — 긴 병과("전략 폭격기")가 처음에 보이지 않으면 잘린다. 부대 설계는 넉넉히 준다
         ImGui::TableSetupColumn(designs ? "병과" : "분류", designs ? ImGuiTableColumnFlags_WidthFixed : 0, designs ? 7.0f * ImGui::GetFontSize() : 0.0f);
         ImGui::TableSetupColumn(designs ? "연도" : "수준", ImGuiTableColumnFlags_DefaultSort);
-        ImGui::TableSetupColumn(units ? "등록" : "상태");                // 부대 탭: 등록 · 미등록 · 연구 중
+        ImGui::TableSetupColumn(units ? "등록" : "상태");                // 부대 탭: 등록 · 연구 중 · 연구 가능 · 선행 부족 · 열 수 없음(state_label)
         ImGui::TableSetupColumn("선행");                              // 선행 기술을 플레이어가 보유했는가: "보유" · "2/3" · "-"(선행이 없다)
         ImGui::TableSetupColumn("보유국", ImGuiTableColumnFlags_WidthStretch, 1.0f);   // 이름이 여럿이다 — 남는 너비를 이름 열과 나눠 쓴다
         ImGui::TableSetupColumn(with_picked ? region_label(shot->picked).c_str() : "고른 나라", ImGuiTableColumnFlags_NoHide);

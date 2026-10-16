@@ -78,7 +78,7 @@ struct ResearchWhat {
 
 struct ResearchPlan {
     std::vector<int> techs, designs;        // 비트를 바꿀 항목의 번호(오름차순). 완료면 켜고 미완료면 끈다
-    std::vector<int> nodes;                 // 대기열에서 뺄 노드(tables.queue 의 칸 번호, 오름차순). 완료에서만
+    std::vector<int> nodes;                 // 대기열에서 뺄 노드(tables.queue 의 칸 번호, 오름차순). 완료 · 연구 가능으로에서만
     int asked_techs = 0, asked_designs = 0; // 그 가운데 고른 것. 나머지는 딸려 온 것(완료: 선행 기술, 미완료: 그것에 기대던 것)
     int skipped = 0;                        // 보유 비트 묶음이 없어 건너뛴 항목의 수(can_house 가 false 일 때만)
     int opened = 0, already = 0;            // 연구 가능으로: 연 항목 · 이미 열려 있던(보유 · 대기열 · 선행을 다 가진) 항목의 수
