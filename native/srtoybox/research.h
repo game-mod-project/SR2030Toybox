@@ -33,7 +33,7 @@ struct DesignRow {
     int owners[2] = {};
     bool queued = false, housed = false;
     uint64_t mask = 0;          // 지역 마스크(0 이면 모든 지역)
-    bool special = false;       // 게임이 연구 목록에서 빼는 설계(+0xEC 의 비트 1)
+    bool special = false;       // 게임이 연구 목록에서 빼는 설계(+0xEC 의 비트 1 또는 +0xF0 의 0x1000000)
     int upgrade_to = 0;         // 개량되어 되는 설계의 번호(0 이면 없다) — 그 설계의 "앞 설계"가 이 설계다
     int upgrade_to_2 = 0;       // 개량되어 되는 둘째 설계(앞 설계를 셀 때는 보지 않는다 — 게임도 첫째만 본다)
     int retired = 0;            // 단종 연도 − 1900(0 이면 없다)

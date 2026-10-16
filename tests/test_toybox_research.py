@@ -905,6 +905,16 @@ def test_unlock_that_only_registers_a_predecessor_says_so(playing):
     assert playing.lab.owners(DESIGN, 15) == {POLAND, GERMANY} and GERMANY not in playing.lab.owners(DESIGN, 12)
 
 
+def test_a_design_with_flag_b_is_special_in_the_game(playing):
+    """깃발 B(+0xF0 의 0x1000000)가 켜진 설계도 게임의 연구 목록에 나오지 않는다(U7, 2026-10-16 — 보병의 파르티잔 · 게릴라 · 주둔군 16개).
+    선행이 모자라도 열지 않고 특수 설계로 센다."""
+    playing.lab.design(16, 3, hold=(0, 0x1000000))
+    assert playing.ask("items d16", "고른 것", UNLOCK) == 1
+    before = playing.lab.everything()
+    playing.tick()
+    assert playing.told() == ("", "바꿀 것이 없습니다 — 고른 것 (열 수 없음 1개(특수 설계 1))") and playing.lab.everything() == before
+
+
 def test_unlock_that_opens_nothing_says_so(playing):
     """고른 것이 보유(1) · 대기열(2)뿐이면 한 칸도 쓰지 않고 "바꿀 것이 없습니다"와 그 까닭을 알린다."""
     assert playing.ask("items t1 t2", "고른 것", UNLOCK) == 1

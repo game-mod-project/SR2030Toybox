@@ -789,7 +789,8 @@ bool shoot(const uint8_t *base, const GameAddresses &at, const ResearchLayout &r
         }
         row.housed = owners != 0;
         row.mask = field<uint64_t>(record, DESIGN_MASK);
-        row.special = (field<uint32_t>(record, DESIGN_HOLD_A) & DESIGN_SPECIAL_BIT) != 0;
+        // 깃발 A 의 비트 1 · 깃발 B 의 0x1000000 — 둘 다 게임의 연구 목록에 나오지 않는다(A: 0x7abc4e, B: 0x7abc5c 의 전역이 2 인 판 — 2030 - 세계에서 봤다, U7)
+        row.special = (field<uint32_t>(record, DESIGN_HOLD_A) & DESIGN_SPECIAL_BIT) != 0 || (field<uint32_t>(record, DESIGN_HOLD_B) & DESIGN_HOLD_B_BIT) != 0;
         row.upgrade_to = field<uint16_t>(record, DESIGN_UPGRADE_TO);
         row.upgrade_to_2 = field<uint16_t>(record, DESIGN_UPGRADE_TO_2);
         row.retired = record[DESIGN_RETIRED];
