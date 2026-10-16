@@ -1108,14 +1108,21 @@ void item_list(ListState &L, bool units, const GameState &game, bool blocked)
         | ImGuiTableFlags_Resizable | ImGuiTableFlags_Sortable;
     // 표는 하나다 — 고른 나라의 열은 켜고 끌 뿐이다(열의 수가 다른 표로 바꾸면 놓은 순서와 고친 너비가 처음으로 돌아간다)
     const int columns = 8;
-    if (ImGui::BeginTable(units ? "units8" : "list8", columns, flags, ImVec2(0.0f, height))) {
+    // 상태 열의 너비는 가장 긴 상태의 글("이미 개량됨" · "다른 지역 전용" …)로 잰다 — 보이는 줄로 재면 처음에 없던 긴 글이 잘린다(게임에서 봤다, 2026-10-16).
+    // 표의 이름에 9 를 붙였다: 옛 표("…8")의 저장된 열 너비가 이 너비를 덮지 않게(열 너비 · 놓은 순서는 한 번 처음으로 돌아간다)
+    float state_width = ImGui::CalcTextSize(units ? "등록" : "상태").x;
+    for (const char *label : {"보유", "등록", "연구 중", "연구 가능", "선행 부족"})
+        state_width = std::max(state_width, ImGui::CalcTextSize(label).x);
+    for (int block = BLOCK_NONE + 1; block < BLOCKS; block++)
+        state_width = std::max(state_width, ImGui::CalcTextSize(block_label(block).c_str()).x);
+    if (ImGui::BeginTable(units ? "units9" : "list9", columns, flags, ImVec2(0.0f, height))) {
         ImGui::TableSetupScrollFreeze(0, 1);
         ImGui::TableSetupColumn("##on", ImGuiTableColumnFlags_NoSort | ImGuiTableColumnFlags_NoResize);
         ImGui::TableSetupColumn("이름", ImGuiTableColumnFlags_WidthStretch, 1.0f);
         // 처음 너비는 보이는 줄에서 잰다 — 긴 병과("전략 폭격기")가 처음에 보이지 않으면 잘린다. 부대 설계는 넉넉히 준다
         ImGui::TableSetupColumn(designs ? "병과" : "분류", designs ? ImGuiTableColumnFlags_WidthFixed : 0, designs ? 7.0f * ImGui::GetFontSize() : 0.0f);
         ImGui::TableSetupColumn(designs ? "연도" : "수준", ImGuiTableColumnFlags_DefaultSort);
-        ImGui::TableSetupColumn(units ? "등록" : "상태");                // 부대 탭: 등록 · 연구 중 · 연구 가능 · 선행 부족 · 열 수 없음(state_label)
+        ImGui::TableSetupColumn(units ? "등록" : "상태", ImGuiTableColumnFlags_WidthFixed, state_width);   // 부대 탭: 등록 · 연구 중 · 연구 가능 · 선행 부족 · 열 수 없음(state_label)
         ImGui::TableSetupColumn("선행");                              // 선행 기술을 플레이어가 보유했는가: "보유" · "2/3" · "-"(선행이 없다)
         ImGui::TableSetupColumn("보유국", ImGuiTableColumnFlags_WidthStretch, 1.0f);   // 이름이 여럿이다 — 남는 너비를 이름 열과 나눠 쓴다
         ImGui::TableSetupColumn(with_picked ? region_label(shot->picked).c_str() : "고른 나라", ImGuiTableColumnFlags_NoHide);
