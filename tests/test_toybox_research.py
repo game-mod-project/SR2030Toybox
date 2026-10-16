@@ -876,6 +876,17 @@ def test_unlock_through_the_keeper_says_what_it_opened(playing):
     assert playing.log() == ["연구 가능으로 (고른 것): 항목 1개 열림 · 선행 기술 1개 완료"]
 
 
+def test_unlock_that_only_registers_a_predecessor_says_so(playing):
+    """판의 설계 12(선행 4 — 독일 보유)에 앞 설계 15(선행 4 — 독일 보유, 폴란드만 보유한 설계)를 둔다. 선행 기술은 다 있고 앞 설계만 등록하는 경우다 —
+    "바꿀 것이 없습니다"가 아니다(게임에서 TE-2 · JP-1A3 · JP-2A1 이 그렇게 나왔다, 2026-10-16)."""
+    playing.lab.design(15, 4, owners=(POLAND,))
+    playing.lab.upgrade(15, 12)
+    assert playing.ask("items d12", "고른 것", UNLOCK) == 1
+    playing.tick()
+    assert playing.told() == ("연구 가능으로 — 항목 1개 열림 · 앞 설계 1개 등록 — 고른 것", "")
+    assert playing.lab.owners(DESIGN, 15) == {POLAND, GERMANY} and GERMANY not in playing.lab.owners(DESIGN, 12)
+
+
 def test_unlock_that_opens_nothing_says_so(playing):
     """고른 것이 보유(1) · 대기열(2)뿐이면 한 칸도 쓰지 않고 "바꿀 것이 없습니다"와 그 까닭을 알린다."""
     assert playing.ask("items t1 t2", "고른 것", UNLOCK) == 1

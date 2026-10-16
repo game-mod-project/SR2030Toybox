@@ -355,7 +355,7 @@ void run_research(const ResearchRequest &r)
     if (r.action == Research::Unlock) {        // 요약이 이미 완성된 글이다("연구 가능으로 — …") — "…를 …로"를 덧붙이지 않는다
         const std::string prefix = "연구 가능으로 — ";
         const std::string detail = summary.compare(0, prefix.size(), prefix) == 0 ? summary.substr(prefix.size()) : summary;
-        if (done.plan.techs.empty()) {          // 한 칸도 쓰지 않았다(보유 · 이미 열림 · 열 수 없음뿐)
+        if (done.plan.techs.empty() && done.plan.designs.empty()) {   // 한 칸도 쓰지 않았다(보유 · 이미 열림 · 열 수 없음뿐) — 앞 설계만 등록한 것도 쓴 것이다
             if (skipped.empty())
                 g_notice = "바꿀 것이 없습니다 — " + r.label + (detail.empty() ? "" : " (" + detail + ")");
             log_line("연구 가능으로 (%s): 바꿀 것이 없습니다%s", r.label.c_str(), detail.empty() ? "" : (" — " + detail).c_str());
