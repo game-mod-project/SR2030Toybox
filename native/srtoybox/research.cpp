@@ -168,6 +168,60 @@ ResearchPlan revoke(const ResearchTables &t, const ResearchWhat &what)
     return plan;
 }
 
+ResearchPlan unlock(const ResearchTables &t, const ResearchWhat &what, bool can_house)
+{
+    ResearchPlan counts;
+    if (what.kind != ResearchWhat::Items)
+        return counts;
+    const std::vector<int> tech_at = index_of(t.techs, t.tech_slots), design_at = index_of(t.designs, t.design_slots);
+    ResearchWhat needs;                         // 모은 직접 선행 · 앞 설계 — 완료 규칙에 넘긴다
+    const std::vector<int> heads = upgrade_heads(t), blocks = design_blocks(t);
+    const auto take = [&](const int *ids, int count, int head = 0) {
+        bool missing = head > 0;
+        if (head > 0)
+            needs.designs.push_back(head);
+        for (int n = 0; n < count; n++) {
+            const int i = find(tech_at, ids[n]);
+            if (i >= 0 && !t.techs[static_cast<size_t>(i)].mine) {
+                needs.techs.push_back(ids[n]);
+                missing = true;
+            }
+        }
+        (missing ? counts.opened : counts.already)++;
+    };
+    for (int id : what.techs) {
+        const int i = find(tech_at, id);
+        if (i < 0)
+            continue;
+        const TechRow &row = t.techs[static_cast<size_t>(i)];
+        if (row.mine || row.queued)
+            counts.already++;
+        else if (const int block = tech_block(row, t.region_mask))
+            counts.blocked[block]++;
+        else
+            take(row.needs, 2);
+    }
+    for (int id : what.designs) {
+        const int i = find(design_at, id);
+        if (i < 0)
+            continue;
+        const DesignRow &row = t.designs[static_cast<size_t>(i)];
+        if (row.mine || row.queued)
+            counts.already++;
+        else if (const int block = blocks[static_cast<size_t>(i)])
+            counts.blocked[block]++;
+        else
+            take(row.needs, 4, heads[static_cast<size_t>(i)]);
+    }
+    ResearchPlan plan = complete(t, needs, can_house);
+    plan.asked_techs = plan.asked_designs = 0;
+    plan.opened = counts.opened;
+    plan.already = counts.already;
+    for (int b = 0; b < BLOCKS; b++)
+        plan.blocked[b] = counts.blocked[b];
+    return plan;
+}
+
 void add(std::string *text, const std::string &part)
 {
     if (!text->empty())
@@ -176,6 +230,80 @@ void add(std::string *text, const std::string &part)
 }
 
 }  // namespace
+
+std::vector<int> upgrade_heads(const ResearchTables &t)
+{
+    const std::vector<int> design_at = index_of(t.designs, t.design_slots);
+    std::vector<int> heads(t.designs.size(), 0);
+    std::vector<char> held(t.designs.size(), 0);
+    for (const DesignRow &d : t.designs) {
+        const int i = find(design_at, d.upgrade_to);
+        if (i < 0 || d.id == d.upgrade_to || !d.open || d.held)   // 게임이 앞 설계로 보지 않는 것(0x7ac110 ~ 0x7ac13c)
+            continue;
+        if (d.mine)
+            held[static_cast<size_t>(i)] = 1;
+        else if (heads[static_cast<size_t>(i)] == 0 || d.id < heads[static_cast<size_t>(i)])
+            heads[static_cast<size_t>(i)] = d.id;
+    }
+    for (size_t i = 0; i < heads.size(); i++)
+        if (held[i])
+            heads[i] = 0;
+    return heads;
+}
+
+std::vector<int> design_blocks(const ResearchTables &t)
+{
+    const std::vector<int> design_at = index_of(t.designs, t.design_slots);
+    std::vector<signed char> tech_mine(static_cast<size_t>(std::max(t.tech_slots, 0)), 0);   // 표에 없는 기술은 0 — 게임도 건너뛴다(보유로 친다)
+    std::vector<char> tech_known(tech_mine.size(), 0);
+    for (const TechRow &row : t.techs)
+        if (row.id > 0 && row.id < t.tech_slots) {
+            tech_known[static_cast<size_t>(row.id)] = 1;
+            tech_mine[static_cast<size_t>(row.id)] = row.mine;
+        }
+    const auto needs_held = [&](const DesignRow &d) {
+        for (int need : d.needs)
+            if (need > 0 && need < t.tech_slots && tech_known[static_cast<size_t>(need)] && !tech_mine[static_cast<size_t>(need)])
+                return false;
+        return true;
+    };
+    std::vector<int> blocks(t.designs.size(), BLOCK_NONE);
+    for (size_t i = 0; i < t.designs.size(); i++) {
+        const DesignRow &d = t.designs[i];
+        int block = design_block(d, t.region_mask);
+        if (block == BLOCK_NONE && d.retired != 0 && !d.kept && static_cast<int>(t.year) > d.retired)
+            block = BLOCK_RETIRED;
+        if (block == BLOCK_NONE)
+            for (int next : {d.upgrade_to, d.upgrade_to_2}) {
+                const int n = find(design_at, next);
+                if (n < 0 || next == d.id)
+                    continue;
+                const DesignRow &s = t.designs[static_cast<size_t>(n)];
+                if (s.open && (s.queued || (s.mine && needs_held(s)))) {
+                    block = BLOCK_SUPERSEDED;
+                    break;
+                }
+            }
+        blocks[i] = block;
+    }
+    return blocks;
+}
+
+int tech_block(const TechRow &row, uint64_t region_mask)
+{
+    return row.mask != 0 && (row.mask & region_mask) == 0 ? BLOCK_REGION : BLOCK_NONE;
+}
+
+int design_block(const DesignRow &row, uint64_t region_mask)
+{
+    return !row.open ? BLOCK_CLOSED : row.special ? BLOCK_SPECIAL : row.mask != 0 && (row.mask & region_mask) == 0 ? BLOCK_REGION : BLOCK_NONE;
+}
+
+std::string block_label(int block)
+{
+    return block == BLOCK_REGION ? "다른 지역 전용" : block == BLOCK_CLOSED ? "연구 대상 아님" : block == BLOCK_SPECIAL ? "특수 설계"
+        : block == BLOCK_SUPERSEDED ? "이미 개량됨" : block == BLOCK_RETIRED ? "단종" : "";
+}
 
 bool queue_live(const QueueRow &node)
 {
@@ -205,7 +333,8 @@ void research_mark_queued(ResearchTables *tables)
 
 ResearchPlan research_plan(const ResearchTables &tables, Research action, const ResearchWhat &what, bool can_house)
 {
-    ResearchPlan plan = action == Research::Complete ? complete(tables, what, can_house) : revoke(tables, what);
+    ResearchPlan plan = action == Research::Complete ? complete(tables, what, can_house)
+        : action == Research::Unlock ? unlock(tables, what, can_house) : revoke(tables, what);
     std::sort(plan.techs.begin(), plan.techs.end());
     std::sort(plan.designs.begin(), plan.designs.end());
     return plan;
@@ -213,6 +342,27 @@ ResearchPlan research_plan(const ResearchTables &tables, Research action, const 
 
 std::string research_summary(const ResearchPlan &plan, Research action)
 {
+    if (action == Research::Unlock) {
+        std::string text;
+        if (plan.opened > 0)
+            add(&text, "항목 " + std::to_string(plan.opened) + "개 열림");
+        if (!plan.techs.empty())
+            add(&text, "선행 기술 " + std::to_string(plan.techs.size()) + "개 완료");
+        if (!plan.designs.empty())
+            add(&text, "앞 설계 " + std::to_string(plan.designs.size()) + "개 등록");
+        if (plan.already > 0)
+            add(&text, "이미 열림 " + std::to_string(plan.already) + "개");
+        int blocked = 0;
+        std::string why;
+        for (int b = 1; b < BLOCKS; b++)
+            if (plan.blocked[b] > 0) {
+                blocked += plan.blocked[b];
+                why += (why.empty() ? "" : " · ") + block_label(b) + " " + std::to_string(plan.blocked[b]);
+            }
+        if (blocked > 0)
+            add(&text, "열 수 없음 " + std::to_string(blocked) + "개(" + why + ")");
+        return text.empty() ? text : "연구 가능으로 — " + text;
+    }
     const int techs = static_cast<int>(plan.techs.size()), designs = static_cast<int>(plan.designs.size());
     const char *const extra = action == Research::Complete ? "선행" : "딸린 것";
     std::string text;

@@ -279,6 +279,16 @@ const uint32_t DESIGN_HOLD_A_BIT = 0x1;
 const uint32_t DESIGN_HOLD_B = 0xF0;        // dword. DESIGN_HOLD_B_BIT 〃
 const uint32_t DESIGN_HOLD_B_BIT = 0x1000000;
 const uint32_t DESIGN_OWNERS = 0xF8;        // qword. 보유 비트 묶음의 포인터
+const uint32_t TECH_MASK = 0x28;            // qword. 지역 마스크 — 0 이 아니면 플레이어 지역의 REGION_MASK 와 겹쳐야 연구할 수 있다(0x4e3a44). 읽기만
+const uint32_t DESIGN_MASK = 0x18;          // qword. 〃 (0x7abcb1). 읽기만
+const uint32_t DESIGN_SPECIAL_BIT = DESIGN_HOLD_A_BIT;   // DESIGN_HOLD_A 의 이 비트가 켜진 설계는 연구 목록에 나오지 않는다(0x7abc4e)
+const uint32_t DESIGN_UPGRADE_TO = 0x24;    // word. 이 설계가 개량되어 되는 설계의 번호(DEFAULT.UNIT 의 UGTo). 그 설계는 앞 설계 하나를 보유해야 연구 목록에 나온다(0x7ac142). 읽기만
+const uint32_t DESIGN_UPGRADE_TO_2 = 0x26;  // word. 개량되어 되는 둘째 설계(0x7ac3fe). 둘 가운데 하나를 보유(또는 대기열)하면 이 설계는 연구 목록에 나오지 않는다. 읽기만
+const uint32_t DESIGN_RETIRED = 0x0B;       // byte. 단종 연도 − 1900(0 이면 없다) — 지금 해(REGION_YEAR)가 이보다 크면 연구 목록에 나오지 않는다(0x7ac380). 읽기만
+const uint32_t DESIGN_KEPT = 0x161;         // byte. DESIGN_KEPT_BIT 이 켜진 설계는 단종돼도 나온다(0x7ac3a2). 읽기만
+const uint32_t DESIGN_KEPT_BIT = 0x20;
+const uint32_t REGION_YEAR = 0x14CD0;       // float. 지역 객체의 지금 해 − 1900 으로 보인다(단종과 견준다). 읽기만
+const uint32_t REGION_MASK = 0x40;          // qword. 지역 객체의 지역 마스크. 읽기만
 const uint32_t OWNERS_BYTES = 128;          // 보유 비트 묶음 하나 = 지역 인덱스로 찾는 1024비트
 const uint32_t LIST_STEP = 24;              // 지역 하나의 연구 목록 칸
 const uint32_t NODE_NEXT = 0x10;            // qword. 다음 노드
