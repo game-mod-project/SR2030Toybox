@@ -720,6 +720,8 @@ bool shoot(const uint8_t *base, const GameAddresses &at, const ResearchLayout &r
     t.design_slots = design_count;
     if (!peek(reinterpret_cast<const void *>(player + REGION_MASK), &t.region_mask, sizeof(t.region_mask)))
         t.region_mask = 0;                      // 읽지 못했다 — 마스크가 있는 항목이 모두 막힌다(실패로 치지 않는다)
+    if (!peek(reinterpret_cast<const void *>(player + REGION_YEAR), &t.year, sizeof(t.year)) || !std::isfinite(t.year))
+        t.year = 0;                             // 읽지 못했다 — 단종으로 막는 것이 없다
 
     std::vector<uint8_t> raw(static_cast<size_t>(tech_count) * TECH_SIZE);
     if (!peek(reinterpret_cast<const void *>(tech_table), raw.data(), raw.size())) {
@@ -789,6 +791,9 @@ bool shoot(const uint8_t *base, const GameAddresses &at, const ResearchLayout &r
         row.mask = field<uint64_t>(record, DESIGN_MASK);
         row.special = (field<uint32_t>(record, DESIGN_HOLD_A) & DESIGN_SPECIAL_BIT) != 0;
         row.upgrade_to = field<uint16_t>(record, DESIGN_UPGRADE_TO);
+        row.upgrade_to_2 = field<uint16_t>(record, DESIGN_UPGRADE_TO_2);
+        row.retired = record[DESIGN_RETIRED];
+        row.kept = (record[DESIGN_KEPT] & DESIGN_KEPT_BIT) != 0;
         t.designs.push_back(row);
         shot->design_owners.push_back(owners);
         shot->design_cells.push_back(design_table + static_cast<uint64_t>(i) * DESIGN_SIZE + DESIGN_OWNERS);

@@ -175,7 +175,7 @@ ResearchPlan unlock(const ResearchTables &t, const ResearchWhat &what, bool can_
         return counts;
     const std::vector<int> tech_at = index_of(t.techs, t.tech_slots), design_at = index_of(t.designs, t.design_slots);
     ResearchWhat needs;                         // 모은 직접 선행 · 앞 설계 — 완료 규칙에 넘긴다
-    const std::vector<int> heads = upgrade_heads(t);
+    const std::vector<int> heads = upgrade_heads(t), blocks = design_blocks(t);
     const auto take = [&](const int *ids, int count, int head = 0) {
         bool missing = head > 0;
         if (head > 0)
@@ -208,7 +208,7 @@ ResearchPlan unlock(const ResearchTables &t, const ResearchWhat &what, bool can_
         const DesignRow &row = t.designs[static_cast<size_t>(i)];
         if (row.mine || row.queued)
             counts.already++;
-        else if (const int block = design_block(row, t.region_mask))
+        else if (const int block = blocks[static_cast<size_t>(i)])
             counts.blocked[block]++;
         else
             take(row.needs, 4, heads[static_cast<size_t>(i)]);
@@ -251,6 +251,44 @@ std::vector<int> upgrade_heads(const ResearchTables &t)
     return heads;
 }
 
+std::vector<int> design_blocks(const ResearchTables &t)
+{
+    const std::vector<int> design_at = index_of(t.designs, t.design_slots);
+    std::vector<signed char> tech_mine(static_cast<size_t>(std::max(t.tech_slots, 0)), 0);   // 표에 없는 기술은 0 — 게임도 건너뛴다(보유로 친다)
+    std::vector<char> tech_known(tech_mine.size(), 0);
+    for (const TechRow &row : t.techs)
+        if (row.id > 0 && row.id < t.tech_slots) {
+            tech_known[static_cast<size_t>(row.id)] = 1;
+            tech_mine[static_cast<size_t>(row.id)] = row.mine;
+        }
+    const auto needs_held = [&](const DesignRow &d) {
+        for (int need : d.needs)
+            if (need > 0 && need < t.tech_slots && tech_known[static_cast<size_t>(need)] && !tech_mine[static_cast<size_t>(need)])
+                return false;
+        return true;
+    };
+    std::vector<int> blocks(t.designs.size(), BLOCK_NONE);
+    for (size_t i = 0; i < t.designs.size(); i++) {
+        const DesignRow &d = t.designs[i];
+        int block = design_block(d, t.region_mask);
+        if (block == BLOCK_NONE && d.retired != 0 && !d.kept && static_cast<int>(t.year) > d.retired)
+            block = BLOCK_RETIRED;
+        if (block == BLOCK_NONE)
+            for (int next : {d.upgrade_to, d.upgrade_to_2}) {
+                const int n = find(design_at, next);
+                if (n < 0 || next == d.id)
+                    continue;
+                const DesignRow &s = t.designs[static_cast<size_t>(n)];
+                if (s.open && (s.queued || (s.mine && needs_held(s)))) {
+                    block = BLOCK_SUPERSEDED;
+                    break;
+                }
+            }
+        blocks[i] = block;
+    }
+    return blocks;
+}
+
 int tech_block(const TechRow &row, uint64_t region_mask)
 {
     return row.mask != 0 && (row.mask & region_mask) == 0 ? BLOCK_REGION : BLOCK_NONE;
@@ -263,7 +301,8 @@ int design_block(const DesignRow &row, uint64_t region_mask)
 
 std::string block_label(int block)
 {
-    return block == BLOCK_REGION ? "다른 지역 전용" : block == BLOCK_CLOSED ? "연구 대상 아님" : block == BLOCK_SPECIAL ? "특수 설계" : "";
+    return block == BLOCK_REGION ? "다른 지역 전용" : block == BLOCK_CLOSED ? "연구 대상 아님" : block == BLOCK_SPECIAL ? "특수 설계"
+        : block == BLOCK_SUPERSEDED ? "이미 개량됨" : block == BLOCK_RETIRED ? "단종" : "";
 }
 
 bool queue_live(const QueueRow &node)

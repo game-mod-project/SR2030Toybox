@@ -264,7 +264,7 @@ std::vector<ListRow> research_rows(const ResearchTables &tables, const ListFilte
     std::vector<ListRow> rows;
     const std::vector<signed char> owned = tech_owned(tables);
     if (filter.designs) {
-        const std::vector<int> heads = upgrade_heads(tables);
+        const std::vector<int> heads = upgrade_heads(tables), blocks = design_blocks(tables);
         for (const DesignRow &d : tables.designs) {
             if ((filter.domain >= 0 && design_domain(d.cls) != filter.domain) || (filter.kind >= 0 && d.cls != filter.kind) || !shown(filter.show, d.mine, d.picked, d.others) || (filter.by_picked && !d.picked))
                 continue;
@@ -276,7 +276,8 @@ std::vector<ListRow> research_rows(const ResearchTables &tables, const ListFilte
             row.kind = d.cls;
             row.level = 1900 + d.year;
             fill_needs(&row, d, d.needs, owned);
-            if (!settle(&row, design_block(d, tables.region_mask), filter.show, heads[static_cast<size_t>(&d - tables.designs.data())] != 0))
+            const size_t at = static_cast<size_t>(&d - tables.designs.data());
+            if (!settle(&row, blocks[at], filter.show, heads[at] != 0))
                 continue;
             rows.push_back(row);
         }

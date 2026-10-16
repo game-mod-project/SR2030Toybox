@@ -1094,7 +1094,8 @@ void item_list(ListState &L, bool units, const GameState &game, bool blocked)
         list_request(L, Research::Unlock, chosen, "고른 것");
     note("list:unlock", "고른 것 연구 가능으로");
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-        wrapped_tooltip("항목 자체는 보유가 되지 않는다 — 모자란 선행 기술만 보유로 준다. 연구는 게임에서 한다");
+        wrapped_tooltip("항목 자체는 보유가 되지 않는다 — 모자란 선행 기술만 보유로 준다. 연구는 게임에서 한다. "
+                        "부대 설계에 업그레이드의 앞 설계가 있으면 그 하나를 등록한다 — 그러면 그 앞 설계를 가리키는 더 옛 설계는 게임의 연구 목록에서 빠진다(이미 개량됨)");
     ImGui::EndDisabled();
     ImGui::SameLine();
     ImGui::BeginDisabled(off || visible.empty());

@@ -67,20 +67,20 @@ def test_unlock_completes_only_the_missing_direct_prerequisites(lib):
     """기술 3 의 선행 2 가 없고 2 의 선행 1 도 없다. 3 은 보유가 되지 않고 2 · 1 만 — 3 이 게임의 "가능한 연구"에 나온다."""
     got = plan(lib, [tech(1), tech(2, 1), tech(3, 2)], "items t3", action=UNLOCK)
     assert got["techs"] == [1, 2] and got["designs"] == [] and got["asked"] == (0, 0)
-    assert got["unlock"] == (1, 0, 0, 0, 0)                                  # 연 것 · 이미 열림 · 다른 지역 · 연구 대상 아님 · 특수
+    assert got["unlock"] == (1, 0, 0, 0, 0, 0, 0)                                  # 연 것 · 이미 열림 · 다른 지역 · 연구 대상 아님 · 특수
     assert got["text"] == "연구 가능으로 — 항목 1개 열림 · 선행 기술 2개 완료"
 
 
 def test_unlock_skips_held_queued_and_already_open_items(lib):
     rows = [tech(1, mine=True), tech(2, 1), tech(3, mine=True), tech(4, 9), node(1, 5), tech(5, 1)]
     got = plan(lib, rows, "items t2 t3 t5", action=UNLOCK)
-    assert got["techs"] == [] and got["unlock"] == (0, 3, 0, 0, 0)          # 2: 선행 보유(이미 열림) · 3: 보유 · 5: 대기열
+    assert got["techs"] == [] and got["unlock"] == (0, 3, 0, 0, 0, 0, 0)          # 2: 선행 보유(이미 열림) · 3: 보유 · 5: 대기열
     assert got["text"] == "연구 가능으로 — 이미 열림 3개"
 
 
 def test_unlock_of_a_design_brings_its_four_prerequisites(lib):
     got = plan(lib, [tech(1), tech(2, mine=True), tech(3), design(7, 1, 2, 3)], "items d7", action=UNLOCK)
-    assert got["techs"] == [1, 3] and got["designs"] == [] and got["unlock"] == (1, 0, 0, 0, 0)
+    assert got["techs"] == [1, 3] and got["designs"] == [] and got["unlock"] == (1, 0, 0, 0, 0, 0, 0)
 
 
 def test_unlock_refuses_what_the_game_would_still_hide(lib):
@@ -89,7 +89,7 @@ def test_unlock_refuses_what_the_game_would_still_hide(lib):
     rows = ["region 4", tech(1), tech(2, 1), "tmask 2 2", tech(3, 1), "tmask 3 6",
             design(7, 1), "dmask 7 8 0", design(8, 1, is_open=False), design(9, 1), "dmask 9 0 1", design(10, 1, held=True)]
     got = plan(lib, rows, "items t2 t3 d7 d8 d9 d10", action=UNLOCK)
-    assert got["techs"] == [1] and got["unlock"] == (2, 0, 2, 1, 1)          # 열림: t3(마스크 6 & 4) · d10 / 다른 지역: t2 · d7
+    assert got["techs"] == [1] and got["unlock"] == (2, 0, 2, 1, 1, 0, 0)          # 열림: t3(마스크 6 & 4) · d10 / 다른 지역: t2 · d7
     assert got["text"] == "연구 가능으로 — 항목 2개 열림 · 선행 기술 1개 완료 · 열 수 없음 4개(다른 지역 전용 2 · 연구 대상 아님 1 · 특수 설계 1)"
 
 
@@ -103,21 +103,21 @@ def test_unlock_registers_one_predecessor_design_when_none_is_held(lib):
     둘 다 미보유면 번호가 가장 낮은 7 을 등록하고 그 선행 기술(1)도 준다. 9 자체는 그대로다."""
     rows = [tech(1), tech(2, mine=True), design(7, 1), "dup 7 9", design(8, 2), "dup 8 9", design(9, 2)]
     got = plan(lib, rows, "items d9", action=UNLOCK)
-    assert got["techs"] == [1] and got["designs"] == [7] and got["unlock"] == (1, 0, 0, 0, 0)
+    assert got["techs"] == [1] and got["designs"] == [7] and got["unlock"] == (1, 0, 0, 0, 0, 0, 0)
     assert got["text"] == "연구 가능으로 — 항목 1개 열림 · 선행 기술 1개 완료 · 앞 설계 1개 등록"
 
 
 def test_a_held_predecessor_is_enough(lib):
     rows = [tech(2, mine=True), design(7, 2, mine=True), "dup 7 9", design(8, 2), "dup 8 9", design(9, 2)]
     got = plan(lib, rows, "items d9", action=UNLOCK)
-    assert got["techs"] == [] and got["designs"] == [] and got["unlock"] == (0, 1, 0, 0, 0)
+    assert got["techs"] == [] and got["designs"] == [] and got["unlock"] == (0, 1, 0, 0, 0, 0, 0)
 
 
 def test_predecessors_the_game_skips_do_not_count(lib):
     """연구 대상이 아니거나 깃발(A · B)이 켜진 앞 설계는 게임이 보지 않는다 — 없는 것과 같다."""
     rows = [tech(2, mine=True), design(7, 2, is_open=False), "dup 7 9", design(8, 2, held=True), "dup 8 9", design(9, 2)]
     got = plan(lib, rows, "items d9", action=UNLOCK)
-    assert got["designs"] == [] and got["unlock"] == (0, 1, 0, 0, 0)
+    assert got["designs"] == [] and got["unlock"] == (0, 1, 0, 0, 0, 0, 0)
 
 
 def test_rows_say_lacking_when_no_predecessor_is_held(lib):
@@ -125,9 +125,27 @@ def test_rows_say_lacking_when_no_predecessor_is_held(lib):
     assert list_states(lib, rows, designs=True) == {7: "연구 가능", 9: "선행 부족", 10: "연구 가능"}
 
 
+def test_a_design_whose_next_design_is_held_or_queued_is_superseded(lib):
+    """게임은 다음 설계(+0x24 · +0x26)를 보유했거나(그 선행도) 대기열에 건 설계를 보이지 않는다(0x7ac3f4) — 이미 개량됨."""
+    rows = [tech(1, mine=True), design(7, 1), "dup 7 8 0", design(8, 1, mine=True), design(9, 1), "dup 9 0 10", design(10, 1), node(2, 10),
+            design(11, 1), "dup 11 12 0", design(12, 2), tech(2)]
+    got = plan(lib, rows, "items d7 d9 d11", action=UNLOCK)
+    assert got["designs"] == [] and got["unlock"] == (0, 1, 0, 0, 0, 2, 0)     # d11: 다음 설계 12 는 미보유 — 이미 열림
+    assert list_states(lib, rows, designs=True)[7] == "이미 개량됨"
+
+
+def test_a_retired_design_is_blocked(lib):
+    """+0x0b(단종 연도 − 1900)가 0 이 아니고 지금 해(지역 +0x14cd0)가 그보다 크면 게임이 보이지 않는다. +0x161 의 0x20 이 켜진 설계는 남는다."""
+    rows = ["year 110.5", tech(1, mine=True), design(7, 1), "dold 7 95 0", design(8, 1), "dold 8 143 0", design(9, 1), "dold 9 95 1",
+            design(10, 1), "dold 10 110 0"]
+    got = plan(lib, rows, "items d7 d8 d9 d10", action=UNLOCK)
+    assert got["unlock"] == (0, 3, 0, 0, 0, 0, 1)                               # 8 · 9 · 10 은 이미 열림(110 은 110 보다 크지 않다)
+    assert list_states(lib, rows, designs=True) == {7: "단종", 8: "연구 가능", 9: "연구 가능", 10: "연구 가능"}
+
+
 def test_a_zero_region_mask_blocks_every_masked_item(lib):
     got = plan(lib, [tech(1), tech(2, 1), "tmask 2 1"], "items t2", action=UNLOCK)   # region 줄이 없다 = 0
-    assert got["techs"] == [] and got["unlock"] == (0, 0, 1, 0, 0)
+    assert got["techs"] == [] and got["unlock"] == (0, 0, 1, 0, 0, 0, 0)
 
 
 SHOW_ALL, SHOW_OPEN, SHOW_LACKING = 0, 6, 7                                                      # techs.h 의 Show
@@ -184,7 +202,7 @@ def test_prerequisites_that_point_at_each_other_still_end(lib):
 def test_what_is_already_held_is_not_in_the_plan(lib):
     got = plan(lib, [tech(1, mine=True), design(5, mine=True)], "items t1 d5")
     assert got == {"techs": [], "designs": [], "nodes": [], "asked": (0, 0), "skipped": 0, "queued": [], "text": "",
-                   "unlock": (0, 0, 0, 0, 0)}                              # 완료에서는 연구 가능으로의 수가 늘 0 이다
+                   "unlock": (0, 0, 0, 0, 0, 0, 0)}                              # 완료에서는 연구 가능으로의 수가 늘 0 이다
 
 
 def test_numbers_that_are_not_in_the_table_and_repeats_are_ignored(lib):
