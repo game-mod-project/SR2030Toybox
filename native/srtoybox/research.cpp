@@ -1,6 +1,7 @@
 #include "research.h"
 
 #include <algorithm>
+#include <array>
 
 #include "locate.h"
 
@@ -175,9 +176,48 @@ ResearchPlan unlock(const ResearchTables &t, const ResearchWhat &what, bool can_
         return counts;
     const std::vector<int> tech_at = index_of(t.techs, t.tech_slots), design_at = index_of(t.designs, t.design_slots);
     ResearchWhat needs;                         // 모은 직접 선행 · 앞 설계 — 완료 규칙에 넘긴다
-    const std::vector<int> heads = upgrade_heads(t), blocks = design_blocks(t);
-    const auto take = [&](const int *ids, int count, int head = 0) {
-        bool missing = head > 0;
+    const std::vector<int> heads = upgrade_heads(t);
+    const std::vector<int> other = design_blocks(t, ~0ull);    // 지역을 뺀 까닭
+    uint64_t mask = t.region_mask;              // 앞 항목이 더한 비트를 본 플레이어의 마스크
+    std::array<int, 64> opens = {};             // 비트마다: 더하면 새로 열리는 항목의 수(mask 가 바뀌면 다시 센다)
+    bool stale = true;
+    const auto shut = [&](uint64_t m) { return m != 0 && (m & mask) == 0; };
+    const auto recount = [&]() {
+        opens.fill(0);
+        const auto count = [&](uint64_t m) {
+            if (shut(m))
+                for (int b = 0; b < 64; b++)
+                    opens[static_cast<size_t>(b)] += static_cast<int>(m >> b & 1);
+        };
+        for (const TechRow &row : t.techs)
+            if (!row.mine && !row.queued)
+                count(row.mask);
+        for (size_t i = 0; i < t.designs.size(); i++)
+            if (!t.designs[i].mine && !t.designs[i].queued && other[i] == BLOCK_NONE)
+                count(t.designs[i].mask);
+        stale = false;
+    };
+    // 지역이 그 항목을 막지 않게 한다. 막혀 있었으면 *opened. 열 수 없으면(플레이어의 마스크를 읽지 못했다) false
+    const auto open_region = [&](uint64_t m, bool *opened) {
+        *opened = m != 0 && (m & t.region_mask) == 0;
+        if (!shut(m))
+            return true;
+        if (mask == 0)
+            return false;
+        if (stale)
+            recount();
+        int best = -1;
+        for (int b = 0; b < 64; b++)
+            if ((m >> b & 1) && (best < 0 || opens[static_cast<size_t>(b)] < opens[static_cast<size_t>(best)]))
+                best = b;
+        mask |= 1ull << best;
+        counts.region_add |= 1ull << best;
+        counts.regions++;
+        stale = true;
+        return true;
+    };
+    const auto take = [&](const int *ids, int count, int head, bool opened) {
+        bool missing = head > 0 || opened;
         if (head > 0)
             needs.designs.push_back(head);
         for (int n = 0; n < count; n++) {
@@ -194,24 +234,28 @@ ResearchPlan unlock(const ResearchTables &t, const ResearchWhat &what, bool can_
         if (i < 0)
             continue;
         const TechRow &row = t.techs[static_cast<size_t>(i)];
+        bool opened = false;
         if (row.mine || row.queued)
             counts.already++;
-        else if (const int block = tech_block(row, t.region_mask))
-            counts.blocked[block]++;
+        else if (!open_region(row.mask, &opened))
+            counts.blocked[BLOCK_REGION]++;
         else
-            take(row.needs, 2);
+            take(row.needs, 2, 0, opened);
     }
     for (int id : what.designs) {
         const int i = find(design_at, id);
         if (i < 0)
             continue;
         const DesignRow &row = t.designs[static_cast<size_t>(i)];
+        bool opened = false;
         if (row.mine || row.queued)
             counts.already++;
-        else if (const int block = blocks[static_cast<size_t>(i)])
+        else if (const int block = other[static_cast<size_t>(i)])
             counts.blocked[block]++;
+        else if (!open_region(row.mask, &opened))
+            counts.blocked[BLOCK_REGION]++;
         else
-            take(row.needs, 4, heads[static_cast<size_t>(i)]);
+            take(row.needs, 4, heads[static_cast<size_t>(i)], opened);
     }
     ResearchPlan plan = complete(t, needs, can_house);
     plan.asked_techs = plan.asked_designs = 0;
@@ -219,6 +263,8 @@ ResearchPlan unlock(const ResearchTables &t, const ResearchWhat &what, bool can_
     plan.already = counts.already;
     for (int b = 0; b < BLOCKS; b++)
         plan.blocked[b] = counts.blocked[b];
+    plan.region_add = counts.region_add;
+    plan.regions = counts.regions;
     return plan;
 }
 
@@ -253,6 +299,11 @@ std::vector<int> upgrade_heads(const ResearchTables &t)
 
 std::vector<int> design_blocks(const ResearchTables &t)
 {
+    return design_blocks(t, t.region_mask);
+}
+
+std::vector<int> design_blocks(const ResearchTables &t, uint64_t region_mask)
+{
     const std::vector<int> design_at = index_of(t.designs, t.design_slots);
     std::vector<signed char> tech_mine(static_cast<size_t>(std::max(t.tech_slots, 0)), 0);   // 표에 없는 기술은 0 — 게임도 건너뛴다(보유로 친다)
     std::vector<char> tech_known(tech_mine.size(), 0);
@@ -270,7 +321,7 @@ std::vector<int> design_blocks(const ResearchTables &t)
     std::vector<int> blocks(t.designs.size(), BLOCK_NONE);
     for (size_t i = 0; i < t.designs.size(); i++) {
         const DesignRow &d = t.designs[i];
-        int block = design_block(d, t.region_mask);
+        int block = design_block(d, region_mask);
         if (block == BLOCK_NONE && d.retired != 0 && !d.kept && static_cast<int>(t.year) > d.retired)
             block = BLOCK_RETIRED;
         if (block == BLOCK_NONE)
@@ -346,6 +397,8 @@ std::string research_summary(const ResearchPlan &plan, Research action)
         std::string text;
         if (plan.opened > 0)
             add(&text, "항목 " + std::to_string(plan.opened) + "개 열림");
+        if (plan.regions > 0)
+            add(&text, "지역 " + std::to_string(plan.regions) + "개 열림");
         if (!plan.techs.empty())
             add(&text, "선행 기술 " + std::to_string(plan.techs.size()) + "개 완료");
         if (!plan.designs.empty())

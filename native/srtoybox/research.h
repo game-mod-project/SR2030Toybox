@@ -73,6 +73,8 @@ std::string block_label(int block);                           // "다른 지역 
 // 설계마다(tables.designs 의 칸) design_block 에 표 전체를 보는 둘을 더한 까닭: 다음 설계(upgrade_to · upgrade_to_2)를 보유했고(그 선행도) 또는 대기열에 걸었으면
 // BLOCK_SUPERSEDED(0x7ac3f4), 단종 연도가 있고 지금 해의 정수가 그보다 크고 kept 가 아니면 BLOCK_RETIRED(0x7ac380). 게임의 설정 비트에 따라 갈리는 갈래는 흔한 쪽으로 근사한다.
 std::vector<int> design_blocks(const ResearchTables &t);
+// 같은 것을 플레이어의 지역 마스크 대신 region_mask 로(~0 이면 지역을 뺀 까닭).
+std::vector<int> design_blocks(const ResearchTables &t, uint64_t region_mask);
 // 설계마다(tables.designs 의 칸) 연구 목록에 나오려면 등록해야 할 앞 설계의 번호. 0 이면 필요 없다 — 앞 설계(upgrade_to 가 그 설계이고 연구 대상이며
 // held 가 아닌 설계)가 없거나 그 가운데 하나를 보유했다. 아니면 앞 설계 가운데 번호가 가장 낮은 것(게임은 앞 설계 하나만 보유하면 된다 — 0x7ac0ce).
 std::vector<int> upgrade_heads(const ResearchTables &t);
@@ -90,11 +92,16 @@ struct ResearchPlan {
     int skipped = 0;                        // 보유 비트 묶음이 없어 건너뛴 항목의 수(can_house 가 false 일 때만)
     int opened = 0, already = 0;            // 연구 가능으로: 연 항목 · 이미 열려 있던(보유 · 대기열 · 선행을 다 가진) 항목의 수
     int blocked[BLOCKS] = {};               // 연구 가능으로: 열 수 없는 항목의 수(까닭마다)
+    uint64_t region_add = 0;                // 연구 가능으로: 플레이어 지역의 지역 마스크에 더할 비트들(0 이면 없다)
+    int regions = 0;                        // 그 비트의 수
 };
 
 // 연구 가능으로(Unlock) — Items 만. 항목마다 보유 · 대기열이면 이미 열림, 열 수 없으면(tech_block · design_block) 세기만, 아니면 직접 선행 가운데
 //   표에 있고 보유하지 않은 것을 모은다(없으면 이미 열림). 모은 선행에 완료 규칙을 쓴다(asked 는 0). 항목 자체의 비트는 바꾸지 않는다.
 //   설계는 앞 설계가 필요하면(upgrade_heads) 그 앞 설계도 완료 규칙으로 등록한다(그 선행 기술도 함께) — plan.designs 가 그것이다.
+//   지역만이 막는 항목(다른 까닭이 없고 지역 마스크가 플레이어의 것과 겹치지 않는다)은 그 마스크의 비트 하나를 region_add 에 더하고 연다 —
+//   더했을 때 새로 열리는 항목(보유 · 대기열 · 다른 까닭이 없는 기술 · 설계)이 가장 적은 비트, 같으면 낮은 비트. 뒤 항목은 더한 비트를 본 마스크로 판정한다.
+//   플레이어의 마스크가 0(읽지 못했다)이면 더하지 않고 다른 지역 전용으로 센다(docs/superpowers/specs/2026-10-17-toybox-region-unlock-design.md).
 // 완료(Complete)
 //   기술      그 기술 + 선행 둘 가운데 보유하지 않은 것(거슬러 올라가며 전부). 이미 보유한 선행의 선행은 보지 않는다.
 //             선행의 번호가 0 이거나 자리 수 이상이거나 빈 자리면 건너뛴다.

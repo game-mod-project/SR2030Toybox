@@ -234,6 +234,11 @@ class Lab:
         """부대 설계 number 가 개량되어 to 가 된다(설계의 +0x24 — DEFAULT.UNIT 의 UGTo)."""
         struct.pack_into("<H", self.designs, number * DESIGN_SIZE + 0x24, to)
 
+    def mask(self, kind: int, number: int, mask: int) -> None:
+        """그 항목의 지역 마스크(qword): 기술 +0x28, 부대 설계 +0x18 — 플레이어 지역 객체의 +0x40 과 겹쳐야 게임이 연구 목록에 보인다."""
+        table, at = (self.techs, number * TECH_SIZE + 0x28) if kind == TECH else (self.designs, number * DESIGN_SIZE + 0x18)
+        struct.pack_into("<Q", table, at, mask)
+
     def owners(self, kind: int, number: int) -> set[int]:
         """그 항목을 보유한 지역의 인덱스들. 묶음이 없으면 빈 집합."""
         block = self.block(kind, number)

@@ -67,30 +67,30 @@ def test_unlock_completes_only_the_missing_direct_prerequisites(lib):
     """기술 3 의 선행 2 가 없고 2 의 선행 1 도 없다. 3 은 보유가 되지 않고 2 · 1 만 — 3 이 게임의 "가능한 연구"에 나온다."""
     got = plan(lib, [tech(1), tech(2, 1), tech(3, 2)], "items t3", action=UNLOCK)
     assert got["techs"] == [1, 2] and got["designs"] == [] and got["asked"] == (0, 0)
-    assert got["unlock"] == (1, 0, 0, 0, 0, 0, 0)                                  # 연 것 · 이미 열림 · 다른 지역 · 연구 대상 아님 · 특수
+    assert got["unlock"] == (1, 0, 0, 0, 0, 0, 0, 0, 0)                                  # 연 것 · 이미 열림 · 다른 지역 · 연구 대상 아님 · 특수
     assert got["text"] == "연구 가능으로 — 항목 1개 열림 · 선행 기술 2개 완료"
 
 
 def test_unlock_skips_held_queued_and_already_open_items(lib):
     rows = [tech(1, mine=True), tech(2, 1), tech(3, mine=True), tech(4, 9), node(1, 5), tech(5, 1)]
     got = plan(lib, rows, "items t2 t3 t5", action=UNLOCK)
-    assert got["techs"] == [] and got["unlock"] == (0, 3, 0, 0, 0, 0, 0)          # 2: 선행 보유(이미 열림) · 3: 보유 · 5: 대기열
+    assert got["techs"] == [] and got["unlock"] == (0, 3, 0, 0, 0, 0, 0, 0, 0)          # 2: 선행 보유(이미 열림) · 3: 보유 · 5: 대기열
     assert got["text"] == "연구 가능으로 — 이미 열림 3개"
 
 
 def test_unlock_of_a_design_brings_its_four_prerequisites(lib):
     got = plan(lib, [tech(1), tech(2, mine=True), tech(3), design(7, 1, 2, 3)], "items d7", action=UNLOCK)
-    assert got["techs"] == [1, 3] and got["designs"] == [] and got["unlock"] == (1, 0, 0, 0, 0, 0, 0)
+    assert got["techs"] == [1, 3] and got["designs"] == [] and got["unlock"] == (1, 0, 0, 0, 0, 0, 0, 0, 0)
 
 
 def test_unlock_refuses_what_the_game_would_still_hide(lib):
-    """지역 마스크가 맞지 않는 기술 · 설계, 연구 대상이 아닌 설계, 특수 설계(+0xEC 의 비트 1)는 선행을 채워도 게임이 보이지 않는다 — 쓰지 않고 센다.
-    깃발 B(held 이지만 특수가 아닌 것)는 연다."""
+    """연구 대상이 아닌 설계, 특수 설계(+0xEC 의 비트 1)는 선행을 채워도 게임이 보이지 않는다 — 쓰지 않고 센다. 깃발 B(held 이지만 특수가 아닌 것)는 연다.
+    지역만이 막는 기술 · 설계는 그 지역 비트를 더해 연다(2026-10-17 — 전에는 다른 지역 전용으로 셌다)."""
     rows = ["region 4", tech(1), tech(2, 1), "tmask 2 2", tech(3, 1), "tmask 3 6",
             design(7, 1), "dmask 7 8 0", design(8, 1, is_open=False), design(9, 1), "dmask 9 0 1", design(10, 1, held=True)]
     got = plan(lib, rows, "items t2 t3 d7 d8 d9 d10", action=UNLOCK)
-    assert got["techs"] == [1] and got["unlock"] == (2, 0, 2, 1, 1, 0, 0)          # 열림: t3(마스크 6 & 4) · d10 / 다른 지역: t2 · d7
-    assert got["text"] == "연구 가능으로 — 항목 2개 열림 · 선행 기술 1개 완료 · 열 수 없음 4개(다른 지역 전용 2 · 연구 대상 아님 1 · 특수 설계 1)"
+    assert got["techs"] == [1] and got["unlock"] == (4, 0, 0, 1, 1, 0, 0, 2, 10)         # 열림: t2(비트 2) · t3(마스크 6 & 4) · d7(비트 8) · d10
+    assert got["text"] == "연구 가능으로 — 항목 4개 열림 · 지역 2개 열림 · 선행 기술 1개 완료 · 열 수 없음 2개(연구 대상 아님 1 · 특수 설계 1)"
 
 
 def test_unlock_takes_a_queued_prerequisite_off_the_queue(lib):
@@ -103,21 +103,21 @@ def test_unlock_registers_one_predecessor_design_when_none_is_held(lib):
     둘 다 미보유면 번호가 가장 낮은 7 을 등록하고 그 선행 기술(1)도 준다. 9 자체는 그대로다."""
     rows = [tech(1), tech(2, mine=True), design(7, 1), "dup 7 9", design(8, 2), "dup 8 9", design(9, 2)]
     got = plan(lib, rows, "items d9", action=UNLOCK)
-    assert got["techs"] == [1] and got["designs"] == [7] and got["unlock"] == (1, 0, 0, 0, 0, 0, 0)
+    assert got["techs"] == [1] and got["designs"] == [7] and got["unlock"] == (1, 0, 0, 0, 0, 0, 0, 0, 0)
     assert got["text"] == "연구 가능으로 — 항목 1개 열림 · 선행 기술 1개 완료 · 앞 설계 1개 등록"
 
 
 def test_a_held_predecessor_is_enough(lib):
     rows = [tech(2, mine=True), design(7, 2, mine=True), "dup 7 9", design(8, 2), "dup 8 9", design(9, 2)]
     got = plan(lib, rows, "items d9", action=UNLOCK)
-    assert got["techs"] == [] and got["designs"] == [] and got["unlock"] == (0, 1, 0, 0, 0, 0, 0)
+    assert got["techs"] == [] and got["designs"] == [] and got["unlock"] == (0, 1, 0, 0, 0, 0, 0, 0, 0)
 
 
 def test_predecessors_the_game_skips_do_not_count(lib):
     """연구 대상이 아니거나 깃발(A · B)이 켜진 앞 설계는 게임이 보지 않는다 — 없는 것과 같다."""
     rows = [tech(2, mine=True), design(7, 2, is_open=False), "dup 7 9", design(8, 2, held=True), "dup 8 9", design(9, 2)]
     got = plan(lib, rows, "items d9", action=UNLOCK)
-    assert got["designs"] == [] and got["unlock"] == (0, 1, 0, 0, 0, 0, 0)
+    assert got["designs"] == [] and got["unlock"] == (0, 1, 0, 0, 0, 0, 0, 0, 0)
 
 
 def test_rows_say_lacking_when_no_predecessor_is_held(lib):
@@ -130,7 +130,7 @@ def test_a_design_whose_next_design_is_held_or_queued_is_superseded(lib):
     rows = [tech(1, mine=True), design(7, 1), "dup 7 8 0", design(8, 1, mine=True), design(9, 1), "dup 9 0 10", design(10, 1), node(2, 10),
             design(11, 1), "dup 11 12 0", design(12, 2), tech(2)]
     got = plan(lib, rows, "items d7 d9 d11", action=UNLOCK)
-    assert got["designs"] == [] and got["unlock"] == (0, 1, 0, 0, 0, 2, 0)     # d11: 다음 설계 12 는 미보유 — 이미 열림
+    assert got["designs"] == [] and got["unlock"] == (0, 1, 0, 0, 0, 2, 0, 0, 0)     # d11: 다음 설계 12 는 미보유 — 이미 열림
     assert list_states(lib, rows, designs=True)[7] == "이미 개량됨"
 
 
@@ -139,14 +139,72 @@ def test_a_retired_design_is_blocked(lib):
     rows = ["year 110.5", tech(1, mine=True), design(7, 1), "dold 7 95 0", design(8, 1), "dold 8 143 0", design(9, 1), "dold 9 95 1",
             design(10, 1), "dold 10 110 0"]
     got = plan(lib, rows, "items d7 d8 d9 d10", action=UNLOCK)
-    assert got["unlock"] == (0, 3, 0, 0, 0, 0, 1)                               # 8 · 9 · 10 은 이미 열림(110 은 110 보다 크지 않다)
+    assert got["unlock"] == (0, 3, 0, 0, 0, 0, 1, 0, 0)                               # 8 · 9 · 10 은 이미 열림(110 은 110 보다 크지 않다)
     assert list_states(lib, rows, designs=True) == {7: "단종", 8: "연구 가능", 9: "연구 가능", 10: "연구 가능"}
 
 
 def test_a_zero_region_mask_blocks_every_masked_item(lib):
     got = plan(lib, [tech(1), tech(2, 1), "tmask 2 1"], "items t2", action=UNLOCK)   # region 줄이 없다 = 0
-    assert got["techs"] == [] and got["unlock"] == (0, 0, 1, 0, 0, 0, 0)
+    assert got["techs"] == [] and got["unlock"] == (0, 0, 1, 0, 0, 0, 0, 0, 0)
 
+
+
+def test_unlock_adds_the_one_region_bit_a_region_only_design_needs(lib):
+    """독일(0xa0)에서 K2A1 같은 설계 7(마스크 0x800 — K, 선행 1 미보유): 비트 0x800 하나를 더하고 선행 1 을 준다."""
+    got = plan(lib, ["region 160", tech(1), design(7, 1), "dmask 7 2048 0"], "items d7", action=UNLOCK)
+    assert got["techs"] == [1] and got["unlock"][-2:] == (1, 2048)
+    assert got["text"] == "연구 가능으로 — 항목 1개 열림 · 지역 1개 열림 · 선행 기술 1개 완료"
+
+
+def test_opening_only_the_region_still_counts_as_opened(lib):
+    got = plan(lib, ["region 160", tech(1, mine=True), design(7, 1), "dmask 7 2048 0"], "items d7", action=UNLOCK)
+    assert got["techs"] == [] and got["unlock"] == (1, 0, 0, 0, 0, 0, 0, 1, 2048)
+
+
+def test_the_bit_that_opens_the_fewest_items_is_chosen(lib):
+    """설계 7 의 마스크 0x800 | 0x4000. 0x800 을 가진 막힌 설계가 둘 더(8 · 9) 있고 0x4000 은 7 뿐 — 0x4000 을 더한다."""
+    rows = ["region 160", tech(1, mine=True), design(7, 1), "dmask 7 18432 0", design(8, 1), "dmask 8 2048 0", design(9, 1), "dmask 9 2048 0"]
+    assert plan(lib, rows, "items d7", action=UNLOCK)["unlock"][-2:] == (1, 16384)
+
+
+def test_on_a_tie_the_lower_bit_is_chosen(lib):
+    rows = ["region 160", tech(1, mine=True), design(7, 1), "dmask 7 18432 0"]
+    assert plan(lib, rows, "items d7", action=UNLOCK)["unlock"][-2:] == (1, 2048)
+
+
+def test_items_that_stay_hidden_or_are_held_are_not_counted(lib):
+    """0x800 을 가진 설계 8(단종) · 9(보유) · 10(대기열)은 비트를 더해도 새로 열리지 않는다 — 셈에 들지 않아 0x800 이 0x4000(설계 11 이 함께 열림)보다 적다."""
+    rows = ["region 160", "year 130", tech(1, mine=True), design(7, 1), "dmask 7 18432 0", design(8, 1), "dmask 8 2048 0", "dold 8 100 0",
+            design(9, 1, mine=True), "dmask 9 2048 0", design(10, 1), "dmask 10 2048 0", node(2, 10), design(11, 1), "dmask 11 16384 0"]
+    assert plan(lib, rows, "items d7", action=UNLOCK)["unlock"][-2:] == (1, 2048)
+
+
+def test_unlock_of_many_items_adds_each_bit_once(lib):
+    rows = ["region 160", tech(1, mine=True)] + [r for n in range(7, 40) for r in (design(n, 1), f"dmask {n} 2048 0")]
+    got = plan(lib, rows, "items " + " ".join(f"d{n}" for n in range(7, 40)), action=UNLOCK)
+    assert got["unlock"][0] == 33 and got["unlock"][-2:] == (1, 2048)
+
+
+def test_a_design_also_blocked_for_another_reason_adds_no_bit(lib):
+    """지역 + 단종: 지역을 열어도 게임은 보이지 않는다 — 단종으로 세고 비트를 더하지 않는다."""
+    rows = ["region 160", "year 130", tech(1, mine=True), design(7, 1), "dmask 7 2048 0", "dold 7 100 0"]
+    assert plan(lib, rows, "items d7", action=UNLOCK)["unlock"] == (0, 0, 0, 0, 0, 0, 1, 0, 0)
+
+
+def test_a_design_that_already_overlaps_adds_no_bit(lib):
+    rows = ["region 160", tech(1), design(7, 1), "dmask 7 128 0"]                                  # G(0x80)
+    got = plan(lib, rows, "items d7", action=UNLOCK)
+    assert got["techs"] == [1] and got["unlock"][-2:] == (0, 0)
+
+
+def test_a_zero_region_mask_still_blocks_and_adds_nothing(lib):
+    got = plan(lib, [tech(1), design(7, 1), "dmask 7 2048 0"], "items d7", action=UNLOCK)            # region 줄이 없다 = 읽지 못함
+    assert got["techs"] == [] and got["unlock"] == (0, 0, 1, 0, 0, 0, 0, 0, 0)
+
+
+def test_a_region_only_tech_opens_the_same_way(lib):
+    got = plan(lib, ["region 160", tech(1), tech(2, 1), "tmask 2 2048"], "items t2", action=UNLOCK)
+    assert got["techs"] == [1] and got["unlock"][-2:] == (1, 2048)
 
 SHOW_ALL, SHOW_OPEN, SHOW_LACKING = 0, 6, 7                                                      # techs.h 의 Show
 
@@ -202,7 +260,7 @@ def test_prerequisites_that_point_at_each_other_still_end(lib):
 def test_what_is_already_held_is_not_in_the_plan(lib):
     got = plan(lib, [tech(1, mine=True), design(5, mine=True)], "items t1 d5")
     assert got == {"techs": [], "designs": [], "nodes": [], "asked": (0, 0), "skipped": 0, "queued": [], "text": "",
-                   "unlock": (0, 0, 0, 0, 0, 0, 0)}                              # 완료에서는 연구 가능으로의 수가 늘 0 이다
+                   "unlock": (0, 0, 0, 0, 0, 0, 0, 0, 0)}                            # 완료에서는 연구 가능으로의 수가 늘 0 이다
 
 
 def test_numbers_that_are_not_in_the_table_and_repeats_are_ignored(lib):
@@ -418,6 +476,62 @@ def test_unlock_writes_only_the_prerequisite_bit(lib):
     assert lab_.owners(TECH, 2) == {POLAND, GERMANY} and lab_.owners(TECH, 3) == set()
     assert done["calls"] and done["calls"][0][1] == GERMANY                  # 기술을 줬다 — 플레이어로 다시 셈
 
+
+def region_code(fake: FakeGame, index: int) -> int:
+    """그 지역 객체의 지역 코드 칸(+0x40, qword — CVP 의 worldavail)."""
+    return struct.unpack_from("<Q", fake.snapshot(index), 0x40)[0]
+
+
+def coded(fake: FakeGame, codes: dict[int, int]) -> None:
+    for index, code in codes.items():
+        struct.pack_into("<Q", fake.objects[index], 0x40, code)
+
+
+def test_unlock_ors_one_region_bit_into_the_players_region(lib):
+    """설계 12(선행 4 — 독일 보유, 마스크 0x800)는 지역만이 막는다. 독일의 칸에 0x800 을 더하고 설계 12 는 보유가 되지 않는다. 폴란드의 칸은 그대로."""
+    fake, lab_ = lab()
+    coded(fake, {GERMANY: 0xa0, POLAND: 0x4})
+    lab_.mask(DESIGN, 12, 0x800)
+    wrote, done = write(lib, fake, lab_, "items d12", action=UNLOCK)
+    assert wrote == DONE and "지역 1개 열림" in done["text"] and done["written"] == 1
+    assert region_code(fake, GERMANY) == 0x8a0 and region_code(fake, POLAND) == 0x4
+    assert lab_.owners(DESIGN, 12) == set() and done["calls"] == []          # 기술을 주지 않았다 — 다시 셈은 부르지 않는다
+
+
+def test_the_region_bit_and_the_prerequisites_are_written_together(lib):
+    fake, lab_ = lab()
+    coded(fake, {GERMANY: 0xa0})
+    lab_.design(15, 3)                                                       # 설계 15(선행 3 ← 2 ← 1. 대기열에 없다)
+    lab_.mask(DESIGN, 15, 0x800)
+    wrote, done = write(lib, fake, lab_, "items d15", action=UNLOCK)
+    assert wrote == DONE and region_code(fake, GERMANY) == 0x8a0 and done["techs"] == [2, 3]
+    assert GERMANY in lab_.owners(TECH, 3) and GERMANY in lab_.owners(TECH, 2) and GERMANY not in lab_.owners(DESIGN, 15)
+
+
+def test_nothing_is_written_when_the_region_cell_cannot_be_written(lib):
+    """독일의 객체가 읽기 전용 쪽에 있다: 지역 칸을 쓸 수 없으니 선행 비트도 쓰지 않는다."""
+    fake, lab_ = lab()
+    coded(fake, {GERMANY: 0xa0})
+    lab_.design(15, 3)
+    lab_.mask(DESIGN, 15, 0x800)
+    fake.lock(GERMANY)
+    fake.play(GERMANY)
+    before = lab_.everything()
+    wrote, done = write(lib, fake, lab_, "items d15", action=UNLOCK)
+    assert wrote == FAILED and done["why"] == "플레이어 지역의 지역 코드" and done["written"] == 0
+    assert lab_.everything() == before and region_code(fake, GERMANY) == 0xa0
+
+
+
+def test_the_region_cell_is_swapped_only_when_it_still_holds_what_was_read(lib):
+    """write_research 는 지역 칸을 다른 쓰기보다 먼저 이 CAS 로 쓴다(1 이면 NotInGame 으로 아무것도 쓰지 않는다).
+    값이 읽은 것과 같으면 바꾸고 0, 다르면 그대로 두고 1, 쓸 수 없는 쪽이면 -1."""
+    swap = lib.srtoybox_swap_qword
+    swap.argtypes, swap.restype = [ctypes.c_void_p, ctypes.c_uint64, ctypes.c_uint64], ctypes.c_int
+    cell = ctypes.c_uint64(0xa0)
+    assert swap(ctypes.addressof(cell), 0xa0, 0x8a0) == 0 and cell.value == 0x8a0
+    assert swap(ctypes.addressof(cell), 0xa0, 0xfff) == 1 and cell.value == 0x8a0
+    assert swap(locked_page(), 0, 1) == -1
 
 def differing(before: bytes, after: bytes) -> set[int]:
     return {i for i in range(len(before)) if before[i] != after[i]}
