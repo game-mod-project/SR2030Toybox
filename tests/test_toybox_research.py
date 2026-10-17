@@ -477,6 +477,51 @@ def test_unlock_writes_only_the_prerequisite_bit(lib):
     assert done["calls"] and done["calls"][0][1] == GERMANY                  # 기술을 줬다 — 플레이어로 다시 셈
 
 
+def region_code(fake: FakeGame, index: int) -> int:
+    """그 지역 객체의 지역 코드 칸(+0x40, qword — CVP 의 worldavail)."""
+    return struct.unpack_from("<Q", fake.snapshot(index), 0x40)[0]
+
+
+def coded(fake: FakeGame, codes: dict[int, int]) -> None:
+    for index, code in codes.items():
+        struct.pack_into("<Q", fake.objects[index], 0x40, code)
+
+
+def test_unlock_ors_one_region_bit_into_the_players_region(lib):
+    """설계 12(선행 4 — 독일 보유, 마스크 0x800)는 지역만이 막는다. 독일의 칸에 0x800 을 더하고 설계 12 는 보유가 되지 않는다. 폴란드의 칸은 그대로."""
+    fake, lab_ = lab()
+    coded(fake, {GERMANY: 0xa0, POLAND: 0x4})
+    lab_.mask(DESIGN, 12, 0x800)
+    wrote, done = write(lib, fake, lab_, "items d12", action=UNLOCK)
+    assert wrote == DONE and "지역 1개 열림" in done["text"] and done["written"] == 1
+    assert region_code(fake, GERMANY) == 0x8a0 and region_code(fake, POLAND) == 0x4
+    assert lab_.owners(DESIGN, 12) == set() and done["calls"] == []          # 기술을 주지 않았다 — 다시 셈은 부르지 않는다
+
+
+def test_the_region_bit_and_the_prerequisites_are_written_together(lib):
+    fake, lab_ = lab()
+    coded(fake, {GERMANY: 0xa0})
+    lab_.design(15, 3)                                                       # 설계 15(선행 3 ← 2 ← 1. 대기열에 없다)
+    lab_.mask(DESIGN, 15, 0x800)
+    wrote, done = write(lib, fake, lab_, "items d15", action=UNLOCK)
+    assert wrote == DONE and region_code(fake, GERMANY) == 0x8a0 and done["techs"] == [2, 3]
+    assert GERMANY in lab_.owners(TECH, 3) and GERMANY in lab_.owners(TECH, 2) and GERMANY not in lab_.owners(DESIGN, 15)
+
+
+def test_nothing_is_written_when_the_region_cell_cannot_be_written(lib):
+    """독일의 객체가 읽기 전용 쪽에 있다: 지역 칸을 쓸 수 없으니 선행 비트도 쓰지 않는다."""
+    fake, lab_ = lab()
+    coded(fake, {GERMANY: 0xa0})
+    lab_.design(15, 3)
+    lab_.mask(DESIGN, 15, 0x800)
+    fake.lock(GERMANY)
+    fake.play(GERMANY)
+    before = lab_.everything()
+    wrote, done = write(lib, fake, lab_, "items d15", action=UNLOCK)
+    assert wrote == FAILED and done["why"] == "플레이어 지역의 지역 코드" and done["written"] == 0
+    assert lab_.everything() == before and region_code(fake, GERMANY) == 0xa0
+
+
 def differing(before: bytes, after: bytes) -> set[int]:
     return {i for i in range(len(before)) if before[i] != after[i]}
 

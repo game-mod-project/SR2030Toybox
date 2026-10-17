@@ -640,6 +640,7 @@ struct Shot {
     std::vector<uint64_t> tech_cells, design_cells;     // 〃 레코드에서 그 포인터가 든 칸의 주소
     std::vector<uint64_t> nodes;                        // tables.queue 와 같은 순서: 노드의 주소
     uint64_t world = 0;                                 // 세계 객체의 주소
+    uint64_t player = 0;                                // 플레이어 지역 객체의 주소
     int me = 0;                                         // 플레이어의 인덱스
     bool multiplayer = false;
 };
@@ -705,6 +706,7 @@ bool shoot(const uint8_t *base, const GameAddresses &at, const ResearchLayout &r
     }
     Span span;
     shot->me = me;
+    shot->player = player;
     shot->multiplayer = s.multiplayer;
     shot->world = reinterpret_cast<uint64_t>(base) + r.world;
     ResearchTables &t = shot->tables;
@@ -1083,6 +1085,18 @@ int hang_owners(uint64_t cell, uint64_t block, uint64_t *owners)
     return was == 0 ? 0 : 1;
 }
 
+// cell 의 qword 가 was 이면 now 로 바꾼다. 0 바꿨다 · 1 값이 was 가 아니었다(그대로 둔다) · -1 쓸 수 없다.
+int swap_qword(uint64_t cell, uint64_t was, uint64_t now)
+{
+    LONG64 seen = 0;
+    __try {
+        seen = InterlockedCompareExchange64(reinterpret_cast<LONG64 *>(cell), static_cast<LONG64>(now), static_cast<LONG64>(was));
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return -1;
+    }
+    return static_cast<uint64_t>(seen) == was ? 0 : 1;
+}
+
 Wrote write_research(const uint8_t *base, const GameAddresses &at, const ResearchLayout &research, Recompute recompute, Research action,
                      const ResearchWhat &what, ResearchDone *done)
 {
@@ -1148,6 +1162,24 @@ Wrote write_research(const uint8_t *base, const GameAddresses &at, const Researc
             release();
             return research_failed(done, "연구 목록의 노드");
         }
+    const uint64_t region_cell = shot.player + REGION_MASK;
+    if (plan.region_add != 0) {
+        done->cells++;
+        if (!writable(region_cell, sizeof(uint64_t))) {
+            release();
+            return research_failed(done, "플레이어 지역의 지역 코드");
+        }
+    }
+
+    // 다른 지역 전용을 연다(2026-10-17): 플레이어 지역의 지역 코드 칸에 비트를 더한다 — 맨 먼저. 표를 읽은 뒤에 값이 바뀌었으면 아무것도 쓰지 않는다
+    if (plan.region_add != 0) {
+        const int swapped = swap_qword(region_cell, shot.tables.region_mask, shot.tables.region_mask | plan.region_add);
+        if (swapped != 0) {
+            release();
+            return swapped < 0 ? research_failed(done, "플레이어 지역의 지역 코드") : Wrote::NotInGame;
+        }
+        done->written++;
+    }
 
     // 묶음(없는 항목만) → 비트
     for (Item &item : items) {
