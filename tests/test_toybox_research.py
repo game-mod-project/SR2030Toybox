@@ -522,6 +522,17 @@ def test_nothing_is_written_when_the_region_cell_cannot_be_written(lib):
     assert lab_.everything() == before and region_code(fake, GERMANY) == 0xa0
 
 
+
+def test_the_region_cell_is_swapped_only_when_it_still_holds_what_was_read(lib):
+    """write_research 는 지역 칸을 다른 쓰기보다 먼저 이 CAS 로 쓴다(1 이면 NotInGame 으로 아무것도 쓰지 않는다).
+    값이 읽은 것과 같으면 바꾸고 0, 다르면 그대로 두고 1, 쓸 수 없는 쪽이면 -1."""
+    swap = lib.srtoybox_swap_qword
+    swap.argtypes, swap.restype = [ctypes.c_void_p, ctypes.c_uint64, ctypes.c_uint64], ctypes.c_int
+    cell = ctypes.c_uint64(0xa0)
+    assert swap(ctypes.addressof(cell), 0xa0, 0x8a0) == 0 and cell.value == 0x8a0
+    assert swap(ctypes.addressof(cell), 0xa0, 0xfff) == 1 and cell.value == 0x8a0
+    assert swap(locked_page(), 0, 1) == -1
+
 def differing(before: bytes, after: bytes) -> set[int]:
     return {i for i in range(len(before)) if before[i] != after[i]}
 

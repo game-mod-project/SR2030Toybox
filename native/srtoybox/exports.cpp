@@ -499,6 +499,12 @@ EXPORT int srtoybox_research_plan(const char *tables, int action, const char *wh
                + "\ntext " + research_summary(plan, how), out, size);
 }
 
+// 테스트: write_research 가 지역 코드 칸을 쓰는 CAS(swap_qword).
+EXPORT int srtoybox_swap_qword(unsigned long long cell, unsigned long long was, unsigned long long now)
+{
+    return swap_qword(cell, was, now);
+}
+
 // 두 묶음의 대조(locate_fits). 0 이면 맞는다. -1 이면 error 에 까닭.
 EXPORT int srtoybox_locate_fits(const GameAddresses *state, const ValueLayout *values, char *error, int error_size)
 {
