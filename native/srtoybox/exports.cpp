@@ -477,7 +477,7 @@ EXPORT int srtoybox_research_shape(char *out, int size)
 // 테스트: 연구의 규칙(research_plan)을 글로 준 표(tables_from)와 "무엇을"(what_from)에 돌린다. action: 0 완료, 1 미완료.
 // can_house: 묶음이 없는 항목에 새 묶음을 걸 수 있는가(0 이면 그런 항목을 건너뛴다).
 // 나오는 글은 여덟 줄이다: "techs 1 2 3" / "designs 5" / "nodes 0 1" / "asked <고른 기술의 수> <고른 설계의 수>" /
-// "skipped <건너뛴 항목의 수>" / "queued t3 d5"(표에서 대기열에 있는 것으로 읽힌 항목) / "unlock <연 것> <이미 열림> <다른 지역> <연구 대상 아님> <특수> <이미 개량됨> <단종>" / "text <알림의 글>".
+// "skipped <건너뛴 항목의 수>" / "queued t3 d5"(표에서 대기열에 있는 것으로 읽힌 항목) / "unlock <연 것> <이미 열림> <다른 지역> <연구 대상 아님> <특수> <이미 개량됨> <단종> <더한 지역 비트의 수> <더한 비트(10진)>" / "text <알림의 글>".
 EXPORT int srtoybox_research_plan(const char *tables, int action, const char *what, int can_house, char *out, int size)
 {
     const ResearchTables t = tables_from(tables != nullptr ? tables : "");
@@ -495,7 +495,8 @@ EXPORT int srtoybox_research_plan(const char *tables, int action, const char *wh
                + std::to_string(plan.skipped) + '\n' + queued + "\nunlock " + std::to_string(plan.opened) + ' ' + std::to_string(plan.already) + ' '
                + std::to_string(plan.blocked[BLOCK_REGION]) + ' ' + std::to_string(plan.blocked[BLOCK_CLOSED]) + ' '
                + std::to_string(plan.blocked[BLOCK_SPECIAL]) + ' ' + std::to_string(plan.blocked[BLOCK_SUPERSEDED]) + ' '
-               + std::to_string(plan.blocked[BLOCK_RETIRED]) + "\ntext " + research_summary(plan, how), out, size);
+               + std::to_string(plan.blocked[BLOCK_RETIRED]) + ' ' + std::to_string(plan.regions) + ' ' + std::to_string(plan.region_add)
+               + "\ntext " + research_summary(plan, how), out, size);
 }
 
 // 두 묶음의 대조(locate_fits). 0 이면 맞는다. -1 이면 error 에 까닭.
