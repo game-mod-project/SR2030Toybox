@@ -115,6 +115,8 @@ std::string hex_label(bool on_hex, int x, int y)
 
 bool direct_row(const Feature &f, const GameState &game, bool compact)
 {
+    // 되돌릴 수 없는 줄은 설명에도 한 번 더 누르기를 적는다 — 단추를 누르기 전에는 알 수 없었다(2026-10-19)
+    const std::string help = std::string(f.help) + (f.confirm ? " — 한 번 더 눌러야 실행된다" : "");
     const bool research = f.direct == Direct::TechLevel || f.direct == Direct::QueueDone;   // 연구의 두 줄은 제 묶음(연구)을 본다
     const int group = f.direct == Direct::TechUp ? MORE_TECH : f.direct == Direct::OpinionBest ? MORE_OPINION
         : f.direct == Direct::PeopleAdd ? MORE_PEOPLE : f.direct == Direct::ApprovalBest ? MORE_APPROVAL : MORE_RELATIONS;
@@ -190,7 +192,7 @@ bool direct_row(const Feature &f, const GameState &game, bool compact)
             pressed = false;
         }
         if (compact && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-            ImGui::SetTooltip("%s", f.help);
+            ImGui::SetTooltip("%s", help.c_str());
         if (supply) {                                                        // 옆의 단추: 0 으로
             ImGui::SameLine();
             if (ImGui::Button("비우기###empty")) {
@@ -236,7 +238,7 @@ bool direct_row(const Feature &f, const GameState &game, bool compact)
         ImGui::EndDisabled();
     }
     if (!compact) {
-        ImGui::TextDisabled("%s", f.help);
+        ImGui::TextDisabled("%s", help.c_str());
         ImGui::Spacing();
     }
     ImGui::PopID();
@@ -524,10 +526,12 @@ void mult_tab(const GameState &game)
 
 // 최소 유지의 수량 입력란. 치는 동안의 값(5, 50, 500 …)은 쓰이지 않는다 — ImGui 의 InputScalar 는 입력을 마쳤을 때
 // (Enter, 다른 곳을 누름)에만 값을 넘겨준다. 치던 채로 창을 닫으면 친 것은 버려진다. 누르면 지금 값이 통째로 골라진다.
+// + · − 단추의 걸음은 끝의 1000분의 1(국고 10억 달러 · 물자 100만), Ctrl 을 누르면 그 10배(2026-10-19 — 단추가 없어 숫자를 쳐야만 했다).
 void keep_input(const char *id, long long *value, long long high, float width)
 {
-    ImGui::SetNextItemWidth(width);
-    if (ImGui::InputScalar(id, ImGuiDataType_S64, value)) {
+    const long long step = std::max(1LL, high / 1000), fast = step * 10;
+    ImGui::SetNextItemWidth(width + 2.0f * (ImGui::GetFrameHeight() + ImGui::GetStyle().ItemInnerSpacing.x));
+    if (ImGui::InputScalar(id, ImGuiDataType_S64, value, &step, &fast)) {
         *value = std::min(high, std::max(0LL, *value));
         send_keep(true);
     }
@@ -1063,7 +1067,10 @@ void item_list(ListState &L, bool units, const GameState &game, bool blocked)
         }
         ImGui::EndDisabled();
         ImGui::SameLine();
-        ImGui::TextDisabled("%s", stat_off.empty() ? "% — 켠 것만 정한다(사기 · 효율은 게임이 자정마다 다시 셈한다)" : stat_off.c_str());
+        // 줄을 아낀다 — 720 폭의 창에서 오른쪽이 잘렸다(2026-10-19). 자세한 것은 풍선말로
+        ImGui::TextDisabled("%s", stat_off.empty() ? "% — 켠 것만 (?)" : stat_off.c_str());
+        if (stat_off.empty() && ImGui::IsItemHovered())
+            ImGui::SetTooltip("켠 것만 정한다. 사기 · 효율은 게임이 자정마다 다시 셈한다");
     }
     std::vector<int> visible;
     size_t chosen_visible = 0;
@@ -1223,7 +1230,12 @@ void settings_tab()
     else if (ImGui::Button("단축키 바꾸기"))
         g_capturing = true;
     ImGui::Spacing();
-    ImGui::TextDisabled("설정은 %%APPDATA%%\\SR2030ToyBox 에 저장됩니다.");
+    // 실제 폴더를 보인다 — SRTOYBOX_HOME 으로 띄우면 %APPDATA% 가 아니다(2026-10-19). 환경 변수는 실행 중에 바뀌지 않으니 한 번만 읽는다
+    static const std::string where = settings_dir_text();
+    if (where.empty())
+        ImGui::TextDisabled("설정을 저장할 폴더를 찾지 못했습니다.");
+    else
+        ImGui::TextDisabled("설정은 %s 에 저장됩니다.", where.c_str());
 }
 
 // 상태 줄: ToyBox 가 게임을 어떻게 보고 있는지 한 줄로.
@@ -1262,6 +1274,10 @@ void ui_toggle()
 {
     Lock lock(ui_mutex());
     g_visible = !g_visible;
+    // 닫혀 있는 동안의 글쇠는 ImGui 에 가지 않는다 — 단축키로 닫을 때 떼는 Ctrl · Shift 를 놓쳐, 다시 열면 ImGui 가 Ctrl 을 쥔 것으로 보고
+    // + · − 가 큰 걸음으로 움직였다(게임에서 봤다, 2026-10-19). 열고 닫을 때 글쇠 상태를 비운다 — 다음 글쇠 메시지가 지금 상태를 다시 알린다
+    if (ImGui::GetCurrentContext() != nullptr)
+        ImGui::GetIO().ClearInputKeys();
     g_capturing = false;
     g_confirm.clear();
     g_report.clear();   // 닫힌 창의 목록을 남겨 두지 않는다

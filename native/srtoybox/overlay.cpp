@@ -111,6 +111,7 @@ bool init(IDXGISwapChain *swap)
     else
         log_line("맑은 고딕(malgun.ttf)이 없습니다 — 한글이 깨져 보입니다");
     ImGui::StyleColorsDark();
+    ImGui::GetStyle().Colors[ImGuiCol_WindowBg].w = 1.0f;   // 기본 0.94 는 게임의 글자가 비쳐 읽기 어려웠다(2026-10-19)
 
     if (!ImGui_ImplWin32_Init(desc.OutputWindow) || !ImGui_ImplDX11_Init(g_device, g_context)) {
         g_failed = true;

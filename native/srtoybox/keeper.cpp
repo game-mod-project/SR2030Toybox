@@ -206,8 +206,11 @@ bool apply_all(const Request &r, const GameValues &now)
             return false;
         count += wrote_it ? 1 : 0;
     }
-    if (count > 0)
-        g_last = "모든 물자 " + std::to_string(count) + "개";
+    if (count > 0) {                            // 무엇을 했는지도 적는다(바닥 줄이 "모든 물자 11개"뿐이었다 — 2026-10-19)
+        const std::string what = r.change == Change::Set ? "-> " + short_amount(r.amount)
+            : (r.amount < 0 ? "-" : "+") + short_amount(std::fabs(r.amount));
+        g_last = "모든 물자 " + std::to_string(count) + "개 " + what;
+    }
     return true;
 }
 

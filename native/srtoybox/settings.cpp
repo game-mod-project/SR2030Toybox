@@ -229,6 +229,21 @@ std::wstring settings_dir()
     return dir;
 }
 
+std::string settings_dir_text()
+{
+    std::wstring dir = settings_dir();
+    for (wchar_t &c : dir)
+        if (c == L'\\')
+            c = L'/';
+    if (dir.empty())
+        return std::string();
+    const int n = WideCharToMultiByte(CP_UTF8, 0, dir.c_str(), static_cast<int>(dir.size()), nullptr, 0, nullptr, nullptr);
+    std::string out(static_cast<size_t>(n > 0 ? n : 0), '\0');
+    if (n > 0)
+        WideCharToMultiByte(CP_UTF8, 0, dir.c_str(), static_cast<int>(dir.size()), &out[0], n, nullptr, nullptr);
+    return out;
+}
+
 Settings load_settings()
 {
     const std::wstring path = settings_path();

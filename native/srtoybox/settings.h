@@ -41,5 +41,6 @@ std::string hotkey_name(int vk, int mods);           // "Ctrl+Shift+T"
 
 // 파일: %APPDATA%\SR2030ToyBox\ (환경 변수 SRTOYBOX_HOME 이 있으면 그 폴더). 게임 폴더와 문서 폴더에는 쓰지 않는다.
 std::wstring settings_dir();                         // 없으면 만든다. 구하지 못하면 빈 글
+std::string settings_dir_text();                     // 창에 보일 그 폴더(UTF-8, 역슬래시는 / — 한글 글꼴에서 \ 가 ₩ 로 보인다)
 Settings load_settings();                            // 파일이 없거나 깨져 있으면 기본값
 bool save_settings(const Settings &s);
