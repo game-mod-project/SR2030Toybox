@@ -99,30 +99,33 @@ namespace {
 // "mult." 뒤의 글과 값. 범위 밖의 값과 모르는 줄은 버린다(기본값 100 이 남는다).
 void parse_mult(const std::string &rest, long long n, Settings &s)
 {
-    const auto in = [&](int low) { return n >= low && n <= SETTINGS_MULT_MAX; };
+    const auto in = [&](int low, int high) { return n >= low && n <= high; };
     if (rest == "on") {
         if (n == 0 || n == 1)
             s.mult_on = n == 1;
     } else if (rest == "tax") {
-        if (in(0))
+        if (in(0, SETTINGS_MULT_FAST_MAX))
             s.mult_tax = static_cast<int>(n);
     } else if (rest == "defense") {
-        if (in(0))
+        if (in(0, SETTINGS_MULT_FAST_MAX))
             s.mult_defense = static_cast<int>(n);
     } else if (rest == "social") {
-        if (in(0))
+        if (in(0, SETTINGS_MULT_FAST_MAX))
             s.mult_social = static_cast<int>(n);
     } else if (rest == "research") {
-        if (in(SETTINGS_MULT_RESEARCH_MIN))
+        if (in(SETTINGS_MULT_RESEARCH_MIN, SETTINGS_MULT_FAST_MAX))
             s.mult_research = static_cast<int>(n);
+    } else if (rest == "unitbuild") {
+        if (in(SETTINGS_MULT_CELL_MIN, SETTINGS_MULT_BUILD_MAX))
+            s.mult_unitbuild = static_cast<int>(n);
     } else if (rest == "facbuild") {
-        if (in(SETTINGS_MULT_CELL_MIN))
+        if (in(SETTINGS_MULT_CELL_MIN, SETTINGS_MULT_BUILD_MAX))
             s.mult_facbuild = static_cast<int>(n);
     } else if (rest.size() > 4 && rest[3] == '.') {
         long long slot = -1;
         int *const row = rest.compare(0, 3, "out") == 0 ? s.mult_out : rest.compare(0, 3, "use") == 0 ? s.mult_use
             : rest.compare(0, 3, "raw") == 0 ? s.mult_raw : nullptr;
-        if (row != nullptr && parse_int(rest.substr(4), slot) && slot >= 0 && slot < MULT_GOODS && in(SETTINGS_MULT_CELL_MIN))
+        if (row != nullptr && parse_int(rest.substr(4), slot) && slot >= 0 && slot < MULT_GOODS && in(SETTINGS_MULT_CELL_MIN, SETTINGS_MULT_GOODS_MAX))
             row[slot] = static_cast<int>(n);
     }
 }
@@ -197,7 +200,7 @@ std::string format_settings(const Settings &s)
     }
     out += "mult.on=" + std::to_string(s.mult_on ? 1 : 0) + "\nmult.tax=" + std::to_string(s.mult_tax) + "\nmult.defense="
         + std::to_string(s.mult_defense) + "\nmult.social=" + std::to_string(s.mult_social) + "\nmult.research="
-        + std::to_string(s.mult_research) + "\nmult.facbuild="
+        + std::to_string(s.mult_research) + "\nmult.unitbuild=" + std::to_string(s.mult_unitbuild) + "\nmult.facbuild="
         + std::to_string(s.mult_facbuild) + "\n";
     for (int slot = 0; slot < MULT_GOODS; slot++) {
         const std::string n = std::to_string(slot);

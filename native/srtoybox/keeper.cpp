@@ -701,6 +701,8 @@ void forget_cells()
 // 그 칸의 배율(퍼센트). 맡지 않는 칸이면 0.
 int cell_percent(const Mult &m, int cell)
 {
+    if (cell == MUL_UNIT_BUILD)
+        return m.unitbuild;
     if (cell == MUL_FAC_BUILD)
         return m.facbuild;
     if (cell >= MUL_RAW && cell < MUL_RAW + MULT_GOODS)
@@ -873,7 +875,7 @@ void mult_tick(unsigned long long now_ms)
 bool operator==(const Mult &a, const Mult &b)
 {
     if (a.on != b.on || a.tax != b.tax || a.defense != b.defense || a.social != b.social || a.research != b.research
-        || a.facbuild != b.facbuild)
+        || a.unitbuild != b.unitbuild || a.facbuild != b.facbuild)
         return false;
     for (int i = 0; i < MULT_GOODS; i++)
         if (a.out[i] != b.out[i] || a.use[i] != b.use[i] || a.raw[i] != b.raw[i])
@@ -937,7 +939,7 @@ bool keeper_rush_pending()
 
 int mult_count(const Mult &m)
 {
-    int count = (m.tax != 100) + (m.defense != 100) + (m.social != 100) + (m.research != 100) + (m.facbuild != 100);
+    int count = (m.tax != 100) + (m.defense != 100) + (m.social != 100) + (m.research != 100) + (m.unitbuild != 100) + (m.facbuild != 100);
     for (int i = 0; i < MULT_GOODS; i++)
         count += (m.out[i] != 100) + (m.use[i] != 100) + (m.raw[i] != 100);
     return count;

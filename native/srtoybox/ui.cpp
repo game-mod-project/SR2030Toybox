@@ -334,6 +334,7 @@ Mult mult_of(const Settings &s)
     m.defense = s.mult_defense;
     m.social = s.mult_social;
     m.research = s.mult_research;
+    m.unitbuild = s.mult_unitbuild;
     m.facbuild = s.mult_facbuild;
     for (int i = 0; i < MULT_GOODS; i++) {
         m.out[i] = s.mult_out[i];
@@ -349,22 +350,26 @@ void send_mult(bool save)
     const Mult want = mult_of(g_settings);
     if (want == g_mult_sent)
         return;
-    if (want.on != g_mult_sent.on || want.on)
-        log_line("배율 %s: 세금 %d%% · 국방비 %d%% · 사회 지출 %d%% · 연구 속도 %d%% · 시설 건설 %d%% · 물자의 배율 %d개", want.on ? "켬" : "끔",
-                 want.tax, want.defense, want.social, want.research, want.facbuild,
-                 mult_count(want) - (want.tax != 100) - (want.defense != 100) - (want.social != 100) - (want.research != 100) - (want.facbuild != 100));
+    // 켜고 끌 때만 적는다 — 입력란을 누를 때마다 줄이 쌓였다(2026-10-19). 켜 둔 동안 바꾼 값은 keeper 의 "날마다의 일" 줄에 남는다
+    if (want.on != g_mult_sent.on)
+        log_line("배율 %s: 세금 %d%% · 국방비 %d%% · 사회 지출 %d%% · 연구 속도 %d%% · 유닛 생산 %d%% · 시설 건설 %d%% · 물자의 배율 %d개",
+                 want.on ? "켬" : "끔", want.tax, want.defense, want.social, want.research, want.unitbuild, want.facbuild,
+                 mult_count(want) - (want.tax != 100) - (want.defense != 100) - (want.social != 100) - (want.research != 100)
+                     - (want.unitbuild != 100) - (want.facbuild != 100));
     if (save)
         save_settings(g_settings);
     keeper_set_mult(want);
     g_mult_sent = want;
 }
 
-// 배율의 퍼센트 입력란. 입력을 마쳤을 때(Enter, 다른 곳을 누름, + · − 단추)에만 값이 넘어온다. + · − 는 10 씩(Ctrl 을 누르면 100 씩).
-void mult_input(const char *id, const std::string &name, int *value, int low)
+// 배율의 퍼센트 입력란(low … high). 입력을 마쳤을 때(Enter, 다른 곳을 누름, + · − 단추)에만 값이 넘어온다.
+// + · − 는 10 씩(Ctrl 을 누르면 100 씩). 끝이 MULT_BUILD_MAX 를 넘는 줄(국고 · 연구 — 끝 10000)은 100 씩(Ctrl 1000).
+void mult_input(const char *id, const std::string &name, int *value, int low, int high)
 {
+    const int step = high > MULT_BUILD_MAX ? 100 : 10;
     ImGui::SetNextItemWidth(110.0f);
-    if (ImGui::InputInt(id, value, 10, 100)) {
-        *value = std::min(MULT_PERCENT_MAX, std::max(low, *value));
+    if (ImGui::InputInt(id, value, step, step * 10)) {
+        *value = std::min(high, std::max(low, *value));
         send_mult(true);
     }
     note(name, std::to_string(*value));
@@ -377,9 +382,13 @@ std::string mult_text()
     return g_mult_sent.on && count > 0 ? " · 배율 " + std::to_string(count) + "개" : std::string();
 }
 
-// "다음 자정에 완료" 단추의 풍선말. 시설만이다 — 부대(칸 15)는 게임에서 1000배로도 끝나지 않아 맡지 않는다(설계서의 "게임에서 본 것", 2026-10-15)
+// "다음 자정에 완료" 단추의 풍선말. 시설만이다 — 부대(칸 15)는 게임에서 1000배로는 끝나지 않았다(설계서의 "게임에서 본 것", 2026-10-15)
 const char *const RUSH_HELP = "내 나라의 시설 건설을 다음 날의 셈 하루 동안 1000배 빠르게 한다 — 게임이 스스로 끝낸다. 저장하지 않는다.\n"
-                              "그날 남은 건설비가 한꺼번에 국고에서 빠질 수 있다. 부대 생산에는 듣지 않는다.";
+                              "그날 남은 건설비가 한꺼번에 국고에서 빠질 수 있다. 부대 생산에는 듣지 않는다 — 부대는 유닛 생산 속도로.";
+
+// 유닛 생산 속도 줄의 풍선말(docs/superpowers/specs/2026-10-19-toybox-mult-unit-caps-design.md — 게임에서 ×5 · ×20 이 들었다)
+const char *const UNIT_BUILD_HELP = "생산 중인 부대의 하루 진행에 곱한다(곱 보정 칸 15, 끝 2000 %). 생산비도 진행에 비례해 국고에서 빠진다. "
+                                   "마지막 하루 이틀은 배율과 상관없이 걸릴 수 있다.";
 
 // 줄을 바꾸는 풍선말 — SetTooltip 은 줄을 바꾸지 않아 1024 × 768 에서 화면 밖으로 잘린다(게임에서 봤다, 2026-10-15)
 void wrapped_tooltip(const char *text)
@@ -402,7 +411,8 @@ void mult_tab(const GameState &game)
     // 줄을 아낀다 — 1024 × 768 에서 물자 표의 마지막 줄까지 보이게(건설 · 생산 줄이 한 줄 늘었다). 설명은 풍선말로
     if (ImGui::IsItemHovered())
         wrapped_tooltip("켜 두면 창을 닫아도, 새 판에서도 계속된다. 세금 · 국방비 · 사회 지출은 날이 바뀔 때 국고에 차이를 더하거나 뺀다(재무 패널의 숫자는 그대로다). "
-                      "연구 속도는 날이 바뀔 때 진행 중인 연구의 남은 기간을 더 줄인다. 생산 · 소비와 시설 건설 속도는 게임의 보정 값에 곱한다");
+                      "연구 속도는 날이 바뀔 때 진행 중인 연구의 남은 기간을 더 줄인다. 생산 · 소비와 유닛 생산 · 시설 건설 속도는 게임의 보정 값에 곱한다. "
+                      "끝: 세금 · 국방비 · 사회 지출 · 연구 10000, 유닛 생산 · 시설 건설 2000, 물자 1000");
     if (!game_writes() && game.known) {
         ImGui::TextWrapped("값 쓰기가 꺼져 있어 배율이 쉽니다.");
         note("mult:off", "값 쓰기가 꺼져 있어 배율이 쉽니다.");
@@ -423,35 +433,45 @@ void mult_tab(const GameState &game)
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("세금");
     ImGui::SameLine();
-    mult_input("##tax", "mult:tax", &g_settings.mult_tax, 0);
+    mult_input("##tax", "mult:tax", &g_settings.mult_tax, 0, MULT_FAST_MAX);
     ImGui::SameLine();
     ImGui::TextUnformatted("국방비");
     ImGui::SameLine();
-    mult_input("##defense", "mult:defense", &g_settings.mult_defense, 0);
+    mult_input("##defense", "mult:defense", &g_settings.mult_defense, 0, MULT_FAST_MAX);
     ImGui::EndDisabled();
     ImGui::BeginDisabled(!social.empty());
     ImGui::SameLine();
     ImGui::TextUnformatted("사회 지출");
     ImGui::SameLine();
-    mult_input("##social", "mult:social", &g_settings.mult_social, 0);
+    mult_input("##social", "mult:social", &g_settings.mult_social, 0, MULT_FAST_MAX);
     ImGui::EndDisabled();
     ImGui::BeginDisabled(!speed.empty());
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("연구 속도");
     ImGui::SameLine();
-    mult_input("##research", "mult:research", &g_settings.mult_research, MULT_RESEARCH_MIN);
+    mult_input("##research", "mult:research", &g_settings.mult_research, MULT_RESEARCH_MIN, MULT_FAST_MAX);
+    ImGui::EndDisabled();
+    ImGui::BeginDisabled(!cells.empty());
+    ImGui::SameLine();
+    ImGui::TextUnformatted("유닛 생산 속도");
+    if (ImGui::IsItemHovered())
+        wrapped_tooltip(UNIT_BUILD_HELP);
+    ImGui::SameLine();
+    mult_input("##unitbuild", "mult:unitbuild", &g_settings.mult_unitbuild, MULT_CELL_MIN, MULT_BUILD_MAX);
     ImGui::EndDisabled();
     const MultStats stats = keeper_mult_stats();
     const std::string did = "이번 실행: 날마다의 일 " + std::to_string(stats.days) + "일 · 보정 칸 쓰기 " + std::to_string(stats.writes) + "번 · 지금 "
         + std::to_string(stats.held) + "칸";
     ImGui::SameLine();
-    ImGui::TextDisabled("%s", did.c_str());
+    ImGui::TextDisabled("%llu일 · %d칸 (?)", stats.days, stats.held);   // 줄을 아낀다 — 1024 × 768 에서 유닛 생산 줄과 한 줄에. 자세한 것은 풍선말로
+    if (ImGui::IsItemHovered())
+        wrapped_tooltip(did.c_str());
     note("mult:stats", did);
     ImGui::BeginDisabled(!cells.empty());
     ImGui::AlignTextToFramePadding();
     ImGui::TextUnformatted("시설 건설 속도");
     ImGui::SameLine();
-    mult_input("##facbuild", "mult:facbuild", &g_settings.mult_facbuild, MULT_CELL_MIN);
+    mult_input("##facbuild", "mult:facbuild", &g_settings.mult_facbuild, MULT_CELL_MIN, MULT_BUILD_MAX);
     ImGui::SameLine();
     const bool pending = keeper_rush_pending();
     ImGui::BeginDisabled(pending);
@@ -491,11 +511,11 @@ void mult_tab(const GameState &game)
             ImGui::TextUnformatted(label.c_str());
         note(name, label);
         ImGui::TableNextColumn();
-        mult_input("##out", name + ":out", &g_settings.mult_out[slot], MULT_CELL_MIN);
+        mult_input("##out", name + ":out", &g_settings.mult_out[slot], MULT_CELL_MIN, MULT_GOODS_MAX);
         ImGui::TableNextColumn();
-        mult_input("##use", name + ":use", &g_settings.mult_use[slot], MULT_CELL_MIN);
+        mult_input("##use", name + ":use", &g_settings.mult_use[slot], MULT_CELL_MIN, MULT_GOODS_MAX);
         ImGui::TableNextColumn();
-        mult_input("##raw", name + ":raw", &g_settings.mult_raw[slot], MULT_CELL_MIN);
+        mult_input("##raw", name + ":raw", &g_settings.mult_raw[slot], MULT_CELL_MIN, MULT_GOODS_MAX);
         ImGui::PopID();
     }
     ImGui::EndDisabled();
