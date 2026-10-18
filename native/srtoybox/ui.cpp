@@ -328,6 +328,11 @@ void send_keep(bool save)
     g_keep_sent = want;
 }
 
+// 설정 파일이 받아들이는 범위와 창 · keeper 의 범위는 같아야 한다(두 헤더가 따로 적는다)
+static_assert(SETTINGS_MULT_FAST_MAX == MULT_FAST_MAX && SETTINGS_MULT_BUILD_MAX == MULT_BUILD_MAX && SETTINGS_MULT_GOODS_MAX == MULT_GOODS_MAX
+                  && SETTINGS_MULT_CELL_MIN == MULT_CELL_MIN && SETTINGS_MULT_RESEARCH_MIN == MULT_RESEARCH_MIN,
+              "settings.h 와 keeper.h 의 배율 범위가 다르다");
+
 Mult mult_of(const Settings &s)
 {
     Mult m;
