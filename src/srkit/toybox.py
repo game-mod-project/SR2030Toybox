@@ -26,6 +26,7 @@ IMGUI_DEFINES = "/DIMGUI_IMPL_WIN32_DISABLE_GAMEPAD"    # 게임패드는 쓰지
 EXE_NAME = "SupremeRuler2030.exe"
 # REGIONTEXT|<지역 번호>|0 행이 지역의 이름이다. 뒤의 표(게임의 표에 없어 덧붙인 지역)가 앞의 것을 덮는다
 REGION_TABLES = ["mods/korean/translation/localtext-regions.csv", "mods/korean/translation/localtext-regions.extra.csv"]
+REGION_ALIASES = "mods/korean/region-aliases.csv"   # 게임 데이터의 영문 이름 → 한글(ToyBox 의 나라 목록만 쓴다. 게임 파일에는 들어가지 않는다)
 # LOCALIZE|productsl|<칸> 행이 물자의 이름이다. 재고 칸과 같은 순서로 0 … 10 의 열하나다 — 11 부터는 물자가 아니다(전체 · 금융 · 인구 …)
 PRODUCT_TABLE = "mods/korean/translation/variables.csv"
 PRODUCT_NAMES = 11
@@ -207,6 +208,11 @@ def alias_rows(cfg: Config) -> list[tuple[str, str]]:
                 en, ko = row["en"].strip(), row["ko"].strip()
                 if re.fullmatch(r"REGIONTEXT\|\d+\|0", row["key"]) and en and ko and len(en) <= 60 and not en.startswith("\\"):
                     rows.setdefault(en, ko)
+    # 게임이 지역 데이터의 영문 이름으로 부르는 나라(번역 테이블의 영문과 다르다 — 2030 - 세계의 "Dem Rep Yemen" 등, 2026-10-19)
+    with (cfg.root / REGION_ALIASES).open(encoding="utf-8-sig", newline="") as f:
+        for row in csv.DictReader(f):
+            if row["en"].strip() and row["ko"].strip():
+                rows.setdefault(row["en"].strip(), row["ko"].strip())
     return sorted(rows.items(), key=lambda pair: pair[0].encode("utf-8"))
 
 

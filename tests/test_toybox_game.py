@@ -839,6 +839,15 @@ def test_region_rows_come_from_the_translation_table(cfg):
     assert all(ko and en for _, ko, en in rows)
 
 
+def test_alias_rows_know_the_names_the_2030_world_uses(cfg):
+    """2030 - 세계에서 게임은 몇 나라를 지역 데이터의 영문 이름으로 부른다(번역 테이블의 영문과 다르다 — 2026-10-19 게임에서 봤다).
+    그 이름도 한글로 바꾼다(mods/korean/region-aliases.csv)."""
+    rows = dict(toybox.alias_rows(cfg))
+    assert rows["Dem Rep Yemen"] == "남예멘" and rows["RS Forces"] == "신속지원군"
+    assert rows["Virgin Isles"] == "버진아일랜드" and rows["Western Sahara"] == "서사하라"
+    assert rows["Germany"] == "독일"                              # 번역 테이블의 이름이 그대로 앞선다
+
+
 def test_region_table_escapes_names():
     """이름에 따옴표나 역슬래시가 있어도 생성물이 C++ 문자열로 컴파일되어야 한다."""
     assert toybox.c_string('Côte d\'Ivoire') == '"Côte d\'Ivoire"'

@@ -11,7 +11,7 @@ const int HOTKEY_CTRL = 1, HOTKEY_SHIFT = 2, HOTKEY_ALT = 4;
 const long long MONEY_AMOUNT_MIN = 1, MONEY_AMOUNT_MAX = 1000000, MONEY_AMOUNT_DEFAULT = 10000;   // 돈 탭의 입력란(백만 달러)
 const long long KEEP_TREASURY_MAX = 1000000;       // 유지할 국고(백만 달러): 0 ~ 1,000,000
 const long long KEEP_STOCK_MAX = 1000000000;       // 유지할 물자의 수량: 0 ~ 1,000,000,000
-const int SETTINGS_MULT_MAX = 1000;                // 배율의 끝(퍼센트). keeper.h 의 MULT_PERCENT_MAX 와 같다
+const int SETTINGS_MULT_FAST_MAX = 10000, SETTINGS_MULT_BUILD_MAX = 2000, SETTINGS_MULT_GOODS_MAX = 1000;   // 배율의 끝(퍼센트). keeper.h 의 MULT_*_MAX 와 같다
 const int SETTINGS_MULT_CELL_MIN = 1, SETTINGS_MULT_RESEARCH_MIN = 10;   // 〃 MULT_CELL_MIN · MULT_RESEARCH_MIN
 
 struct Settings {
@@ -23,11 +23,11 @@ struct Settings {
     bool keep_stock[STOCK_SLOTS] = {};               // 물자마다의 최소 유지. "keep.stock.<칸>"(0 / 1)
     long long keep_stock_value[STOCK_SLOTS] = {};    // 그 수량. "keep.stock.<칸>.value"
     std::map<std::string, long long> values;         // 값이 있는 기능의 id → 값
-    // 배율(keeper.h 의 Mult — 퍼센트, 100 이 "그대로"). "mult.on"(0 / 1), "mult.tax" · "mult.defense" · "mult.social" · "mult.research" · "mult.facbuild",
+    // 배율(keeper.h 의 Mult — 퍼센트, 100 이 "그대로"). "mult.on"(0 / 1), "mult.tax" · "mult.defense" · "mult.social" · "mult.research" · "mult.unitbuild" · "mult.facbuild",
     // 물자마다 "mult.out.<칸>" · "mult.use.<칸>" · "mult.raw.<칸>"
     bool mult_on = false;
     int mult_tax = 100, mult_defense = 100, mult_social = 100, mult_research = 100;
-    int mult_facbuild = 100;                     // 시설 건설 속도(곱 보정 칸 16)
+    int mult_unitbuild = 100, mult_facbuild = 100;   // 유닛 생산 · 시설 건설 속도(곱 보정 칸 15 · 16)
     int mult_out[MULT_GOODS] = {100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100};
     int mult_use[MULT_GOODS] = {100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100};
     int mult_raw[MULT_GOODS] = {100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100};
@@ -41,5 +41,6 @@ std::string hotkey_name(int vk, int mods);           // "Ctrl+Shift+T"
 
 // 파일: %APPDATA%\SR2030ToyBox\ (환경 변수 SRTOYBOX_HOME 이 있으면 그 폴더). 게임 폴더와 문서 폴더에는 쓰지 않는다.
 std::wstring settings_dir();                         // 없으면 만든다. 구하지 못하면 빈 글
+std::string settings_dir_text();                     // 창에 보일 그 폴더(UTF-8, 역슬래시는 / — 한글 글꼴에서 \ 가 ₩ 로 보인다)
 Settings load_settings();                            // 파일이 없거나 깨져 있으면 기본값
 bool save_settings(const Settings &s);

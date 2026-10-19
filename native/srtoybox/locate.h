@@ -235,7 +235,9 @@ const int MULT_DAY = 2, MULT_TAX = 4, MULT_ARMY = 8 | 16 | 32 | 64 | 128, MULT_S
 const uint32_t MUL_STEP = 0x320;            // 곱 보정 표에서 지역 하나의 줄(표를 찾는 서명 둘에 박혀 있다)
 const int MUL_CELLS = 200;                  // 그 줄의 칸 수
 const int MUL_RAW = 24, MUL_USE = 60, MUL_OUT = 72;   // 물자 i 의 산업 원자재 소비 · 인구 소비 · 산출의 칸(+ i, i = 0 … MULT_GOODS - 1)
-const int MUL_FAC_BUILD = 16;   // 시설 건설 속도(기술 효과 16 — 날마다의 진행에 곱한다, 0x77fb14). 효과 15(유닛 생산 속도)는 게임에서 부대에 듣지 않아 맡지 않는다(2026-10-15)
+// 유닛 생산 · 시설 건설 속도(기술 효과 15 · 16 — 날마다의 진행에 곱한다, 0x843567 · 0x77fb14). 15 는 2026-10-15 에 뺐다가 되살렸다 —
+// 게임에서 ×5 · ×20 이 들었고 ×1000 은 듣지 않았다(docs/superpowers/specs/2026-10-19-toybox-mult-unit-caps-design.md)
+const int MUL_UNIT_BUILD = 15, MUL_FAC_BUILD = 16;
 const int SOCIAL_COUNT = 8;                 // 사회 지출의 항목 수(보건 · 교육 · 인프라 · 환경 · 가족 수당 · 치안 · 문화 지원 · 사회 보장)
 const int MULT_GOODS = 11;                  // 배율을 두는 물자의 수(재고 칸의 앞 열하나 — 열두째 칸은 쓰지 않는다)
 const uint32_t NODE_LEFT = 0x28;            // float. 연구 노드의 남은 기간(일) — 연구 속도 배율이 쓴다
