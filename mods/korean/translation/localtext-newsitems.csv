@@ -6245,7 +6245,7 @@ NEWSITEMSTEXT|30|2,%s today reported that they have captured a spy from %s opera
 NEWSITEMSTEXT|30|5,Acknowledge,확인,mt
 NEWSITEMSTEXT|300|0,Ceasefire Signed,휴전 체결,mt
 NEWSITEMSTEXT|300|1,Ceasefire Signed between %s and %s,%s · %s 휴전 체결,mt
-NEWSITEMSTEXT|300|2,"International News has learned that %s and %s have reached a Ceasefire Agreement, pausing the War between their regions.",국제 뉴스에 따르면 %s와(과) %s이(가) 휴전 협정에 이르러 두 지역 간 전쟁이 중단되었습니다.,mt
+NEWSITEMSTEXT|300|2,"International News has learned that %s and %s have reached a Ceasefire Agreement, pausing the War between their regions.",국제 뉴스에 따르면 %s · %s 양측이 휴전 협정에 이르러 두 지역 간 전쟁이 중단되었습니다.,mt
 NEWSITEMSTEXT|300|5,Acknowledge,확인,mt
 NEWSITEMSTEXT|3000|0,Onning Starter Objective,오닝 초기 목표,mt
 NEWSITEMSTEXT|3000|1,Find an Onning Conclave,오닝 집회지 발견,mt
@@ -6289,7 +6289,7 @@ NEWSITEMSTEXT|3009|3,"Success!¶¶Our strategic focus on the expansion and devel
 NEWSITEMSTEXT|3009|4,"Fail!¶¶Instead of prioritizing the development of The Epitaph to inhabit and colonize their system, the decision was made to arm them. Providing The Epitaph with various military units aimed at increasing their strength in both space and planetary levels. However, this focus on militarization risks diverting The Epitaph's role towards becoming protectors of the Galactic Council, overshadowing the original goal of fostering a sense of ownership and security through system colonization.","실패!¶¶에피타프가 성계에 거주하고 식민지화하도록 발전을 우선하는 대신, 그들을 무장시키기로 결정했습니다. 우주와 행성 양쪽에서 에피타프의 전력을 높일 각종 군사 유닛을 제공한 것입니다. 그러나 이처럼 군사화에 치중하면 에피타프의 역할이 은하 평의회의 수호자로 치우칠 위험이 있으며, 성계 식민지화를 통해 소유감과 안정감을 키운다는 본래 목표가 가려질 수 있습니다.",mt
 NEWSITEMSTEXT|301|0,New Alliance Formed,새 동맹 결성,mt
 NEWSITEMSTEXT|301|1,New Alliance Formed Between %s and %s,%s · %s 새 동맹 결성,mt
-NEWSITEMSTEXT|301|2,International News sources have today reported the creation of a new alliance between %s and %s.,국제 뉴스 소식통에 따르면 오늘 %s와(과) %s 간에 새 동맹이 결성되었습니다.,mt
+NEWSITEMSTEXT|301|2,International News sources have today reported the creation of a new alliance between %s and %s.,국제 뉴스 소식통에 따르면 오늘 %s · %s 간에 새 동맹이 결성되었습니다.,mt
 NEWSITEMSTEXT|301|5,Acknowledge,확인,mt
 NEWSITEMSTEXT|3010|0,The Osmiam Hive Peaceful Path,오스미안 군집 평화의 길,mt
 NEWSITEMSTEXT|3010|1,Getting Out of Their Shell¶¶Increase Relationship to Minimum 90%,껍질 밖으로¶¶관계를 최소 90%까지 상승,mt
@@ -9994,7 +9994,7 @@ NEWSITEMSTEXT|92|2,The population in %s from %s have sworn allegiance to the loc
 NEWSITEMSTEXT|92|5,Acknowledge,확인,mt
 NEWSITEMSTEXT|929|0,New Alliance Formed,신규 동맹 결성,mt
 NEWSITEMSTEXT|929|1,New Alliance Formed Between %s and %s,%s · %s 신규 동맹 결성,mt
-NEWSITEMSTEXT|929|2,International News sources have today reported the creation of a new alliance between %s and %s.,오늘 국제 언론이 %s와(과) %s 사이의 새로운 동맹 결성을 보도했습니다.,mt
+NEWSITEMSTEXT|929|2,International News sources have today reported the creation of a new alliance between %s and %s.,오늘 국제 언론이 %s · %s 사이의 새로운 동맹 결성을 보도했습니다.,mt
 NEWSITEMSTEXT|929|5,Acknowledge,확인,mt
 NEWSITEMSTEXT|93|0,World Market Vote,세계 시장 투표,mt
 NEWSITEMSTEXT|93|1,%s Requests Vote for %s.  Target : %s,"%s, %s 투표 요청 - 대상: %s",mt

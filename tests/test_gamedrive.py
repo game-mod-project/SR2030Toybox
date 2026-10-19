@@ -107,8 +107,18 @@ def fake_user32(gd, monkeypatch):
 def test_combo_key_holds_the_modifiers_around_the_body(gd, fake_user32):
     with gd.held(1, [0x11, 0x10]):
         fake_user32.calls.append(("body",))
+    # 떼기는 상태표를 되돌린 뒤에 보낸다 — 앞에 보내면 게임이 그 떼기를 읽을 때 상태표가 아직 "눌림"이라, ImGui 가 Ctrl 을
+    # 쥔 것으로 남아 ToyBox 의 +/− 가 큰 걸음이 됐다(2026-10-19, 게임에서 봤다)
     assert fake_user32.calls == [("attach",), ("down", 0x11), ("down", 0x10), ("state", (0x10, 0x11)), ("body",),
-                                 ("up", 0x10), ("up", 0x11), ("state", ()), ("detach",)]
+                                 ("state", ()), ("up", 0x10), ("up", 0x11), ("detach",)]
+
+
+def test_combo_key_releases_the_key_after_the_modifiers_are_cleared(gd, cfg, fake_user32, monkeypatch, capsys):
+    monkeypatch.setattr(gd.config, "load", lambda: cfg)
+    monkeypatch.setattr(gd, "need_window", lambda cfg: (1, 0, 0))
+    gd.main(["key", "CTRL+SHIFT+T"])
+    assert [c for c in fake_user32.calls if c[0] in ("down", "up", "state")] == [
+        ("down", 0x11), ("down", 0x10), ("state", (0x10, 0x11)), ("down", 0x54), ("state", ()), ("up", 0x10), ("up", 0x11), ("up", 0x54)]
 
 
 def test_combo_key_is_not_sent_when_the_game_thread_cannot_be_attached(gd, cfg, fake_user32, monkeypatch, capsys):
@@ -127,7 +137,7 @@ def test_modifiers_are_released_even_when_the_body_fails(gd, fake_user32):
     with pytest.raises(KeyboardInterrupt):
         with gd.held(1, [0x11, 0x10]):
             raise KeyboardInterrupt
-    assert fake_user32.calls[-4:] == [("up", 0x10), ("up", 0x11), ("state", ()), ("detach",)]
+    assert fake_user32.calls[-4:] == [("state", ()), ("up", 0x10), ("up", 0x11), ("detach",)]
 
 
 class FakeDesktop:

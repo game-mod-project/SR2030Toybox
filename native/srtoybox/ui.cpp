@@ -238,7 +238,9 @@ bool direct_row(const Feature &f, const GameState &game, bool compact)
         ImGui::EndDisabled();
     }
     if (!compact) {
+        ImGui::PushTextWrapPos(0.0f);   // 긴 설명이 창 오른쪽에서 잘렸다(2026-10-19 — 최강 부대 묶음) — 창 폭에서 줄을 바꾼다
         ImGui::TextDisabled("%s", help.c_str());
+        ImGui::PopTextWrapPos();
         ImGui::Spacing();
     }
     ImGui::PopID();
@@ -1239,8 +1241,11 @@ void settings_tab()
     static const std::string where = settings_dir_text();
     if (where.empty())
         ImGui::TextDisabled("설정을 저장할 폴더를 찾지 못했습니다.");
-    else
+    else {
+        ImGui::PushTextWrapPos(0.0f);   // 경로가 길면 창 폭에서 줄을 바꾼다
         ImGui::TextDisabled("설정은 %s 에 저장됩니다.", where.c_str());
+        ImGui::PopTextWrapPos();
+    }
 }
 
 // 상태 줄: ToyBox 가 게임을 어떻게 보고 있는지 한 줄로.
