@@ -617,13 +617,15 @@ def held(hwnd: int, mods: list[int]):
             user32.SetKeyboardState(state)
             yield
         finally:
-            # 본문이 예외로 끝나도(Ctrl+C, 시간 초과) 화면 밖 게임에 수정키가 눌린 채 남지 않게 한다
-            for vk in reversed(mods):
-                user32.PostMessageW(hwnd, WM_KEYUP, vk, 0xC0000001)
+            # 본문이 예외로 끝나도(Ctrl+C, 시간 초과) 화면 밖 게임에 수정키가 눌린 채 남지 않게 한다.
+            # 떼기는 상태표를 되돌린 **뒤에** 보낸다 — 앞에 보내면 게임이 그 떼기를 읽는 순간 상태표가 아직 "눌림"이라, ToyBox 의 ImGui 가
+            # Ctrl 을 쥔 것으로 남아 +/− 가 큰 걸음이 됐다(2026-10-19, 게임에서 봤다). 실제 키보드는 떼기와 상태표가 함께 움직인다
             try:
-                time.sleep(0.2)     # 게임이 보낸 메시지를 다 읽을 때까지 눌린 상태를 둔다
+                time.sleep(0.2)     # 게임이 본문의 누름을 다 읽을 때까지 눌린 상태를 둔다
             finally:
                 user32.SetKeyboardState((ctypes.c_ubyte * 256).from_buffer_copy(saved))
+                for vk in reversed(mods):
+                    user32.PostMessageW(hwnd, WM_KEYUP, vk, 0xC0000001)
     finally:
         user32.AttachThreadInput(me, target, False)
 
@@ -721,9 +723,8 @@ def main(argv: list[str]) -> int:
             mods, vk = parse_key(name)
             with held(hwnd, mods):
                 user32.PostMessageW(hwnd, WM_KEYDOWN, vk, 1)
-                time.sleep(0.05)
-                user32.PostMessageW(hwnd, WM_KEYUP, vk, 0xC0000001)
-                time.sleep(0.1)
+            user32.PostMessageW(hwnd, WM_KEYUP, vk, 0xC0000001)   # 떼기는 수정키를 뗀 뒤에(held 의 설명)
+            time.sleep(0.1)
         print(f"키 {' '.join(args)}")
     elif cmd == "type":
         # 게임 입력란은 바이트 단위로 글자를 받는다: 한글은 게임 파일과 같은 SR-UTF8 바이트로 보낸다

@@ -652,10 +652,10 @@ def test_a_request_for_all_products_reaches_every_product_in_use(lib, game, tmp_
     assert ask(lib, ALL_STOCK, ADD, 1e6)
     lib.srtoybox_keeper_tick()
     assert [game.stock(176, slot) for slot in range(12)] == [1001000.0, 0, 0, 1002500.0, 0, 0, 0, 1000000.0, 0, 0, 0, 0]
-    assert told(lib) == ("모든 물자 3개", "")
+    assert told(lib) == ("모든 물자 3개 +1.0 M", "")                         # 무엇을 했는지도(2026-10-19)
     assert ask(lib, ALL_STOCK, SET, 0.0)
     lib.srtoybox_keeper_tick()
-    assert [game.stock(176, slot) for slot in (0, 3, 7)] == [0.0, 0.0, 0.0] and told(lib) == ("모든 물자 3개", "")
+    assert [game.stock(176, slot) for slot in (0, 3, 7)] == [0.0, 0.0, 0.0] and told(lib) == ("모든 물자 3개 -> 0", "")
     assert ask(lib, ALL_STOCK, ADD, -1e8) and ask(lib, 7, ADD, 5.0)
     lib.srtoybox_keeper_tick()
     assert told(lib) == ("전력 0 -> 5", "")                    # 바꿀 것이 없던 "모든 물자"는 마지막으로 쓴 것을 덮지 않는다

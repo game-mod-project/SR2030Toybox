@@ -206,8 +206,11 @@ bool apply_all(const Request &r, const GameValues &now)
             return false;
         count += wrote_it ? 1 : 0;
     }
-    if (count > 0)
-        g_last = "모든 물자 " + std::to_string(count) + "개";
+    if (count > 0) {                            // 무엇을 했는지도 적는다(바닥 줄이 "모든 물자 11개"뿐이었다 — 2026-10-19)
+        const std::string what = r.change == Change::Set ? "-> " + short_amount(r.amount)
+            : (r.amount < 0 ? "-" : "+") + short_amount(std::fabs(r.amount));
+        g_last = "모든 물자 " + std::to_string(count) + "개 " + what;
+    }
     return true;
 }
 
@@ -355,7 +358,7 @@ void run_research(const ResearchRequest &r)
     if (r.action == Research::Unlock) {        // 요약이 이미 완성된 글이다("연구 가능으로 — …") — "…를 …로"를 덧붙이지 않는다
         const std::string prefix = "연구 가능으로 — ";
         const std::string detail = summary.compare(0, prefix.size(), prefix) == 0 ? summary.substr(prefix.size()) : summary;
-        if (done.plan.techs.empty() && done.plan.designs.empty()) {   // 한 칸도 쓰지 않았다(보유 · 이미 열림 · 열 수 없음뿐) — 앞 설계만 등록한 것도 쓴 것이다
+        if (done.plan.techs.empty() && done.plan.designs.empty() && done.plan.region_add == 0) {   // 한 칸도 쓰지 않았다(보유 · 이미 열림 · 열 수 없음뿐) — 앞 설계 · 지역만 연 것도 쓴 것이다
             if (skipped.empty())
                 g_notice = "바꿀 것이 없습니다 — " + r.label + (detail.empty() ? "" : " (" + detail + ")");
             log_line("연구 가능으로 (%s): 바꿀 것이 없습니다%s", r.label.c_str(), detail.empty() ? "" : (" — " + detail).c_str());
@@ -701,6 +704,8 @@ void forget_cells()
 // 그 칸의 배율(퍼센트). 맡지 않는 칸이면 0.
 int cell_percent(const Mult &m, int cell)
 {
+    if (cell == MUL_UNIT_BUILD)
+        return m.unitbuild;
     if (cell == MUL_FAC_BUILD)
         return m.facbuild;
     if (cell >= MUL_RAW && cell < MUL_RAW + MULT_GOODS)
@@ -873,7 +878,7 @@ void mult_tick(unsigned long long now_ms)
 bool operator==(const Mult &a, const Mult &b)
 {
     if (a.on != b.on || a.tax != b.tax || a.defense != b.defense || a.social != b.social || a.research != b.research
-        || a.facbuild != b.facbuild)
+        || a.unitbuild != b.unitbuild || a.facbuild != b.facbuild)
         return false;
     for (int i = 0; i < MULT_GOODS; i++)
         if (a.out[i] != b.out[i] || a.use[i] != b.use[i] || a.raw[i] != b.raw[i])
@@ -937,7 +942,7 @@ bool keeper_rush_pending()
 
 int mult_count(const Mult &m)
 {
-    int count = (m.tax != 100) + (m.defense != 100) + (m.social != 100) + (m.research != 100) + (m.facbuild != 100);
+    int count = (m.tax != 100) + (m.defense != 100) + (m.social != 100) + (m.research != 100) + (m.unitbuild != 100) + (m.facbuild != 100);
     for (int i = 0; i < MULT_GOODS; i++)
         count += (m.out[i] != 100) + (m.use[i] != 100) + (m.raw[i] != 100);
     return count;

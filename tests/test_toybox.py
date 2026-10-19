@@ -117,7 +117,7 @@ def test_only_cheats_that_were_seen_working_and_reach_what_the_user_chose(dll, c
 
 KEEP_DEFAULTS = "keep.treasury=0\nkeep.treasury.value=0\n" + "".join(f"keep.stock.{slot}=0\nkeep.stock.{slot}.value=0\n"
                                                                       for slot in range(12))
-MULT_DEFAULTS = "mult.on=0\nmult.tax=100\nmult.defense=100\nmult.social=100\nmult.research=100\nmult.facbuild=100\n" + "".join(
+MULT_DEFAULTS = "mult.on=0\nmult.tax=100\nmult.defense=100\nmult.social=100\nmult.research=100\nmult.unitbuild=100\nmult.facbuild=100\n" + "".join(
     f"mult.out.{slot}=100\nmult.use.{slot}=100\nmult.raw.{slot}=100\n" for slot in range(11))
 DEFAULTS = "hotkey_vk=84\nhotkey_mods=3\nmoney.amount=10000\n" + KEEP_DEFAULTS + MULT_DEFAULTS + "technology=120\ndarran=7\n"
 
@@ -575,7 +575,7 @@ def test_the_stock_tab_writes_stock_without_any_cheat(dll, cfg, tmp_path):
     assert got["steps"] == [[1000.0, 3.5e6, 0.0, 5.0, 0.0], [1000.0, 0.0, 0.0, 5.0, 0.0], [1000.0, 1e8, 0.0, 5.0, 0.0],
                             [1000.0, 0.0, 0.0, 5.0, 0.0], [1001000.0, 1e6, 1e6, 1000005.0, 0.0], [0.0, 0.0, 0.0, 0.0, 0.0],
                             [1e8, 0.0, 0.0, 0.0, 0.0]]
-    assert got["wrote_all"] == "모든 물자 4개" and got["wrote"] == "농산물 0 -> 100 M" and got["now_after"] == "100 M"
+    assert got["wrote_all"] == "모든 물자 4개 -100 M" and got["wrote"] == "농산물 0 -> 100 M" and got["now_after"] == "100 M"
     assert got["lines"] == [] and got["text"] == "" and got["options"] == 0 and got["poland"] == 777.0
     log = (tmp_path / "home" / "toybox.log").read_text(encoding="utf-8")
     assert log.count("값 쓰기: 석유") == 6 and log.count("값 쓰기: ") == 13 and "직접 실행" not in log

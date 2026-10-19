@@ -120,23 +120,26 @@ std::string keep_resting_text(const Keep &keep, const char *why);
 
 // 배율(묶음 7 — docs/superpowers/specs/2026-10-11-toybox-stage7-design.md). 모두 퍼센트(100 이 "그대로")이고 on 이 꺼져 있으면 아무것도 쓰지 않는다.
 // 플레이어의 나라에만 듣는다. 설정 창이 닫혀 있어도, 새 판에서도 돈다(저장되는 설정이다).
-//   out · use · raw · facbuild
+//   out · use · raw · unitbuild · facbuild
 //                              게임의 곱 보정 표의 플레이어 칸에 곱해 쓴다. KEEP_EVERY_MS 마다 보고, 게임이 다시 셈해 지웠으면 다시 쓴다.
 //                              100 으로 돌리거나 끄면 그 칸이 아직 ToyBox 가 쓴 값일 때 게임의 값으로 되돌린다.
 //   tax · defense · social     날이 바뀔 때 국고에 (배율 − 1) × 하루치 세수를 더하고 (배율 − 1) × 하루치 국방 지출 · 사회 지출을 뺀다.
 //                              (사회 지출은 처음에 곱 보정 칸 108 … 115 로 했는데 게임에서 듣지 않았다 — 설계서의 "게임에서 본 것")
 //   research                   날이 바뀔 때 진행 중인 연구 노드의 남은 기간에서 (배율 − 1) × 하루치를 더 뺀다.
 // 날은 게임의 날의 칸이 1 … MULT_DAYS_MAX 올랐을 때만 센다(그 밖의 변화 — 불러오기 · 새 판 — 와 플레이어가 바뀐 때에는 다시 맞추기만 한다).
-const int MULT_PERCENT_MAX = 1000;             // 모든 배율의 끝
+// 끝은 묶음마다 다르다(docs/superpowers/specs/2026-10-19-toybox-mult-unit-caps-design.md — 게임에서 본 범위까지):
+const int MULT_FAST_MAX = 10000;               // 세금 · 국방비 · 사회 지출 · 연구 속도
+const int MULT_BUILD_MAX = 2000;               // 유닛 생산 · 시설 건설 속도(게임에서 ×20 까지 봤다)
+const int MULT_GOODS_MAX = 1000;               // 물자의 생산 · 소비(×20 에서 게임의 생산이 무너졌다)
 const int MULT_CELL_MIN = 1;                   // 곱 보정 칸의 배율(생산 · 소비)의 처음 — 0 을 쓰지 않는다
 const int MULT_RESEARCH_MIN = 10;              // 연구 속도의 처음
 const uint32_t MULT_DAYS_MAX = 3;
 struct Mult {
     bool on = false;
-    int tax = 100, defense = 100, social = 100;   // 0 … MULT_PERCENT_MAX
-    int research = 100;                        // MULT_RESEARCH_MIN … MULT_PERCENT_MAX
-    int facbuild = 100;                        // 시설 건설 속도 — 곱 보정 칸 16. MULT_CELL_MIN … MULT_PERCENT_MAX
-    // 아래 셋은 MULT_CELL_MIN … MULT_PERCENT_MAX
+    int tax = 100, defense = 100, social = 100;   // 0 … MULT_FAST_MAX
+    int research = 100;                        // MULT_RESEARCH_MIN … MULT_FAST_MAX
+    int unitbuild = 100, facbuild = 100;       // 유닛 생산 · 시설 건설 속도 — 곱 보정 칸 15 · 16. MULT_CELL_MIN … MULT_BUILD_MAX
+    // 아래 셋은 MULT_CELL_MIN … MULT_GOODS_MAX
     int out[MULT_GOODS] = {100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100};   // 물자마다의 생산
     int use[MULT_GOODS] = {100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100};   // 물자마다의 인구 소비
     int raw[MULT_GOODS] = {100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100};   // 물자마다의 산업 원자재 소비

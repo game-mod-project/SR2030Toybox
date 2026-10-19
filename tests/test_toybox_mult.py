@@ -156,18 +156,17 @@ def test_the_cells_are_multiplied_only_in_the_players_row(game):
     assert game.stats() == [0, 3, 3, 4]
 
 
-def test_facility_build_speed_multiplies_cell_16_only(game):
-    """시설 건설 속도(16). 유닛 생산 속도(15)는 맡지 않는다 — 게임에서 부대에 듣지 않았다(2026-10-15). 다른 나라의 줄은 그대로다."""
+def test_build_speeds_multiply_cells_15_and_16(game):
+    """유닛 생산 속도(15. 2026-10-19 에 되살렸다 — 게임에서 ×5 · ×20 이 들었다) · 시설 건설 속도(16). 다른 나라의 줄은 그대로다."""
     poland = [game.cell(POLAND, c) for c in range(200)]
-    game.set("on=1 facbuild=200")
+    game.set("on=1 unitbuild=2000 facbuild=200")
     game.tick()
-    assert game.cell(GERMANY, 16) == f32(f32(1.16) * 2) and game.cell(GERMANY, 15) == f32(1.15)
+    assert game.cell(GERMANY, 15) == f32(f32(1.15) * 20) and game.cell(GERMANY, 16) == f32(f32(1.16) * 2)
     assert [game.cell(POLAND, c) for c in range(200)] == poland
-    assert game.stats() == [0, 1, 1, 1]
-    game.set("facbuild=100")
+    assert game.stats() == [0, 2, 2, 2]
+    game.set("unitbuild=100 facbuild=100")
     game.tick()
-    assert game.cell(GERMANY, 16) == f32(1.16)
-    assert game.lib.srtoybox_keeper_mult(b"unitbuild=500") == -1         # 없는 키다
+    assert game.cell(GERMANY, 15) == f32(1.15) and game.cell(GERMANY, 16) == f32(1.16)
 
 
 def test_rush_writes_a_thousand_times_until_the_game_recomputes_after_the_day(game):
@@ -448,13 +447,18 @@ def test_the_settings_keep_the_multipliers(lib):
     assert [got[k] for k in ("mult.on", "mult.tax", "mult.defense", "mult.social", "mult.research", "mult.out.0", "mult.use.10",
                              "mult.raw.3")] == ["1", "250", "0", "0", "10", "1000", "50", "1"]
     # 범위 밖 · 없는 칸 · 모르는 줄은 버린다(100 이 남는다)
-    bad = norm("mult.on=2\nmult.tax=1001\nmult.defense=-1\nmult.social=1001\nmult.research=9\nmult.out.0=0\nmult.out.11=200\nmult.xyz.1=5\n")
+    bad = norm("mult.on=2\nmult.tax=10001\nmult.defense=-1\nmult.social=10001\nmult.research=9\nmult.out.0=0\nmult.out.11=200\nmult.xyz.1=5\n")
     assert bad["mult.on"] == "0" and all(bad[k] == "100" for k in ("mult.tax", "mult.defense", "mult.social", "mult.research", "mult.out.0"))
     assert "mult.out.11" not in bad and "mult.xyz.1" not in bad
-    got = norm("mult.facbuild=1000")
-    assert got["mult.facbuild"] == "1000" and "mult.unitbuild" not in got
-    bad = norm("mult.facbuild=0")
-    assert bad["mult.facbuild"] == "100"
+    # 끝은 묶음마다 다르다(2026-10-19): 국고 · 연구 10000, 건설 · 생산 2000, 물자 1000
+    got = norm("mult.tax=10000\nmult.defense=10000\nmult.social=10000\nmult.research=10000\nmult.facbuild=2000\nmult.unitbuild=2000\n"
+               "mult.out.0=1000\nmult.use.0=1000\nmult.raw.0=1000\n")
+    assert [got[k] for k in ("mult.tax", "mult.defense", "mult.social", "mult.research", "mult.facbuild", "mult.unitbuild",
+                             "mult.out.0", "mult.use.0", "mult.raw.0")] == ["10000"] * 4 + ["2000"] * 2 + ["1000"] * 3
+    bad = norm("mult.research=10001\nmult.facbuild=2001\nmult.unitbuild=2001\nmult.out.0=1001\nmult.use.0=1001\nmult.raw.0=1001\n")
+    assert all(bad[k] == "100" for k in ("mult.research", "mult.facbuild", "mult.unitbuild", "mult.out.0", "mult.use.0", "mult.raw.0"))
+    bad = norm("mult.facbuild=0\nmult.unitbuild=0")
+    assert bad["mult.facbuild"] == "100" and bad["mult.unitbuild"] == "100"
 
 
 def test_the_addresses_are_found_in_the_installed_game(lib, game_dir):
