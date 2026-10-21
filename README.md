@@ -8,13 +8,13 @@
 | **ToyBox** | `Ctrl+Shift+T` 로 여는 창에서 돈 · 물자 · 연구 · 외교 · 부대 · 배율을 고친다 | 동작 확인됨 (싱글플레이 전용) |
 
 - 확인한 게임: Steam 판 build `21347933`(12.1.1360), Expansion Pass DLC 포함
-- 최신 배포판: [Releases](https://github.com/game-mod-project/SR2030Toybox/releases)
+- 최신 배포판: [Releases](https://github.com/gmodprj/SR2030Toybox/releases)
 
 ---
 
 ## 설치
 
-[Releases](https://github.com/game-mod-project/SR2030Toybox/releases) 에서 두 파일을 받습니다.
+[Releases](https://github.com/gmodprj/SR2030Toybox/releases) 에서 두 파일을 받습니다.
 
 1. **게임을 끕니다.** 게임 폴더(예: `SteamLibrary/steamapps/common/Supreme Ruler 2030`)의 `INI/UISettings.csv` 를 다른 곳에 복사해 둡니다.
    한글화 모드가 바꾸는 게임 파일은 이것 하나뿐입니다.

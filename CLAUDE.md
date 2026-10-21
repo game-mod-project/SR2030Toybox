@@ -120,7 +120,7 @@ Supreme Ruler 2030 모드 제작 저장소. 개요는 [README.md](README.md), �
 2. 작업 브랜치 → `develop` PR, CI 통과 후 merge commit 으로 머지.
 3. 릴리스 때만 `develop` → `main` PR.
 
-원격 저장소: <https://github.com/game-mod-project/SR2030Toybox> (**공개**). 2026-10-06 에 사용자가 주소를 주고,
+원격 저장소: <https://github.com/gmodprj/SR2030Toybox> (**공개**. 2026-10-22 에 `game-mod-project` 에서 옮겨진 것을 봤다 — 옛 주소는 GitHub 이 넘겨 준다). 2026-10-06 에 사용자가 주소를 주고,
 번역 테이블에 게임 영어 원문이 들어 있다는 점을 안 채로 "공개 그대로 전체 푸시"를 골랐다.
 
 - 그 전까지의 이력은 원격이 없어 로컬에서 `git merge --no-ff` 로 `develop` 에 합쳤고, 한 번의 PR 로 원격 `develop` 에 올렸다.
