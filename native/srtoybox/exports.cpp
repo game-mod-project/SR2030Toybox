@@ -871,6 +871,48 @@ EXPORT int srtoybox_keeper_mult(const char *spec)
     return 0;
 }
 
+// 테스트: 사회의 설정을 고친다. spec 은 빈칸으로 나눈 "키=값"들 — on · up.<i> · down.<i> · keep.<i> · keepv.<i>.
+// 적지 않은 것은 그대로다. 모르는 키가 있으면 -1(아무것도 바꾸지 않는다).
+EXPORT int srtoybox_keeper_social(const char *spec)
+{
+    Social s = keeper_social();
+    std::string text = spec == nullptr ? "" : spec;
+    size_t pos = 0;
+    while (pos < text.size()) {
+        size_t end = text.find(' ', pos);
+        if (end == std::string::npos)
+            end = text.size();
+        const std::string pair = text.substr(pos, end - pos);
+        pos = end + 1;
+        if (pair.empty())
+            continue;
+        const size_t eq = pair.find('=');
+        if (eq == std::string::npos)
+            return -1;
+        const std::string key = pair.substr(0, eq);
+        const int n = atoi(pair.c_str() + eq + 1);
+        const size_t dot = key.find('.');
+        const int i = dot == std::string::npos ? -1 : atoi(key.c_str() + dot + 1);
+        const std::string what = key.substr(0, dot);
+        if (key == "on")
+            s.on = n != 0;
+        else if (i < 0 || i >= SOCIAL_COUNT)
+            return -1;
+        else if (what == "up")
+            s.up[i] = n;
+        else if (what == "down")
+            s.down[i] = n;
+        else if (what == "keep")
+            s.keep[i] = n != 0;
+        else if (what == "keepv")
+            s.keep_value[i] = n;
+        else
+            return -1;
+    }
+    keeper_set_social(s);
+    return 0;
+}
+
 // 테스트: "<날마다의 일을 한 날수>\t<곱 보정 칸을 쓴 횟수>\t<지금 ToyBox 의 값이 든 칸의 수>\t<100 이 아닌 배율의 수>".
 // 테스트: 다음 자정에 완료를 누른다. 까닭의 글(되면 빈 글).
 EXPORT int srtoybox_keeper_rush(char *out, int size)

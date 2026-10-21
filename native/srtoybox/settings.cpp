@@ -130,6 +130,36 @@ void parse_mult(const std::string &rest, long long n, Settings &s)
     }
 }
 
+// "social." 뒤의 글과 값. 범위 밖의 값 · 없는 항목 · 모르는 줄은 버린다(기본값이 남는다).
+void parse_social(const std::string &rest, long long n, Settings &s)
+{
+    if (rest == "on") {
+        if (n == 0 || n == 1)
+            s.social_on = n == 1;
+        return;
+    }
+    const size_t dot = rest.find('.');
+    if (dot == std::string::npos)
+        return;
+    const std::string what = rest.substr(0, dot);
+    std::string tail = rest.substr(dot + 1);
+    bool value = false;
+    if (what == "keep" && tail.size() > 6 && tail.compare(tail.size() - 6, 6, ".value") == 0) {
+        value = true;
+        tail.resize(tail.size() - 6);
+    }
+    long long item = -1;
+    if (!parse_int(tail, item) || item < 0 || item >= SOCIAL_COUNT)
+        return;
+    const int i = static_cast<int>(item);
+    if ((what == "up" || what == "down") && n >= 0 && n <= SETTINGS_SOCIAL_RATE_MAX)
+        (what == "up" ? s.social_up : s.social_down)[i] = static_cast<int>(n);
+    else if (what == "keep" && value && n >= 0 && n <= SETTINGS_SOCIAL_KEEP_MAX)
+        s.social_keep_value[i] = static_cast<int>(n);
+    else if (what == "keep" && !value && (n == 0 || n == 1))
+        s.social_keep[i] = n == 1;
+}
+
 }  // namespace
 
 Settings default_settings()
@@ -174,6 +204,8 @@ Settings parse_settings(const std::string &ini)
             parse_keep_stock(key.substr(11), n, s);
         } else if (key.compare(0, 5, "mult.") == 0) {
             parse_mult(key.substr(5), n, s);
+        } else if (key.compare(0, 7, "social.") == 0) {
+            parse_social(key.substr(7), n, s);
         } else {
             const Feature *f = find_feature(key.c_str());
             if (f != nullptr && f->has_value && n >= f->min)
@@ -206,6 +238,13 @@ std::string format_settings(const Settings &s)
         const std::string n = std::to_string(slot);
         out += "mult.out." + n + "=" + std::to_string(s.mult_out[slot]) + "\nmult.use." + n + "=" + std::to_string(s.mult_use[slot])
             + "\nmult.raw." + n + "=" + std::to_string(s.mult_raw[slot]) + "\n";
+    }
+    out += "social.on=" + std::to_string(s.social_on ? 1 : 0) + "\n";
+    for (int i = 0; i < SOCIAL_COUNT; i++) {
+        const std::string n = std::to_string(i);
+        out += "social.up." + n + "=" + std::to_string(s.social_up[i]) + "\nsocial.down." + n + "=" + std::to_string(s.social_down[i])
+            + "\nsocial.keep." + n + "=" + std::to_string(s.social_keep[i] ? 1 : 0) + "\nsocial.keep." + n + ".value="
+            + std::to_string(s.social_keep_value[i]) + "\n";
     }
     for (int i = 0; i < FEATURE_COUNT; i++) {
         if (!FEATURES[i].has_value)

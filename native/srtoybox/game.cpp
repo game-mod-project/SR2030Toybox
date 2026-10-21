@@ -1426,9 +1426,9 @@ void game_init_from(const uint8_t *base, size_t size)
     if (state) {
         if (multiplying == (1 << MULT_WANTED) - 1) {
             log_line("배율을 씁니다 (곱 보정 표 +0x%X · 날의 칸 +0x%X · 연간 세수 +0x%X · 군 인건비 +0x%X × +0x%X · 군 유지비 +0x%X × +0x%X · "
-                     "부대 생산비 +0x%X · 연구의 하루치 +0x%X · 사회 지출 +0x%X × +0x%X)",
+                     "부대 생산비 +0x%X · 연구의 하루치 +0x%X · 사회 지출 +0x%X × +0x%X · 품질 등급 +0x%X)",
                      mult.mul_table, mult.day, mult.tax_total, mult.army_pay_level, mult.army_pay, mult.army_upkeep_level, mult.army_upkeep,
-                     mult.unit_cost, mult.research_step, mult.social_level, mult.social_cost);
+                     mult.unit_cost, mult.research_step, mult.social_level, mult.social_cost, mult.social_grade);
         } else {
             int missing = 0, first = -1;           // 한 줄로: 처음 못 찾은 것과 그 밖의 수
             for (int w = 0; w < MULT_WANTED; w++)
@@ -2687,6 +2687,8 @@ std::string game_mult_off(int part)
         why = missing(1, 1) != nullptr ? missing(1, 1) : missing(8, 8);
     else if (part == MULT_PART_SOCIAL)
         why = missing(1, 1) != nullptr ? missing(1, 1) : missing(9, 10);
+    else if (part == MULT_PART_GRADE)
+        why = missing(1, 1) != nullptr ? missing(1, 1) : missing(11, 11);
     else
         return "없는 묶음입니다";
     if (why != nullptr)
@@ -2787,6 +2789,57 @@ Daily game_daily()
     if (mult.research_step != 0 && peek_in(player, mult.research_step, &step) && std::isfinite(step) && step > 0 && step <= DAILY_STEP_MAX)
         d.step = step;
     return d;
+}
+
+Grades game_social_grades()
+{
+    Grades out;
+    if (!game_mult_off(MULT_PART_GRADE).empty())
+        return out;
+    const uint8_t *base = nullptr;
+    GameAddresses at = {};
+    MultLayout mult = {};
+    {
+        std::lock_guard<std::mutex> lock(g_lock);
+        base = g_base;
+        at = g_at;
+        mult = g_mult;
+    }
+    uint64_t player = 0;
+    const GameState s = read_player(base, at, &player);
+    if (!s.in_game || s.multiplayer || s.index <= 0 || s.index >= REGION_SLOTS || !peek_at(base, mult.day, &out.day)
+        || !peek_in(player, mult.social_grade, &out.grade))
+        return out;
+    out.ok = true;
+    out.index = s.index;
+    return out;
+}
+
+Wrote game_write_social_grade(int item, float value)
+{
+    if (!game_mult_off(MULT_PART_GRADE).empty() || !game_writes())
+        return Wrote::Off;
+    const uint8_t *base = nullptr;
+    GameAddresses at = {};
+    MultLayout mult = {};
+    {
+        std::lock_guard<std::mutex> lock(g_lock);
+        base = g_base;
+        at = g_at;
+        mult = g_mult;
+    }
+    uint64_t player = 0;
+    const GameState s = read_player(base, at, &player);
+    if (!s.in_game || s.multiplayer || s.index <= 0 || s.index >= REGION_SLOTS)
+        return Wrote::NotInGame;
+    const auto sane = [](float v) { return std::isfinite(v) && v >= 0.0f && v < SOCIAL_GRADE_SANE; };
+    float now = 0;
+    const uint64_t where = player + mult.social_grade + 4ull * static_cast<unsigned>(item);
+    if (item < 0 || item >= SOCIAL_COUNT || !sane(value) || !peek(reinterpret_cast<const uint8_t *>(where), &now, sizeof(now)) || !sane(now))
+        return Wrote::BadValue;
+    if (!poke(where, &value, sizeof(value)))
+        return write_failed("품질 등급 칸", 1, 0);
+    return Wrote::Done;
 }
 
 Wrote game_research_push(float days, int *nodes)

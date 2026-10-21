@@ -435,6 +435,10 @@ const ActWanted MULTS[MULT_WANTED] = {
     {"social_level", "사회 지출 수준 칸", ACT_CONSTANT,
      {"B8 [u32] 41 0F 44 C0 41 B8 84 01 00 00", "48 8D 97 [u32] 49 C7 C0 44 60 FF FF 4C 2B C7",
       "F3 0F 11 8F [u32] F3 0F 10 8F B4 5D 01 00 0F 2E CE"}},
+    // 사회 항목의 품질 등급 여덟(2026-10-21): 날마다의 셈(0x76a040) · 판 시작의 초기화(0xbbbf40 — 지출 수준 칸 A680h 도 박혀 있다) · 0x495180 의 읽기
+    {"social_grade", "사회 항목의 품질 등급 칸", ACT_CONSTANT,
+     {"48 8D BB [u32] F3 44 0F 10 0D ? ? ? ? 4C 8D 3D ? ? ? ?", "F3 0F 11 8F [u32] F3 0F 10 87 80 A6 00 00 0F 2E C6",
+      "F3 0F 10 BF [u32] 0F 28 C1 F3 41 0F 59 C3"}},
 };
 static_assert(sizeof(MultLayout) == MULT_WANTED * sizeof(uint32_t), "MultLayout 의 필드는 표 MULTS 의 순서대로 uint32_t 다");
 static_assert(MULT_WANTED <= ACT_WANTED, "서명 표의 크기는 가장 큰 표에 맞춘다");
