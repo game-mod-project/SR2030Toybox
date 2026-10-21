@@ -518,6 +518,32 @@ def test_the_days_change_is_scaled_up_and_down_separately(game):
     assert game.grade(GERMANY, 0) == pytest.approx(0.6, abs=1e-5)
 
 
+def test_a_tick_in_the_middle_of_midnight_waits_for_the_grades(game):
+    """게임은 자정의 셈 도중에도 메시지를 돌린다 — 날의 칸은 올랐는데 등급은 아직 옛 값인 틱이 온다(2026-10-21 게임에서 봤다).
+    그 틱에서 셈하지 않고, 등급이 바뀐 것을 본 틱에서 자정 전의 값과의 차로 셈한다."""
+    game.social("on=1 up.0=1000 down.6=0")
+    game.tick()
+    game.day()                                                   # 날만 올랐다
+    game.tick()
+    assert game.grade(GERMANY, 0) == f32(0.5)
+    game.set_grade(GERMANY, 0, game.grade(GERMANY, 0) + 0.01)    # 이제 등급이 움직였다
+    game.set_grade(GERMANY, 6, game.grade(GERMANY, 6) - 0.01)
+    game.tick()
+    assert game.grade(GERMANY, 0) == pytest.approx(0.6, abs=1e-5) and game.grade(GERMANY, 6) == pytest.approx(1.1, abs=1e-5)
+
+
+def test_a_day_whose_grades_never_move_is_let_go(game):
+    """날이 올랐는데 등급이 2초 동안 하나도 바뀌지 않으면 그날은 넘긴다 — 그 뒤의 움직임을 그날의 것으로 치지 않는다."""
+    game.social("on=1 up.0=1000")
+    game.tick()
+    game.day()
+    for _ in range(5):
+        game.tick()
+    game.set_grade(GERMANY, 0, game.grade(GERMANY, 0) + 0.01)    # 날이 바뀌지 않은 채 움직였다(사람이 슬라이더를 …)
+    game.tick()
+    assert game.grade(GERMANY, 0) == f32(0.51)
+
+
 def test_the_switch_turns_the_multipliers_off(game):
     game.social("on=0 up.0=1000")
     game.tick()

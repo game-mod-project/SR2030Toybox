@@ -76,6 +76,8 @@ int g_social_index;
 uint32_t g_social_day;
 float g_social_seen[SOCIAL_COUNT];  // 지난 틱의 등급(ToyBox 가 쓴 뒤의 값) — 자정의 변화는 이것과의 차다
 bool g_social_told;                 // 이 설정으로 날마다의 일을 한 것을 로그에 적었다
+bool g_social_waiting;              // 날이 올랐다 — 게임이 그날의 등급을 셈한 것을 볼 때까지 기다린다
+unsigned long long g_social_wait_from;
 bool g_social_kept[SOCIAL_COUNT];   // 항목마다 최소 유지가 올린 것을 로그에 적었다(이번 실행의 첫 번째만)
 
 std::string target_name(int slot)
@@ -889,7 +891,22 @@ void social_tick(unsigned long long now_ms)
     float grade[SOCIAL_COUNT];
     memcpy(grade, now.grade, sizeof(grade));
     const uint32_t passed = now.day - g_social_day;   // 뒤로 간 날(불러오기)은 큰 수가 된다
-    if (rates && g_social_have && now.index == g_social_index && passed >= 1 && passed <= MULT_DAYS_MAX) {
+    const bool new_day = rates && g_social_have && now.index == g_social_index && passed >= 1 && passed <= MULT_DAYS_MAX;
+    if (!new_day)
+        g_social_waiting = false;
+    else if (!g_social_waiting) {
+        g_social_waiting = true;                // 게임은 자정의 셈 도중에도 메시지를 돌린다 — 날만 오르고 등급은 아직 옛 값인 틱이 온다
+        g_social_wait_from = now_ms;            // (2026-10-21 게임에서 봤다). 등급이 바뀐 것을 볼 때까지 자정 전의 값을 쥐고 기다린다
+    }
+    if (g_social_waiting) {
+        bool changed = false;
+        for (int i = 0; i < SOCIAL_COUNT; i++)
+            changed = changed || grade[i] != g_social_seen[i];
+        if (!changed && now_ms - g_social_wait_from < SOCIAL_SETTLE_MS)
+            return;                             // 아직 게임이 등급을 셈하지 않았다 — 유지도 쉰다(자정 전의 값을 덮지 않게)
+    }
+    if (g_social_waiting) {
+        g_social_waiting = false;
         int moved = 0;
         for (int i = 0; i < SOCIAL_COUNT; i++) {
             if (!grade_sane(grade[i]) || !grade_sane(g_social_seen[i]))
@@ -1178,7 +1195,7 @@ void keeper_reset_for_test()
     g_mult_stats = MultStats();
     forget_cells();
     g_social = Social();
-    g_social_due = g_social_have = g_social_told = false;
+    g_social_due = g_social_have = g_social_told = g_social_waiting = false;
     g_social_at = 0;
     memset(g_social_kept, 0, sizeof(g_social_kept));
     memset(g_kept, 0, sizeof(g_kept));
