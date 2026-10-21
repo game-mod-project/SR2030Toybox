@@ -119,7 +119,8 @@ KEEP_DEFAULTS = "keep.treasury=0\nkeep.treasury.value=0\n" + "".join(f"keep.stoc
                                                                       for slot in range(12))
 MULT_DEFAULTS = "mult.on=0\nmult.tax=100\nmult.defense=100\nmult.social=100\nmult.research=100\nmult.unitbuild=100\nmult.facbuild=100\n" + "".join(
     f"mult.out.{slot}=100\nmult.use.{slot}=100\nmult.raw.{slot}=100\n" for slot in range(11))
-DEFAULTS = "hotkey_vk=84\nhotkey_mods=3\nmoney.amount=10000\n" + KEEP_DEFAULTS + MULT_DEFAULTS + "technology=120\ndarran=7\n"
+SOCIAL_DEFAULTS = "social.on=0\n" + "".join(f"social.up.{i}=100\nsocial.down.{i}=100\nsocial.keep.{i}=0\nsocial.keep.{i}.value=0\n" for i in range(8))
+DEFAULTS = "hotkey_vk=84\nhotkey_mods=3\nmoney.amount=10000\n" + KEEP_DEFAULTS + MULT_DEFAULTS + SOCIAL_DEFAULTS + "technology=120\ndarran=7\n"
 
 
 def kept(**lines: int) -> str:

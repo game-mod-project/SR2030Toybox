@@ -38,6 +38,8 @@
 // "배율"(묶음 7)은 플레이어의 곱 보정 줄(모든 지역이 함께 든 표에서 플레이어의 줄)의 칸 서른다섯 — 물자의 산업 소비 · 인구 소비 · 산출,
 // 시설 건설 속도(16. 2026-10-14 — "다음 자정에 완료"는 그날의 셈 하루 동안 게임의 값 × 1000), 유닛 생산 속도(15. 2026-10-19 에 되살렸다 — 완료 대기는 맡지 않는다) — 과
 // 플레이어의 연구 목록에서 진행 중인 노드의 남은 기간 칸(float)에 쓴다. 세금 · 국방비 · 사회 지출의 배율은 국고 칸에 쓴다(이미 쓰는 곳). 다른 지역의 줄에는 쓰지 않는다.
+// "사회"(2026-10-21)는 플레이어 지역 객체의 사회 항목 여덟의 품질 등급 칸(float × 8 — 0 … 2, 게임 화면의 "품질 등급" ÷ 100)에 쓴다 —
+// 날이 바뀔 때 그날 게임이 움직인 양에 배율을 곱해 더 움직이고, 0.5초마다 최소 유지 값으로 올린다. 다른 지역의 등급 · 지출 수준에는 쓰지 않는다(docs/superpowers/specs/2026-10-21-toybox-social-grades-design.md).
 // 날의 칸(전역)과 지역 객체의 예산 칸(세수 · 국방의 다섯 · 연구의 하루치 · 사회 지출의 비용 여덟과 수준 여덟)은 읽기만 한다. 게임의 함수는 부르지 않는다. 사용자가 정했다(2026-10-11).
 // 지역 객체의 이름 글(포인터 한 칸 — 이번 판 · 지금 언어의 나라 이름)도 읽기만 한다: 창의 나라 이름이 그것을 따른다(DLC 의 역사 시나리오는 같은 번호가 다른 나라다. 2026-10-12).
 // 읽기만 하는 전역이 넷 더 있다: 게임에서 고른 부대들의 목록(보급), 그리고 "지도에서 고른 지역"(전쟁의 첫째 나라), 지도 객체(병합이 칸의 주인을 읽는다 · 부대 생성이 칸이 지도 안인지 본다),
@@ -305,6 +307,21 @@ Daily game_daily();
 // 건드리지 않는다. *nodes 에 고친 노드의 수. 목록을 읽을 수 없으면 Wrote::Unreadable(하나도 쓰지 않는다), 쓰기가 실패하면 Wrote::Failed.
 const float NODE_LEFT_MIN = 0.001f, NODE_LEFT_MAX = 100000.0f;
 Wrote game_research_push(float days, int *nodes);
+// 사회 항목의 품질 등급(docs/superpowers/specs/2026-10-21-toybox-social-grades-design.md). 쓰는 곳은 플레이어 지역 객체의 등급 여덟 칸뿐이다.
+// 찾아야 하는 것: 날의 칸 · 등급 칸(game_mult_off(MULT_PART_GRADE)).
+const int MULT_PART_GRADE = 4;
+const float SOCIAL_GRADE_SANE = 10.0f;      // 0 이상 이보다 작은 유한한 수만 등급으로 친다(읽을 때도 쓸 때도)
+const float SOCIAL_GRADE_TOP = 2.0f;        // 게임이 자정마다 자르는 끝(0x76a040)
+struct Grades {
+    bool ok = false;           // 게임을 진행 중이고(멀티플레이가 아니다) 날의 칸과 등급 여덟을 읽었다
+    int index = 0;             // 플레이어의 지역 인덱스
+    uint32_t day = 0;          // 날의 칸
+    float grade[SOCIAL_COUNT] = {};   // 읽은 그대로(말이 되는지는 부른 쪽이 본다)
+};
+Grades game_social_grades();
+// 플레이어의 품질 등급 item(0 … SOCIAL_COUNT - 1)에 value 를 쓴다. value 와 지금 값이 모두 0 이상 SOCIAL_GRADE_SANE 미만의 유한한 수일 때만
+// (아니면 BadValue). 쓰기가 실패하면 값 쓰기 전체를 끈다(Wrote::Failed).
+Wrote game_write_social_grade(int item, float value);
 // 테스트: 배율의 자리를 준다 — 자리가 0 이 아닌 것을 찾은 것으로 친다. nullptr 이면 모두 못 찾은 것으로.
 void game_set_mult_for_test(const MultLayout *layout);
 // cell 의 qword 가 was 이면 now 로 바꾼다(CAS). 0 바꿨다 · 1 값이 was 가 아니었다(그대로 둔다) · -1 쓸 수 없다. write_research 가 지역 코드 칸에 쓴다.
