@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cfloat>
+#include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <memory>
 #include <mutex>
@@ -529,6 +531,174 @@ void mult_tab(const GameState &game)
     }
     ImGui::EndDisabled();
     ImGui::EndTable();
+}
+
+// ---- 사회: 품질 등급의 배율과 최소 유지(docs/superpowers/specs/2026-10-21-toybox-social-grades-design.md) ----
+
+static_assert(SETTINGS_SOCIAL_RATE_MAX == SOCIAL_RATE_MAX && SETTINGS_SOCIAL_KEEP_MAX == SOCIAL_KEEP_MAX,
+              "settings.h 와 keeper.h 의 사회 범위가 다르다");
+
+const char *const SOCIAL_LABELS[SOCIAL_COUNT] = {"보건", "교육", "인프라", "환경", "가족 수당", "치안", "문화 지원", "사회 보장"};
+Social g_social_sent;          // keeper 에 마지막으로 넘긴 사회 설정
+int g_social_all_up = 100, g_social_all_down = 100, g_social_all_keep = 0;   // "모든 항목" 줄의 입력란(고치면 여덟 줄에 넣는다)
+
+Social social_of(const Settings &s)
+{
+    Social m;
+    m.on = s.social_on;
+    for (int i = 0; i < SOCIAL_COUNT; i++) {
+        m.up[i] = s.social_up[i];
+        m.down[i] = s.social_down[i];
+        m.keep[i] = s.social_keep[i];
+        m.keep_value[i] = s.social_keep_value[i];
+    }
+    return m;
+}
+
+// 창에서 고친 사회 설정을 keeper 에 넘긴다(save 면 설정 파일에도). 달라진 것이 없으면 아무것도 하지 않는다. 로그는 스위치를 켜고 끌 때만.
+void send_social(bool save)
+{
+    const Social want = social_of(g_settings);
+    if (want == g_social_sent)
+        return;
+    if (want.on != g_social_sent.on)
+        log_line("사회 배율 %s (100 %% 가 아닌 배율과 켜진 유지 %d개)", want.on ? "켬" : "끔", social_count(want));
+    if (save)
+        save_settings(g_settings);
+    keeper_set_social(want);
+    g_social_sent = want;
+}
+
+// 상태 줄의 뒤에 붙는 글: 켜 둔 사회의 배율 · 유지가 있으면 " · 사회 N개".
+std::string social_text()
+{
+    int count = 0;
+    for (int i = 0; i < SOCIAL_COUNT; i++)
+        count += (g_social_sent.on ? (g_social_sent.up[i] != 100) + (g_social_sent.down[i] != 100) : 0) + (g_social_sent.keep[i] ? 1 : 0);
+    return count > 0 ? " · 사회 " + std::to_string(count) + "개" : std::string();
+}
+
+// 사회 탭의 퍼센트 입력란(low … high). 입력을 마쳤을 때에만 값이 넘어온다. 고쳤으면 참.
+bool social_input(const char *id, const std::string &name, int *value, int low, int high)
+{
+    const int step = high > MULT_BUILD_MAX ? 100 : 10;
+    ImGui::SetNextItemWidth(110.0f);
+    const bool changed = ImGui::InputInt(id, value, step, step * 10);
+    if (changed)
+        *value = std::min(high, std::max(low, *value));
+    note(name, std::to_string(*value));
+    return changed;
+}
+
+const char *const SOCIAL_HELP = "품질 등급은 게임의 사회 지출 화면에서 항목을 누르면 나오는 \"품질 등급\"이다. 게임은 매일 자정, 등급을 목표(지출 수준 × 기술) 쪽으로 "
+                                "남은 거리의 60분의 1 씩 움직인다. 오름 · 내림 배율은 그 하루 움직임을 키우거나 줄인다(0 % 면 그쪽으로 움직이지 않는다). "
+                                "게임의 끝은 200 % 다 — 배율은 그 위로 올리지 않는다. 최소 유지는 스위치와 상관없이 0.5초마다, 등급이 정한 값보다 낮으면 올린다. "
+                                "200 % 를 넘긴 값은 게임이 자정마다 200 % 로 자르고 ToyBox 가 다시 올린다. 저장되는 설정이다";
+
+// 사회 탭. 설정이다 — 게임 밖에서도 고칠 수 있다.
+void social_tab(const GameState &game)
+{
+    if (ImGui::Checkbox("등급 배율 적용", &g_settings.social_on))
+        send_social(true);
+    note("social:on", g_settings.social_on ? "1" : "0");
+    ImGui::SameLine();
+    ImGui::TextDisabled("퍼센트 — 100 이 그대로다. 플레이하는 나라에만 듣는다 (?)");
+    if (ImGui::IsItemHovered())
+        wrapped_tooltip(SOCIAL_HELP);
+    if (!game_writes() && game.known) {
+        ImGui::TextWrapped("값 쓰기가 꺼져 있어 쉽니다.");
+        note("social:off", "값 쓰기가 꺼져 있어 쉽니다.");
+    }
+    const std::string off = game_mult_off(MULT_PART_GRADE);
+    if (!off.empty()) {
+        const std::string line = "품질 등급을 쓸 수 없습니다: " + off;
+        ImGui::TextWrapped("%s", line.c_str());
+        note("social:grade:off", line);
+    }
+    Grades now;
+    if (off.empty() && game.known && game.in_game && !game.multiplayer)
+        now = game_social_grades();
+    const ImGuiTableFlags flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV
+        | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY;
+    if (!ImGui::BeginTable("social", 6, flags))
+        return;
+    ImGui::TableSetupScrollFreeze(1, 1);
+    ImGui::TableSetupColumn("항목");
+    ImGui::TableSetupColumn("지금 등급");
+    ImGui::TableSetupColumn("오름 %");
+    ImGui::TableSetupColumn("내림 %");
+    ImGui::TableSetupColumn("유지");
+    ImGui::TableSetupColumn("유지 값 %");
+    ImGui::TableHeadersRow();
+    ImGui::BeginDisabled(!off.empty());
+    bool changed = false;
+    {                                                        // 모든 항목: 고친 값을 여덟 줄에 함께 넣는다
+        ImGui::PushID(-1);
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted("모든 항목");
+        note("social:all", "모든 항목");
+        ImGui::TableNextColumn();
+        ImGui::TextDisabled("-");
+        ImGui::TableNextColumn();
+        if (social_input("##up", "social:all:up", &g_social_all_up, 0, SOCIAL_RATE_MAX)) {
+            for (int i = 0; i < SOCIAL_COUNT; i++)
+                g_settings.social_up[i] = g_social_all_up;
+            changed = true;
+        }
+        ImGui::TableNextColumn();
+        if (social_input("##down", "social:all:down", &g_social_all_down, 0, SOCIAL_RATE_MAX)) {
+            for (int i = 0; i < SOCIAL_COUNT; i++)
+                g_settings.social_down[i] = g_social_all_down;
+            changed = true;
+        }
+        ImGui::TableNextColumn();
+        bool all = true;
+        for (int i = 0; i < SOCIAL_COUNT; i++)
+            all = all && g_settings.social_keep[i];
+        if (ImGui::Checkbox("##keep", &all)) {
+            for (int i = 0; i < SOCIAL_COUNT; i++)
+                g_settings.social_keep[i] = all;
+            changed = true;
+        }
+        ImGui::TableNextColumn();
+        if (social_input("##keepv", "social:all:keepv", &g_social_all_keep, 0, SOCIAL_KEEP_MAX)) {
+            for (int i = 0; i < SOCIAL_COUNT; i++)
+                g_settings.social_keep_value[i] = g_social_all_keep;
+            changed = true;
+        }
+        ImGui::PopID();
+    }
+    for (int i = 0; i < SOCIAL_COUNT; i++) {
+        const std::string name = "social:" + std::to_string(i);
+        ImGui::PushID(i);
+        ImGui::TableNextRow();
+        ImGui::TableNextColumn();
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted(SOCIAL_LABELS[i]);
+        note(name, SOCIAL_LABELS[i]);
+        ImGui::TableNextColumn();
+        char grade[32] = "-";
+        if (now.ok && std::isfinite(now.grade[i]))
+            snprintf(grade, sizeof(grade), "%.1f %%", now.grade[i] * 100.0f);
+        ImGui::TextUnformatted(grade);
+        note(name + ":now", grade);
+        ImGui::TableNextColumn();
+        changed |= social_input("##up", name + ":up", &g_settings.social_up[i], 0, SOCIAL_RATE_MAX);
+        ImGui::TableNextColumn();
+        changed |= social_input("##down", name + ":down", &g_settings.social_down[i], 0, SOCIAL_RATE_MAX);
+        ImGui::TableNextColumn();
+        changed |= ImGui::Checkbox("##keep", &g_settings.social_keep[i]);
+        note(name + ":keep", g_settings.social_keep[i] ? "1" : "0");
+        ImGui::TableNextColumn();
+        changed |= social_input("##keepv", name + ":keepv", &g_settings.social_keep_value[i], 0, SOCIAL_KEEP_MAX);
+        ImGui::PopID();
+    }
+    ImGui::EndDisabled();
+    ImGui::EndTable();
+    if (changed)
+        send_social(true);
 }
 
 // 최소 유지의 수량 입력란. 치는 동안의 값(5, 50, 500 …)은 쓰이지 않는다 — ImGui 의 InputScalar 는 입력을 마쳤을 때
@@ -1255,7 +1425,7 @@ void status_line(const GameState &game)
         : game.multiplayer ? "멀티플레이에서는 동작하지 않습니다"
         : !game.in_game ? "게임을 진행 중이 아닙니다 — 단추가 꺼져 있습니다"
         : "플레이 중: " + region_label(game.player) + " (" + std::to_string(game.player) + ")";
-    const std::string text = state + keep_text(game) + mult_text();   // 최소 유지 · 배율이 켜져 있으면 늘 보인다 — 켜 둔 것을 잊지 않게
+    const std::string text = state + keep_text(game) + mult_text() + social_text();   // 최소 유지 · 배율이 켜져 있으면 늘 보인다 — 켜 둔 것을 잊지 않게
     if (!game.known)
         ImGui::TextDisabled("%s", text.c_str());
     else
@@ -1271,6 +1441,7 @@ void ui_init()
     g_settings = load_settings();
     send_keep(false);             // 저장해 둔 최소 유지를 keeper 에 넘긴다 — 창을 한 번도 열지 않아도 돈다
     send_mult(false);             // 배율도
+    send_social(false);           // 사회도
     g_units_list.list.show = Show::All;   // 설계도 목록은 전체부터 — 모두 등록해도 목록이 비지 않는다(등록 열로 가른다)
 }
 
@@ -1380,6 +1551,14 @@ void ui_draw()
             if (mult) {
                 if (ImGui::BeginChild("body", body))
                     mult_tab(game);
+                ImGui::EndChild();
+                ImGui::EndTabItem();
+            }
+            const bool social = ImGui::BeginTabItem("사회");   // 넷째 탭. 설정이다 — 단추가 없다(2026-10-21)
+            note("tab:사회", "사회");
+            if (social) {
+                if (ImGui::BeginChild("body", body))
+                    social_tab(game);
                 ImGui::EndChild();
                 ImGui::EndTabItem();
             }

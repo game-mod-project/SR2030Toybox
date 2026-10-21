@@ -12,13 +12,13 @@ from toybox_fake_game import Lab, FakeGame, TECH
 
 MUL_TABLE, MUL_STEP, DAY = 0x4000, 0x320, 0x70
 CELLS = dict(tax_total=0x180, army_pay_level=0x188, army_upkeep_level=0x18C, army_pay=0x190, army_upkeep=0x194, unit_cost=0x198,
-             research_step=0x19C, social_cost=0x1A0, social_level=0x1C0)
+             research_step=0x19C, social_cost=0x1A0, social_level=0x1C0, social_grade=0x1E0)
 GERMANY, POLAND = 176, 141
 ACTIVE, GONE = 0x40000000, 0x80000000
-PART_CELLS, PART_MONEY, PART_SPEED, PART_SOCIAL = 0, 1, 2, 3
+PART_CELLS, PART_MONEY, PART_SPEED, PART_SOCIAL, PART_GRADE = 0, 1, 2, 3, 4
 BUILD_MULT = {"mul_table": 0x1CEE6C8, "day": 0x18294D0, "tax_total": 0xA6B8, "army_pay_level": 0xA6DC, "army_upkeep_level": 0xA6E0,
               "army_pay": 0x14CE0, "army_upkeep": 0x14CE4, "unit_cost": 0x14BDC, "research_step": 0x15E5C, "social_cost": 0x14C04,
-              "social_level": 0xA680}    # build 21347933
+              "social_level": 0xA680, "social_grade": 0x15DB0}    # build 21347933
 
 
 @pytest.fixture(scope="module")
@@ -33,6 +33,7 @@ def lib(cfg):
     lib.srtoybox_test_research.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
     lib.srtoybox_keeper_tick_at.argtypes = [ctypes.c_ulonglong]
     lib.srtoybox_keeper_mult.argtypes = [ctypes.c_char_p]
+    lib.srtoybox_keeper_social.argtypes = [ctypes.c_char_p]
     lib.srtoybox_mult_off.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
     lib.srtoybox_mult_stats.argtypes = [ctypes.c_char_p, ctypes.c_int]
     lib.srtoybox_keeper_rush.argtypes = [ctypes.c_char_p, ctypes.c_int]
@@ -85,12 +86,22 @@ class Game:
         for i in range(8):                                      # 사회 지출: 비용 73e9 × (i + 1) / 년, 수준 0.5 — 하루 합 3.6e9
             self.fake._write(index, CELLS["social_cost"] + 4 * i, "<f", 73e9 * (i + 1))
             self.fake._write(index, CELLS["social_level"] + 4 * i, "<f", 0.5)
+            self.fake._write(index, CELLS["social_grade"] + 4 * i, "<f", 0.5 + i / 10)   # 품질 등급 0.5 … 1.2
 
     def day(self, add: int = 1) -> None:
         self.fake.poke(DAY, "<I", (self.fake.peek(DAY, "<I") + add) & 0xFFFFFFFF)
 
     def set(self, spec: str) -> None:
         assert self.lib.srtoybox_keeper_mult(spec.encode()) == 0
+
+    def social(self, spec: str) -> None:
+        assert self.lib.srtoybox_keeper_social(spec.encode()) == 0
+
+    def grade(self, index: int, item: int) -> float:
+        return self.fake._read(index, CELLS["social_grade"] + 4 * item, "<f")
+
+    def set_grade(self, index: int, item: int, value: float) -> None:
+        self.fake._write(index, CELLS["social_grade"] + 4 * item, "<f", value)
 
     def tick(self) -> None:
         self.now += 500
@@ -465,7 +476,7 @@ def test_the_addresses_are_found_in_the_installed_game(lib, game_dir):
     """설치된 게임에서: 찾을 것 열하나가 모두, 서명 서른셋이 모두 정확히 한 번(build 21347933 의 값과 같다)."""
     image = toybox.image_of((game_dir / toybox.EXE_NAME).read_bytes())
     found, why, rows = toybox.mult_of(lib, image)
-    assert why == [""] * len(toybox.MULT_FIELDS) and [row.count for row in rows] == [1] * 33
+    assert why == [""] * len(toybox.MULT_FIELDS) and [row.count for row in rows] == [1] * 36
     if found != BUILD_MULT:
         pytest.skip(f"다른 빌드의 게임입니다: {found}")
 
@@ -473,3 +484,116 @@ def test_the_addresses_are_found_in_the_installed_game(lib, game_dir):
 def test_nothing_is_found_in_something_that_is_not_the_game(lib):
     found, why, _rows = toybox.mult_of(lib, bytes(0x1000))
     assert not any(found.values()) and all(why)
+
+
+# ---- 사회: 품질 등급의 배율과 최소 유지(docs/superpowers/specs/2026-10-21-toybox-social-grades-design.md) ----
+
+def midnight(game, moves: dict[int, float]) -> None:
+    """게임의 자정: 날의 칸이 오르고 등급이 움직인다(moves: 항목 → 그날의 변화)."""
+    for item, d in moves.items():
+        game.set_grade(GERMANY, item, game.grade(GERMANY, item) + d)
+    game.day()
+
+
+def test_grades_are_left_alone_until_something_is_set(game):
+    game.tick()
+    midnight(game, {0: 0.01, 1: -0.01})
+    game.tick()
+    assert game.grade(GERMANY, 0) == f32(0.51) and game.grade(GERMANY, 1) == f32(f32(0.6) - 0.01)
+
+
+def test_the_days_change_is_scaled_up_and_down_separately(game):
+    """오를 때 1000 % 면 그날의 변화가 10배, 내릴 때 0 % 면 내려가지 않는다. 폴란드의 등급은 그대로다."""
+    poland = [game.grade(POLAND, i) for i in range(8)]
+    game.social("on=1 up.0=1000 down.1=0 up.2=200 down.2=300")
+    game.tick()                                                  # 자정 전의 등급을 읽어 둔다
+    midnight(game, {0: 0.01, 1: -0.02, 2: 0.01, 3: -0.01})
+    game.tick()
+    assert game.grade(GERMANY, 0) == pytest.approx(0.5 + 0.1, abs=1e-5)
+    assert game.grade(GERMANY, 1) == pytest.approx(0.6, abs=1e-5)
+    assert game.grade(GERMANY, 2) == pytest.approx(0.7 + 0.02, abs=1e-5)       # 오른 날에는 오름 배율만
+    assert game.grade(GERMANY, 3) == pytest.approx(0.8 - 0.01, abs=1e-5)       # 100 % 는 쓰지 않는다
+    assert [game.grade(POLAND, i) for i in range(8)] == poland
+    game.tick()                                                  # 같은 날에 다시 하지 않는다
+    assert game.grade(GERMANY, 0) == pytest.approx(0.6, abs=1e-5)
+
+
+def test_the_switch_turns_the_multipliers_off(game):
+    game.social("on=0 up.0=1000")
+    game.tick()
+    midnight(game, {0: 0.01})
+    game.tick()
+    assert game.grade(GERMANY, 0) == f32(0.51)
+
+
+def test_a_scaled_grade_stays_inside_the_games_range(game):
+    """배율이 만든 등급은 0 … 2.0(게임의 끝)으로 자른다."""
+    game.set_grade(GERMANY, 0, 1.95)
+    game.set_grade(GERMANY, 1, 0.05)
+    game.social("on=1 up.0=10000 down.1=10000")
+    game.tick()
+    midnight(game, {0: 0.01, 1: -0.01})
+    game.tick()
+    assert game.grade(GERMANY, 0) == 2.0 and game.grade(GERMANY, 1) == 0.0
+
+
+def test_a_jump_of_the_day_or_a_new_country_is_not_a_day(game):
+    game.social("on=1 up.0=1000")
+    game.tick()
+    game.set_grade(GERMANY, 0, 0.9)
+    game.day(5)                                                  # 불러오기 · 새 판
+    game.tick()
+    assert game.grade(GERMANY, 0) == f32(0.9)
+
+
+def test_the_floor_raises_a_grade_every_tick_and_works_without_the_switch(game):
+    """최소 유지는 항목마다의 체크로 켜고(스위치와 상관없다), 200 % 를 넘긴 값도 쓴다 — 게임이 자정에 2.0 으로 자르면 다시 올린다."""
+    game.social("on=0 keep.0=1 keepv.0=150 keep.1=1 keepv.1=300 keep.2=0 keepv.2=999 keep.7=1 keepv.7=50")
+    game.tick()
+    assert game.grade(GERMANY, 0) == 1.5 and game.grade(GERMANY, 1) == 3.0
+    assert game.grade(GERMANY, 2) == f32(0.7) and game.grade(GERMANY, 7) == f32(1.2)   # 꺼진 것 · 이미 위인 것은 그대로
+    game.set_grade(GERMANY, 1, 2.0)                              # 게임의 자정
+    game.day()
+    game.tick()
+    assert game.grade(GERMANY, 1) == 3.0
+
+
+def test_the_floor_does_not_turn_the_games_clamp_into_a_fall(game):
+    """유지가 200 % 위로 올린 등급을 게임이 2.0 으로 자른 것은 내린 날로 치지 않는다(내림 배율이 키우지 않는다)."""
+    game.social("on=1 down.0=1000 keep.0=1 keepv.0=300")
+    game.tick()
+    game.set_grade(GERMANY, 0, 2.0)
+    game.day()
+    game.tick()
+    assert game.grade(GERMANY, 0) == 3.0
+
+
+def test_grades_that_make_no_sense_are_not_touched(game):
+    game.social("on=1 up.0=1000 keep.1=1 keepv.1=150 keep.2=1 keepv.2=150")
+    game.set_grade(GERMANY, 1, float("nan"))
+    game.set_grade(GERMANY, 2, 50.0)
+    game.tick()
+    assert game.grade(GERMANY, 2) == 50.0
+    assert game.grade(GERMANY, 1) != game.grade(GERMANY, 1)      # NaN 그대로
+
+
+def test_nothing_happens_in_the_menu_or_without_the_grade_cells(lib, game):
+    game.social("on=1 keep.0=1 keepv.0=150")
+    game.fake.menu()
+    game.tick()
+    assert game.grade(GERMANY, 0) == f32(0.5)
+    game.fake.play(GERMANY)
+    lib.srtoybox_test_mult(ctypes.byref(toybox.MultLayout(mul_table=MUL_TABLE, day=DAY, **{**CELLS, "social_grade": 0})))
+    off = text(lib.srtoybox_mult_off, PART_GRADE)
+    game.tick()
+    assert off != "" and game.grade(GERMANY, 0) == f32(0.5)
+
+
+def test_the_settings_keep_the_social_lines(lib):
+    norm = lambda ini: dict(line.split("=") for line in text(lib.srtoybox_settings_normalize, ini.encode("utf-8")).split("\n") if line)
+    got = norm("social.on=1\nsocial.up.0=10000\nsocial.down.7=0\nsocial.keep.3=1\nsocial.keep.3.value=999\n")
+    assert [got[k] for k in ("social.on", "social.up.0", "social.down.7", "social.keep.3", "social.keep.3.value")] == ["1", "10000", "0", "1", "999"]
+    assert got["social.up.1"] == "100" and got["social.keep.0"] == "0" and got["social.keep.0.value"] == "0"
+    bad = norm("social.on=2\nsocial.up.0=10001\nsocial.down.1=-1\nsocial.keep.2=2\nsocial.keep.3.value=1000\nsocial.up.8=200\n")
+    assert bad["social.on"] == "0" and bad["social.up.0"] == "100" and bad["social.down.1"] == "100"
+    assert bad["social.keep.2"] == "0" and bad["social.keep.3.value"] == "0" and "social.up.8" not in bad

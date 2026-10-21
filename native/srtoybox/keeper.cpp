@@ -68,6 +68,15 @@ bool g_rush;                        // 다음 자정에 완료 — 대기 중
 uint32_t g_rush_day;                // 누른 때의 날의 칸
 int g_rush_index;                   // 누른 때의 플레이어 지역 인덱스
 bool g_mult_told;                   // 이 설정으로 날마다의 일을 한 것을 로그에 적었다(설정이 바뀌면 다시 적는다)
+Social g_social;                    // 사회 — 품질 등급의 배율과 최소 유지
+bool g_social_due;                  // 설정이 바뀌었다 — 다음 틱에 바로 본다
+unsigned long long g_social_at;
+bool g_social_have;                 // 아래의 셋이 지난 틱에 읽은 값이다
+int g_social_index;
+uint32_t g_social_day;
+float g_social_seen[SOCIAL_COUNT];  // 지난 틱의 등급(ToyBox 가 쓴 뒤의 값) — 자정의 변화는 이것과의 차다
+bool g_social_told;                 // 이 설정으로 날마다의 일을 한 것을 로그에 적었다
+bool g_social_kept[SOCIAL_COUNT];   // 항목마다 최소 유지가 올린 것을 로그에 적었다(이번 실행의 첫 번째만)
 
 std::string target_name(int slot)
 {
@@ -847,6 +856,89 @@ void mult_daily()
     }
 }
 
+const char *const SOCIAL_NAMES[SOCIAL_COUNT] = {"보건", "교육", "인프라", "환경", "가족 수당", "치안", "문화 지원", "사회 보장"};
+
+bool grade_sane(float v)
+{
+    return std::isfinite(v) && v >= 0.0f && v < SOCIAL_GRADE_SANE;
+}
+
+// 사회의 틱. g_lock 을 쥔 채로 부른다. 게임의 함수는 부르지 않는다.
+void social_tick(unsigned long long now_ms)
+{
+    if (runner_calling() || runner_faulted())
+        return;
+    if (!g_social_due && now_ms - g_social_at < KEEP_EVERY_MS)
+        return;
+    g_social_due = false;
+    g_social_at = now_ms;
+    bool rates = false, keeping = false;
+    for (int i = 0; i < SOCIAL_COUNT; i++) {
+        rates = rates || (g_social.on && (g_social.up[i] != 100 || g_social.down[i] != 100));
+        keeping = keeping || g_social.keep[i];
+    }
+    if ((!rates && !keeping) || !game_writes()) {
+        g_social_have = false;
+        return;
+    }
+    const Grades now = game_social_grades();
+    if (!now.ok) {
+        g_social_have = false;
+        return;
+    }
+    float grade[SOCIAL_COUNT];
+    memcpy(grade, now.grade, sizeof(grade));
+    const uint32_t passed = now.day - g_social_day;   // 뒤로 간 날(불러오기)은 큰 수가 된다
+    if (rates && g_social_have && now.index == g_social_index && passed >= 1 && passed <= MULT_DAYS_MAX) {
+        int moved = 0;
+        for (int i = 0; i < SOCIAL_COUNT; i++) {
+            if (!grade_sane(grade[i]) || !grade_sane(g_social_seen[i]))
+                continue;
+            const float d = grade[i] - std::min(g_social_seen[i], SOCIAL_GRADE_TOP);
+            const int percent = d > 0.0f ? g_social.up[i] : d < 0.0f ? g_social.down[i] : 100;
+            if (percent == 100)
+                continue;
+            const float want = std::min(SOCIAL_GRADE_TOP, std::max(0.0f, grade[i] + (percent / 100.0f - 1.0f) * d));
+            if (want == grade[i])
+                continue;
+            const Wrote wrote = game_write_social_grade(i, want);
+            if (wrote == Wrote::Failed) {
+                g_social_have = false;
+                return;
+            }
+            if (wrote == Wrote::Done) {
+                grade[i] = want;
+                moved++;
+            }
+        }
+        if (!g_social_told) {
+            g_social_told = true;                  // 날마다 적지 않는다 — 설정이 바뀐 뒤의 첫 날만
+            log_line("사회: 날마다의 일 (날 %u → +%u일, 품질 등급 %d칸을 더 움직였다)", now.day, passed, moved);
+        }
+    }
+    for (int i = 0; i < SOCIAL_COUNT; i++) {
+        const float floor = g_social.keep_value[i] / 100.0f;
+        if (!g_social.keep[i] || !grade_sane(grade[i]) || grade[i] >= floor)
+            continue;
+        const Wrote wrote = game_write_social_grade(i, floor);
+        if (wrote == Wrote::Failed) {
+            g_social_have = false;
+            return;
+        }
+        if (wrote != Wrote::Done)
+            continue;
+        if (!g_social_kept[i]) {
+            g_social_kept[i] = true;
+            log_line("사회 유지: %s 품질 등급 %.1f%% -> %.1f%%", SOCIAL_NAMES[i], grade[i] * 100.0f, floor * 100.0f);
+        }
+        grade[i] = floor;
+    }
+    memcpy(g_social_seen, grade, sizeof(grade));
+    g_social_index = now.index;
+    g_social_day = now.day;
+    g_social_have = true;
+}
+
 // 배율의 틱. g_lock 을 쥔 채로 부른다. 게임의 함수는 부르지 않는다.
 void mult_tick(unsigned long long now_ms)
 {
@@ -884,6 +976,38 @@ bool operator==(const Mult &a, const Mult &b)
         if (a.out[i] != b.out[i] || a.use[i] != b.use[i] || a.raw[i] != b.raw[i])
             return false;
     return true;
+}
+
+bool operator==(const Social &a, const Social &b)
+{
+    if (a.on != b.on)
+        return false;
+    for (int i = 0; i < SOCIAL_COUNT; i++)
+        if (a.up[i] != b.up[i] || a.down[i] != b.down[i] || a.keep[i] != b.keep[i] || a.keep_value[i] != b.keep_value[i])
+            return false;
+    return true;
+}
+
+void keeper_set_social(const Social &social)
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    g_social = social;
+    g_social_due = true;
+    g_social_told = false;
+}
+
+Social keeper_social()
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    return g_social;
+}
+
+int social_count(const Social &s)
+{
+    int count = 0;
+    for (int i = 0; i < SOCIAL_COUNT; i++)
+        count += (s.up[i] != 100) + (s.down[i] != 100) + (s.keep[i] ? 1 : 0);
+    return count;
 }
 
 void keeper_set_mult(const Mult &mult)
@@ -962,6 +1086,7 @@ void keeper_tick(unsigned long long now_ms)
         std::lock_guard<std::mutex> lock(g_lock);
         write = tick_locked(now_ms, &job);
         mult_tick(now_ms);                     // 단추의 요청과 최소 유지 뒤에 — 방금 쓴 국고에 그날의 세금 · 국방비를 얹는다
+        social_tick(now_ms);
     }
     if (write && job.act) {
         run_act(job.what);
@@ -1052,6 +1177,10 @@ void keeper_reset_for_test()
     g_mult_at = 0;
     g_mult_stats = MultStats();
     forget_cells();
+    g_social = Social();
+    g_social_due = g_social_have = g_social_told = false;
+    g_social_at = 0;
+    memset(g_social_kept, 0, sizeof(g_social_kept));
     memset(g_kept, 0, sizeof(g_kept));
     g_shot.reset();
     g_watch_seen = g_watch_dirty = g_shot_timed = false;

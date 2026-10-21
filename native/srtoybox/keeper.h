@@ -164,4 +164,23 @@ struct MultStats {
 };
 MultStats keeper_mult_stats();
 
+// 사회 — 품질 등급의 배율과 최소 유지(docs/superpowers/specs/2026-10-21-toybox-social-grades-design.md). 저장되는 설정이다. 플레이어의 나라에만 듣는다.
+//   up · down     on 일 때: 날의 칸이 1 … MULT_DAYS_MAX 오르면 항목마다 그날 게임이 움직인 양 d(자정 전에 읽어 둔 값과의 차)를 보고
+//                 d > 0 이면 (up − 1) × d, d < 0 이면 (down − 1) × d 를 더 움직인다. 결과는 0 … 2.0(게임의 끝)으로 자른다.
+//                 자정 전의 값이 2.0 을 넘었으면(최소 유지가 올렸다) 2.0 으로 보고 셈한다 — 게임이 자른 것을 내린 날로 치지 않는다.
+//   keep          on 과 상관없이 KEEP_EVERY_MS 마다: 켜진 항목의 등급이 keep_value ÷ 100 보다 작으면 그 값으로(배율 뒤에).
+const int SOCIAL_RATE_MAX = 10000;             // 오름 · 내림 배율의 끝(퍼센트, 처음은 0)
+const int SOCIAL_KEEP_MAX = 999;               // 최소 유지 값의 끝(퍼센트 — 게임 화면의 "품질 등급"과 같은 단위)
+struct Social {
+    bool on = false;
+    int up[SOCIAL_COUNT] = {100, 100, 100, 100, 100, 100, 100, 100};
+    int down[SOCIAL_COUNT] = {100, 100, 100, 100, 100, 100, 100, 100};
+    bool keep[SOCIAL_COUNT] = {};
+    int keep_value[SOCIAL_COUNT] = {};
+};
+bool operator==(const Social &a, const Social &b);
+void keeper_set_social(const Social &social);     // 창이 설정을 읽었거나 고쳤다. 다음 틱에 바로 본다
+Social keeper_social();
+int social_count(const Social &social);           // 100 이 아닌 배율(on 과 상관없이)과 켜진 최소 유지의 수
+
 void keeper_reset_for_test();
