@@ -40,6 +40,7 @@
 // 플레이어의 연구 목록에서 진행 중인 노드의 남은 기간 칸(float)에 쓴다. 세금 · 국방비 · 사회 지출의 배율은 국고 칸에 쓴다(이미 쓰는 곳). 다른 지역의 줄에는 쓰지 않는다.
 // "사회"(2026-10-21)는 플레이어 지역 객체의 사회 항목 여덟의 품질 등급 칸(float × 8 — 0 … 2, 게임 화면의 "품질 등급" ÷ 100)에 쓴다 —
 // 날이 바뀔 때 그날 게임이 움직인 양에 배율을 곱해 더 움직이고, 0.5초마다 최소 유지 값으로 올린다. 다른 지역의 등급 · 지출 수준에는 쓰지 않는다(docs/superpowers/specs/2026-10-21-toybox-social-grades-design.md).
+// "예비 인원"(2026-10-22)은 플레이어 지역 객체의 예비 인원 칸(float — 지휘 패널의 "예비 인원") 하나에 쓴다 — 단추로 더하고, 최소 유지로 올린다(docs/superpowers/specs/2026-10-22-toybox-reserve-design.md).
 // 날의 칸(전역)과 지역 객체의 예산 칸(세수 · 국방의 다섯 · 연구의 하루치 · 사회 지출의 비용 여덟과 수준 여덟)은 읽기만 한다. 게임의 함수는 부르지 않는다. 사용자가 정했다(2026-10-11).
 // 지역 객체의 이름 글(포인터 한 칸 — 이번 판 · 지금 언어의 나라 이름)도 읽기만 한다: 창의 나라 이름이 그것을 따른다(DLC 의 역사 시나리오는 같은 번호가 다른 나라다. 2026-10-12).
 // 읽기만 하는 전역이 넷 더 있다: 게임에서 고른 부대들의 목록(보급), 그리고 "지도에서 고른 지역"(전쟁의 첫째 나라), 지도 객체(병합이 칸의 주인을 읽는다 · 부대 생성이 칸이 지도 안인지 본다),
@@ -322,6 +323,13 @@ Grades game_social_grades();
 // 플레이어의 품질 등급 item(0 … SOCIAL_COUNT - 1)에 value 를 쓴다. value 와 지금 값이 모두 0 이상 SOCIAL_GRADE_SANE 미만의 유한한 수일 때만
 // (아니면 BadValue). 쓰기가 실패하면 값 쓰기 전체를 끈다(Wrote::Failed).
 Wrote game_write_social_grade(int item, float value);
+// 예비 인원(docs/superpowers/specs/2026-10-22-toybox-reserve-design.md). 쓰는 곳은 플레이어 지역 객체의 예비 인원 칸 하나뿐이다. 찾아야 하는 것: 예비 칸(game_mult_off(MULT_PART_RESERVE)).
+const int MULT_PART_RESERVE = 5;
+const float RESERVE_MAX = 100000000.0f;     // 쓰는 값의 끝(1억 명). 읽은 값도 0 이상 이 아래여야 말이 된다
+// 플레이어의 예비 인원을 *out 에. 진행 중이 아니거나 읽을 수 없으면 거짓(값이 말이 되는지는 부른 쪽이 본다).
+bool game_reserve(float *out);
+// 플레이어의 예비 인원에 value 를 쓴다. value 와 지금 값이 모두 0 이상 RESERVE_MAX 이하의 유한한 수일 때만(아니면 BadValue).
+Wrote game_write_reserve(float value);
 // 테스트: 배율의 자리를 준다 — 자리가 0 이 아닌 것을 찾은 것으로 친다. nullptr 이면 모두 못 찾은 것으로.
 void game_set_mult_for_test(const MultLayout *layout);
 // cell 의 qword 가 was 이면 now 로 바꾼다(CAS). 0 바꿨다 · 1 값이 was 가 아니었다(그대로 둔다) · -1 쓸 수 없다. write_research 가 지역 코드 칸에 쓴다.

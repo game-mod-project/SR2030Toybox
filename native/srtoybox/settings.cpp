@@ -200,6 +200,15 @@ Settings parse_settings(const std::string &ini)
         } else if (key == "keep.treasury.value") {
             if (n >= 0 && n <= KEEP_TREASURY_MAX)
                 s.keep_treasury_value = n;
+        } else if (key == "keep.reserve") {
+            if (n == 0 || n == 1)
+                s.keep_reserve = n == 1;
+        } else if (key == "keep.reserve.value") {
+            if (n >= 0 && n <= RESERVE_LIMIT)
+                s.keep_reserve_value = n;
+        } else if (key == "reserve.add") {
+            if (n >= 1 && n <= RESERVE_LIMIT)
+                s.reserve_amount = n;
         } else if (key.compare(0, 11, "keep.stock.") == 0) {
             parse_keep_stock(key.substr(11), n, s);
         } else if (key.compare(0, 5, "mult.") == 0) {
@@ -246,6 +255,8 @@ std::string format_settings(const Settings &s)
             + "\nsocial.keep." + n + "=" + std::to_string(s.social_keep[i] ? 1 : 0) + "\nsocial.keep." + n + ".value="
             + std::to_string(s.social_keep_value[i]) + "\n";
     }
+    out += "keep.reserve=" + std::to_string(s.keep_reserve ? 1 : 0) + "\nkeep.reserve.value=" + std::to_string(s.keep_reserve_value)
+        + "\nreserve.add=" + std::to_string(s.reserve_amount) + "\n";
     for (int i = 0; i < FEATURE_COUNT; i++) {
         if (!FEATURES[i].has_value)
             continue;

@@ -12,13 +12,14 @@ from toybox_fake_game import Lab, FakeGame, TECH
 
 MUL_TABLE, MUL_STEP, DAY = 0x4000, 0x320, 0x70
 CELLS = dict(tax_total=0x180, army_pay_level=0x188, army_upkeep_level=0x18C, army_pay=0x190, army_upkeep=0x194, unit_cost=0x198,
-             research_step=0x19C, social_cost=0x1A0, social_level=0x1C0, social_grade=0x1E0)
+             research_step=0x19C, social_cost=0x1A0, social_level=0x1C0, social_grade=0x1E0, reserve=0x204)
 GERMANY, POLAND = 176, 141
 ACTIVE, GONE = 0x40000000, 0x80000000
-PART_CELLS, PART_MONEY, PART_SPEED, PART_SOCIAL, PART_GRADE = 0, 1, 2, 3, 4
+PART_CELLS, PART_MONEY, PART_SPEED, PART_SOCIAL, PART_GRADE, PART_RESERVE = 0, 1, 2, 3, 4, 5
+RESERVE, ADD = -8, 0                    # keeper.h 의 Request.slot · values.h 의 Change
 BUILD_MULT = {"mul_table": 0x1CEE6C8, "day": 0x18294D0, "tax_total": 0xA6B8, "army_pay_level": 0xA6DC, "army_upkeep_level": 0xA6E0,
               "army_pay": 0x14CE0, "army_upkeep": 0x14CE4, "unit_cost": 0x14BDC, "research_step": 0x15E5C, "social_cost": 0x14C04,
-              "social_level": 0xA680, "social_grade": 0x15DB0}    # build 21347933
+              "social_level": 0xA680, "social_grade": 0x15DB0, "reserve": 0x14B64}    # build 21347933
 
 
 @pytest.fixture(scope="module")
@@ -34,6 +35,9 @@ def lib(cfg):
     lib.srtoybox_keeper_tick_at.argtypes = [ctypes.c_ulonglong]
     lib.srtoybox_keeper_mult.argtypes = [ctypes.c_char_p]
     lib.srtoybox_keeper_social.argtypes = [ctypes.c_char_p]
+    lib.srtoybox_keeper_request.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_double]
+    lib.srtoybox_keeper_text.argtypes = [ctypes.c_char_p, ctypes.c_int]
+    lib.srtoybox_keeper_reserve.argtypes = [ctypes.c_int, ctypes.c_double]
     lib.srtoybox_mult_off.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
     lib.srtoybox_mult_stats.argtypes = [ctypes.c_char_p, ctypes.c_int]
     lib.srtoybox_keeper_rush.argtypes = [ctypes.c_char_p, ctypes.c_int]
@@ -87,6 +91,7 @@ class Game:
             self.fake._write(index, CELLS["social_cost"] + 4 * i, "<f", 73e9 * (i + 1))
             self.fake._write(index, CELLS["social_level"] + 4 * i, "<f", 0.5)
             self.fake._write(index, CELLS["social_grade"] + 4 * i, "<f", 0.5 + i / 10)   # 품질 등급 0.5 … 1.2
+        self.fake._write(index, CELLS["reserve"], "<f", 67211.0 if index == GERMANY else 5000.0)   # 예비 인원
 
     def day(self, add: int = 1) -> None:
         self.fake.poke(DAY, "<I", (self.fake.peek(DAY, "<I") + add) & 0xFFFFFFFF)
@@ -102,6 +107,9 @@ class Game:
 
     def set_grade(self, index: int, item: int, value: float) -> None:
         self.fake._write(index, CELLS["social_grade"] + 4 * item, "<f", value)
+
+    def reserve(self, index: int) -> float:
+        return self.fake._read(index, CELLS["reserve"], "<f")
 
     def tick(self) -> None:
         self.now += 500
@@ -476,7 +484,7 @@ def test_the_addresses_are_found_in_the_installed_game(lib, game_dir):
     """설치된 게임에서: 찾을 것 열하나가 모두, 서명 서른셋이 모두 정확히 한 번(build 21347933 의 값과 같다)."""
     image = toybox.image_of((game_dir / toybox.EXE_NAME).read_bytes())
     found, why, rows = toybox.mult_of(lib, image)
-    assert why == [""] * len(toybox.MULT_FIELDS) and [row.count for row in rows] == [1] * 36
+    assert why == [""] * len(toybox.MULT_FIELDS) and [row.count for row in rows] == [1] * 39
     if found != BUILD_MULT:
         pytest.skip(f"다른 빌드의 게임입니다: {found}")
 
@@ -623,3 +631,61 @@ def test_the_settings_keep_the_social_lines(lib):
     bad = norm("social.on=2\nsocial.up.0=10001\nsocial.down.1=-1\nsocial.keep.2=2\nsocial.keep.3.value=1000\nsocial.up.8=200\n")
     assert bad["social.on"] == "0" and bad["social.up.0"] == "100" and bad["social.down.1"] == "100"
     assert bad["social.keep.2"] == "0" and bad["social.keep.3.value"] == "0" and "social.up.8" not in bad
+
+
+# ---- 예비 인원(docs/superpowers/specs/2026-10-22-toybox-reserve-design.md) ----
+
+def told(lib) -> tuple[str, str]:
+    last, notice = text(lib.srtoybox_keeper_text).split("\t")
+    return last, notice
+
+
+def test_the_reserve_button_adds_to_the_players_reserve_only(lib, game):
+    assert lib.srtoybox_keeper_request(RESERVE, ADD, 1e6) == 1
+    game.tick()
+    assert game.reserve(GERMANY) == f32(1067211.0) and game.reserve(POLAND) == 5000.0
+    assert told(lib) == ("예비 67.2 K -> 1.1 M", "")
+
+
+def test_the_reserve_stays_inside_its_limit(lib, game):
+    """쓴 결과는 1억을 넘지 않는다. 지금 값이 말이 안 되면 쓰지 않는다."""
+    assert lib.srtoybox_keeper_request(RESERVE, ADD, 1e8) == 1
+    game.tick()
+    assert game.reserve(GERMANY) == 1e8
+    game.fake._write(GERMANY, CELLS["reserve"], "<f", float("nan"))
+    assert lib.srtoybox_keeper_request(RESERVE, ADD, 1e6) == 1
+    game.tick()
+    assert game.reserve(GERMANY) != game.reserve(GERMANY) and told(lib)[1] != ""
+
+
+def test_the_reserve_floor_raises_it_every_tick(lib, game):
+    lib.srtoybox_keeper_reserve(1, 5e6)
+    game.tick()
+    assert game.reserve(GERMANY) == 5e6
+    game.fake._write(GERMANY, CELLS["reserve"], "<f", 1000.0)      # 게임이 생산 · 보충에 썼다
+    game.tick()
+    assert game.reserve(GERMANY) == 5e6
+    game.fake._write(GERMANY, CELLS["reserve"], "<f", 6e6)        # 위에 있으면 그대로
+    game.tick()
+    assert game.reserve(GERMANY) == 6e6 and game.reserve(POLAND) == 5000.0
+    lib.srtoybox_keeper_reserve(0, 5e6)
+    game.fake._write(GERMANY, CELLS["reserve"], "<f", 1000.0)
+    game.tick()
+    assert game.reserve(GERMANY) == 1000.0
+
+
+def test_nothing_is_written_to_the_reserve_without_its_cell(lib, game):
+    lib.srtoybox_test_mult(ctypes.byref(toybox.MultLayout(mul_table=MUL_TABLE, day=DAY, **{**CELLS, "reserve": 0})))
+    assert text(lib.srtoybox_mult_off, PART_RESERVE) != ""
+    assert lib.srtoybox_keeper_request(RESERVE, ADD, 1e6) == 0          # 못 찾았으면 요청을 받지 않는다
+    lib.srtoybox_keeper_reserve(1, 5e6)
+    game.tick()
+    assert game.reserve(GERMANY) == 67211.0
+
+
+def test_the_settings_keep_the_reserve_lines(lib):
+    norm = lambda ini: dict(line.split("=") for line in text(lib.srtoybox_settings_normalize, ini.encode("utf-8")).split("\n") if line)
+    got = norm("keep.reserve=1\nkeep.reserve.value=100000000\nreserve.add=5000000\n")
+    assert (got["keep.reserve"], got["keep.reserve.value"], got["reserve.add"]) == ("1", "100000000", "5000000")
+    bad = norm("keep.reserve=2\nkeep.reserve.value=100000001\nreserve.add=0\n")
+    assert (bad["keep.reserve"], bad["keep.reserve.value"], bad["reserve.add"]) == ("0", "0", "1000000")

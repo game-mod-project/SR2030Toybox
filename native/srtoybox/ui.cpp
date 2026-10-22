@@ -533,6 +533,100 @@ void mult_tab(const GameState &game)
     ImGui::EndTable();
 }
 
+// ---- 예비 인원(docs/superpowers/specs/2026-10-22-toybox-reserve-design.md) ----
+
+static_assert(RESERVE_LIMIT == RESERVE_KEEP_MAX && static_cast<float>(RESERVE_LIMIT) == RESERVE_MAX, "예비 인원의 끝이 세 곳에서 다르다");
+
+const char *const PEOPLE_TAB = "인구·여론";       // features.cpp 의 탭 이름과 같아야 한다
+bool g_reserve_sent_on = false;
+long long g_reserve_sent_value = -1;
+
+// 창의 예비 최소 유지를 keeper 에 넘긴다(save 면 설정 파일에도). 달라진 것이 없으면 아무것도 하지 않는다.
+void send_reserve(bool save)
+{
+    if (g_settings.keep_reserve == g_reserve_sent_on && g_settings.keep_reserve_value == g_reserve_sent_value)
+        return;
+    if (g_settings.keep_reserve != g_reserve_sent_on && (g_settings.keep_reserve || g_reserve_sent_value >= 0))
+        log_line("유지 %s: 예비 %lld (명)", g_settings.keep_reserve ? "켬" : "끔", g_settings.keep_reserve_value);
+    if (save)
+        save_settings(g_settings);
+    keeper_set_reserve_keep(g_settings.keep_reserve, g_settings.keep_reserve_value);
+    g_reserve_sent_on = g_settings.keep_reserve;
+    g_reserve_sent_value = g_settings.keep_reserve_value;
+}
+
+// 상태 줄의 뒤에 붙는 글: 예비 최소 유지가 켜져 있으면 " · 유지 중: 예비".
+std::string reserve_text()
+{
+    return g_reserve_sent_on ? std::string(" · 유지 중: 예비") : std::string();
+}
+
+void reserve_button(const char *label, const char *name, double amount)
+{
+    const bool pressed = ImGui::Button(label);
+    note(name, label);
+    if (pressed)
+        g_notice = keeper_enqueue({RESERVE, Change::Add, amount}) ? "" : "대기 중인 요청이 많아 받지 못했습니다.";
+}
+
+const char *const RESERVE_HELP = "지휘 패널의 \"예비 인원\" — 유닛 생산과 부대의 병력 보충이 여기서 사람을 가져간다. \"인구 +100만\"은 이 숫자를 늘리지 않는다. "
+                                 "더한 값은 큰 나라에서는 남지만, 인구에 비해 너무 크면 게임이 자정에 깎고 그 뒤로 하루 1 % 씩 줄인다(작은 나라에서 봤다). "
+                                 "최소 유지는 0.5초마다, 예비가 정한 값보다 적으면 그 값으로 다시 올린다(저장되는 설정)";
+
+// 인구·여론 탭의 아래: 예비 인원의 단추와 최소 유지.
+void reserve_rows(const GameState &game)
+{
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::TextUnformatted("예비 인원");
+    ImGui::SameLine();
+    float now = 0;
+    const std::string off = game.known ? game_mult_off(MULT_PART_RESERVE) : std::string("게임 상태를 읽을 수 있을 때만 씁니다.");
+    if (off.empty() && game.in_game && !game.multiplayer && game_reserve(&now) && std::isfinite(now))
+        ImGui::TextDisabled("지금 %s (?)", short_amount(now).c_str());
+    else
+        ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered())
+        wrapped_tooltip(RESERVE_HELP);
+    if (!off.empty()) {
+        const std::string line = "예비 인원을 쓸 수 없습니다: " + off;
+        ImGui::TextWrapped("%s", line.c_str());
+        note("reserve:off", line);
+        return;
+    }
+    const bool playing = game.known && game.in_game && !game.multiplayer;
+    ImGui::BeginDisabled(!playing);
+    reserve_button("+10만", "reserve:+100K", 1e5);
+    ImGui::SameLine();
+    reserve_button("+100만", "reserve:+1M", 1e6);
+    ImGui::SameLine();
+    reserve_button("+1000만", "reserve:+10M", 1e7);
+    ImGui::SameLine();
+    const long long step = 100000, fast = 1000000;
+    ImGui::SetNextItemWidth(170.0f);
+    if (ImGui::InputScalar("##reserveadd", ImGuiDataType_S64, &g_settings.reserve_amount, &step, &fast)) {
+        g_settings.reserve_amount = std::min(RESERVE_LIMIT, std::max(1LL, g_settings.reserve_amount));
+        save_settings(g_settings);
+    }
+    note("reserve:amount", std::to_string(g_settings.reserve_amount));
+    ImGui::SameLine();
+    reserve_button("더하기", "reserve:add", static_cast<double>(g_settings.reserve_amount));
+    ImGui::EndDisabled();
+    // 최소 유지는 설정이다 — 게임 밖에서도 고칠 수 있다
+    if (ImGui::Checkbox("최소 유지##reserve", &g_settings.keep_reserve))
+        send_reserve(true);
+    note("reserve:keep", g_settings.keep_reserve ? "1" : "0");
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(170.0f);
+    if (ImGui::InputScalar("##reservekeep", ImGuiDataType_S64, &g_settings.keep_reserve_value, &step, &fast)) {
+        g_settings.keep_reserve_value = std::min(RESERVE_LIMIT, std::max(0LL, g_settings.keep_reserve_value));
+        send_reserve(true);
+    }
+    note("reserve:keep:value", std::to_string(g_settings.keep_reserve_value));
+    ImGui::SameLine();
+    ImGui::TextDisabled("명");
+}
+
 // ---- 사회: 품질 등급의 배율과 최소 유지(docs/superpowers/specs/2026-10-21-toybox-social-grades-design.md) ----
 
 static_assert(SETTINGS_SOCIAL_RATE_MAX == SOCIAL_RATE_MAX && SETTINGS_SOCIAL_KEEP_MAX == SOCIAL_KEEP_MAX,
@@ -1425,7 +1519,7 @@ void status_line(const GameState &game)
         : game.multiplayer ? "멀티플레이에서는 동작하지 않습니다"
         : !game.in_game ? "게임을 진행 중이 아닙니다 — 단추가 꺼져 있습니다"
         : "플레이 중: " + region_label(game.player) + " (" + std::to_string(game.player) + ")";
-    const std::string text = state + keep_text(game) + mult_text() + social_text();   // 최소 유지 · 배율이 켜져 있으면 늘 보인다 — 켜 둔 것을 잊지 않게
+    const std::string text = state + keep_text(game) + reserve_text() + mult_text() + social_text();   // 최소 유지 · 배율이 켜져 있으면 늘 보인다 — 켜 둔 것을 잊지 않게
     if (!game.known)
         ImGui::TextDisabled("%s", text.c_str());
     else
@@ -1442,6 +1536,7 @@ void ui_init()
     send_keep(false);             // 저장해 둔 최소 유지를 keeper 에 넘긴다 — 창을 한 번도 열지 않아도 돈다
     send_mult(false);             // 배율도
     send_social(false);           // 사회도
+    send_reserve(false);          // 예비 인원의 최소 유지도
     g_units_list.list.show = Show::All;   // 설계도 목록은 전체부터 — 모두 등록해도 목록이 비지 않는다(등록 열로 가른다)
 }
 
@@ -1596,6 +1691,8 @@ void ui_draw()
                                     ImGui::SameLine();   // 연구 탭의 단추들은 한 줄에 — 아래는 목록의 자리다
                             }
                         }
+                        if (strcmp(tab, PEOPLE_TAB) == 0)
+                            reserve_rows(game);
                         ImGui::EndDisabled();
                         if (research)
                             item_list(g_research_list, false, game, blocked);
