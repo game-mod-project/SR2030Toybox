@@ -1426,9 +1426,9 @@ void game_init_from(const uint8_t *base, size_t size)
     if (state) {
         if (multiplying == (1 << MULT_WANTED) - 1) {
             log_line("배율을 씁니다 (곱 보정 표 +0x%X · 날의 칸 +0x%X · 연간 세수 +0x%X · 군 인건비 +0x%X × +0x%X · 군 유지비 +0x%X × +0x%X · "
-                     "부대 생산비 +0x%X · 연구의 하루치 +0x%X · 사회 지출 +0x%X × +0x%X · 품질 등급 +0x%X)",
+                     "부대 생산비 +0x%X · 연구의 하루치 +0x%X · 사회 지출 +0x%X × +0x%X · 품질 등급 +0x%X · 예비 인원 +0x%X)",
                      mult.mul_table, mult.day, mult.tax_total, mult.army_pay_level, mult.army_pay, mult.army_upkeep_level, mult.army_upkeep,
-                     mult.unit_cost, mult.research_step, mult.social_level, mult.social_cost, mult.social_grade);
+                     mult.unit_cost, mult.research_step, mult.social_level, mult.social_cost, mult.social_grade, mult.reserve);
         } else {
             int missing = 0, first = -1;           // 한 줄로: 처음 못 찾은 것과 그 밖의 수
             for (int w = 0; w < MULT_WANTED; w++)
@@ -2689,6 +2689,8 @@ std::string game_mult_off(int part)
         why = missing(1, 1) != nullptr ? missing(1, 1) : missing(9, 10);
     else if (part == MULT_PART_GRADE)
         why = missing(1, 1) != nullptr ? missing(1, 1) : missing(11, 11);
+    else if (part == MULT_PART_RESERVE)
+        why = missing(12, 12);
     else
         return "없는 묶음입니다";
     if (why != nullptr)
@@ -2839,6 +2841,57 @@ Wrote game_write_social_grade(int item, float value)
         return Wrote::BadValue;
     if (!poke(where, &value, sizeof(value)))
         return write_failed("품질 등급 칸", 1, 0);
+    return Wrote::Done;
+}
+
+namespace {
+
+// 예비 칸의 자리(플레이어 지역 객체 + 칸). 진행 중이 아니거나 못 찾았으면 0.
+uint64_t reserve_cell()
+{
+    if (!game_mult_off(MULT_PART_RESERVE).empty())
+        return 0;
+    const uint8_t *base = nullptr;
+    GameAddresses at = {};
+    MultLayout mult = {};
+    {
+        std::lock_guard<std::mutex> lock(g_lock);
+        base = g_base;
+        at = g_at;
+        mult = g_mult;
+    }
+    uint64_t player = 0;
+    const GameState s = read_player(base, at, &player);
+    if (!s.in_game || s.multiplayer || s.index <= 0 || s.index >= REGION_SLOTS || player == 0)
+        return 0;
+    return player + mult.reserve;
+}
+
+bool reserve_sane(float v)
+{
+    return std::isfinite(v) && v >= 0.0f && v <= RESERVE_MAX;
+}
+
+}  // namespace
+
+bool game_reserve(float *out)
+{
+    const uint64_t where = reserve_cell();
+    return where != 0 && peek(reinterpret_cast<const uint8_t *>(where), out, sizeof(*out));
+}
+
+Wrote game_write_reserve(float value)
+{
+    if (!game_mult_off(MULT_PART_RESERVE).empty() || !game_writes())
+        return Wrote::Off;
+    const uint64_t where = reserve_cell();
+    if (where == 0)
+        return Wrote::NotInGame;
+    float now = 0;
+    if (!reserve_sane(value) || !peek(reinterpret_cast<const uint8_t *>(where), &now, sizeof(now)) || !reserve_sane(now))
+        return Wrote::BadValue;
+    if (!poke(where, &value, sizeof(value)))
+        return write_failed("예비 인원 칸", 1, 0);
     return Wrote::Done;
 }
 

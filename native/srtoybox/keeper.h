@@ -17,6 +17,7 @@ const int TECH = -3;                           // Request.slot: 기술 수준에
 const int OPINION = -4;                        // Request.slot: 세계 시장 여론의 세 칸을 최고(1.0)로(〃)
 const int PEOPLE = -6;                         // Request.slot: 인구 칸과 그 풀에 amount(명)를 더한다(change 는 보지 않는다)
 const int APPROVAL = -7;                       // Request.slot: 국내 지지율을 100% 로(change · amount 는 보지 않는다)
+const int RESERVE = -8;                        // Request.slot: 예비 인원에 amount(명)를 더한다(끝 RESERVE_MAX. change 는 보지 않는다)
 const int RELATION = -5;                       // Request.slot: region 의 나라와의 관계를 amount 로, 전쟁 명분을 0 으로(change 는 보지 않는다)
 
 struct Request {
@@ -185,5 +186,9 @@ bool operator==(const Social &a, const Social &b);
 void keeper_set_social(const Social &social);     // 창이 설정을 읽었거나 고쳤다. 다음 틱에 바로 본다
 Social keeper_social();
 int social_count(const Social &social);           // 100 이 아닌 배율(on 과 상관없이)과 켜진 최소 유지의 수
+
+// 예비 인원의 최소 유지(docs/superpowers/specs/2026-10-22-toybox-reserve-design.md). KEEP_EVERY_MS 마다, 켜져 있으면 예비가 value 보다 적을 때 value 로 쓴다. 저장되는 설정이다.
+const long long RESERVE_KEEP_MAX = 100000000;    // 유지 값의 끝(명)
+void keeper_set_reserve_keep(bool on, long long value);
 
 void keeper_reset_for_test();
