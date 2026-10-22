@@ -569,8 +569,9 @@ void reserve_button(const char *label, const char *name, double amount)
         g_notice = keeper_enqueue({RESERVE, Change::Add, amount}) ? "" : "대기 중인 요청이 많아 받지 못했습니다.";
 }
 
-const char *const RESERVE_HELP = "지휘 패널의 \"예비 인원\" — 유닛 생산과 부대의 병력 보충이 여기서 사람을 가져간다. 더한 값은 날이 바뀌어도 남는다. "
-                                 "\"인구 +100만\"은 이 숫자를 늘리지 않는다. 최소 유지는 0.5초마다, 예비가 정한 값보다 적으면 그 값으로 올린다(저장되는 설정)";
+const char *const RESERVE_HELP = "지휘 패널의 \"예비 인원\" — 유닛 생산과 부대의 병력 보충이 여기서 사람을 가져간다. \"인구 +100만\"은 이 숫자를 늘리지 않는다. "
+                                 "더한 값은 큰 나라에서는 남지만, 인구에 비해 너무 크면 게임이 자정에 깎고 그 뒤로 하루 1 % 씩 줄인다(작은 나라에서 봤다). "
+                                 "최소 유지는 0.5초마다, 예비가 정한 값보다 적으면 그 값으로 다시 올린다(저장되는 설정)";
 
 // 인구·여론 탭의 아래: 예비 인원의 단추와 최소 유지.
 void reserve_rows(const GameState &game)
