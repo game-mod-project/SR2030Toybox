@@ -871,6 +871,12 @@ EXPORT int srtoybox_keeper_mult(const char *spec)
     return 0;
 }
 
+// 테스트: 예비 인원의 최소 유지를 켜고 끈다.
+EXPORT void srtoybox_keeper_reserve(int on, double value)
+{
+    keeper_set_reserve_keep(on != 0, static_cast<long long>(value));
+}
+
 // 테스트: 사회의 설정을 고친다. spec 은 빈칸으로 나눈 "키=값"들 — on · up.<i> · down.<i> · keep.<i> · keepv.<i>.
 // 적지 않은 것은 그대로다. 모르는 키가 있으면 -1(아무것도 바꾸지 않는다).
 EXPORT int srtoybox_keeper_social(const char *spec)

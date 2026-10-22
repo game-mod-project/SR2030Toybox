@@ -11,6 +11,7 @@ const int HOTKEY_CTRL = 1, HOTKEY_SHIFT = 2, HOTKEY_ALT = 4;
 const long long MONEY_AMOUNT_MIN = 1, MONEY_AMOUNT_MAX = 1000000, MONEY_AMOUNT_DEFAULT = 10000;   // 돈 탭의 입력란(백만 달러)
 const long long KEEP_TREASURY_MAX = 1000000;       // 유지할 국고(백만 달러): 0 ~ 1,000,000
 const long long KEEP_STOCK_MAX = 1000000000;       // 유지할 물자의 수량: 0 ~ 1,000,000,000
+const long long RESERVE_LIMIT = 100000000;         // 예비 인원의 유지 값 · 입력란의 끝(명). keeper.h 의 RESERVE_KEEP_MAX 와 같다
 const int SETTINGS_SOCIAL_RATE_MAX = 10000, SETTINGS_SOCIAL_KEEP_MAX = 999;   // keeper.h 의 SOCIAL_RATE_MAX · SOCIAL_KEEP_MAX 와 같다
 const int SETTINGS_MULT_FAST_MAX = 10000, SETTINGS_MULT_BUILD_MAX = 2000, SETTINGS_MULT_GOODS_MAX = 1000;   // 배율의 끝(퍼센트). keeper.h 의 MULT_*_MAX 와 같다
 const int SETTINGS_MULT_CELL_MIN = 1, SETTINGS_MULT_RESEARCH_MIN = 10;   // 〃 MULT_CELL_MIN · MULT_RESEARCH_MIN
@@ -34,6 +35,10 @@ struct Settings {
     int mult_raw[MULT_GOODS] = {100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100};
     // 사회(keeper.h 의 Social). "social.on"(0 / 1), 항목마다 "social.up.<i>" · "social.down.<i>"(퍼센트 0 … 10000),
     // "social.keep.<i>"(0 / 1) · "social.keep.<i>.value"(퍼센트 0 … 999)
+    // 예비 인원(docs/superpowers/specs/2026-10-22-toybox-reserve-design.md): "keep.reserve"(0 / 1) · "keep.reserve.value"(명, 0 … 1억), 단추의 입력란 "reserve.add"(명, 1 … 1억)
+    bool keep_reserve = false;
+    long long keep_reserve_value = 0;
+    long long reserve_amount = 1000000;
     bool social_on = false;
     int social_up[SOCIAL_COUNT] = {100, 100, 100, 100, 100, 100, 100, 100};
     int social_down[SOCIAL_COUNT] = {100, 100, 100, 100, 100, 100, 100, 100};

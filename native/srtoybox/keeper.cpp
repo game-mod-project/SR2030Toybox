@@ -76,6 +76,10 @@ int g_social_index;
 uint32_t g_social_day;
 float g_social_seen[SOCIAL_COUNT];  // 지난 틱의 등급(ToyBox 가 쓴 뒤의 값) — 자정의 변화는 이것과의 차다
 bool g_social_told;                 // 이 설정으로 날마다의 일을 한 것을 로그에 적었다
+bool g_reserve_keep;                // 예비 인원의 최소 유지
+long long g_reserve_floor;
+unsigned long long g_reserve_at;
+bool g_reserve_told;
 bool g_social_waiting;              // 날이 올랐다 — 게임이 그날의 등급을 셈한 것을 볼 때까지 기다린다
 unsigned long long g_social_wait_from;
 bool g_social_kept[SOCIAL_COUNT];   // 항목마다 최소 유지가 올린 것을 로그에 적었다(이번 실행의 첫 번째만)
@@ -96,7 +100,7 @@ std::string request_off(const Request &r)
 {
     return r.slot == TECH ? game_more_off(MORE_TECH) : r.slot == OPINION ? game_more_off(MORE_OPINION)
         : r.slot == RELATION ? game_more_off(MORE_RELATIONS) : r.slot == PEOPLE ? game_more_off(MORE_PEOPLE)
-        : r.slot == APPROVAL ? game_more_off(MORE_APPROVAL) : game_values_off();
+        : r.slot == APPROVAL ? game_more_off(MORE_APPROVAL) : r.slot == RESERVE ? game_mult_off(MULT_PART_RESERVE) : game_values_off();
 }
 
 // 수를 있는 그대로 적는다: 130, 130.5
@@ -138,6 +142,19 @@ bool apply_more(const Request &r)
         wrote = game_write_people(static_cast<float>(r.amount));
         if (wrote == Wrote::BadValue) {
             g_notice = "인구의 칸이 수가 아니어서 쓰지 않았습니다.";
+            return true;
+        }
+    } else if (r.slot == RESERVE) {
+        float now = 0;
+        if (!game_reserve(&now) || !std::isfinite(now) || now < 0.0f || now > RESERVE_MAX) {
+            g_notice = "예비 인원을 읽을 수 없어 쓰지 않았습니다.";
+            return true;
+        }
+        const float to = static_cast<float>(std::min(static_cast<double>(RESERVE_MAX), static_cast<double>(now) + r.amount));
+        what = "예비 " + short_amount(now) + " -> " + short_amount(to);
+        wrote = game_write_reserve(to);
+        if (wrote == Wrote::BadValue) {
+            g_notice = "예비 인원의 칸이 수가 아니어서 쓰지 않았습니다.";
             return true;
         }
     } else if (r.slot == APPROVAL) {
@@ -865,6 +882,22 @@ bool grade_sane(float v)
     return std::isfinite(v) && v >= 0.0f && v < SOCIAL_GRADE_SANE;
 }
 
+// 예비 인원의 최소 유지. g_lock 을 쥔 채로 부른다.
+void reserve_tick(unsigned long long now_ms)
+{
+    if (!g_reserve_keep || runner_calling() || runner_faulted() || now_ms - g_reserve_at < KEEP_EVERY_MS || !game_writes())
+        return;
+    g_reserve_at = now_ms;
+    float now = 0;
+    const float floor = static_cast<float>(g_reserve_floor);
+    if (!game_reserve(&now) || !std::isfinite(now) || now < 0.0f || now >= floor)
+        return;
+    if (game_write_reserve(floor) == Wrote::Done && !g_reserve_told) {
+        g_reserve_told = true;
+        log_line("유지: 예비 %s -> %s", short_amount(now).c_str(), short_amount(floor).c_str());
+    }
+}
+
 // 사회의 틱. g_lock 을 쥔 채로 부른다. 게임의 함수는 부르지 않는다.
 void social_tick(unsigned long long now_ms)
 {
@@ -1027,6 +1060,14 @@ int social_count(const Social &s)
     return count;
 }
 
+void keeper_set_reserve_keep(bool on, long long value)
+{
+    std::lock_guard<std::mutex> lock(g_lock);
+    g_reserve_keep = on;
+    g_reserve_floor = std::min(RESERVE_KEEP_MAX, std::max(0LL, value));
+    g_reserve_at = 0;
+}
+
 void keeper_set_mult(const Mult &mult)
 {
     std::lock_guard<std::mutex> lock(g_lock);
@@ -1104,6 +1145,7 @@ void keeper_tick(unsigned long long now_ms)
         write = tick_locked(now_ms, &job);
         mult_tick(now_ms);                     // 단추의 요청과 최소 유지 뒤에 — 방금 쓴 국고에 그날의 세금 · 국방비를 얹는다
         social_tick(now_ms);
+        reserve_tick(now_ms);
     }
     if (write && job.act) {
         run_act(job.what);
@@ -1195,6 +1237,9 @@ void keeper_reset_for_test()
     g_mult_stats = MultStats();
     forget_cells();
     g_social = Social();
+    g_reserve_keep = g_reserve_told = false;
+    g_reserve_floor = 0;
+    g_reserve_at = 0;
     g_social_due = g_social_have = g_social_told = g_social_waiting = false;
     g_social_at = 0;
     memset(g_social_kept, 0, sizeof(g_social_kept));
